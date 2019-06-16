@@ -47,6 +47,29 @@ func (s *ProblemStore) ChangeTableName() string {
 	return s.changeTable
 }
 
+func (s *ProblemStore) Create(m *Problem) error {
+	change, err := s.Manager.Change(CreateChange, *m)
+	if err != nil {
+		return err
+	}
+	*m = change.ChangeData().(Problem)
+	return nil
+}
+
+func (s *ProblemStore) Update(m *Problem) error {
+	change, err := s.Manager.Change(UpdateChange, *m)
+	if err != nil {
+		return err
+	}
+	*m = change.ChangeData().(Problem)
+	return nil
+}
+
+func (s *ProblemStore) Delete(id int64) error {
+	_, err := s.Manager.Change(UpdateChange, id)
+	return err
+}
+
 func (s *ProblemStore) scanChange(scan RowScan) (Change, error) {
 	change := &ProblemChange{}
 	err := scan.Scan(

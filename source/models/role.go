@@ -46,6 +46,29 @@ func (s *RoleStore) ChangeTableName() string {
 	return s.changeTable
 }
 
+func (s *RoleStore) Create(m *Role) error {
+	change, err := s.Manager.Change(CreateChange, *m)
+	if err != nil {
+		return err
+	}
+	*m = change.ChangeData().(Role)
+	return nil
+}
+
+func (s *RoleStore) Update(m *Role) error {
+	change, err := s.Manager.Change(UpdateChange, *m)
+	if err != nil {
+		return err
+	}
+	*m = change.ChangeData().(Role)
+	return nil
+}
+
+func (s *RoleStore) Delete(id int64) error {
+	_, err := s.Manager.Change(UpdateChange, id)
+	return err
+}
+
 func (s *RoleStore) scanChange(scan RowScan) (Change, error) {
 	change := &RoleChange{}
 	err := scan.Scan(

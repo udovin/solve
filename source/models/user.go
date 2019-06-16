@@ -53,6 +53,29 @@ func (s *UserStore) ChangeTableName() string {
 	return s.changeTable
 }
 
+func (s *UserStore) Create(m *User) error {
+	change, err := s.Manager.Change(CreateChange, *m)
+	if err != nil {
+		return err
+	}
+	*m = change.ChangeData().(User)
+	return nil
+}
+
+func (s *UserStore) Update(m *User) error {
+	change, err := s.Manager.Change(UpdateChange, *m)
+	if err != nil {
+		return err
+	}
+	*m = change.ChangeData().(User)
+	return nil
+}
+
+func (s *UserStore) Delete(id int64) error {
+	_, err := s.Manager.Change(UpdateChange, id)
+	return err
+}
+
 func (s *UserStore) scanChange(scan RowScan) (Change, error) {
 	change := &UserChange{}
 	err := scan.Scan(

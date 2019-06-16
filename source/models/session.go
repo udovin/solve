@@ -53,6 +53,29 @@ func (s *SessionStore) ChangeTableName() string {
 	return s.changeTable
 }
 
+func (s *SessionStore) Create(m *Session) error {
+	change, err := s.Manager.Change(CreateChange, *m)
+	if err != nil {
+		return err
+	}
+	*m = change.ChangeData().(Session)
+	return nil
+}
+
+func (s *SessionStore) Update(m *Session) error {
+	change, err := s.Manager.Change(UpdateChange, *m)
+	if err != nil {
+		return err
+	}
+	*m = change.ChangeData().(Session)
+	return nil
+}
+
+func (s *SessionStore) Delete(id int64) error {
+	_, err := s.Manager.Change(UpdateChange, id)
+	return err
+}
+
 func (s *SessionStore) scanChange(scan RowScan) (Change, error) {
 	change := &SessionChange{}
 	err := scan.Scan(

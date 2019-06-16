@@ -46,6 +46,29 @@ func (s *PermissionStore) ChangeTableName() string {
 	return s.changeTable
 }
 
+func (s *PermissionStore) Create(m *Permission) error {
+	change, err := s.Manager.Change(CreateChange, *m)
+	if err != nil {
+		return err
+	}
+	*m = change.ChangeData().(Permission)
+	return nil
+}
+
+func (s *PermissionStore) Update(m *Permission) error {
+	change, err := s.Manager.Change(UpdateChange, *m)
+	if err != nil {
+		return err
+	}
+	*m = change.ChangeData().(Permission)
+	return nil
+}
+
+func (s *PermissionStore) Delete(id int64) error {
+	_, err := s.Manager.Change(UpdateChange, id)
+	return err
+}
+
 func (s *PermissionStore) scanChange(scan RowScan) (Change, error) {
 	change := &PermissionChange{}
 	err := scan.Scan(

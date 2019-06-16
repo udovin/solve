@@ -1,11 +1,9 @@
 package models
 
 import (
-	"../tools"
+	"database/sql"
+	"fmt"
 )
-
-type UserStore struct {
-}
 
 type User struct {
 	ID           int64  `db:"id"          json:""`
@@ -15,14 +13,74 @@ type User struct {
 	PasswordSalt string `db:"password_salt"`
 }
 
-func (s *UserStore) Create(user *User) error {
-	return tools.NotImplementedError
+type UserChange struct {
+	User
+	ID   int64      `db:"change_id"   json:""`
+	Type ChangeType `db:"change_type" json:""`
 }
 
-func (s *UserStore) Update(user *User) error {
-	return tools.NotImplementedError
+type UserStore struct {
+	db          *sql.DB
+	table       string
+	changeTable string
+	users       map[int64]User
 }
 
-func (s *UserStore) Delete(id int64) error {
-	return tools.NotImplementedError
+func (c *UserChange) ChangeID() int64 {
+	return c.ID
+}
+
+func (c *UserChange) ChangeType() ChangeType {
+	return c.Type
+}
+
+func (c *UserChange) ChangeData() interface{} {
+	return c.User
+}
+
+func NewUserStore(
+	db *sql.DB, table, changeTable string,
+) *UserStore {
+	return &UserStore{
+		db:          db,
+		table:       table,
+		changeTable: changeTable,
+	}
+}
+
+func (s *UserStore) GetDB() *sql.DB {
+	return s.db
+}
+
+func (s *UserStore) TableName() string {
+	return s.table
+}
+
+func (s *UserStore) ChangeTableName() string {
+	return s.changeTable
+}
+
+func (s *UserStore) scanChange(scan RowScan) (Change, error) {
+	change := &UserChange{}
+	if err := scan.Scan(change); err != nil {
+		return nil, err
+	}
+	return change, nil
+}
+
+func (s *UserStore) applyChange(change Change) error {
+	user := change.ChangeData().(User)
+	switch change.ChangeType() {
+	case CreateChange:
+		s.users[user.ID] = user
+	case UpdateChange:
+		s.users[user.ID] = user
+	case DeleteChange:
+		delete(s.users, user.ID)
+	default:
+		return fmt.Errorf(
+			"unsupported change type = %d", change.ChangeType(),
+		)
+	}
+	return nil
 }

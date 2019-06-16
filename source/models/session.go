@@ -8,8 +8,9 @@ import (
 type Session struct {
 	ID         int64  `db:"id"          json:""`
 	UserID     int64  `db:"user_id"     json:""`
-	Secret     string `db:"secret"      json:""`
+	Secret     string `db:"secret"      json:"-"`
 	CreateTime int64  `db:"create_time" json:""`
+	ExpireTime int64  `db:"expire_time" json:""`
 }
 
 type SessionChange struct {
@@ -70,8 +71,9 @@ func (s *SessionStore) scanChange(scan RowScan) (Change, error) {
 	change := &SessionChange{}
 	err := scan.Scan(
 		&change.ID, &change.Type, &change.Time,
-		&change.Session.ID, &change.Session.UserID,
-		&change.Session.Secret, &change.Session.CreateTime,
+		&change.Session.ID, &change.UserID,
+		&change.Secret, &change.CreateTime,
+		&change.ExpireTime,
 	)
 	if err != nil {
 		return nil, err
@@ -90,11 +92,12 @@ func (s *SessionStore) createChangeTx(
 		res, err := tx.Exec(
 			fmt.Sprintf(
 				`INSERT INTO "%s" `+
-					`("user_id", "secret", "create_time") `+
-					`VALUES ($1, $2)`,
+					`("user_id", "secret", "create_time", "expire_time") `+
+					`VALUES ($1, $2, $3, $4)`,
 				s.table,
 			),
-			session.UserID, session.Secret, session.CreateTime,
+			session.UserID, session.Secret,
+			session.CreateTime, session.ExpireTime,
 		)
 		if err != nil {
 			return nil, err
@@ -114,11 +117,11 @@ func (s *SessionStore) createChangeTx(
 		_, err := tx.Exec(
 			fmt.Sprintf(
 				`UPDATE "%s" SET `+
-					`'"user_id" = $2, "secret" = $3 `+
+					`'"user_id" = $2, "secret" = $3, "expire_time" = $4`+
 					`WHERE "id" = $1"`,
 				s.table,
 			),
-			session.ID, session.UserID, session.Secret,
+			session.ID, session.UserID, session.Secret, session.ExpireTime,
 		)
 		if err != nil {
 			return nil, err
@@ -149,13 +152,13 @@ func (s *SessionStore) createChangeTx(
 	res, err := tx.Exec(
 		fmt.Sprintf(
 			`INSERT INTO "%s" `+
-				`("change_type", "change_time", `+
-				`"id", "user_id", "secret", "create_time") `+
-				`VALUES ($1, $2, $3, $4, $5, $6)`,
+				`("change_type", "change_time", "id", "user_id", `+
+				`"secret", "create_time", "expire_time") `+
+				`VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			s.ChangeTableName(),
 		),
 		changeType, changeTime, session.ID, session.UserID,
-		session.Secret, session.CreateTime,
+		session.Secret, session.CreateTime, session.ExpireTime,
 	)
 	if err != nil {
 		return nil, err

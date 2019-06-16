@@ -64,7 +64,7 @@ func (s *PermissionStore) scanChange(scan RowScan) (Change, error) {
 	change := &PermissionChange{}
 	err := scan.Scan(
 		&change.ID, &change.Type, &change.Time,
-		&change.Permission.ID, &change.Permission.Code,
+		&change.Permission.ID, &change.Code,
 	)
 	if err != nil {
 		return nil, err

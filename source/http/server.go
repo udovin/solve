@@ -2,37 +2,48 @@ package http
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 
 	"../app"
 	"../config"
 )
 
 type Server struct {
-	server http.Server
 	app    *app.App
+	logger *log.Logger
+	server http.Server
+	router http.ServeMux
 }
 
 func NewServer(cfg *config.Config) (*Server, error) {
-	a, err := app.NewApp(cfg)
+	solve, err := app.NewApp(cfg)
 	if err != nil {
 		return nil, err
 	}
-	server := Server{
-		server: setupHttpServer(&cfg.Server),
-		app:    a,
+	server := http.Server{
+		Addr: fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
 	}
-	return &server, nil
-}
-
-func setupHttpServer(cfg *config.ServerConfig) http.Server {
-	server := http.Server{}
-	server.Addr = fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-	return server
+	s := Server{
+		app:    solve,
+		logger: log.New(os.Stdout, "[http] ", log.LstdFlags),
+		server: server,
+	}
+	s.server.SetKeepAlivesEnabled(true)
+	s.server.Handler = http.HandlerFunc(s.handler)
+	return &s, nil
 }
 
 func (s *Server) Listen() error {
 	s.app.Start()
 	defer s.app.Stop()
 	return s.server.ListenAndServe()
+}
+
+func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		s.logger.Println(r.Method, r.URL.Path, r.RemoteAddr, r.UserAgent())
+	}()
+	s.router.ServeHTTP(w, r)
 }

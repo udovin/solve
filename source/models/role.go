@@ -64,7 +64,7 @@ func (s *RoleStore) scanChange(scan RowScan) (Change, error) {
 	change := &RoleChange{}
 	err := scan.Scan(
 		&change.ID, &change.Type, &change.Time,
-		&change.Role.ID, &change.Role.Code,
+		&change.Role.ID, &change.Code,
 	)
 	if err != nil {
 		return nil, err

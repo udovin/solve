@@ -65,8 +65,8 @@ func (s *ProblemStore) scanChange(scan RowScan) (Change, error) {
 	change := &ProblemChange{}
 	err := scan.Scan(
 		&change.ID, &change.Type, &change.Time,
-		&change.Problem.ID, &change.Problem.OwnerID,
-		&change.Problem.CreateTime,
+		&change.Problem.ID, &change.OwnerID,
+		&change.CreateTime,
 	)
 	if err != nil {
 		return nil, err

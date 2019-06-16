@@ -71,9 +71,9 @@ func (s *UserStore) scanChange(scan RowScan) (Change, error) {
 	change := &UserChange{}
 	err := scan.Scan(
 		&change.ID, &change.Type, &change.Time,
-		&change.User.ID, &change.User.Login,
-		&change.User.PasswordHash, &change.User.PasswordSalt,
-		&change.User.CreateTime,
+		&change.User.ID, &change.Login,
+		&change.PasswordHash, &change.PasswordSalt,
+		&change.CreateTime,
 	)
 	if err != nil {
 		return nil, err

@@ -62,7 +62,11 @@ func (s *PermissionStore) ChangeTableName() string {
 
 func (s *PermissionStore) scanChange(scan RowScan) (Change, error) {
 	change := &PermissionChange{}
-	if err := scan.Scan(change); err != nil {
+	err := scan.Scan(
+		&change.ID, &change.Type, &change.Time,
+		&change.Permission.ID, &change.Permission.Code,
+	)
+	if err != nil {
 		return nil, err
 	}
 	return change, nil

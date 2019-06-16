@@ -68,7 +68,12 @@ func (s *SessionStore) ChangeTableName() string {
 
 func (s *SessionStore) scanChange(scan RowScan) (Change, error) {
 	change := &SessionChange{}
-	if err := scan.Scan(change); err != nil {
+	err := scan.Scan(
+		&change.ID, &change.Type, &change.Time,
+		&change.Session.ID, &change.Session.UserID,
+		&change.Session.Secret, &change.Session.CreateTime,
+	)
+	if err != nil {
 		return nil, err
 	}
 	return change, nil

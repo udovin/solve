@@ -62,7 +62,11 @@ func (s *RoleStore) ChangeTableName() string {
 
 func (s *RoleStore) scanChange(scan RowScan) (Change, error) {
 	change := &RoleChange{}
-	if err := scan.Scan(change); err != nil {
+	err := scan.Scan(
+		&change.ID, &change.Type, &change.Time,
+		&change.Role.ID, &change.Role.Code,
+	)
+	if err != nil {
 		return nil, err
 	}
 	return change, nil

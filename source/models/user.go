@@ -69,7 +69,13 @@ func (s *UserStore) ChangeTableName() string {
 
 func (s *UserStore) scanChange(scan RowScan) (Change, error) {
 	change := &UserChange{}
-	if err := scan.Scan(change); err != nil {
+	err := scan.Scan(
+		&change.ID, &change.Type, &change.Time,
+		&change.User.ID, &change.User.Login,
+		&change.User.PasswordHash, &change.User.PasswordSalt,
+		&change.User.CreateTime,
+	)
+	if err != nil {
 		return nil, err
 	}
 	return change, nil

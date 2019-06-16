@@ -1,4 +1,4 @@
-package http
+package core
 
 import (
 	"fmt"
@@ -6,27 +6,20 @@ import (
 	"net/http"
 	"os"
 
-	"../app"
 	"../config"
 )
 
 type Server struct {
-	app    *app.App
 	logger *log.Logger
 	server http.Server
 	router http.ServeMux
 }
 
-func NewServer(cfg *config.Config) (*Server, error) {
-	solve, err := app.NewApp(cfg)
-	if err != nil {
-		return nil, err
-	}
+func NewServer(cfg *config.ServerConfig) (*Server, error) {
 	server := http.Server{
-		Addr: fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
+		Addr: fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 	}
 	s := Server{
-		app:    solve,
 		logger: log.New(os.Stdout, "[http] ", log.LstdFlags),
 		server: server,
 	}
@@ -37,9 +30,11 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	return &s, nil
 }
 
+func (s *Server) Handle(pattern string, handler http.HandlerFunc) {
+	s.router.Handle(pattern, handler)
+}
+
 func (s *Server) Listen() error {
-	s.app.Start()
-	defer s.app.Stop()
 	return s.server.ListenAndServe()
 }
 

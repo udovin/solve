@@ -44,6 +44,8 @@ type Change interface {
 	ChangeData() interface{}
 }
 
+// Store that supports change table
+// Commonly used as in-memory cache for database table
 type ChangeStore interface {
 	GetDB() *sql.DB
 	ChangeTableName() string
@@ -55,6 +57,7 @@ type ChangeStore interface {
 	applyChange(change Change)
 }
 
+// Supports store consistency using change table
 type ChangeManager struct {
 	store        ChangeStore
 	lastChangeID int64
@@ -128,6 +131,7 @@ func (m *ChangeManager) SyncTx(tx *sql.Tx) error {
 	return nil
 }
 
+// Write change to database and apply it to store
 func (m *ChangeManager) Change(
 	changeType ChangeType, data interface{},
 ) (Change, error) {
@@ -146,6 +150,7 @@ func (m *ChangeManager) Change(
 	return change, nil
 }
 
+// Write change to database and apply it to store in transaction
 func (m *ChangeManager) ChangeTx(
 	tx *sql.Tx, changeType ChangeType, data interface{},
 ) (Change, error) {
@@ -165,6 +170,7 @@ func (m *ChangeManager) ChangeTx(
 	return change, nil
 }
 
+// Apply change to store and increase change id
 func (m *ChangeManager) applyChange(change Change) {
 	m.store.applyChange(change)
 	m.lastChangeID = change.ChangeID()

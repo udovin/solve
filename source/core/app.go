@@ -1,4 +1,4 @@
-package app
+package core
 
 import (
 	"log"
@@ -10,6 +10,8 @@ import (
 )
 
 type App struct {
+	Config config.Config
+	// Stores
 	UserStore       *models.UserStore
 	SessionStore    *models.SessionStore
 	ProblemStore    *models.ProblemStore
@@ -25,6 +27,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, err
 	}
 	app := App{
+		Config: *cfg,
 		UserStore: models.NewUserStore(
 			db, "solve_user", "solve_user_change",
 		),

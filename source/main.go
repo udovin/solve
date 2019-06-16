@@ -5,8 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"./api"
 	"./config"
-	"./http"
+	"./core"
 )
 
 const EtcDir = "/etc/solve"
@@ -39,10 +40,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	server, err := http.NewServer(&cfg)
+	app, err := core.NewApp(&cfg)
 	if err != nil {
 		panic(err)
 	}
+	app.Start()
+	defer app.Stop()
+	server, err := core.NewServer(&cfg.Server)
+	if err != nil {
+		panic(err)
+	}
+	api.Register(app, server)
 	if err := server.Listen(); err != nil {
 		panic(err)
 	}

@@ -32,6 +32,8 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	}
 	s.server.SetKeepAlivesEnabled(true)
 	s.server.Handler = http.HandlerFunc(s.handler)
+	static := http.FileServer(http.Dir("static"))
+	s.router.Handle("/static/", http.StripPrefix("/static/", static))
 	return &s, nil
 }
 

@@ -15,9 +15,7 @@ type Session struct {
 
 type SessionChange struct {
 	Session
-	ID   int64      `db:"change_id"   json:""`
-	Type ChangeType `db:"change_type" json:""`
-	Time int64      `db:"change_time" json:""`
+	ChangeBase
 }
 
 type SessionStore struct {
@@ -26,18 +24,6 @@ type SessionStore struct {
 	table       string
 	changeTable string
 	sessions    map[int64]Session
-}
-
-func (c *SessionChange) ChangeID() int64 {
-	return c.ID
-}
-
-func (c *SessionChange) ChangeType() ChangeType {
-	return c.Type
-}
-
-func (c *SessionChange) ChangeTime() int64 {
-	return c.Time
 }
 
 func (c *SessionChange) ChangeData() interface{} {
@@ -70,7 +56,7 @@ func (s *SessionStore) ChangeTableName() string {
 func (s *SessionStore) scanChange(scan RowScan) (Change, error) {
 	change := &SessionChange{}
 	err := scan.Scan(
-		&change.ID, &change.Type, &change.Time,
+		&change.ChangeBase.ID, &change.Type, &change.Time,
 		&change.Session.ID, &change.UserID,
 		&change.Secret, &change.CreateTime,
 		&change.ExpireTime,
@@ -168,8 +154,10 @@ func (s *SessionStore) createChangeTx(
 		return nil, err
 	}
 	return &SessionChange{
-		ID: changeID, Type: changeType,
-		Time: changeTime, Session: session,
+		ChangeBase: ChangeBase{
+			ID: changeID, Type: changeType, Time: changeTime,
+		},
+		Session: session,
 	}, nil
 }
 

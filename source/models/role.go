@@ -12,9 +12,7 @@ type Role struct {
 
 type RoleChange struct {
 	Role
-	ID   int64      `db:"change_id"   json:""`
-	Type ChangeType `db:"change_type" json:""`
-	Time int64      `db:"change_time" json:""`
+	ChangeBase
 }
 
 type RoleStore struct {
@@ -23,18 +21,6 @@ type RoleStore struct {
 	table       string
 	changeTable string
 	roles       map[int64]Role
-}
-
-func (c *RoleChange) ChangeID() int64 {
-	return c.ID
-}
-
-func (c *RoleChange) ChangeType() ChangeType {
-	return c.Type
-}
-
-func (c *RoleChange) ChangeTime() int64 {
-	return c.Time
 }
 
 func (c *RoleChange) ChangeData() interface{} {
@@ -63,7 +49,7 @@ func (s *RoleStore) ChangeTableName() string {
 func (s *RoleStore) scanChange(scan RowScan) (Change, error) {
 	change := &RoleChange{}
 	err := scan.Scan(
-		&change.ID, &change.Type, &change.Time,
+		&change.ChangeBase.ID, &change.Type, &change.Time,
 		&change.Role.ID, &change.Code,
 	)
 	if err != nil {
@@ -151,8 +137,10 @@ func (s *RoleStore) createChangeTx(
 		return nil, err
 	}
 	return &RoleChange{
-		ID: changeID, Type: changeType,
-		Time: changeTime, Role: role,
+		ChangeBase: ChangeBase{
+			ID: changeID, Type: changeType, Time: changeTime,
+		},
+		Role: role,
 	}, nil
 }
 

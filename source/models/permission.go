@@ -12,9 +12,7 @@ type Permission struct {
 
 type PermissionChange struct {
 	Permission
-	ID   int64      `db:"change_id"   json:""`
-	Type ChangeType `db:"change_type" json:""`
-	Time int64      `db:"change_time" json:""`
+	ChangeBase
 }
 
 type PermissionStore struct {
@@ -23,18 +21,6 @@ type PermissionStore struct {
 	table       string
 	changeTable string
 	permissions map[int64]Permission
-}
-
-func (c *PermissionChange) ChangeID() int64 {
-	return c.ID
-}
-
-func (c *PermissionChange) ChangeType() ChangeType {
-	return c.Type
-}
-
-func (c *PermissionChange) ChangeTime() int64 {
-	return c.Time
 }
 
 func (c *PermissionChange) ChangeData() interface{} {
@@ -63,7 +49,7 @@ func (s *PermissionStore) ChangeTableName() string {
 func (s *PermissionStore) scanChange(scan RowScan) (Change, error) {
 	change := &PermissionChange{}
 	err := scan.Scan(
-		&change.ID, &change.Type, &change.Time,
+		&change.ChangeBase.ID, &change.Type, &change.Time,
 		&change.Permission.ID, &change.Code,
 	)
 	if err != nil {
@@ -151,8 +137,10 @@ func (s *PermissionStore) createChangeTx(
 		return nil, err
 	}
 	return &PermissionChange{
-		ID: changeID, Type: changeType,
-		Time: changeTime, Permission: permission,
+		ChangeBase: ChangeBase{
+			ID: changeID, Type: changeType, Time: changeTime,
+		},
+		Permission: permission,
 	}, nil
 }
 

@@ -19,6 +19,24 @@ type RowScan interface {
 	Scan(dest ...interface{}) error
 }
 
+type ChangeBase struct {
+	ID   int64      `db:"change_id"   json:""`
+	Type ChangeType `db:"change_type" json:""`
+	Time int64      `db:"change_time" json:""`
+}
+
+func (c *ChangeBase) ChangeID() int64 {
+	return c.ID
+}
+
+func (c *ChangeBase) ChangeType() ChangeType {
+	return c.Type
+}
+
+func (c *ChangeBase) ChangeTime() int64 {
+	return c.Time
+}
+
 type Change interface {
 	ChangeID() int64
 	ChangeType() ChangeType

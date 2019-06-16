@@ -13,9 +13,7 @@ type Problem struct {
 
 type ProblemChange struct {
 	Problem
-	ID   int64      `db:"change_id"   json:""`
-	Type ChangeType `db:"change_type" json:""`
-	Time int64      `db:"change_time" json:""`
+	ChangeBase
 }
 
 type ProblemStore struct {
@@ -24,18 +22,6 @@ type ProblemStore struct {
 	table       string
 	changeTable string
 	problems    map[int64]Problem
-}
-
-func (c *ProblemChange) ChangeID() int64 {
-	return c.ID
-}
-
-func (c *ProblemChange) ChangeType() ChangeType {
-	return c.Type
-}
-
-func (c *ProblemChange) ChangeTime() int64 {
-	return c.Time
 }
 
 func (c *ProblemChange) ChangeData() interface{} {
@@ -64,7 +50,7 @@ func (s *ProblemStore) ChangeTableName() string {
 func (s *ProblemStore) scanChange(scan RowScan) (Change, error) {
 	change := &ProblemChange{}
 	err := scan.Scan(
-		&change.ID, &change.Type, &change.Time,
+		&change.ChangeBase.ID, &change.Type, &change.Time,
 		&change.Problem.ID, &change.OwnerID,
 		&change.CreateTime,
 	)
@@ -158,7 +144,10 @@ func (s *ProblemStore) createChangeTx(
 		return nil, err
 	}
 	return &ProblemChange{
-		ID: changeID, Type: changeType, Time: changeTime, Problem: problem,
+		ChangeBase: ChangeBase{
+			ID: changeID, Type: changeType, Time: changeTime,
+		},
+		Problem: problem,
 	}, nil
 }
 

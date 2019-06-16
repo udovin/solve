@@ -1,0 +1,9 @@
+[submodule "html5shiv"]
+	path = static/library/html5shiv
+	url = https://github.com/aFarkas/html5shiv.git
+[submodule "jquery"]
+	path = static/library/jquery
+	url = https://github.com/jquery/jquery.git
+[submodule "katex"]
+	path = static/library/katex
+	url = https://github.com/KaTeX/KaTeX.git

@@ -1,6 +1,6 @@
 /**
  * @author Ivan Udovin
- * @license MIT
+ * @license Apache-2.0
  */
 
 "use strict";

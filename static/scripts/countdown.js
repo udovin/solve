@@ -2,7 +2,7 @@
  * jQuery Countdown
  *
  * @author Ivan Udovin
- * @license MIT
+ * @license Apache-2.0
  *
  * @version 0.1.0
  */

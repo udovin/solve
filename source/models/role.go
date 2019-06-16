@@ -12,11 +12,13 @@ type Role struct {
 
 type RoleChange struct {
 	Role
-	ID   int64      `db:"change_id" json:""`
+	ID   int64      `db:"change_id"   json:""`
 	Type ChangeType `db:"change_type" json:""`
+	Time int64      `db:"change_time" json:""`
 }
 
 type RoleStore struct {
+	Manager     *ChangeManager
 	db          *sql.DB
 	table       string
 	changeTable string
@@ -31,26 +33,27 @@ func (c *RoleChange) ChangeType() ChangeType {
 	return c.Type
 }
 
+func (c *RoleChange) ChangeTime() int64 {
+	return c.Time
+}
+
 func (c *RoleChange) ChangeData() interface{} {
 	return c.Role
 }
 
-func (s *RoleStore) NewRoleStore(
+func NewRoleStore(
 	db *sql.DB, table, changeTable string,
 ) *RoleStore {
-	return &RoleStore{
-		db:          db,
-		table:       table,
-		changeTable: changeTable,
+	store := RoleStore{
+		db: db, table: table, changeTable: changeTable,
+		roles: make(map[int64]Role),
 	}
+	store.Manager = NewChangeManager(&store)
+	return &store
 }
 
 func (s *RoleStore) GetDB() *sql.DB {
 	return s.db
-}
-
-func (s *RoleStore) TableName() string {
-	return s.table
 }
 
 func (s *RoleStore) ChangeTableName() string {
@@ -65,7 +68,91 @@ func (s *RoleStore) scanChange(scan RowScan) (Change, error) {
 	return change, nil
 }
 
-func (s *RoleStore) applyChange(change Change) error {
+func (s *RoleStore) createChangeTx(
+	tx *sql.Tx, changeType ChangeType, changeTime int64, data interface{},
+) (Change, error) {
+	var role Role
+	switch changeType {
+	case CreateChange:
+		role = data.(Role)
+		res, err := tx.Exec(
+			fmt.Sprintf(
+				`INSERT INTO "%s" ("code") VALUES ($1)`,
+				s.table,
+			),
+			role.Code,
+		)
+		if err != nil {
+			return nil, err
+		}
+		roleID, err := res.LastInsertId()
+		if err != nil {
+			return nil, err
+		}
+		role.ID = roleID
+	case UpdateChange:
+		role = data.(Role)
+		if _, ok := s.roles[role.ID]; !ok {
+			return nil, fmt.Errorf(
+				"role with id = %d does not exists", role.ID,
+			)
+		}
+		_, err := tx.Exec(
+			fmt.Sprintf(
+				`UPDATE "%s" SET "code" = $1 WHERE "id" = $2"`,
+				s.table,
+			),
+			role.Code, role.ID,
+		)
+		if err != nil {
+			return nil, err
+		}
+	case DeleteChange:
+		var ok bool
+		role, ok = s.roles[data.(int64)]
+		if !ok {
+			return nil, fmt.Errorf(
+				"role with id = %d does not exists", role.ID,
+			)
+		}
+		_, err := tx.Exec(
+			fmt.Sprintf(
+				`DELETE FROM "%s" WHERE "id" = $1"`,
+				s.table,
+			),
+			role.ID,
+		)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf(
+			"unsupported change type = %d", changeType,
+		)
+	}
+	res, err := tx.Exec(
+		fmt.Sprintf(
+			`INSERT INTO "%s" `+
+				`("change_type", "change_time", "id", "code") `+
+				`VALUES ($1, $2, $3, $4)`,
+			s.ChangeTableName(),
+		),
+		changeType, changeTime, role.ID, role.Code,
+	)
+	if err != nil {
+		return nil, err
+	}
+	changeID, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	return &RoleChange{
+		ID: changeID, Type: changeType,
+		Time: changeTime, Role: role,
+	}, nil
+}
+
+func (s *RoleStore) applyChange(change Change) {
 	role := change.ChangeData().(Role)
 	switch change.ChangeType() {
 	case CreateChange:
@@ -75,225 +162,11 @@ func (s *RoleStore) applyChange(change Change) error {
 	case DeleteChange:
 		delete(s.roles, role.ID)
 	default:
-		return fmt.Errorf(
+		panic(fmt.Errorf(
 			"unsupported change type = %d", change.ChangeType(),
-		)
+		))
 	}
-	return nil
 }
-
-// func (s *RoleStore) Create(role *Role) error {
-// 	// Disable Garbage Collector
-// 	gcPercent := debug.SetGCPercent(-1)
-// 	defer debug.SetGCPercent(gcPercent)
-// 	// Start transaction
-// 	tx, err := s.db.Begin()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	_, err = tx.Exec(
-// 		fmt.Sprintf(`LOCK TABLE "%s"`, s.table),
-// 	)
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	if err := s.SyncTx(tx); err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	// Create record
-// 	res, err := tx.Exec(
-// 		fmt.Sprintf(`INSERT INTO "%s" ("code") VALUES ($1)`, s.table),
-// 		role.Code,
-// 	)
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	role.ID, err = res.LastInsertId()
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	// Create change record
-// 	res, err = tx.Exec(
-// 		fmt.Sprintf(
-// 			`INSERT INTO "%s" ("change_type", "id", "code") VALUES ($1, $2, $3)`,
-// 			s.changeTable,
-// 		),
-// 		CreateChange, role.ID, role.Code,
-// 	)
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	change := Change{Type: CreateChange}
-// 	change.ID, err = res.LastInsertId()
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	if err := tx.Commit(); err != nil {
-// 		return err
-// 	}
-// 	// Apply change
-// 	s.applyChange(RoleChange{change, *role})
-// 	return nil
-// }
-//
-// func (s *RoleStore) Update(role *Role) error {
-// 	// Disable Garbage Collector to decrease table lock time
-// 	gcPercent := debug.SetGCPercent(-1)
-// 	defer debug.SetGCPercent(gcPercent)
-// 	// Start transaction
-// 	tx, err := s.db.Begin()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	_, err = tx.Exec(
-// 		fmt.Sprintf(`LOCK TABLE "%s"`, s.table),
-// 	)
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	if err := s.SyncTx(tx); err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	// Update record
-// 	_, err = tx.Exec(
-// 		fmt.Sprintf(
-// 			`UPDATE "%s" SET "code" = $1 WHERE "id" = $2`,
-// 			s.table,
-// 		),
-// 		role.Code, role.ID,
-// 	)
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	// Create change record
-// 	res, err := tx.Exec(
-// 		fmt.Sprintf(
-// 			`INSERT INTO "%s" ("change_type", "id", "code") VALUES ($1, $2, $3)`,
-// 			s.changeTable,
-// 		),
-// 		UpdateChange, role.ID, role.Code,
-// 	)
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	change := Change{Type: UpdateChange}
-// 	change.ID, err = res.LastInsertId()
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	if err := tx.Commit(); err != nil {
-// 		return err
-// 	}
-// 	// Apply change
-// 	s.applyChange(RoleChange{change, *role})
-// 	return nil
-// }
-//
-// func (s *RoleStore) Delete(id int64) error {
-// 	// Disable Garbage Collector
-// 	gcPercent := debug.SetGCPercent(-1)
-// 	defer debug.SetGCPercent(gcPercent)
-// 	// Start transaction
-// 	tx, err := s.db.Begin()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	_, err = tx.Exec(
-// 		fmt.Sprintf(`LOCK TABLE "%s"`, s.table),
-// 	)
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	if err := s.SyncTx(tx); err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	// Find role by ID
-// 	role, err := s.Get(id)
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	// Create record
-// 	_, err = tx.Exec(
-// 		fmt.Sprintf(`DELETE FROM "%s" WHERE "id" = $1`, s.table),
-// 		role.ID,
-// 	)
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	// Create change record
-// 	res, err := tx.Exec(
-// 		fmt.Sprintf(
-// 			`INSERT INTO "%s" ("change_type", "id", "code") VALUES ($1, $2, $3)`,
-// 			s.changeTable,
-// 		),
-// 		DeleteChange, role.ID, role.Code,
-// 	)
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	change := Change{Type: DeleteChange}
-// 	change.ID, err = res.LastInsertId()
-// 	if err != nil {
-// 		if err := tx.Rollback(); err != nil {
-// 			panic(err)
-// 		}
-// 		return err
-// 	}
-// 	if err := tx.Commit(); err != nil {
-// 		return err
-// 	}
-// 	// Apply change
-// 	s.applyChange(RoleChange{change, role})
-// 	return nil
-// }
 
 func (s *RoleStore) Get(id int64) (Role, error) {
 	role, ok := s.roles[id]

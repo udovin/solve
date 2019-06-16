@@ -7,6 +7,7 @@ import (
 
 type Problem struct {
 	ID         int64 `db:"id"          json:""`
+	OwnerID    int64 `db:"owner_id"    json:""`
 	CreateTime int64 `db:"create_time" json:""`
 }
 
@@ -14,9 +15,11 @@ type ProblemChange struct {
 	Problem
 	ID   int64      `db:"change_id"   json:""`
 	Type ChangeType `db:"change_type" json:""`
+	Time int64      `db:"change_time" json:""`
 }
 
 type ProblemStore struct {
+	Manager     *ChangeManager
 	db          *sql.DB
 	table       string
 	changeTable string
@@ -31,6 +34,10 @@ func (c *ProblemChange) ChangeType() ChangeType {
 	return c.Type
 }
 
+func (c *ProblemChange) ChangeTime() int64 {
+	return c.Time
+}
+
 func (c *ProblemChange) ChangeData() interface{} {
 	return c.Problem
 }
@@ -38,19 +45,16 @@ func (c *ProblemChange) ChangeData() interface{} {
 func NewProblemStore(
 	db *sql.DB, table, changeTable string,
 ) *ProblemStore {
-	return &ProblemStore{
-		db:          db,
-		table:       table,
-		changeTable: changeTable,
+	store := ProblemStore{
+		db: db, table: table, changeTable: changeTable,
+		problems: make(map[int64]Problem),
 	}
+	store.Manager = NewChangeManager(&store)
+	return &store
 }
 
 func (s *ProblemStore) GetDB() *sql.DB {
 	return s.db
-}
-
-func (s *ProblemStore) TableName() string {
-	return s.table
 }
 
 func (s *ProblemStore) ChangeTableName() string {
@@ -65,7 +69,95 @@ func (s *ProblemStore) scanChange(scan RowScan) (Change, error) {
 	return change, nil
 }
 
-func (s *ProblemStore) applyChange(change Change) error {
+func (s *ProblemStore) createChangeTx(
+	tx *sql.Tx, changeType ChangeType, changeTime int64, data interface{},
+) (Change, error) {
+	var problem Problem
+	switch changeType {
+	case CreateChange:
+		problem = data.(Problem)
+		problem.CreateTime = changeTime
+		res, err := tx.Exec(
+			fmt.Sprintf(
+				`INSERT INTO "%s" `+
+					`("owner_id", "create_time") `+
+					`VALUES ($1, $2)`,
+				s.table,
+			),
+			problem.OwnerID, problem.CreateTime,
+		)
+		if err != nil {
+			return nil, err
+		}
+		problemID, err := res.LastInsertId()
+		if err != nil {
+			return nil, err
+		}
+		problem.ID = problemID
+	case UpdateChange:
+		problem = data.(Problem)
+		if _, ok := s.problems[problem.ID]; !ok {
+			return nil, fmt.Errorf(
+				"problem with id = %d does not exists", problem.ID,
+			)
+		}
+		_, err := tx.Exec(
+			fmt.Sprintf(
+				`UPDATE "%s" SET "owner_id" = $2 WHERE "id" = $1"`,
+				s.table,
+			),
+			problem.ID, problem.OwnerID,
+		)
+		if err != nil {
+			return nil, err
+		}
+	case DeleteChange:
+		var ok bool
+		problem, ok = s.problems[data.(int64)]
+		if !ok {
+			return nil, fmt.Errorf(
+				"problem with id = %d does not exists", problem.ID,
+			)
+		}
+		_, err := tx.Exec(
+			fmt.Sprintf(
+				`DELETE FROM "%s" WHERE "id" = $1"`,
+				s.table,
+			),
+			problem.ID,
+		)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf(
+			"unsupported change type = %d", changeType,
+		)
+	}
+	res, err := tx.Exec(
+		fmt.Sprintf(
+			`INSERT INTO "%s" `+
+				`("change_type", "change_time", `+
+				`"id", "owner_id", "create_time") `+
+				`VALUES ($1, $2, $3, $4, $5)`,
+			s.ChangeTableName(),
+		),
+		changeType, changeTime, problem.ID,
+		problem.OwnerID, problem.CreateTime,
+	)
+	if err != nil {
+		return nil, err
+	}
+	changeID, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	return &ProblemChange{
+		ID: changeID, Type: changeType, Time: changeTime, Problem: problem,
+	}, nil
+}
+
+func (s *ProblemStore) applyChange(change Change) {
 	problem := change.ChangeData().(Problem)
 	switch change.ChangeType() {
 	case CreateChange:
@@ -75,9 +167,8 @@ func (s *ProblemStore) applyChange(change Change) error {
 	case DeleteChange:
 		delete(s.problems, problem.ID)
 	default:
-		return fmt.Errorf(
+		panic(fmt.Errorf(
 			"unsupported change type = %d", change.ChangeType(),
-		)
+		))
 	}
-	return nil
 }

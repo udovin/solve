@@ -39,7 +39,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	server := http.NewServer(&cfg.Server)
+	server, err := http.NewServer(&cfg)
+	if err != nil {
+		panic(err)
+	}
 	if err := server.Listen(); err != nil {
 		panic(err)
 	}

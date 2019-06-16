@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+	"time"
 )
 
 type ChangeType int8
@@ -21,19 +22,19 @@ type RowScan interface {
 type Change interface {
 	ChangeID() int64
 	ChangeType() ChangeType
+	ChangeTime() int64
 	ChangeData() interface{}
-}
-
-type Store interface {
-	GetDB() *sql.DB
-	TableName() string
 }
 
 type ChangeStore interface {
 	GetDB() *sql.DB
 	ChangeTableName() string
 	scanChange(scan RowScan) (Change, error)
-	applyChange(change Change) error
+	createChangeTx(
+		tx *sql.Tx, changeType ChangeType,
+		changeTime int64, data interface{},
+	) (Change, error)
+	applyChange(change Change)
 }
 
 type ChangeManager struct {
@@ -76,10 +77,7 @@ func (m *ChangeManager) Sync() error {
 		if err != nil {
 			return err
 		}
-		if err := m.store.applyChange(change); err != nil {
-			return err
-		}
-		m.lastChangeID = change.ChangeID()
+		m.applyChange(change)
 	}
 	return nil
 }
@@ -107,82 +105,49 @@ func (m *ChangeManager) SyncTx(tx *sql.Tx) error {
 		if err != nil {
 			return err
 		}
-		if err := m.store.applyChange(change); err != nil {
-			return err
-		}
-		m.lastChangeID = change.ChangeID()
+		m.applyChange(change)
 	}
 	return nil
 }
 
-func (m *ChangeManager) Create(data interface{}) error {
+func (m *ChangeManager) Change(
+	changeType ChangeType, data interface{},
+) (Change, error) {
 	tx, err := m.store.GetDB().Begin()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if err := m.CreateTx(tx, data); err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-	return tx.Commit()
-}
-
-func (m *ChangeManager) CreateTx(tx *sql.Tx, data interface{}) error {
-	if err := m.LockTx(tx); err != nil {
-		return err
-	}
-	if err := m.SyncTx(tx); err != nil {
-		return err
-	}
-	if _, ok := m.store.(Store); ok {
-	}
-	return nil
-}
-
-func (m *ChangeManager) Update(data interface{}) error {
-	tx, err := m.store.GetDB().Begin()
+	change, err := m.ChangeTx(tx, changeType, data)
 	if err != nil {
-		return err
-	}
-	if err := m.UpdateTx(tx, data); err != nil {
 		_ = tx.Rollback()
-		return err
+		return nil, err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return change, nil
 }
 
-func (m *ChangeManager) UpdateTx(tx *sql.Tx, data interface{}) error {
+func (m *ChangeManager) ChangeTx(
+	tx *sql.Tx, changeType ChangeType, data interface{},
+) (Change, error) {
 	if err := m.LockTx(tx); err != nil {
-		return err
+		return nil, err
 	}
 	if err := m.SyncTx(tx); err != nil {
-		return err
+		return nil, err
 	}
-	if _, ok := m.store.(Store); ok {
-	}
-	return nil
-}
-
-func (m *ChangeManager) Delete(data interface{}) error {
-	tx, err := m.store.GetDB().Begin()
+	change, err := m.store.createChangeTx(
+		tx, changeType, time.Now().Unix(), data,
+	)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if err := m.DeleteTx(tx, data); err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-	return tx.Commit()
+	m.applyChange(change)
+	return change, nil
 }
 
-func (m *ChangeManager) DeleteTx(tx *sql.Tx, data interface{}) error {
-	if err := m.LockTx(tx); err != nil {
-		return err
-	}
-	if err := m.SyncTx(tx); err != nil {
-		return err
-	}
-	if _, ok := m.store.(Store); ok {
-	}
-	return nil
+func (m *ChangeManager) applyChange(change Change) {
+	m.store.applyChange(change)
+	m.lastChangeID = change.ChangeID()
 }

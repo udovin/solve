@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 type Role struct {
@@ -47,26 +48,37 @@ func (s *RoleStore) ChangeTableName() string {
 }
 
 func (s *RoleStore) Create(m *Role) error {
-	change, err := s.Manager.Change(CreateChange, *m)
+	change := RoleChange{
+		ChangeBase: ChangeBase{Type: CreateChange},
+		Role:       *m,
+	}
+	err := s.Manager.Change(&change)
 	if err != nil {
 		return err
 	}
-	*m = change.ChangeData().(Role)
+	*m = change.Role
 	return nil
 }
 
 func (s *RoleStore) Update(m *Role) error {
-	change, err := s.Manager.Change(UpdateChange, *m)
+	change := RoleChange{
+		ChangeBase: ChangeBase{Type: UpdateChange},
+		Role:       *m,
+	}
+	err := s.Manager.Change(&change)
 	if err != nil {
 		return err
 	}
-	*m = change.ChangeData().(Role)
+	*m = change.Role
 	return nil
 }
 
 func (s *RoleStore) Delete(id int64) error {
-	_, err := s.Manager.Change(UpdateChange, id)
-	return err
+	change := RoleChange{
+		ChangeBase: ChangeBase{Type: DeleteChange},
+		Role:       Role{ID: id},
+	}
+	return s.Manager.Change(&change)
 }
 
 func (s *RoleStore) scanChange(scan RowScan) (Change, error) {
@@ -81,13 +93,11 @@ func (s *RoleStore) scanChange(scan RowScan) (Change, error) {
 	return change, nil
 }
 
-func (s *RoleStore) createChangeTx(
-	tx *sql.Tx, changeType ChangeType, changeTime int64, data interface{},
-) (Change, error) {
-	var role Role
-	switch changeType {
+func (s *RoleStore) saveChangeTx(tx *sql.Tx, change Change) error {
+	role := change.(*RoleChange)
+	role.Time = time.Now().Unix()
+	switch role.Type {
 	case CreateChange:
-		role = data.(Role)
 		res, err := tx.Exec(
 			fmt.Sprintf(
 				`INSERT INTO "%s" ("code") VALUES ($1)`,
@@ -96,18 +106,17 @@ func (s *RoleStore) createChangeTx(
 			role.Code,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		roleID, err := res.LastInsertId()
+		role.Role.ID, err = res.LastInsertId()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		role.ID = roleID
 	case UpdateChange:
-		role = data.(Role)
-		if _, ok := s.roles[role.ID]; !ok {
-			return nil, fmt.Errorf(
-				"role with id = %d does not exists", role.ID,
+		if _, ok := s.roles[role.Role.ID]; !ok {
+			return fmt.Errorf(
+				"role with id = %d does not exists",
+				role.Role.ID,
 			)
 		}
 		_, err := tx.Exec(
@@ -115,17 +124,16 @@ func (s *RoleStore) createChangeTx(
 				`UPDATE "%s" SET "code" = $1 WHERE "id" = $2"`,
 				s.table,
 			),
-			role.Code, role.ID,
+			role.Code, role.Role.ID,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	case DeleteChange:
-		var ok bool
-		role, ok = s.roles[data.(int64)]
-		if !ok {
-			return nil, fmt.Errorf(
-				"role with id = %d does not exists", role.ID,
+		if _, ok := s.roles[role.Role.ID]; !ok {
+			return fmt.Errorf(
+				"role with id = %d does not exists",
+				role.Role.ID,
 			)
 		}
 		_, err := tx.Exec(
@@ -133,14 +141,15 @@ func (s *RoleStore) createChangeTx(
 				`DELETE FROM "%s" WHERE "id" = $1"`,
 				s.table,
 			),
-			role.ID,
+			role.Role.ID,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	default:
-		return nil, fmt.Errorf(
-			"unsupported change type = %d", changeType,
+		return fmt.Errorf(
+			"unsupported change type = %s",
+			role.Type,
 		)
 	}
 	res, err := tx.Exec(
@@ -150,26 +159,19 @@ func (s *RoleStore) createChangeTx(
 				`VALUES ($1, $2, $3, $4)`,
 			s.ChangeTableName(),
 		),
-		changeType, changeTime, role.ID, role.Code,
+		role.Type, role.Time, role.Role.ID, role.Code,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	changeID, err := res.LastInsertId()
-	if err != nil {
-		return nil, err
-	}
-	return &RoleChange{
-		ChangeBase: ChangeBase{
-			ID: changeID, Type: changeType, Time: changeTime,
-		},
-		Role: role,
-	}, nil
+	role.ChangeBase.ID, err = res.LastInsertId()
+	return err
 }
 
 func (s *RoleStore) applyChange(change Change) {
-	role := change.ChangeData().(Role)
-	switch change.ChangeType() {
+	roleChange := change.(*RoleChange)
+	role := roleChange.Role
+	switch roleChange.Type {
 	case CreateChange:
 		s.roles[role.ID] = role
 	case UpdateChange:
@@ -178,7 +180,8 @@ func (s *RoleStore) applyChange(change Change) {
 		delete(s.roles, role.ID)
 	default:
 		panic(fmt.Errorf(
-			"unsupported change type = %d", change.ChangeType(),
+			"unsupported change type = %s",
+			roleChange.Type,
 		))
 	}
 }

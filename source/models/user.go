@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 type User struct {
@@ -54,26 +55,37 @@ func (s *UserStore) ChangeTableName() string {
 }
 
 func (s *UserStore) Create(m *User) error {
-	change, err := s.Manager.Change(CreateChange, *m)
+	change := UserChange{
+		ChangeBase: ChangeBase{Type: CreateChange},
+		User:       *m,
+	}
+	err := s.Manager.Change(&change)
 	if err != nil {
 		return err
 	}
-	*m = change.ChangeData().(User)
+	*m = change.User
 	return nil
 }
 
 func (s *UserStore) Update(m *User) error {
-	change, err := s.Manager.Change(UpdateChange, *m)
+	change := UserChange{
+		ChangeBase: ChangeBase{Type: UpdateChange},
+		User:       *m,
+	}
+	err := s.Manager.Change(&change)
 	if err != nil {
 		return err
 	}
-	*m = change.ChangeData().(User)
+	*m = change.User
 	return nil
 }
 
 func (s *UserStore) Delete(id int64) error {
-	_, err := s.Manager.Change(UpdateChange, id)
-	return err
+	change := UserChange{
+		ChangeBase: ChangeBase{Type: DeleteChange},
+		User:       User{ID: id},
+	}
+	return s.Manager.Change(&change)
 }
 
 func (s *UserStore) scanChange(scan RowScan) (Change, error) {
@@ -90,14 +102,12 @@ func (s *UserStore) scanChange(scan RowScan) (Change, error) {
 	return change, nil
 }
 
-func (s *UserStore) createChangeTx(
-	tx *sql.Tx, changeType ChangeType, changeTime int64, data interface{},
-) (Change, error) {
-	var user User
-	switch changeType {
+func (s *UserStore) saveChangeTx(tx *sql.Tx, change Change) error {
+	user := change.(*UserChange)
+	user.Time = time.Now().Unix()
+	switch user.Type {
 	case CreateChange:
-		user = data.(User)
-		user.CreateTime = changeTime
+		user.CreateTime = user.Time
 		res, err := tx.Exec(
 			fmt.Sprintf(
 				`INSERT INTO "%s" `+
@@ -110,39 +120,38 @@ func (s *UserStore) createChangeTx(
 			user.PasswordSalt, user.CreateTime,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		sessionID, err := res.LastInsertId()
+		user.User.ID, err = res.LastInsertId()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		user.ID = sessionID
 	case UpdateChange:
-		user = data.(User)
-		if _, ok := s.users[user.ID]; !ok {
-			return nil, fmt.Errorf(
-				"user with id = %d does not exists", user.ID,
+		if _, ok := s.users[user.User.ID]; !ok {
+			return fmt.Errorf(
+				"user with id = %d does not exists",
+				user.User.ID,
 			)
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
 				`UPDATE "%s" SET `+
-					`'"login" = $2, "password_hash" = $3, `+
+					`"login" = $2, "password_hash" = $3, `+
 					`"password_salt" = $4 `+
 					`WHERE "id" = $1"`,
 				s.table,
 			),
-			user.ID, user.Login, user.PasswordHash, user.PasswordSalt,
+			user.User.ID, user.Login,
+			user.PasswordHash, user.PasswordSalt,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	case DeleteChange:
-		var ok bool
-		user, ok = s.users[data.(int64)]
-		if !ok {
-			return nil, fmt.Errorf(
-				"user with id = %d does not exists", user.ID,
+		if _, ok := s.users[user.User.ID]; !ok {
+			return fmt.Errorf(
+				"user with id = %d does not exists",
+				user.User.ID,
 			)
 		}
 		_, err := tx.Exec(
@@ -150,14 +159,15 @@ func (s *UserStore) createChangeTx(
 				`DELETE FROM "%s" WHERE "id" = $1"`,
 				s.table,
 			),
-			user.ID,
+			user.User.ID,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	default:
-		return nil, fmt.Errorf(
-			"unsupported change type = %d", changeType,
+		return fmt.Errorf(
+			"unsupported change type = %s",
+			user.Type,
 		)
 	}
 	res, err := tx.Exec(
@@ -169,27 +179,20 @@ func (s *UserStore) createChangeTx(
 				`VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			s.ChangeTableName(),
 		),
-		changeType, changeTime, user.ID, user.Login,
+		user.Type, user.Time, user.User.ID, user.Login,
 		user.PasswordHash, user.PasswordSalt, user.CreateTime,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	changeID, err := res.LastInsertId()
-	if err != nil {
-		return nil, err
-	}
-	return &UserChange{
-		ChangeBase: ChangeBase{
-			ID: changeID, Type: changeType, Time: changeTime,
-		},
-		User: user,
-	}, nil
+	user.ChangeBase.ID, err = res.LastInsertId()
+	return err
 }
 
 func (s *UserStore) applyChange(change Change) {
-	user := change.ChangeData().(User)
-	switch change.ChangeType() {
+	userChange := change.(*UserChange)
+	user := userChange.User
+	switch userChange.Type {
 	case CreateChange:
 		s.users[user.ID] = user
 	case UpdateChange:
@@ -198,7 +201,8 @@ func (s *UserStore) applyChange(change Change) {
 		delete(s.users, user.ID)
 	default:
 		panic(fmt.Errorf(
-			"unsupported change type = %d", change.ChangeType(),
+			"unsupported change type = %s",
+			userChange.Type,
 		))
 	}
 }

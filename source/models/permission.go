@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 type Permission struct {
@@ -21,10 +22,6 @@ type PermissionStore struct {
 	table       string
 	changeTable string
 	permissions map[int64]Permission
-}
-
-func (c *PermissionChange) ChangeData() interface{} {
-	return c.Permission
 }
 
 func NewPermissionStore(
@@ -47,26 +44,37 @@ func (s *PermissionStore) ChangeTableName() string {
 }
 
 func (s *PermissionStore) Create(m *Permission) error {
-	change, err := s.Manager.Change(CreateChange, *m)
+	change := PermissionChange{
+		ChangeBase: ChangeBase{Type: CreateChange},
+		Permission: *m,
+	}
+	err := s.Manager.Change(&change)
 	if err != nil {
 		return err
 	}
-	*m = change.ChangeData().(Permission)
+	*m = change.Permission
 	return nil
 }
 
 func (s *PermissionStore) Update(m *Permission) error {
-	change, err := s.Manager.Change(UpdateChange, *m)
+	change := PermissionChange{
+		ChangeBase: ChangeBase{Type: UpdateChange},
+		Permission: *m,
+	}
+	err := s.Manager.Change(&change)
 	if err != nil {
 		return err
 	}
-	*m = change.ChangeData().(Permission)
+	*m = change.Permission
 	return nil
 }
 
 func (s *PermissionStore) Delete(id int64) error {
-	_, err := s.Manager.Change(UpdateChange, id)
-	return err
+	change := PermissionChange{
+		ChangeBase: ChangeBase{Type: DeleteChange},
+		Permission: Permission{ID: id},
+	}
+	return s.Manager.Change(&change)
 }
 
 func (s *PermissionStore) scanChange(scan RowScan) (Change, error) {
@@ -81,13 +89,11 @@ func (s *PermissionStore) scanChange(scan RowScan) (Change, error) {
 	return change, nil
 }
 
-func (s *PermissionStore) createChangeTx(
-	tx *sql.Tx, changeType ChangeType, changeTime int64, data interface{},
-) (Change, error) {
-	var permission Permission
-	switch changeType {
+func (s *PermissionStore) saveChangeTx(tx *sql.Tx, change Change) error {
+	permission := change.(*PermissionChange)
+	permission.Time = time.Now().Unix()
+	switch permission.Type {
 	case CreateChange:
-		permission = data.(Permission)
 		res, err := tx.Exec(
 			fmt.Sprintf(
 				`INSERT INTO "%s" ("code") VALUES ($1)`,
@@ -96,18 +102,17 @@ func (s *PermissionStore) createChangeTx(
 			permission.Code,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		permissionID, err := res.LastInsertId()
+		permission.Permission.ID, err = res.LastInsertId()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		permission.ID = permissionID
 	case UpdateChange:
-		permission = data.(Permission)
-		if _, ok := s.permissions[permission.ID]; !ok {
-			return nil, fmt.Errorf(
-				"permission with id = %d does not exists", permission.ID,
+		if _, ok := s.permissions[permission.Permission.ID]; !ok {
+			return fmt.Errorf(
+				"permission with id = %d does not exists",
+				permission.Permission.ID,
 			)
 		}
 		_, err := tx.Exec(
@@ -115,17 +120,16 @@ func (s *PermissionStore) createChangeTx(
 				`UPDATE "%s" SET "code" = $2 WHERE "id" = $1"`,
 				s.table,
 			),
-			permission.ID, permission.Code,
+			permission.Permission.ID, permission.Code,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	case DeleteChange:
-		var ok bool
-		permission, ok = s.permissions[data.(int64)]
-		if !ok {
-			return nil, fmt.Errorf(
-				"permission with id = %d does not exists", permission.ID,
+		if _, ok := s.permissions[permission.Permission.ID]; !ok {
+			return fmt.Errorf(
+				"permission with id = %d does not exists",
+				permission.Permission.ID,
 			)
 		}
 		_, err := tx.Exec(
@@ -133,14 +137,15 @@ func (s *PermissionStore) createChangeTx(
 				`DELETE FROM "%s" WHERE "id" = $1"`,
 				s.table,
 			),
-			permission.ID,
+			permission.Permission.ID,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	default:
-		return nil, fmt.Errorf(
-			"unsupported change type = %d", changeType,
+		return fmt.Errorf(
+			"unsupported change type = %s",
+			permission.Type,
 		)
 	}
 	res, err := tx.Exec(
@@ -150,26 +155,20 @@ func (s *PermissionStore) createChangeTx(
 				`VALUES ($1, $2, $3, $4)`,
 			s.ChangeTableName(),
 		),
-		changeType, changeTime, permission.ID, permission.Code,
+		permission.Type, permission.Time,
+		permission.Permission.ID, permission.Code,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	changeID, err := res.LastInsertId()
-	if err != nil {
-		return nil, err
-	}
-	return &PermissionChange{
-		ChangeBase: ChangeBase{
-			ID: changeID, Type: changeType, Time: changeTime,
-		},
-		Permission: permission,
-	}, nil
+	permission.ChangeBase.ID, err = res.LastInsertId()
+	return err
 }
 
 func (s *PermissionStore) applyChange(change Change) {
-	permission := change.ChangeData().(Permission)
-	switch change.ChangeType() {
+	permissionChange := change.(*PermissionChange)
+	permission := permissionChange.Permission
+	switch permissionChange.Type {
 	case CreateChange:
 		s.permissions[permission.ID] = permission
 	case UpdateChange:
@@ -178,7 +177,8 @@ func (s *PermissionStore) applyChange(change Change) {
 		delete(s.permissions, permission.ID)
 	default:
 		panic(fmt.Errorf(
-			"unsupported change type = %d", change.ChangeType(),
+			"unsupported change type = %s",
+			permissionChange.Type,
 		))
 	}
 }

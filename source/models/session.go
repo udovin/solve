@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 type Session struct {
@@ -54,26 +55,37 @@ func (s *SessionStore) ChangeTableName() string {
 }
 
 func (s *SessionStore) Create(m *Session) error {
-	change, err := s.Manager.Change(CreateChange, *m)
+	change := SessionChange{
+		ChangeBase: ChangeBase{Type: CreateChange},
+		Session:    *m,
+	}
+	err := s.Manager.Change(&change)
 	if err != nil {
 		return err
 	}
-	*m = change.ChangeData().(Session)
+	*m = change.Session
 	return nil
 }
 
 func (s *SessionStore) Update(m *Session) error {
-	change, err := s.Manager.Change(UpdateChange, *m)
+	change := SessionChange{
+		ChangeBase: ChangeBase{Type: UpdateChange},
+		Session:    *m,
+	}
+	err := s.Manager.Change(&change)
 	if err != nil {
 		return err
 	}
-	*m = change.ChangeData().(Session)
+	*m = change.Session
 	return nil
 }
 
 func (s *SessionStore) Delete(id int64) error {
-	_, err := s.Manager.Change(UpdateChange, id)
-	return err
+	change := SessionChange{
+		ChangeBase: ChangeBase{Type: DeleteChange},
+		Session:    Session{ID: id},
+	}
+	return s.Manager.Change(&change)
 }
 
 func (s *SessionStore) scanChange(scan RowScan) (Change, error) {
@@ -90,14 +102,12 @@ func (s *SessionStore) scanChange(scan RowScan) (Change, error) {
 	return change, nil
 }
 
-func (s *SessionStore) createChangeTx(
-	tx *sql.Tx, changeType ChangeType, changeTime int64, data interface{},
-) (Change, error) {
-	var session Session
-	switch changeType {
+func (s *SessionStore) saveChangeTx(tx *sql.Tx, change Change) error {
+	session := change.(*SessionChange)
+	session.Time = time.Now().Unix()
+	switch session.Type {
 	case CreateChange:
-		session = data.(Session)
-		session.CreateTime = changeTime
+		session.CreateTime = session.Time
 		res, err := tx.Exec(
 			fmt.Sprintf(
 				`INSERT INTO "%s" `+
@@ -109,18 +119,17 @@ func (s *SessionStore) createChangeTx(
 			session.CreateTime, session.ExpireTime,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		sessionID, err := res.LastInsertId()
+		session.Session.ID, err = res.LastInsertId()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		session.ID = sessionID
 	case UpdateChange:
-		session = data.(Session)
-		if _, ok := s.sessions[session.ID]; !ok {
-			return nil, fmt.Errorf(
-				"session with id = %d does not exists", session.ID,
+		if _, ok := s.sessions[session.Session.ID]; !ok {
+			return fmt.Errorf(
+				"session with id = %d does not exists",
+				session.Session.ID,
 			)
 		}
 		_, err := tx.Exec(
@@ -130,17 +139,17 @@ func (s *SessionStore) createChangeTx(
 					`WHERE "id" = $1"`,
 				s.table,
 			),
-			session.ID, session.UserID, session.Secret, session.ExpireTime,
+			session.Session.ID, session.UserID,
+			session.Secret, session.ExpireTime,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	case DeleteChange:
-		var ok bool
-		session, ok = s.sessions[data.(int64)]
-		if !ok {
-			return nil, fmt.Errorf(
-				"session with id = %d does not exists", session.ID,
+		if _, ok := s.sessions[session.Session.ID]; !ok {
+			return fmt.Errorf(
+				"session with id = %d does not exists",
+				session.Session.ID,
 			)
 		}
 		_, err := tx.Exec(
@@ -148,14 +157,15 @@ func (s *SessionStore) createChangeTx(
 				`DELETE FROM "%s" WHERE "id" = $1"`,
 				s.table,
 			),
-			session.ID,
+			session.Session.ID,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	default:
-		return nil, fmt.Errorf(
-			"unsupported change type = %d", changeType,
+		return fmt.Errorf(
+			"unsupported change type = %s",
+			session.Type,
 		)
 	}
 	res, err := tx.Exec(
@@ -166,27 +176,20 @@ func (s *SessionStore) createChangeTx(
 				`VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			s.ChangeTableName(),
 		),
-		changeType, changeTime, session.ID, session.UserID,
+		session.Type, session.Time, session.Session.ID, session.UserID,
 		session.Secret, session.CreateTime, session.ExpireTime,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	changeID, err := res.LastInsertId()
-	if err != nil {
-		return nil, err
-	}
-	return &SessionChange{
-		ChangeBase: ChangeBase{
-			ID: changeID, Type: changeType, Time: changeTime,
-		},
-		Session: session,
-	}, nil
+	session.ChangeBase.ID, err = res.LastInsertId()
+	return err
 }
 
 func (s *SessionStore) applyChange(change Change) {
-	session := change.ChangeData().(Session)
-	switch change.ChangeType() {
+	sessionChange := change.(*SessionChange)
+	session := sessionChange.Session
+	switch sessionChange.Type {
 	case CreateChange:
 		s.sessions[session.ID] = session
 	case UpdateChange:
@@ -195,7 +198,8 @@ func (s *SessionStore) applyChange(change Change) {
 		delete(s.sessions, session.ID)
 	default:
 		panic(fmt.Errorf(
-			"unsupported change type = %d", change.ChangeType(),
+			"unsupported change type = %s",
+			sessionChange.Type,
 		))
 	}
 }

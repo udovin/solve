@@ -219,9 +219,9 @@ func (s *UserStore) applyChange(change Change) {
 		if oldUser, ok := s.users[user.ID]; ok {
 			if oldUser.Login != user.Login {
 				delete(s.loginMap, oldUser.Login)
-				s.loginMap[user.Login] = user.ID
 			}
 		}
+		s.loginMap[user.Login] = user.ID
 		s.users[user.ID] = user
 	case DeleteChange:
 		delete(s.loginMap, user.Login)
@@ -238,6 +238,15 @@ func encodeBase64(bytes []byte) string {
 	return base64.StdEncoding.EncodeToString(bytes)
 }
 
+func hashString(value string) string {
+	bytes := sha3.Sum512([]byte(value))
+	return encodeBase64(bytes[:])
+}
+
+func (m *User) hashPassword(password, salt string) string {
+	return hashString(m.PasswordSalt + hashString(password) + salt)
+}
+
 func (m *User) SetPassword(password, salt string) error {
 	saltBytes := make([]byte, 16)
 	_, err := rand.Read(saltBytes)
@@ -245,11 +254,11 @@ func (m *User) SetPassword(password, salt string) error {
 		return err
 	}
 	m.PasswordSalt = encodeBase64(saltBytes)
-	passwordHashBytes := sha3.Sum512([]byte(password))
-	passwordHash := encodeBase64(passwordHashBytes[:])
-	fullHashBytes := sha3.Sum512(
-		[]byte(m.PasswordSalt + passwordHash + salt),
-	)
-	m.PasswordHash = encodeBase64(fullHashBytes[:])
+	m.PasswordHash = m.hashPassword(password, salt)
 	return nil
+}
+
+func (m *User) CheckPassword(password, salt string) bool {
+	passwordHash := m.hashPassword(password, salt)
+	return passwordHash == m.PasswordHash
 }

@@ -1,7 +1,9 @@
 package models
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"time"
 )
@@ -202,4 +204,13 @@ func (s *SessionStore) applyChange(change Change) {
 			sessionChange.Type,
 		))
 	}
+}
+
+func (m *Session) GenerateSecret() error {
+	secretBytes := make([]byte, 40)
+	if _, err := rand.Read(secretBytes); err != nil {
+		return err
+	}
+	m.Secret = base64.StdEncoding.EncodeToString(secretBytes)
+	return nil
 }

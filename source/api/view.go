@@ -1,79 +1,114 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
+	"strconv"
+
+	"github.com/labstack/echo"
 
 	"../core"
+	"../models"
 )
 
 type View struct {
-	app *core.App
+	app    *core.App
+	server *echo.Echo
 }
 
-func Register(app *core.App, server *core.Server) {
-	v := View{app: app}
-	server.Handle("/api/v0/ping", v.Ping)
-	server.Handle("/api/v0/user", v.CreateUser)
-	server.Handle("/api/v0/user/", v.UpdateUser)
-	server.Handle("/api/v0/session", v.CreateSession)
-	server.Handle("/api/v0/session/", v.UpdateSession)
-	server.Handle("/api/v0/problem", v.CreateProblem)
-	server.Handle("/api/v0/problem/", v.UpdateProblem)
+func Register(app *core.App, server *echo.Echo) {
+	v := View{app: app, server: server}
+	server.GET("/api/v0/ping", v.Ping)
+	server.POST("/api/v0/user", v.CreateUser)
+	server.PATCH("/api/v0/user/:UserID", v.UpdateUser)
+	server.POST("/api/v0/session", v.CreateSession)
+	server.PATCH("/api/v0/session/:SessionID", v.UpdateSession)
+	server.POST("/api/v0/problem", v.CreateProblem)
+	server.PATCH("/api/v0/problem/:ProblemID", v.UpdateProblem)
 }
 
-func (v *View) Ping(w http.ResponseWriter, r *http.Request) {
-	JSONResult(w, http.StatusOK, "pong")
+func (v *View) Ping(c echo.Context) error {
+	return c.JSON(http.StatusOK, "pong")
 }
 
-func (v *View) CreateUser(w http.ResponseWriter, r *http.Request) {
-	JSONResultNotImplemented(w, r)
-}
-
-func (v *View) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	JSONResultNotImplemented(w, r)
-}
-
-func (v *View) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	JSONResultNotImplemented(w, r)
-}
-
-func (v *View) CreateSession(w http.ResponseWriter, r *http.Request) {
-	JSONResultNotImplemented(w, r)
-}
-
-func (v *View) UpdateSession(w http.ResponseWriter, r *http.Request) {
-	JSONResultNotImplemented(w, r)
-}
-
-func (v *View) DeleteSession(w http.ResponseWriter, r *http.Request) {
-	JSONResultNotImplemented(w, r)
-}
-
-func (v *View) CreateProblem(w http.ResponseWriter, r *http.Request) {
-	JSONResultNotImplemented(w, r)
-}
-
-func (v *View) UpdateProblem(w http.ResponseWriter, r *http.Request) {
-	JSONResultNotImplemented(w, r)
-}
-
-func (v *View) DeleteProblem(w http.ResponseWriter, r *http.Request) {
-	JSONResultNotImplemented(w, r)
-}
-
-func JSONResultNotImplemented(w http.ResponseWriter, r *http.Request) {
-	JSONResult(w, http.StatusNotImplemented, map[string]string{
-		"Message": "Handler not implemented yet",
-	})
-}
-
-func JSONResult(w http.ResponseWriter, status int, content interface{}) {
-	bytes, err := json.Marshal(content)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+func (v *View) CreateUser(c echo.Context) error {
+	var userData struct {
+		Login    string `json:""`
+		Email    string `json:""`
+		Password string `json:""`
 	}
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_, _ = w.Write(bytes)
+	if err := c.Bind(&userData); err != nil {
+		return err
+	}
+	user := models.User{
+		Login: userData.Login,
+	}
+	if err := user.SetPassword(
+		userData.Password, v.app.PasswordSalt,
+	); err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	if err := v.app.UserStore.Create(&user); err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, user)
+}
+
+func (v *View) UpdateUser(c echo.Context) error {
+	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 60)
+	if err != nil {
+		return err
+	}
+	user, ok := v.app.UserStore.Get(userID)
+	if !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	c.Logger().Error(user)
+	var userData struct {
+		Password *string `json:""`
+	}
+	if err := c.Bind(&userData); err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if userData.Password != nil {
+		if err := user.SetPassword(
+			*userData.Password, v.app.PasswordSalt,
+		); err != nil {
+			c.Logger().Error(err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
+	if err := v.app.UserStore.Update(&user); err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, user)
+}
+
+func (v *View) DeleteUser(c echo.Context) error {
+	return c.NoContent(http.StatusNotImplemented)
+}
+
+func (v *View) CreateSession(c echo.Context) error {
+	return c.NoContent(http.StatusNotImplemented)
+}
+
+func (v *View) UpdateSession(c echo.Context) error {
+	return c.NoContent(http.StatusNotImplemented)
+}
+
+func (v *View) DeleteSession(c echo.Context) error {
+	return c.NoContent(http.StatusNotImplemented)
+}
+
+func (v *View) CreateProblem(c echo.Context) error {
+	return c.NoContent(http.StatusNotImplemented)
+}
+
+func (v *View) UpdateProblem(c echo.Context) error {
+	return c.NoContent(http.StatusNotImplemented)
+}
+
+func (v *View) DeleteProblem(c echo.Context) error {
+	return c.NoContent(http.StatusNotImplemented)
 }

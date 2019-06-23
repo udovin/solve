@@ -32,10 +32,10 @@ func (c ChangeType) String() string {
 	switch c {
 	case CreateChange:
 		return "Create"
-	case UpdateChange:
-		return "Update"
 	case DeleteChange:
 		return "Delete"
+	case UpdateChange:
+		return "Update"
 	default:
 		return fmt.Sprintf("ChangeType(%d)", c)
 	}
@@ -137,8 +137,6 @@ func (m *ChangeManager) Sync() error {
 }
 
 func (m *ChangeManager) SyncTx(tx *sql.Tx) error {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	rows, err := tx.Query(
 		fmt.Sprintf(
 			`SELECT * FROM "%s" WHERE "change_id" > $1 ORDER BY "change_id"`,

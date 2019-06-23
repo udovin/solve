@@ -135,12 +135,12 @@ func (s *SessionStore) saveChangeTx(tx *sql.Tx, change Change) error {
 		_, err := tx.Exec(
 			fmt.Sprintf(
 				`UPDATE "%s" SET `+
-					`'"user_id" = $2, "secret" = $3, "expire_time" = $4`+
-					`WHERE "id" = $1"`,
+					`'"user_id" = $1, "secret" = $2, "expire_time" = $3`+
+					`WHERE "id" = $4`,
 				s.table,
 			),
-			session.Session.ID, session.UserID,
-			session.Secret, session.ExpireTime,
+			session.UserID, session.Secret,
+			session.ExpireTime, session.Session.ID,
 		)
 		if err != nil {
 			return err
@@ -154,7 +154,7 @@ func (s *SessionStore) saveChangeTx(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1"`,
+				`DELETE FROM "%s" WHERE "id" = $1`,
 				s.table,
 			),
 			session.Session.ID,

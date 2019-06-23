@@ -1,9 +1,13 @@
 package models
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"time"
+
+	"golang.org/x/crypto/sha3"
 )
 
 type User struct {
@@ -25,6 +29,7 @@ type UserStore struct {
 	table       string
 	changeTable string
 	users       map[int64]User
+	loginMap    map[string]int64
 }
 
 func (c *UserChange) ChangeData() interface{} {
@@ -36,7 +41,8 @@ func NewUserStore(
 ) *UserStore {
 	store := UserStore{
 		db: db, table: table, changeTable: changeTable,
-		users: make(map[int64]User),
+		users:    make(map[int64]User),
+		loginMap: make(map[string]int64),
 	}
 	store.Manager = NewChangeManager(&store)
 	return &store
@@ -52,6 +58,19 @@ func (s *UserStore) TableName() string {
 
 func (s *UserStore) ChangeTableName() string {
 	return s.changeTable
+}
+
+func (s *UserStore) Get(id int64) (User, bool) {
+	user, ok := s.users[id]
+	return user, ok
+}
+
+func (s *UserStore) GetByLogin(login string) (User, bool) {
+	id, ok := s.loginMap[login]
+	if !ok {
+		return User{}, ok
+	}
+	return s.Get(id)
 }
 
 func (s *UserStore) Create(m *User) error {
@@ -136,13 +155,13 @@ func (s *UserStore) saveChangeTx(tx *sql.Tx, change Change) error {
 		_, err := tx.Exec(
 			fmt.Sprintf(
 				`UPDATE "%s" SET `+
-					`"login" = $2, "password_hash" = $3, `+
-					`"password_salt" = $4 `+
-					`WHERE "id" = $1"`,
+					`"login" = $1, "password_hash" = $2, `+
+					`"password_salt" = $3 `+
+					`WHERE "id" = $4`,
 				s.table,
 			),
-			user.User.ID, user.Login,
-			user.PasswordHash, user.PasswordSalt,
+			user.Login, user.PasswordHash,
+			user.PasswordSalt, user.User.ID,
 		)
 		if err != nil {
 			return err
@@ -156,7 +175,7 @@ func (s *UserStore) saveChangeTx(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1"`,
+				`DELETE FROM "%s" WHERE "id" = $1`,
 				s.table,
 			),
 			user.User.ID,
@@ -194,10 +213,18 @@ func (s *UserStore) applyChange(change Change) {
 	user := userChange.User
 	switch userChange.Type {
 	case CreateChange:
+		s.loginMap[user.Login] = user.ID
 		s.users[user.ID] = user
 	case UpdateChange:
+		if oldUser, ok := s.users[user.ID]; ok {
+			if oldUser.Login != user.Login {
+				delete(s.loginMap, oldUser.Login)
+				s.loginMap[user.Login] = user.ID
+			}
+		}
 		s.users[user.ID] = user
 	case DeleteChange:
+		delete(s.loginMap, user.Login)
 		delete(s.users, user.ID)
 	default:
 		panic(fmt.Errorf(
@@ -205,4 +232,24 @@ func (s *UserStore) applyChange(change Change) {
 			userChange.Type,
 		))
 	}
+}
+
+func encodeBase64(bytes []byte) string {
+	return base64.StdEncoding.EncodeToString(bytes)
+}
+
+func (m *User) SetPassword(password, salt string) error {
+	saltBytes := make([]byte, 16)
+	_, err := rand.Read(saltBytes)
+	if err != nil {
+		return err
+	}
+	m.PasswordSalt = encodeBase64(saltBytes)
+	passwordHashBytes := sha3.Sum512([]byte(password))
+	passwordHash := encodeBase64(passwordHashBytes[:])
+	fullHashBytes := sha3.Sum512(
+		[]byte(m.PasswordSalt + passwordHash + salt),
+	)
+	m.PasswordHash = encodeBase64(fullHashBytes[:])
+	return nil
 }

@@ -19,6 +19,8 @@ type App struct {
 	RoleStore       *models.RoleStore
 	// Used for regularly updating stores
 	ticker *time.Ticker
+	// Password salt
+	PasswordSalt string
 }
 
 func NewApp(cfg *config.Config) (*App, error) {
@@ -43,6 +45,10 @@ func NewApp(cfg *config.Config) (*App, error) {
 		RoleStore: models.NewRoleStore(
 			db, "solve_role", "solve_role_change",
 		),
+	}
+	app.PasswordSalt, err = cfg.Security.PasswordSalt.GetValue()
+	if err != nil {
+		return nil, err
 	}
 	return &app, nil
 }

@@ -121,7 +121,7 @@ func (s *RoleStore) saveChangeTx(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET "code" = $1 WHERE "id" = $2"`,
+				`UPDATE "%s" SET "code" = $1 WHERE "id" = $2`,
 				s.table,
 			),
 			role.Code, role.Role.ID,
@@ -138,7 +138,7 @@ func (s *RoleStore) saveChangeTx(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1"`,
+				`DELETE FROM "%s" WHERE "id" = $1`,
 				s.table,
 			),
 			role.Role.ID,

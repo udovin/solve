@@ -122,10 +122,10 @@ func (s *ProblemStore) saveChangeTx(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET "owner_id" = $2 WHERE "id" = $1"`,
+				`UPDATE "%s" SET "owner_id" = $1 WHERE "id" = $2`,
 				s.table,
 			),
-			problem.Problem.ID, problem.OwnerID,
+			problem.OwnerID, problem.Problem.ID,
 		)
 		if err != nil {
 			return err
@@ -139,7 +139,7 @@ func (s *ProblemStore) saveChangeTx(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1"`,
+				`DELETE FROM "%s" WHERE "id" = $1`,
 				s.table,
 			),
 			problem.Problem.ID,

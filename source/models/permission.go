@@ -117,10 +117,10 @@ func (s *PermissionStore) saveChangeTx(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET "code" = $2 WHERE "id" = $1"`,
+				`UPDATE "%s" SET "code" = $1 WHERE "id" = $2`,
 				s.table,
 			),
-			permission.Permission.ID, permission.Code,
+			permission.Code, permission.Permission.ID,
 		)
 		if err != nil {
 			return err
@@ -134,7 +134,7 @@ func (s *PermissionStore) saveChangeTx(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1"`,
+				`DELETE FROM "%s" WHERE "id" = $1`,
 				s.table,
 			),
 			permission.Permission.ID,

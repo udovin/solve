@@ -2,8 +2,12 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 
 	"./api"
 	"./config"
@@ -35,6 +39,10 @@ func getConfig() (config.Config, error) {
 	return config.Config{}, errors.New("unable to find config file")
 }
 
+func getAddress(cfg config.ServerConfig) string {
+	return fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+}
+
 func main() {
 	cfg, err := getConfig()
 	if err != nil {
@@ -46,12 +54,16 @@ func main() {
 	}
 	app.Start()
 	defer app.Stop()
-	server, err := core.NewServer(&cfg.Server)
-	if err != nil {
-		panic(err)
-	}
+	server := echo.New()
+	server.Use(middleware.Recover())
+	server.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: "${time_rfc3339}\t${latency_human}\t${status}\t${method}\t${uri}\n",
+	}))
+	server.Use(middleware.Gzip())
+	server.Static("/static", "static")
 	api.Register(app, server)
-	if err := server.Listen(); err != nil {
-		panic(err)
-	}
+	server.Pre(middleware.RemoveTrailingSlash())
+	server.Logger.Fatal(server.Start(fmt.Sprintf(
+		"%s:%d", cfg.Server.Host, cfg.Server.Port,
+	)))
 }

@@ -2,12 +2,10 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo"
 
 	"../core"
-	"../models"
 )
 
 type View struct {
@@ -17,121 +15,26 @@ type View struct {
 
 func Register(app *core.App, server *echo.Echo) {
 	v := View{app: app, server: server}
+	// Service handlers
 	server.GET("/api/v0/ping", v.Ping)
-	server.POST("/api/v0/user", v.CreateUser)
-	server.PATCH("/api/v0/user/:UserID", v.UpdateUser)
-	server.POST("/api/v0/session", v.CreateSession)
-	server.PATCH("/api/v0/session/:SessionID", v.UpdateSession)
-	server.POST("/api/v0/problem", v.CreateProblem)
-	server.PATCH("/api/v0/problem/:ProblemID", v.UpdateProblem)
+	// Users management
+	server.POST("/api/v0/users", v.CreateUser)
+	server.GET("/api/v0/users/:UserID", v.GetUser)
+	server.PATCH("/api/v0/users/:UserID", v.UpdateUser)
+	server.DELETE("/api/v0/users/:UserID", v.DeleteUser)
+	// Sessions management
+	server.POST("/api/v0/sessions", v.CreateSession)
+	server.PATCH("/api/v0/sessions/:SessionID", v.UpdateSession)
+	// Problems management
+	server.POST("/api/v0/problems", v.CreateProblem)
+	server.GET("/api/v0/problems/:ProblemID", v.GetProblem)
+	server.PATCH("/api/v0/problems/:ProblemID", v.UpdateProblem)
+	// Contests management
+	server.POST("/api/v0/contests", v.CreateContest)
+	server.GET("/api/v0/contests/:ContestID", v.GetContest)
+	server.PATCH("/api/v0/contests/:ContestID", v.UpdateContest)
 }
 
 func (v *View) Ping(c echo.Context) error {
 	return c.JSON(http.StatusOK, "pong")
-}
-
-func (v *View) CreateUser(c echo.Context) error {
-	var userData struct {
-		Login    string `json:""`
-		Email    string `json:""`
-		Password string `json:""`
-	}
-	if err := c.Bind(&userData); err != nil {
-		return err
-	}
-	user := models.User{
-		Login: userData.Login,
-	}
-	if err := user.SetPassword(
-		userData.Password, v.app.PasswordSalt,
-	); err != nil {
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if err := v.app.UserStore.Create(&user); err != nil {
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	return c.JSON(http.StatusOK, user)
-}
-
-func (v *View) UpdateUser(c echo.Context) error {
-	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 60)
-	if err != nil {
-		return err
-	}
-	user, ok := v.app.UserStore.Get(userID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
-	}
-	c.Logger().Error(user)
-	var userData struct {
-		Password *string `json:""`
-	}
-	if err := c.Bind(&userData); err != nil {
-		c.Logger().Error(err)
-		return c.NoContent(http.StatusBadRequest)
-	}
-	if userData.Password != nil {
-		if err := user.SetPassword(
-			*userData.Password, v.app.PasswordSalt,
-		); err != nil {
-			c.Logger().Error(err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-	}
-	if err := v.app.UserStore.Update(&user); err != nil {
-		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	return c.JSON(http.StatusOK, user)
-}
-
-func (v *View) DeleteUser(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
-}
-
-func (v *View) CreateSession(c echo.Context) error {
-	var authData struct {
-		Login    string `json:""`
-		Password string `json:""`
-	}
-	if err := c.Bind(&authData); err != nil {
-		return err
-	}
-	user, ok := v.app.UserStore.GetByLogin(authData.Login)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
-	}
-	if !user.CheckPassword(authData.Password, v.app.PasswordSalt) {
-		return c.NoContent(http.StatusForbidden)
-	}
-	session := models.Session{
-		UserID: user.ID,
-	}
-	if err := session.GenerateSecret(); err != nil {
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if err := v.app.SessionStore.Create(&session); err != nil {
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	return c.JSON(http.StatusOK, session)
-}
-
-func (v *View) UpdateSession(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
-}
-
-func (v *View) DeleteSession(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
-}
-
-func (v *View) CreateProblem(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
-}
-
-func (v *View) UpdateProblem(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
-}
-
-func (v *View) DeleteProblem(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
 }

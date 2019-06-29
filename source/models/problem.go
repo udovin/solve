@@ -44,6 +44,11 @@ func (s *ProblemStore) ChangeTableName() string {
 	return s.changeTable
 }
 
+func (s *ProblemStore) Get(id int64) (Problem, bool) {
+	problem, ok := s.problems[id]
+	return problem, ok
+}
+
 func (s *ProblemStore) Create(m *Problem) error {
 	change := ProblemChange{
 		ChangeBase: ChangeBase{Type: CreateChange},

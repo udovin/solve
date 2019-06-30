@@ -89,7 +89,7 @@ func (s *PermissionStore) scanChange(scan RowScan) (Change, error) {
 	return change, nil
 }
 
-func (s *PermissionStore) saveChangeTx(tx *sql.Tx, change Change) error {
+func (s *PermissionStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	permission := change.(*PermissionChange)
 	permission.Time = time.Now().Unix()
 	switch permission.Type {

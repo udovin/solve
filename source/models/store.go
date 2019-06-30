@@ -55,7 +55,7 @@ type ChangeStore interface {
 	// Scan change from result row
 	scanChange(scan RowScan) (Change, error)
 	// Save change to database
-	saveChangeTx(tx *sql.Tx, change Change) error
+	saveChangeTx(tx *ChangeTx, change Change) error
 	// Apply change to store
 	applyChange(change Change)
 }
@@ -65,12 +65,16 @@ type ChangeGap struct {
 	endID   int64
 }
 
+type ChangeTx struct {
+	*sql.Tx
+	changes map[*ChangeManager][]Change
+}
+
 // Supports store consistency using change table
 type ChangeManager struct {
 	store        ChangeStore
 	lastChangeID int64
 	changeGaps   []ChangeGap
-	lazyChanges  []Change
 	mutex        sync.Mutex
 }
 
@@ -78,68 +82,84 @@ func NewChangeManager(store ChangeStore) *ChangeManager {
 	return &ChangeManager{store: store}
 }
 
-func (m *ChangeManager) Change(change Change) error {
-	tx, err := m.store.GetDB().Begin()
-	if err != nil {
+func (tx *ChangeTx) Commit() error {
+	if err := tx.Tx.Commit(); err != nil {
 		return err
 	}
-	err = m.ChangeTx(tx, change)
-	if err != nil {
-		_ = tx.Rollback()
-		m.Reset()
-		return err
+	for manager, changes := range tx.changes {
+		manager.mutex.Lock()
+		for _, change := range changes {
+			manager.applyChange(change)
+		}
+		manager.mutex.Unlock()
+		delete(tx.changes, manager)
 	}
-	if err := tx.Commit(); err != nil {
-		m.Reset()
-		return err
-	}
-	m.Push()
 	return nil
 }
 
-func (m *ChangeManager) ChangeTx(tx *sql.Tx, change Change) error {
+func (tx *ChangeTx) Rollback() error {
+	if err := tx.Tx.Rollback(); err != nil {
+		return err
+	}
+	for manager := range tx.changes {
+		delete(tx.changes, manager)
+	}
+	return nil
+}
+
+func (m *ChangeManager) Begin() (*ChangeTx, error) {
+	tx, err := m.store.GetDB().Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &ChangeTx{
+		Tx: tx, changes: make(map[*ChangeManager][]Change),
+	}, nil
+}
+
+func (m *ChangeManager) Change(change Change) error {
+	tx, err := m.Begin()
+	if err != nil {
+		return err
+	}
+	if err := m.ChangeTx(tx, change); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ChangeManager) ChangeTx(tx *ChangeTx, change Change) error {
 	if err := m.SyncTx(tx); err != nil {
 		return err
 	}
 	if err := m.store.saveChangeTx(tx, change); err != nil {
 		return err
 	}
-	m.lazyChanges = append(m.lazyChanges, change)
+	tx.changes[m] = append(tx.changes[m], change)
 	return nil
 }
 
 func (m *ChangeManager) Sync() error {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	rows, err := m.store.GetDB().Query(
-		fmt.Sprintf(
-			`SELECT * FROM "%s" WHERE "change_id" > $1 ORDER BY "change_id"`,
-			m.store.ChangeTableName(),
-		),
-		m.lastChangeID,
-	)
+	tx, err := m.Begin()
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			panic(err)
-		}
-	}()
-	for rows.Next() {
-		change, err := m.store.scanChange(rows)
-		if err != nil {
-			return err
-		}
-		m.applyChange(change)
-	}
-	return nil
+	err = m.SyncTx(tx)
+	_ = tx.Rollback()
+	return err
 }
 
-func (m *ChangeManager) SyncTx(tx *sql.Tx) error {
+func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	rows, err := tx.Query(
 		fmt.Sprintf(
-			`SELECT * FROM "%s" WHERE "change_id" > $1 ORDER BY "change_id"`,
+			`SELECT * FROM "%s" `+
+				`WHERE "change_id" > $1 ORDER BY "change_id" LIMIT 5000`,
 			m.store.ChangeTableName(),
 		),
 		m.lastChangeID,
@@ -148,9 +168,7 @@ func (m *ChangeManager) SyncTx(tx *sql.Tx) error {
 		return err
 	}
 	defer func() {
-		if err := rows.Close(); err != nil {
-			panic(err)
-		}
+		_ = rows.Close()
 	}()
 	for rows.Next() {
 		change, err := m.store.scanChange(rows)
@@ -175,22 +193,4 @@ func (m *ChangeManager) applyChange(change Change) {
 		})
 	}
 	m.lastChangeID = change.ChangeID()
-}
-
-func (m *ChangeManager) Push() {
-	for _, change := range m.lazyChanges {
-		m.applyChange(change)
-	}
-	m.Reset()
-}
-
-func (m *ChangeManager) Reset() {
-	m.lazyChanges = nil
-}
-
-func (m *ChangeManager) LockTx(tx *sql.Tx) error {
-	_, err := tx.Exec(
-		fmt.Sprintf(`LOCK TABLE "%s"`, m.store.ChangeTableName()),
-	)
-	return err
 }

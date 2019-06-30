@@ -96,7 +96,7 @@ func (s *ProblemStore) scanChange(scan RowScan) (Change, error) {
 	return change, nil
 }
 
-func (s *ProblemStore) saveChangeTx(tx *sql.Tx, change Change) error {
+func (s *ProblemStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	problem := change.(*ProblemChange)
 	problem.Time = time.Now().Unix()
 	switch problem.Type {

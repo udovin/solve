@@ -121,7 +121,7 @@ func (s *UserStore) scanChange(scan RowScan) (Change, error) {
 	return change, nil
 }
 
-func (s *UserStore) saveChangeTx(tx *sql.Tx, change Change) error {
+func (s *UserStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	user := change.(*UserChange)
 	user.Time = time.Now().Unix()
 	switch user.Type {

@@ -93,7 +93,7 @@ func (s *RoleStore) scanChange(scan RowScan) (Change, error) {
 	return change, nil
 }
 
-func (s *RoleStore) saveChangeTx(tx *sql.Tx, change Change) error {
+func (s *RoleStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	role := change.(*RoleChange)
 	role.Time = time.Now().Unix()
 	switch role.Type {

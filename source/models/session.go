@@ -104,7 +104,7 @@ func (s *SessionStore) scanChange(scan RowScan) (Change, error) {
 	return change, nil
 }
 
-func (s *SessionStore) saveChangeTx(tx *sql.Tx, change Change) error {
+func (s *SessionStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	session := change.(*SessionChange)
 	session.Time = time.Now().Unix()
 	switch session.Type {

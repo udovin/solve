@@ -1,7 +1,7 @@
-import React from "react";
+import React, {ReactNode} from "react";
 
 export class Block extends React.Component<any> {
-	render() {
+	render(): ReactNode {
 		return (
 			<div className="ui-block">
 				<div className="ui-block-header">

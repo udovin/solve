@@ -1,11 +1,11 @@
-import React from "react";
+import React, {ReactNode} from "react";
 
 export class Page extends React.Component<any> {
 	componentWillMount(): void {
 		document.title = this.props.title
 	}
 
-	render() {
+	render(): ReactNode {
 		return (
 			<main id="main">
 				<div id="content-wrap">

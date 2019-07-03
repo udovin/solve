@@ -1,6 +1,6 @@
 import React from "react";
-import "./App.scss";
 import {BrowserRouter, Switch, Route} from "react-router-dom";
+import "./App.scss";
 import {Header} from "./layout/Header";
 import {Footer} from "./layout/Footer";
 import {LoginPage} from "./pages/LoginPage";

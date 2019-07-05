@@ -12,6 +12,7 @@ import (
 	"./api"
 	"./config"
 	"./core"
+	"./web"
 )
 
 const EtcDir = "/etc/solve"
@@ -59,10 +60,10 @@ func main() {
 	server.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: "${time_rfc3339}\t${latency_human}\t${status}\t${method}\t${uri}\n",
 	}))
-	server.Use(middleware.Gzip())
-	server.Static("/static", "static")
-	api.Register(app, server)
 	server.Pre(middleware.RemoveTrailingSlash())
+	server.Use(middleware.Gzip())
+	api.Register(app, server)
+	web.Register(app, server)
 	server.Logger.Fatal(server.Start(fmt.Sprintf(
 		"%s:%d", cfg.Server.Host, cfg.Server.Port,
 	)))

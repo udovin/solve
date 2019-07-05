@@ -2,7 +2,7 @@ FROM golang:alpine AS build
 
 RUN apk add --no-cache git gcc libc-dev
 
-COPY source /build
+COPY . /build
 
 WORKDIR /build
 

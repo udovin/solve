@@ -1,7 +1,7 @@
 import React, {ReactNode} from "react";
-import {Link} from "react-router-dom";
+import {Link, RouteComponentProps, withRouter} from "react-router-dom";
 
-export class Header extends React.Component {
+class Header extends React.Component<RouteComponentProps> {
 	render(): ReactNode {
 		return (
 			<header id="header">
@@ -23,10 +23,10 @@ export class Header extends React.Component {
 				</div>
 				<nav id="header-nav">
 					<ul>
-						<li className="active">
+						<li className={this.getActiveClass("/")}>
 							<Link to="/">Index</Link>
 						</li>
-						<li className="">
+						<li className={this.getActiveClass("/contests")}>
 							<Link to="/contests">Contests</Link>
 						</li>
 					</ul>
@@ -35,4 +35,16 @@ export class Header extends React.Component {
 			</header>
 		);
 	}
+
+	public getActiveClass(...names: string[]): string {
+		const {pathname} = this.props.location;
+		for (let name of names) {
+			if (name === pathname) {
+				return "active";
+			}
+		}
+		return "";
+	}
 }
+
+export default withRouter(Header);

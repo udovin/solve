@@ -50,55 +50,57 @@ func (v *View) passwordAuth(ctx echo.Context) error {
 
 func Register(app *core.App, server *echo.Echo) {
 	v := View{app: app, server: server}
+	// Create group for api handlers
+	api := server.Group("/api/v0")
 	// Service handlers
-	server.GET("/api/v0/ping", v.Ping)
+	api.GET("/ping", v.Ping)
 	// Users management
-	server.POST("/api/v0/users", v.CreateUser)
-	server.GET(
-		"/api/v0/users/:UserID", v.GetUser,
+	api.POST("/users", v.CreateUser)
+	api.GET(
+		"/users/:UserID", v.GetUser,
 		v.authMiddleware(v.sessionAuth),
 	)
-	server.PATCH(
-		"/api/v0/users/:UserID", v.UpdateUser,
+	api.PATCH(
+		"/users/:UserID", v.UpdateUser,
 		v.authMiddleware(v.sessionAuth),
 	)
-	server.DELETE(
-		"/api/v0/users/:UserID", v.DeleteUser,
+	api.DELETE(
+		"/users/:UserID", v.DeleteUser,
 		v.authMiddleware(v.sessionAuth),
 	)
 	// Sessions management
-	server.POST(
-		"/api/v0/sessions", v.CreateSession,
+	api.POST(
+		"/sessions", v.CreateSession,
 		v.authMiddleware(v.passwordAuth),
 	)
-	server.PATCH(
-		"/api/v0/sessions/:SessionID", v.UpdateSession,
+	api.PATCH(
+		"/sessions/:SessionID", v.UpdateSession,
 		v.authMiddleware(v.sessionAuth),
 	)
 	// Problems management
-	server.POST(
-		"/api/v0/problems", v.CreateProblem,
+	api.POST(
+		"/problems", v.CreateProblem,
 		v.authMiddleware(v.sessionAuth),
 	)
-	server.GET(
-		"/api/v0/problems/:ProblemID", v.GetProblem,
+	api.GET(
+		"/problems/:ProblemID", v.GetProblem,
 		v.authMiddleware(v.sessionAuth),
 	)
-	server.PATCH(
-		"/api/v0/problems/:ProblemID", v.UpdateProblem,
+	api.PATCH(
+		"/problems/:ProblemID", v.UpdateProblem,
 		v.authMiddleware(v.sessionAuth),
 	)
 	// Contests management
-	server.POST(
-		"/api/v0/contests", v.CreateContest,
+	api.POST(
+		"/contests", v.CreateContest,
 		v.authMiddleware(v.sessionAuth),
 	)
-	server.GET(
-		"/api/v0/contests/:ContestID", v.GetContest,
+	api.GET(
+		"/contests/:ContestID", v.GetContest,
 		v.authMiddleware(v.sessionAuth),
 	)
-	server.PATCH(
-		"/api/v0/contests/:ContestID", v.UpdateContest,
+	api.PATCH(
+		"/contests/:ContestID", v.UpdateContest,
 		v.authMiddleware(v.sessionAuth),
 	)
 }

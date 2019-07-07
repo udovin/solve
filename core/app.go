@@ -23,7 +23,9 @@ type App struct {
 	PasswordSalt string
 }
 
+// Create solve app from config
 func NewApp(cfg *config.Config) (*App, error) {
+	// Try to create database connection pool
 	db, err := cfg.Database.CreateDB()
 	if err != nil {
 		return nil, err
@@ -46,6 +48,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 			db, "solve_role", "solve_role_change",
 		),
 	}
+	// We do not want to load value every time
+	// in case of FileSecret or VariableSecret
 	app.PasswordSalt, err = cfg.Security.PasswordSalt.GetValue()
 	if err != nil {
 		return nil, err
@@ -53,27 +57,44 @@ func NewApp(cfg *config.Config) (*App, error) {
 	return &app, nil
 }
 
+// TODO: Some tables can be large and some other are not large,
+//   so we should update all tables fully asynchronously.
 func (a *App) Start() {
+	a.syncStoresTick()
+	// Update all store at most in one second. If exists a store which
+	// required more than one second for sync, we will slow down all
+	// other store syncs.
 	a.ticker = time.NewTicker(time.Second)
 	go a.syncStores()
 }
 
+// Stop syncing stores
+// TODO: Stop should hanging current goroutine while some syncs are running
 func (a *App) Stop() {
 	a.ticker.Stop()
 }
 
+// Almost infinite loop of syncing stores
 func (a *App) syncStores() {
 	for range a.ticker.C {
-		wg := sync.WaitGroup{}
-		go a.runManagerSync(wg, a.UserStore.Manager)
-		go a.runManagerSync(wg, a.SessionStore.Manager)
-		go a.runManagerSync(wg, a.ProblemStore.Manager)
-		go a.runManagerSync(wg, a.PermissionStore.Manager)
-		go a.runManagerSync(wg, a.RoleStore.Manager)
-		wg.Wait()
+		a.syncStoresTick()
 	}
 }
 
+// Sync all stores with database state
+func (a *App) syncStoresTick() {
+	wg := sync.WaitGroup{}
+	go a.runManagerSync(wg, a.UserStore.Manager)
+	go a.runManagerSync(wg, a.SessionStore.Manager)
+	go a.runManagerSync(wg, a.ProblemStore.Manager)
+	go a.runManagerSync(wg, a.PermissionStore.Manager)
+	go a.runManagerSync(wg, a.RoleStore.Manager)
+	wg.Wait()
+}
+
+// Sync store with database
+// This method is created for running in separate goroutine, so we
+// should pass WaitGroup to understand that goroutine is finished.
 func (a *App) runManagerSync(wg sync.WaitGroup, m *models.ChangeManager) {
 	wg.Add(1)
 	defer wg.Done()

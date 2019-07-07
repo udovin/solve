@@ -73,6 +73,7 @@ func createSQLiteDB(opts SQLiteOptions) (*sql.DB, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	db.SetMaxOpenConns(1)
 	return db, nil
 }
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/labstack/echo"
 
-	"../core"
+	"github.com/udovin/solve/core"
 )
 
 type View struct {

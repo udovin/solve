@@ -1,5 +1,6 @@
 import React, {ReactNode} from "react";
 import {Link, RouteComponentProps, withRouter} from "react-router-dom";
+import {AuthConsumer} from "../AuthContext";
 
 class Header extends React.Component<RouteComponentProps> {
 	render(): ReactNode {
@@ -12,12 +13,7 @@ class Header extends React.Component<RouteComponentProps> {
 					</div>
 					<div id="header-account">
 						<ul>
-							<li>
-								<Link to="/login">Login</Link>
-							</li>
-							<li>
-								<Link to="/register">Register</Link>
-							</li>
+							<AuthConsumer>{this.getAccountLinks}</AuthConsumer>
 						</ul>
 					</div>
 				</div>
@@ -34,6 +30,27 @@ class Header extends React.Component<RouteComponentProps> {
 				<div id="header-version" title="Version">0.0.1</div>
 			</header>
 		);
+	}
+
+	public getAccountLinks(isAuth: boolean): ReactNode {
+		if (isAuth) {
+			return <>
+				<li>
+					<Link to="/profile">Profile</Link>
+				</li>
+				<li>
+					<Link to="/logout">Logout</Link>
+				</li>
+			</>;
+		}
+		return <>
+			<li>
+				<Link to="/login">Login</Link>
+			</li>
+			<li>
+				<Link to="/register">Register</Link>
+			</li>
+		</>;
 	}
 
 	public getActiveClass(...names: string[]): string {

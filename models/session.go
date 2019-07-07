@@ -27,6 +27,7 @@ type SessionStore struct {
 	table       string
 	changeTable string
 	sessions    map[int64]Session
+	userMap     map[int64]map[int64]struct{}
 }
 
 func (c *SessionChange) ChangeData() interface{} {
@@ -39,6 +40,7 @@ func NewSessionStore(
 	store := SessionStore{
 		db: db, table: table, changeTable: changeTable,
 		sessions: make(map[int64]Session),
+		userMap:  make(map[int64]map[int64]struct{}),
 	}
 	store.Manager = NewChangeManager(&store)
 	return &store
@@ -54,6 +56,24 @@ func (s *SessionStore) TableName() string {
 
 func (s *SessionStore) ChangeTableName() string {
 	return s.changeTable
+}
+
+func (s *SessionStore) Get(id int64) (Session, bool) {
+	session, ok := s.sessions[id]
+	return session, ok
+}
+
+func (s *SessionStore) GetByUser(userID int64) []Session {
+	if idSet, ok := s.userMap[userID]; ok {
+		var sessions []Session
+		for id := range idSet {
+			if session, ok := s.sessions[id]; ok {
+				sessions = append(sessions, session)
+			}
+		}
+		return sessions
+	}
+	return nil
 }
 
 func (s *SessionStore) Create(m *Session) error {
@@ -192,11 +212,29 @@ func (s *SessionStore) applyChange(change Change) {
 	sessionChange := change.(*SessionChange)
 	session := sessionChange.Session
 	switch sessionChange.Type {
-	case CreateChange:
-		s.sessions[session.ID] = session
 	case UpdateChange:
+		if oldSession, ok := s.sessions[session.ID]; ok {
+			if oldSession.UserID != session.UserID {
+				delete(s.userMap[oldSession.UserID], oldSession.ID)
+				if len(s.userMap[oldSession.UserID]) == 0 {
+					delete(s.userMap, oldSession.UserID)
+				}
+			}
+		}
+		fallthrough
+	case CreateChange:
+		if s.userMap[session.UserID] == nil {
+			s.userMap[session.UserID] = make(map[int64]struct{})
+		}
+		s.userMap[session.UserID][session.ID] = struct{}{}
 		s.sessions[session.ID] = session
 	case DeleteChange:
+		if s.userMap[session.UserID] != nil {
+			delete(s.userMap[session.UserID], session.ID)
+			if len(s.userMap[session.UserID]) == 0 {
+				delete(s.userMap, session.UserID)
+			}
+		}
 		delete(s.sessions, session.ID)
 	default:
 		panic(fmt.Errorf(
@@ -213,4 +251,8 @@ func (m *Session) GenerateSecret() error {
 	}
 	m.Secret = base64.StdEncoding.EncodeToString(secretBytes)
 	return nil
+}
+
+func (m *Session) FormatCookie() string {
+	return fmt.Sprintf("%d_%s", m.ID, m.Secret)
 }

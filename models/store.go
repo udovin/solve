@@ -159,7 +159,7 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	rows, err := tx.Query(
 		fmt.Sprintf(
 			`SELECT * FROM "%s" `+
-				`WHERE "change_id" > $1 ORDER BY "change_id" LIMIT 5000`,
+				`WHERE "change_id" > $1 ORDER BY "change_id"`,
 			m.store.ChangeTableName(),
 		),
 		m.lastChangeID,

@@ -180,9 +180,9 @@ func (s *ProblemStore) applyChange(change Change) {
 	problemChange := change.(*ProblemChange)
 	problem := problemChange.Problem
 	switch problemChange.Type {
-	case CreateChange:
-		s.problems[problem.ID] = problem
 	case UpdateChange:
+		fallthrough
+	case CreateChange:
 		s.problems[problem.ID] = problem
 	case DeleteChange:
 		delete(s.problems, problem.ID)

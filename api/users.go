@@ -6,7 +6,7 @@ import (
 
 	"github.com/labstack/echo"
 
-	"../models"
+	"github.com/udovin/solve/models"
 )
 
 func (v *View) CreateUser(c echo.Context) error {
@@ -16,6 +16,7 @@ func (v *View) CreateUser(c echo.Context) error {
 		Password string `json:""`
 	}
 	if err := c.Bind(&userData); err != nil {
+		c.Logger().Error(err)
 		return err
 	}
 	user := models.User{
@@ -24,10 +25,12 @@ func (v *View) CreateUser(c echo.Context) error {
 	if err := user.SetPassword(
 		userData.Password, v.app.PasswordSalt,
 	); err != nil {
-		return c.NoContent(http.StatusInternalServerError)
+		c.Logger().Error(err)
+		return err
 	}
 	if err := v.app.UserStore.Create(&user); err != nil {
-		return c.NoContent(http.StatusInternalServerError)
+		c.Logger().Error(err)
+		return err
 	}
 	return c.JSON(http.StatusOK, user)
 }
@@ -35,6 +38,7 @@ func (v *View) CreateUser(c echo.Context) error {
 func (v *View) GetUser(c echo.Context) error {
 	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 60)
 	if err != nil {
+		c.Logger().Error(err)
 		return err
 	}
 	user, ok := v.app.UserStore.Get(userID)
@@ -47,13 +51,13 @@ func (v *View) GetUser(c echo.Context) error {
 func (v *View) UpdateUser(c echo.Context) error {
 	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 60)
 	if err != nil {
+		c.Logger().Error(err)
 		return err
 	}
 	user, ok := v.app.UserStore.Get(userID)
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
-	c.Logger().Error(user)
 	var userData struct {
 		Password *string `json:""`
 	}

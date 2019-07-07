@@ -1,7 +1,7 @@
 import React, {ReactNode} from "react";
 import {Link} from "react-router-dom";
 
-export class Footer extends React.Component {
+export default class Footer extends React.Component {
 	render(): ReactNode {
 		return (
 			<footer id="footer">

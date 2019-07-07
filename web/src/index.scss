@@ -7,7 +7,6 @@ body {
 	background: #f1f1f1;
 	font-family: Helvetica, Arial, sans-serif;
 	font-size: 14px;
-	overflow: hidden;
 }
 
 /*
@@ -346,7 +345,7 @@ span.ui-select {
 	right: 4px;
 	width: 24px;
 	height: 24px;
-	background: url("/assets/images/icons.svg") no-repeat 40% 60%;
+	background: url("/web/src/images/images/icons.svg") no-repeat 40% 60%;
 	background-size: 600% 600%;
 	transition: transform 200ms ease-out;
 	-moz-transition: transform 200ms ease-out;
@@ -510,7 +509,7 @@ button.ui-checkbox {
 	display: block;
 	width: 16px;
 	height: 16px;
-	background: url('/assets/images/icons-white.svg') no-repeat 40% 80%;
+	background: url('/web/src/images/images/icons-white.svg') no-repeat 40% 80%;
 	background-size: 600% 600%;
 }
 
@@ -1042,12 +1041,12 @@ button.ui-checkbox {
 	display: inline-block;
 	width: 24px;
 	height: 24px;
-	background: url('/assets/images/icons.svg') no-repeat;
+	background: url('/web/src/images/images/icons.svg') no-repeat;
 	background-size: 600% 600%;
 }
 
 .ui-icon.danger {
-	background-image: url('/assets/images/icons-red.svg');
+	background-image: url('/web/src/images/images/icons-red.svg');
 }
 
 .ui-icon.i-account {

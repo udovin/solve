@@ -47,6 +47,11 @@ func (s *RoleStore) ChangeTableName() string {
 	return s.changeTable
 }
 
+func (s *RoleStore) Get(id int64) (Role, bool) {
+	role, ok := s.roles[id]
+	return role, ok
+}
+
 func (s *RoleStore) Create(m *Role) error {
 	change := RoleChange{
 		ChangeBase: ChangeBase{Type: CreateChange},
@@ -172,9 +177,9 @@ func (s *RoleStore) applyChange(change Change) {
 	roleChange := change.(*RoleChange)
 	role := roleChange.Role
 	switch roleChange.Type {
-	case CreateChange:
-		s.roles[role.ID] = role
 	case UpdateChange:
+		fallthrough
+	case CreateChange:
 		s.roles[role.ID] = role
 	case DeleteChange:
 		delete(s.roles, role.ID)
@@ -184,12 +189,4 @@ func (s *RoleStore) applyChange(change Change) {
 			roleChange.Type,
 		))
 	}
-}
-
-func (s *RoleStore) Get(id int64) (Role, error) {
-	role, ok := s.roles[id]
-	if !ok {
-		return role, sql.ErrNoRows
-	}
-	return role, nil
 }

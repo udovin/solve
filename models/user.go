@@ -212,15 +212,14 @@ func (s *UserStore) applyChange(change Change) {
 	userChange := change.(*UserChange)
 	user := userChange.User
 	switch userChange.Type {
-	case CreateChange:
-		s.loginMap[user.Login] = user.ID
-		s.users[user.ID] = user
 	case UpdateChange:
 		if oldUser, ok := s.users[user.ID]; ok {
 			if oldUser.Login != user.Login {
 				delete(s.loginMap, oldUser.Login)
 			}
 		}
+		fallthrough
+	case CreateChange:
 		s.loginMap[user.Login] = user.ID
 		s.users[user.ID] = user
 	case DeleteChange:

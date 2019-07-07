@@ -43,6 +43,11 @@ func (s *PermissionStore) ChangeTableName() string {
 	return s.changeTable
 }
 
+func (s *PermissionStore) Get(id int64) (Permission, bool) {
+	permission, ok := s.permissions[id]
+	return permission, ok
+}
+
 func (s *PermissionStore) Create(m *Permission) error {
 	change := PermissionChange{
 		ChangeBase: ChangeBase{Type: CreateChange},
@@ -169,9 +174,9 @@ func (s *PermissionStore) applyChange(change Change) {
 	permissionChange := change.(*PermissionChange)
 	permission := permissionChange.Permission
 	switch permissionChange.Type {
-	case CreateChange:
-		s.permissions[permission.ID] = permission
 	case UpdateChange:
+		fallthrough
+	case CreateChange:
 		s.permissions[permission.ID] = permission
 	case DeleteChange:
 		delete(s.permissions, permission.ID)

@@ -8,7 +8,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"../tools"
+	"github.com/udovin/solve/tools"
 )
 
 type DatabaseDriver string
@@ -62,7 +62,18 @@ func (c *DatabaseConfig) UnmarshalJSON(bytes []byte) error {
 }
 
 func createSQLiteDB(opts SQLiteOptions) (*sql.DB, error) {
-	return sql.Open("sqlite3", fmt.Sprintf("file:%s", opts.Path))
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s", opts.Path))
+	if err != nil {
+		return nil, err
+	}
+	// This can increase writes performance
+	_, err = db.Exec(`PRAGMA journal_mode=WAL`)
+	if err != nil {
+		// Dont forget to close connection on failure
+		_ = db.Close()
+		return nil, err
+	}
+	return db, nil
 }
 
 func createPostgresDB(opts PostgresOptions) (*sql.DB, error) {

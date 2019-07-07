@@ -1,0 +1,7 @@
+/.idea/
+
+/database.sqlite
+/config.json
+
+/web/build
+/web/node_modules

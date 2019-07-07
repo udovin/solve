@@ -1,7 +1,7 @@
 /*
  * Layout style
  */
-#root {
+#layout {
 	margin: 0 auto;
 	padding: 0 4px;
 	width: auto;
@@ -57,7 +57,7 @@
 	margin-top: -8px;
 	width: 120px;
 	height: 40px;
-	background: url("/assets/images/logo.svg") no-repeat;
+	background: url("./images/logo.svg") no-repeat;
 	font-size: 0;
 	color: transparent;
 }

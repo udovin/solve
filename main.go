@@ -9,10 +9,9 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 
-	"./api"
-	"./config"
-	"./core"
-	"./web"
+	"github.com/udovin/solve/api"
+	"github.com/udovin/solve/config"
+	"github.com/udovin/solve/core"
 )
 
 const EtcDir = "/etc/solve"
@@ -63,7 +62,6 @@ func main() {
 	server.Pre(middleware.RemoveTrailingSlash())
 	server.Use(middleware.Gzip())
 	api.Register(app, server)
-	web.Register(app, server)
 	server.Logger.Fatal(server.Start(fmt.Sprintf(
 		"%s:%d", cfg.Server.Host, cfg.Server.Port,
 	)))

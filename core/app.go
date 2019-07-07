@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"../config"
-	"../models"
+	"github.com/udovin/solve/config"
+	"github.com/udovin/solve/models"
 )
 
 type App struct {

@@ -2,10 +2,11 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo"
 
-	"../models"
+	"github.com/udovin/solve/models"
 )
 
 func (v *View) CreateSession(c echo.Context) error {
@@ -14,6 +15,7 @@ func (v *View) CreateSession(c echo.Context) error {
 		Password string `json:""`
 	}
 	if err := c.Bind(&authData); err != nil {
+		c.Logger().Error(err)
 		return err
 	}
 	user, ok := v.app.UserStore.GetByLogin(authData.Login)
@@ -23,15 +25,24 @@ func (v *View) CreateSession(c echo.Context) error {
 	if !user.CheckPassword(authData.Password, v.app.PasswordSalt) {
 		return c.NoContent(http.StatusForbidden)
 	}
+	expires := time.Now().Add(time.Hour * 24 * 90)
 	session := models.Session{
-		UserID: user.ID,
+		UserID:     user.ID,
+		ExpireTime: expires.Unix(),
 	}
 	if err := session.GenerateSecret(); err != nil {
-		return c.NoContent(http.StatusInternalServerError)
+		c.Logger().Error(err)
+		return err
 	}
 	if err := v.app.SessionStore.Create(&session); err != nil {
-		return c.NoContent(http.StatusInternalServerError)
+		c.Logger().Error(err)
+		return err
 	}
+	c.SetCookie(&http.Cookie{
+		Name:    "solve_session",
+		Value:   session.FormatCookie(),
+		Expires: expires,
+	})
 	return c.JSON(http.StatusOK, session)
 }
 

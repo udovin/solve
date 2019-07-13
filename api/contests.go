@@ -6,6 +6,10 @@ import (
 	"github.com/labstack/echo"
 )
 
+func (v *View) GetContestList(c echo.Context) error {
+	return c.NoContent(http.StatusNotImplemented)
+}
+
 func (v *View) CreateContest(c echo.Context) error {
 	return c.NoContent(http.StatusNotImplemented)
 }

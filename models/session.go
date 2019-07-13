@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -74,6 +76,19 @@ func (s *SessionStore) GetByUser(userID int64) []Session {
 		return sessions
 	}
 	return nil
+}
+
+func (s *SessionStore) GetByCookie(cookie string) (Session, bool) {
+	parts := strings.SplitN(cookie, "_", 2)
+	id, err := strconv.ParseInt(parts[0], 10, 60)
+	if err != nil {
+		return Session{}, false
+	}
+	session, ok := s.sessions[id]
+	if !ok || session.Secret != parts[1] {
+		return Session{}, false
+	}
+	return session, true
 }
 
 func (s *SessionStore) Create(m *Session) error {

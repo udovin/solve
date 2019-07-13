@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 )
 
+// Configuration for Solve API and Invoker
 type Config struct {
 	Server   ServerConfig   `json:""`
 	Database DatabaseConfig `json:""`

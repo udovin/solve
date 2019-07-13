@@ -15,8 +15,9 @@ type App struct {
 	UserStore       *models.UserStore
 	SessionStore    *models.SessionStore
 	ProblemStore    *models.ProblemStore
-	PermissionStore *models.PermissionStore
+	ContestStore    *models.ContestStore
 	RoleStore       *models.RoleStore
+	PermissionStore *models.PermissionStore
 	// Used for regularly updating stores
 	ticker *time.Ticker
 	// Password salt
@@ -41,11 +42,14 @@ func NewApp(cfg *config.Config) (*App, error) {
 		ProblemStore: models.NewProblemStore(
 			db, "solve_problem", "solve_problem_change",
 		),
-		PermissionStore: models.NewPermissionStore(
-			db, "solve_permission", "solve_permission_change",
+		ContestStore: models.NewContestStore(
+			db, "solve_contest", "solve_contest_change",
 		),
 		RoleStore: models.NewRoleStore(
 			db, "solve_role", "solve_role_change",
+		),
+		PermissionStore: models.NewPermissionStore(
+			db, "solve_permission", "solve_permission_change",
 		),
 	}
 	// We do not want to load value every time
@@ -87,8 +91,9 @@ func (a *App) syncStoresTick() {
 	go a.runManagerSync(wg, a.UserStore.Manager)
 	go a.runManagerSync(wg, a.SessionStore.Manager)
 	go a.runManagerSync(wg, a.ProblemStore.Manager)
-	go a.runManagerSync(wg, a.PermissionStore.Manager)
+	go a.runManagerSync(wg, a.ContestStore.Manager)
 	go a.runManagerSync(wg, a.RoleStore.Manager)
+	go a.runManagerSync(wg, a.PermissionStore.Manager)
 	wg.Wait()
 }
 

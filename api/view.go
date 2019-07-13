@@ -25,26 +25,52 @@ const (
 
 func (v *View) authMiddleware(methods ...authMethod) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(ctx echo.Context) error {
+		return func(c echo.Context) error {
 			for _, method := range methods {
-				if err := method(ctx); err != nil {
+				if err := method(c); err != nil {
 					if err == badAuthError {
 						continue
 					}
 					return err
 				}
-				return next(ctx)
+				return next(c)
 			}
 			return badAuthError
 		}
 	}
 }
 
-func (v *View) sessionAuth(ctx echo.Context) error {
+func (v *View) sessionAuth(c echo.Context) error {
+	cookie, err := c.Cookie(sessionKey)
+	if err != nil {
+		return badAuthError
+	}
+	session, ok := v.app.SessionStore.GetByCookie(cookie.Value)
+	if !ok {
+		return badAuthError
+	}
+	user, ok := v.app.UserStore.Get(session.UserID)
+	if !ok {
+		return badAuthError
+	}
+	c.Set(userKey, user)
+	c.Set(sessionKey, session)
 	return nil
 }
 
-func (v *View) passwordAuth(ctx echo.Context) error {
+func (v *View) passwordAuth(c echo.Context) error {
+	var authData struct {
+		Login    string `json:""`
+		Password string `json:""`
+	}
+	if err := c.Bind(&authData); err != nil {
+		return badAuthError
+	}
+	user, ok := v.app.UserStore.GetByLogin(authData.Login)
+	if !ok || !user.CheckPassword(authData.Password, v.app.PasswordSalt) {
+		return badAuthError
+	}
+	c.Set(userKey, user)
 	return nil
 }
 
@@ -69,6 +95,10 @@ func Register(app *core.App, server *echo.Echo) {
 		v.authMiddleware(v.sessionAuth),
 	)
 	// Sessions management
+	api.GET(
+		"/sessions", v.GetSessionList,
+		v.authMiddleware(v.sessionAuth),
+	)
 	api.POST(
 		"/sessions", v.CreateSession,
 		v.authMiddleware(v.passwordAuth),
@@ -91,6 +121,10 @@ func Register(app *core.App, server *echo.Echo) {
 		v.authMiddleware(v.sessionAuth),
 	)
 	// Contests management
+	api.GET(
+		"/contests", v.GetContestList,
+		v.authMiddleware(v.sessionAuth),
+	)
 	api.POST(
 		"/contests", v.CreateContest,
 		v.authMiddleware(v.sessionAuth),

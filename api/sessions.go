@@ -9,21 +9,14 @@ import (
 	"github.com/udovin/solve/models"
 )
 
+func (v *View) GetSessionList(c echo.Context) error {
+	return c.NoContent(http.StatusNotImplemented)
+}
+
 func (v *View) CreateSession(c echo.Context) error {
-	var authData struct {
-		Login    string `json:""`
-		Password string `json:""`
-	}
-	if err := c.Bind(&authData); err != nil {
-		c.Logger().Error(err)
-		return err
-	}
-	user, ok := v.app.UserStore.GetByLogin(authData.Login)
+	user, ok := c.Get(userKey).(models.User)
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
-	}
-	if !user.CheckPassword(authData.Password, v.app.PasswordSalt) {
-		return c.NoContent(http.StatusForbidden)
 	}
 	expires := time.Now().Add(time.Hour * 24 * 90)
 	session := models.Session{
@@ -39,7 +32,7 @@ func (v *View) CreateSession(c echo.Context) error {
 		return err
 	}
 	c.SetCookie(&http.Cookie{
-		Name:    "solve_session",
+		Name:    sessionKey,
 		Value:   session.FormatCookie(),
 		Expires: expires,
 	})

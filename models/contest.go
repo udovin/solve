@@ -13,8 +13,8 @@ type Contest struct {
 }
 
 type ContestChange struct {
+	BaseChange
 	Contest
-	ChangeBase
 }
 
 type ContestStore struct {
@@ -51,7 +51,7 @@ func (s *ContestStore) Get(id int64) (Contest, bool) {
 
 func (s *ContestStore) Create(m *Contest) error {
 	change := ContestChange{
-		ChangeBase: ChangeBase{Type: CreateChange},
+		BaseChange: BaseChange{Type: CreateChange},
 		Contest:    *m,
 	}
 	err := s.Manager.Change(&change)
@@ -64,7 +64,7 @@ func (s *ContestStore) Create(m *Contest) error {
 
 func (s *ContestStore) Update(m *Contest) error {
 	change := ContestChange{
-		ChangeBase: ChangeBase{Type: UpdateChange},
+		BaseChange: BaseChange{Type: UpdateChange},
 		Contest:    *m,
 	}
 	err := s.Manager.Change(&change)
@@ -77,18 +77,34 @@ func (s *ContestStore) Update(m *Contest) error {
 
 func (s *ContestStore) Delete(id int64) error {
 	change := ContestChange{
-		ChangeBase: ChangeBase{Type: DeleteChange},
+		BaseChange: BaseChange{Type: DeleteChange},
 		Contest:    Contest{ID: id},
 	}
 	return s.Manager.Change(&change)
 }
 
-func (s *ContestStore) scanChange(scan RowScan) (Change, error) {
+func (s *ContestStore) loadChangeGapTx(
+	tx *ChangeTx, gap ChangeGap,
+) (*sql.Rows, error) {
+	return tx.Query(
+		fmt.Sprintf(
+			`SELECT`+
+				` "change_id", "change_type", "change_time",`+
+				` "id", "owner_id", "create_time"`+
+				` FROM "%s"`+
+				` WHERE "change_id" >= $1 AND "change_id" < $2`+
+				` ORDER BY "change_id"`,
+			s.ChangeTableName(),
+		),
+		gap.BeginID, gap.EndID,
+	)
+}
+
+func (s *ContestStore) scanChange(scan Scanner) (Change, error) {
 	change := &ContestChange{}
 	err := scan.Scan(
-		&change.ChangeBase.ID, &change.Type, &change.Time,
-		&change.Contest.ID, &change.OwnerID,
-		&change.CreateTime,
+		&change.BaseChange.ID, &change.Type, &change.Time,
+		&change.Contest.ID, &change.OwnerID, &change.CreateTime,
 	)
 	if err != nil {
 		return nil, err
@@ -172,7 +188,7 @@ func (s *ContestStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	if err != nil {
 		return err
 	}
-	contest.ChangeBase.ID, err = res.LastInsertId()
+	contest.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 

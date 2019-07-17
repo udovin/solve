@@ -12,8 +12,8 @@ type Role struct {
 }
 
 type RoleChange struct {
+	BaseChange
 	Role
-	ChangeBase
 }
 
 type RoleStore struct {
@@ -54,7 +54,7 @@ func (s *RoleStore) Get(id int64) (Role, bool) {
 
 func (s *RoleStore) Create(m *Role) error {
 	change := RoleChange{
-		ChangeBase: ChangeBase{Type: CreateChange},
+		BaseChange: BaseChange{Type: CreateChange},
 		Role:       *m,
 	}
 	err := s.Manager.Change(&change)
@@ -67,7 +67,7 @@ func (s *RoleStore) Create(m *Role) error {
 
 func (s *RoleStore) Update(m *Role) error {
 	change := RoleChange{
-		ChangeBase: ChangeBase{Type: UpdateChange},
+		BaseChange: BaseChange{Type: UpdateChange},
 		Role:       *m,
 	}
 	err := s.Manager.Change(&change)
@@ -80,16 +80,33 @@ func (s *RoleStore) Update(m *Role) error {
 
 func (s *RoleStore) Delete(id int64) error {
 	change := RoleChange{
-		ChangeBase: ChangeBase{Type: DeleteChange},
+		BaseChange: BaseChange{Type: DeleteChange},
 		Role:       Role{ID: id},
 	}
 	return s.Manager.Change(&change)
 }
 
-func (s *RoleStore) scanChange(scan RowScan) (Change, error) {
+func (s *RoleStore) loadChangeGapTx(
+	tx *ChangeTx, gap ChangeGap,
+) (*sql.Rows, error) {
+	return tx.Query(
+		fmt.Sprintf(
+			`SELECT`+
+				` "change_id", "change_type", "change_time",`+
+				` "id", "code"`+
+				` FROM "%s"`+
+				` WHERE "change_id" >= $1 AND "change_id" < $2`+
+				` ORDER BY "change_id"`,
+			s.ChangeTableName(),
+		),
+		gap.BeginID, gap.EndID,
+	)
+}
+
+func (s *RoleStore) scanChange(scan Scanner) (Change, error) {
 	change := &RoleChange{}
 	err := scan.Scan(
-		&change.ChangeBase.ID, &change.Type, &change.Time,
+		&change.BaseChange.ID, &change.Type, &change.Time,
 		&change.Role.ID, &change.Code,
 	)
 	if err != nil {
@@ -169,7 +186,7 @@ func (s *RoleStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	if err != nil {
 		return err
 	}
-	role.ChangeBase.ID, err = res.LastInsertId()
+	role.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 

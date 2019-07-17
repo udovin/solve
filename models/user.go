@@ -19,8 +19,8 @@ type User struct {
 }
 
 type UserChange struct {
+	BaseChange
 	User
-	ChangeBase
 }
 
 type UserStore struct {
@@ -75,7 +75,7 @@ func (s *UserStore) GetByLogin(login string) (User, bool) {
 
 func (s *UserStore) Create(m *User) error {
 	change := UserChange{
-		ChangeBase: ChangeBase{Type: CreateChange},
+		BaseChange: BaseChange{Type: CreateChange},
 		User:       *m,
 	}
 	err := s.Manager.Change(&change)
@@ -88,7 +88,7 @@ func (s *UserStore) Create(m *User) error {
 
 func (s *UserStore) Update(m *User) error {
 	change := UserChange{
-		ChangeBase: ChangeBase{Type: UpdateChange},
+		BaseChange: BaseChange{Type: UpdateChange},
 		User:       *m,
 	}
 	err := s.Manager.Change(&change)
@@ -101,19 +101,35 @@ func (s *UserStore) Update(m *User) error {
 
 func (s *UserStore) Delete(id int64) error {
 	change := UserChange{
-		ChangeBase: ChangeBase{Type: DeleteChange},
+		BaseChange: BaseChange{Type: DeleteChange},
 		User:       User{ID: id},
 	}
 	return s.Manager.Change(&change)
 }
 
-func (s *UserStore) scanChange(scan RowScan) (Change, error) {
+func (s *UserStore) loadChangeGapTx(
+	tx *ChangeTx, gap ChangeGap,
+) (*sql.Rows, error) {
+	return tx.Query(
+		fmt.Sprintf(
+			`SELECT`+
+				` "change_id", "change_type", "change_time", "id",`+
+				` "login", "password_hash", "password_salt", "create_time"`+
+				` FROM "%s"`+
+				` WHERE "change_id" >= $1 AND "change_id" < $2`+
+				` ORDER BY "change_id"`,
+			s.ChangeTableName(),
+		),
+		gap.BeginID, gap.EndID,
+	)
+}
+
+func (s *UserStore) scanChange(scan Scanner) (Change, error) {
 	change := &UserChange{}
 	err := scan.Scan(
-		&change.ChangeBase.ID, &change.Type, &change.Time,
-		&change.User.ID, &change.Login,
-		&change.PasswordHash, &change.PasswordSalt,
-		&change.CreateTime,
+		&change.BaseChange.ID, &change.Type, &change.Time,
+		&change.User.ID, &change.Login, &change.PasswordHash,
+		&change.PasswordSalt, &change.CreateTime,
 	)
 	if err != nil {
 		return nil, err
@@ -204,7 +220,7 @@ func (s *UserStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	if err != nil {
 		return err
 	}
-	user.ChangeBase.ID, err = res.LastInsertId()
+	user.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 

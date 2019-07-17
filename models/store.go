@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"sync"
 )
 
@@ -14,17 +15,17 @@ const (
 	UpdateChange ChangeType = 3
 )
 
-type RowScan interface {
+type Scanner interface {
 	Scan(dest ...interface{}) error
 }
 
-type ChangeBase struct {
+type BaseChange struct {
 	ID   int64      `db:"change_id"   json:""`
 	Type ChangeType `db:"change_type" json:""`
 	Time int64      `db:"change_time" json:""`
 }
 
-func (c *ChangeBase) ChangeID() int64 {
+func (c *BaseChange) ChangeID() int64 {
 	return c.ID
 }
 
@@ -50,10 +51,10 @@ type Change interface {
 type ChangeStore interface {
 	// Get database connection
 	GetDB() *sql.DB
-	// Get change table name
-	ChangeTableName() string
+	// Load changes from gap
+	loadChangeGapTx(tx *ChangeTx, gap ChangeGap) (*sql.Rows, error)
 	// Scan change from result row
-	scanChange(scan RowScan) (Change, error)
+	scanChange(scan Scanner) (Change, error)
 	// Save change to database
 	saveChangeTx(tx *ChangeTx, change Change) error
 	// Apply change to store
@@ -61,8 +62,8 @@ type ChangeStore interface {
 }
 
 type ChangeGap struct {
-	beginID int64
-	endID   int64
+	BeginID int64
+	EndID   int64
 }
 
 type ChangeTx struct {
@@ -156,13 +157,8 @@ func (m *ChangeManager) Sync() error {
 func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	rows, err := tx.Query(
-		fmt.Sprintf(
-			`SELECT * FROM "%s" `+
-				`WHERE "change_id" > $1 ORDER BY "change_id"`,
-			m.store.ChangeTableName(),
-		),
-		m.lastChangeID,
+	rows, err := m.store.loadChangeGapTx(
+		tx, ChangeGap{m.lastChangeID + 1, math.MaxInt64},
 	)
 	if err != nil {
 		return err
@@ -188,8 +184,8 @@ func (m *ChangeManager) applyChange(change Change) {
 	}
 	if m.lastChangeID+1 < change.ChangeID() {
 		m.changeGaps = append(m.changeGaps, ChangeGap{
-			beginID: m.lastChangeID + 1,
-			endID:   change.ChangeID(),
+			BeginID: m.lastChangeID + 1,
+			EndID:   change.ChangeID(),
 		})
 	}
 	m.lastChangeID = change.ChangeID()

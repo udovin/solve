@@ -13,8 +13,8 @@ type Problem struct {
 }
 
 type ProblemChange struct {
+	BaseChange
 	Problem
-	ChangeBase
 }
 
 type ProblemStore struct {
@@ -51,7 +51,7 @@ func (s *ProblemStore) Get(id int64) (Problem, bool) {
 
 func (s *ProblemStore) Create(m *Problem) error {
 	change := ProblemChange{
-		ChangeBase: ChangeBase{Type: CreateChange},
+		BaseChange: BaseChange{Type: CreateChange},
 		Problem:    *m,
 	}
 	err := s.Manager.Change(&change)
@@ -64,7 +64,7 @@ func (s *ProblemStore) Create(m *Problem) error {
 
 func (s *ProblemStore) Update(m *Problem) error {
 	change := ProblemChange{
-		ChangeBase: ChangeBase{Type: UpdateChange},
+		BaseChange: BaseChange{Type: UpdateChange},
 		Problem:    *m,
 	}
 	err := s.Manager.Change(&change)
@@ -77,18 +77,34 @@ func (s *ProblemStore) Update(m *Problem) error {
 
 func (s *ProblemStore) Delete(id int64) error {
 	change := ProblemChange{
-		ChangeBase: ChangeBase{Type: DeleteChange},
+		BaseChange: BaseChange{Type: DeleteChange},
 		Problem:    Problem{ID: id},
 	}
 	return s.Manager.Change(&change)
 }
 
-func (s *ProblemStore) scanChange(scan RowScan) (Change, error) {
+func (s *ProblemStore) loadChangeGapTx(
+	tx *ChangeTx, gap ChangeGap,
+) (*sql.Rows, error) {
+	return tx.Query(
+		fmt.Sprintf(
+			`SELECT`+
+				` "change_id", "change_type", "change_time",`+
+				` "id", "owner_id", "create_time"`+
+				` FROM "%s"`+
+				` WHERE "change_id" >= $1 AND "change_id" < $2`+
+				` ORDER BY "change_id"`,
+			s.ChangeTableName(),
+		),
+		gap.BeginID, gap.EndID,
+	)
+}
+
+func (s *ProblemStore) scanChange(scan Scanner) (Change, error) {
 	change := &ProblemChange{}
 	err := scan.Scan(
-		&change.ChangeBase.ID, &change.Type, &change.Time,
-		&change.Problem.ID, &change.OwnerID,
-		&change.CreateTime,
+		&change.BaseChange.ID, &change.Type, &change.Time,
+		&change.Problem.ID, &change.OwnerID, &change.CreateTime,
 	)
 	if err != nil {
 		return nil, err
@@ -172,7 +188,7 @@ func (s *ProblemStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	if err != nil {
 		return err
 	}
-	problem.ChangeBase.ID, err = res.LastInsertId()
+	problem.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 

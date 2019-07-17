@@ -12,8 +12,8 @@ type Permission struct {
 }
 
 type PermissionChange struct {
+	BaseChange
 	Permission
-	ChangeBase
 }
 
 type PermissionStore struct {
@@ -50,7 +50,7 @@ func (s *PermissionStore) Get(id int64) (Permission, bool) {
 
 func (s *PermissionStore) Create(m *Permission) error {
 	change := PermissionChange{
-		ChangeBase: ChangeBase{Type: CreateChange},
+		BaseChange: BaseChange{Type: CreateChange},
 		Permission: *m,
 	}
 	err := s.Manager.Change(&change)
@@ -63,7 +63,7 @@ func (s *PermissionStore) Create(m *Permission) error {
 
 func (s *PermissionStore) Update(m *Permission) error {
 	change := PermissionChange{
-		ChangeBase: ChangeBase{Type: UpdateChange},
+		BaseChange: BaseChange{Type: UpdateChange},
 		Permission: *m,
 	}
 	err := s.Manager.Change(&change)
@@ -76,16 +76,33 @@ func (s *PermissionStore) Update(m *Permission) error {
 
 func (s *PermissionStore) Delete(id int64) error {
 	change := PermissionChange{
-		ChangeBase: ChangeBase{Type: DeleteChange},
+		BaseChange: BaseChange{Type: DeleteChange},
 		Permission: Permission{ID: id},
 	}
 	return s.Manager.Change(&change)
 }
 
-func (s *PermissionStore) scanChange(scan RowScan) (Change, error) {
+func (s *PermissionStore) loadChangeGapTx(
+	tx *ChangeTx, gap ChangeGap,
+) (*sql.Rows, error) {
+	return tx.Query(
+		fmt.Sprintf(
+			`SELECT`+
+				` "change_id", "change_type", "change_time",`+
+				` "id", "code"`+
+				` FROM "%s"`+
+				` WHERE "change_id" >= $1 AND "change_id" < $2`+
+				` ORDER BY "change_id"`,
+			s.ChangeTableName(),
+		),
+		gap.BeginID, gap.EndID,
+	)
+}
+
+func (s *PermissionStore) scanChange(scan Scanner) (Change, error) {
 	change := &PermissionChange{}
 	err := scan.Scan(
-		&change.ChangeBase.ID, &change.Type, &change.Time,
+		&change.BaseChange.ID, &change.Type, &change.Time,
 		&change.Permission.ID, &change.Code,
 	)
 	if err != nil {
@@ -166,7 +183,7 @@ func (s *PermissionStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	if err != nil {
 		return err
 	}
-	permission.ChangeBase.ID, err = res.LastInsertId()
+	permission.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 

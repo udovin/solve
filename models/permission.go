@@ -105,10 +105,7 @@ func (s *PermissionStore) scanChange(scan Scanner) (Change, error) {
 		&change.BaseChange.ID, &change.Type, &change.Time,
 		&change.Permission.ID, &change.Code,
 	)
-	if err != nil {
-		return nil, err
-	}
-	return change, nil
+	return change, err
 }
 
 func (s *PermissionStore) saveChangeTx(tx *ChangeTx, change Change) error {
@@ -172,9 +169,9 @@ func (s *PermissionStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	}
 	res, err := tx.Exec(
 		fmt.Sprintf(
-			`INSERT INTO "%s" `+
-				`("change_type", "change_time", "id", "code") `+
-				`VALUES ($1, $2, $3, $4)`,
+			`INSERT INTO "%s"`+
+				` ("change_type", "change_time", "id", "code")`+
+				` VALUES ($1, $2, $3, $4)`,
 			s.ChangeTableName(),
 		),
 		permission.Type, permission.Time,

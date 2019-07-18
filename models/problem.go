@@ -106,10 +106,7 @@ func (s *ProblemStore) scanChange(scan Scanner) (Change, error) {
 		&change.BaseChange.ID, &change.Type, &change.Time,
 		&change.Problem.ID, &change.OwnerID, &change.CreateTime,
 	)
-	if err != nil {
-		return nil, err
-	}
-	return change, nil
+	return change, err
 }
 
 func (s *ProblemStore) saveChangeTx(tx *ChangeTx, change Change) error {
@@ -120,9 +117,9 @@ func (s *ProblemStore) saveChangeTx(tx *ChangeTx, change Change) error {
 		problem.Problem.CreateTime = problem.Time
 		res, err := tx.Exec(
 			fmt.Sprintf(
-				`INSERT INTO "%s" `+
-					`("owner_id", "create_time") `+
-					`VALUES ($1, $2)`,
+				`INSERT INTO "%s"`+
+					` ("owner_id", "create_time")`+
+					` VALUES ($1, $2)`,
 				s.table,
 			),
 			problem.OwnerID, problem.CreateTime,
@@ -176,10 +173,10 @@ func (s *ProblemStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	}
 	res, err := tx.Exec(
 		fmt.Sprintf(
-			`INSERT INTO "%s" `+
-				`("change_type", "change_time", `+
-				`"id", "owner_id", "create_time") `+
-				`VALUES ($1, $2, $3, $4, $5)`,
+			`INSERT INTO "%s"`+
+				` ("change_type", "change_time",`+
+				` "id", "owner_id", "create_time")`+
+				` VALUES ($1, $2, $3, $4, $5)`,
 			s.ChangeTableName(),
 		),
 		problem.Type, problem.Time,

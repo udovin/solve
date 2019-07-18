@@ -106,10 +106,7 @@ func (s *ContestStore) scanChange(scan Scanner) (Change, error) {
 		&change.BaseChange.ID, &change.Type, &change.Time,
 		&change.Contest.ID, &change.OwnerID, &change.CreateTime,
 	)
-	if err != nil {
-		return nil, err
-	}
-	return change, nil
+	return change, err
 }
 
 func (s *ContestStore) saveChangeTx(tx *ChangeTx, change Change) error {
@@ -120,9 +117,9 @@ func (s *ContestStore) saveChangeTx(tx *ChangeTx, change Change) error {
 		contest.Contest.CreateTime = contest.Time
 		res, err := tx.Exec(
 			fmt.Sprintf(
-				`INSERT INTO "%s" `+
-					`("owner_id", "create_time") `+
-					`VALUES ($1, $2)`,
+				`INSERT INTO "%s"`+
+					` ("owner_id", "create_time")`+
+					` VALUES ($1, $2)`,
 				s.table,
 			),
 			contest.OwnerID, contest.CreateTime,
@@ -176,10 +173,10 @@ func (s *ContestStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	}
 	res, err := tx.Exec(
 		fmt.Sprintf(
-			`INSERT INTO "%s" `+
-				`("change_type", "change_time", `+
-				`"id", "owner_id", "create_time") `+
-				`VALUES ($1, $2, $3, $4, $5)`,
+			`INSERT INTO "%s"`+
+				` ("change_type", "change_time",`+
+				` "id", "owner_id", "create_time")`+
+				` VALUES ($1, $2, $3, $4, $5)`,
 			s.ChangeTableName(),
 		),
 		contest.Type, contest.Time,

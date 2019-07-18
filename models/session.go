@@ -149,10 +149,7 @@ func (s *SessionStore) scanChange(scan Scanner) (Change, error) {
 		&change.Session.ID, &change.UserID, &change.Secret,
 		&change.CreateTime, &change.ExpireTime,
 	)
-	if err != nil {
-		return nil, err
-	}
-	return change, nil
+	return change, err
 }
 
 func (s *SessionStore) saveChangeTx(tx *ChangeTx, change Change) error {
@@ -163,9 +160,9 @@ func (s *SessionStore) saveChangeTx(tx *ChangeTx, change Change) error {
 		session.CreateTime = session.Time
 		res, err := tx.Exec(
 			fmt.Sprintf(
-				`INSERT INTO "%s" `+
-					`("user_id", "secret", "create_time", "expire_time") `+
-					`VALUES ($1, $2, $3, $4)`,
+				`INSERT INTO "%s"`+
+					` ("user_id", "secret", "create_time", "expire_time")`+
+					` VALUES ($1, $2, $3, $4)`,
 				s.table,
 			),
 			session.UserID, session.Secret,
@@ -187,9 +184,9 @@ func (s *SessionStore) saveChangeTx(tx *ChangeTx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET `+
-					`'"user_id" = $1, "secret" = $2, "expire_time" = $3`+
-					`WHERE "id" = $4`,
+				`UPDATE "%s" SET`+
+					` "user_id" = $1, "secret" = $2, "expire_time" = $3`+
+					` WHERE "id" = $4`,
 				s.table,
 			),
 			session.UserID, session.Secret,
@@ -223,10 +220,10 @@ func (s *SessionStore) saveChangeTx(tx *ChangeTx, change Change) error {
 	}
 	res, err := tx.Exec(
 		fmt.Sprintf(
-			`INSERT INTO "%s" `+
-				`("change_type", "change_time", "id", "user_id", `+
-				`"secret", "create_time", "expire_time") `+
-				`VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			`INSERT INTO "%s"`+
+				` ("change_type", "change_time", "id", "user_id",`+
+				` "secret", "create_time", "expire_time")`+
+				` VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			s.ChangeTableName(),
 		),
 		session.Type, session.Time, session.Session.ID, session.UserID,

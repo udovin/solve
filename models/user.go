@@ -131,10 +131,7 @@ func (s *UserStore) scanChange(scan Scanner) (Change, error) {
 		&change.User.ID, &change.Login, &change.PasswordHash,
 		&change.PasswordSalt, &change.CreateTime,
 	)
-	if err != nil {
-		return nil, err
-	}
-	return change, nil
+	return change, err
 }
 
 func (s *UserStore) saveChangeTx(tx *ChangeTx, change Change) error {
@@ -145,10 +142,10 @@ func (s *UserStore) saveChangeTx(tx *ChangeTx, change Change) error {
 		user.CreateTime = user.Time
 		res, err := tx.Exec(
 			fmt.Sprintf(
-				`INSERT INTO "%s" `+
-					`("login", "password_hash", `+
-					`"password_salt", "create_time") `+
-					`VALUES ($1, $2, $3, $4)`,
+				`INSERT INTO "%s"`+
+					` ("login", "password_hash",`+
+					` "password_salt", "create_time")`+
+					` VALUES ($1, $2, $3, $4)`,
 				s.table,
 			),
 			user.Login, user.PasswordHash,
@@ -170,10 +167,10 @@ func (s *UserStore) saveChangeTx(tx *ChangeTx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET `+
-					`"login" = $1, "password_hash" = $2, `+
-					`"password_salt" = $3 `+
-					`WHERE "id" = $4`,
+				`UPDATE "%s" SET`+
+					` "login" = $1, "password_hash" = $2,`+
+					` "password_salt" = $3`+
+					` WHERE "id" = $4`,
 				s.table,
 			),
 			user.Login, user.PasswordHash,

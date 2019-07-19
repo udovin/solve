@@ -1,6 +1,7 @@
 package models
 
 import (
+	"container/list"
 	"database/sql"
 	"fmt"
 	"math"
@@ -73,14 +74,16 @@ type ChangeTx struct {
 
 // Supports store consistency using change table
 type ChangeManager struct {
-	store        ChangeStore
+	store ChangeStore
+	// Change gaps are required for allow transactions without
+	// locking full change table
+	changeGaps   *list.List
 	lastChangeID int64
-	changeGaps   []ChangeGap
 	mutex        sync.Mutex
 }
 
 func NewChangeManager(store ChangeStore) *ChangeManager {
-	return &ChangeManager{store: store}
+	return &ChangeManager{store: store, changeGaps: list.New()}
 }
 
 func (tx *ChangeTx) Commit() error {
@@ -154,36 +157,93 @@ func (m *ChangeManager) Sync() error {
 	return err
 }
 
+const changeGapSkipWindow = 5000
+
 func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	rows, err := m.store.loadChangeGapTx(
-		tx, ChangeGap{m.lastChangeID + 1, math.MaxInt64},
-	)
+	for e := m.changeGaps.Front(); e != nil; {
+		curr := e.Value.(ChangeGap)
+		if curr.EndID+changeGapSkipWindow >= m.lastChangeID {
+			break
+		}
+		next := e.Next()
+		m.changeGaps.Remove(e)
+		e = next
+	}
+	for e := m.changeGaps.Front(); e != nil; {
+		curr := e.Value.(ChangeGap)
+		rows, err := m.store.loadChangeGapTx(tx, curr)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			change, err := m.store.scanChange(rows)
+			if err != nil {
+				_ = rows.Close()
+				return err
+			}
+			if change.ChangeID() < curr.BeginID {
+				_ = rows.Close()
+				panic("ChangeID should be not less than gap BeginID")
+			}
+			if change.ChangeID() >= curr.EndID {
+				_ = rows.Close()
+				panic("ChangeID should be less than gap EndID")
+			}
+			m.store.applyChange(change)
+			next := ChangeGap{
+				BeginID: change.ChangeID() + 1,
+				EndID:   curr.EndID,
+			}
+			if curr.BeginID < change.ChangeID() {
+				curr.EndID = change.ChangeID()
+				e.Value = curr
+				if next.BeginID < next.EndID {
+					e = m.changeGaps.InsertAfter(next, e)
+					curr = next
+				}
+			} else {
+				curr.BeginID++
+				if curr.BeginID >= curr.EndID {
+					next := e.Next()
+					m.changeGaps.Remove(e)
+					e = next
+					continue
+				}
+				e.Value = curr
+			}
+		}
+		_ = rows.Close()
+		e = e.Next()
+	}
+	rows, err := m.store.loadChangeGapTx(tx, ChangeGap{
+		BeginID: m.lastChangeID + 1,
+		EndID:   math.MaxInt64,
+	})
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
 	for rows.Next() {
 		change, err := m.store.scanChange(rows)
 		if err != nil {
+			_ = rows.Close()
 			return err
 		}
 		m.applyChange(change)
 	}
+	_ = rows.Close()
 	return nil
 }
 
 // Apply change to store and increase change id
 func (m *ChangeManager) applyChange(change Change) {
-	m.store.applyChange(change)
-	if m.lastChangeID >= change.ChangeID() {
-		return
+	if change.ChangeID() <= m.lastChangeID {
+		panic("Change ID should be greater than last ChangeID")
 	}
+	m.store.applyChange(change)
 	if m.lastChangeID+1 < change.ChangeID() {
-		m.changeGaps = append(m.changeGaps, ChangeGap{
+		_ = m.changeGaps.PushBack(ChangeGap{
 			BeginID: m.lastChangeID + 1,
 			EndID:   change.ChangeID(),
 		})

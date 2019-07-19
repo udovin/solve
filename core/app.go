@@ -9,6 +9,7 @@ import (
 	"github.com/udovin/solve/models"
 )
 
+// App manages all available resources
 type App struct {
 	Config config.Config
 	// Stores

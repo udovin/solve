@@ -34,6 +34,10 @@ func (s *MockStore) Get(id int) (Mock, bool) {
 	return mock, ok
 }
 
+func (s *MockStore) setupChanges(tx *sql.Tx) (int64, error) {
+	return 0, nil
+}
+
 func (s *MockStore) loadChangeGapTx(
 	tx *ChangeTx, gap ChangeGap,
 ) (*sql.Rows, error) {

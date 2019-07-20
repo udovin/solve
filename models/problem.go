@@ -83,6 +83,10 @@ func (s *ProblemStore) Delete(id int64) error {
 	return s.Manager.Change(&change)
 }
 
+func (s *ProblemStore) setupChanges(tx *sql.Tx) (int64, error) {
+	return 0, nil
+}
+
 func (s *ProblemStore) loadChangeGapTx(
 	tx *ChangeTx, gap ChangeGap,
 ) (*sql.Rows, error) {

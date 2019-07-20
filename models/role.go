@@ -86,6 +86,10 @@ func (s *RoleStore) Delete(id int64) error {
 	return s.Manager.Change(&change)
 }
 
+func (s *RoleStore) setupChanges(tx *sql.Tx) (int64, error) {
+	return 0, nil
+}
+
 func (s *RoleStore) loadChangeGapTx(
 	tx *ChangeTx, gap ChangeGap,
 ) (*sql.Rows, error) {

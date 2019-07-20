@@ -57,7 +57,7 @@ type ChangeStore interface {
 	// Get database connection
 	GetDB() *sql.DB
 	// Setup changes
-	//	setupChanges(tx *ChangeTx) (int64, error)
+	setupChanges(tx *sql.Tx) (int64, error)
 	// Load changes from gap
 	loadChangeGapTx(tx *ChangeTx, gap ChangeGap) (*sql.Rows, error)
 	// Scan change from result row
@@ -116,6 +116,23 @@ func (tx *ChangeTx) Rollback() error {
 	for manager := range tx.changes {
 		delete(tx.changes, manager)
 	}
+	return nil
+}
+
+func (m *ChangeManager) Setup() error {
+	tx, err := m.store.GetDB().Begin()
+	if err != nil {
+		return err
+	}
+	id, err := m.store.setupChanges(tx)
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	m.lastChangeID = id
 	return nil
 }
 

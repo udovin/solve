@@ -83,6 +83,10 @@ func (s *ContestStore) Delete(id int64) error {
 	return s.Manager.Change(&change)
 }
 
+func (s *ContestStore) setupChanges(tx *sql.Tx) (int64, error) {
+	return 0, nil
+}
+
 func (s *ContestStore) loadChangeGapTx(
 	tx *ChangeTx, gap ChangeGap,
 ) (*sql.Rows, error) {

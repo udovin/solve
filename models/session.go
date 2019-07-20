@@ -125,6 +125,10 @@ func (s *SessionStore) Delete(id int64) error {
 	return s.Manager.Change(&change)
 }
 
+func (s *SessionStore) setupChanges(tx *sql.Tx) (int64, error) {
+	return 0, nil
+}
+
 func (s *SessionStore) loadChangeGapTx(
 	tx *ChangeTx, gap ChangeGap,
 ) (*sql.Rows, error) {

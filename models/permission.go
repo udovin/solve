@@ -82,6 +82,10 @@ func (s *PermissionStore) Delete(id int64) error {
 	return s.Manager.Change(&change)
 }
 
+func (s *PermissionStore) setupChanges(tx *sql.Tx) (int64, error) {
+	return 0, nil
+}
+
 func (s *PermissionStore) loadChangeGapTx(
 	tx *ChangeTx, gap ChangeGap,
 ) (*sql.Rows, error) {

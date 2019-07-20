@@ -4,6 +4,15 @@ import (
 	"testing"
 )
 
+func TestContestStore_GetDB(t *testing.T) {
+	setup(t)
+	defer teardown(t)
+	store := NewContestStore(db, "test_contest", "test_contest_change")
+	if store.GetDB() != db {
+		t.Error("Store has invalid database")
+	}
+}
+
 func TestContestStore_applyChange(t *testing.T) {
 	setup(t)
 	defer teardown(t)
@@ -44,8 +53,8 @@ func TestContestStore_applyChange(t *testing.T) {
 			}
 		}()
 		store.applyChange(&ContestChange{
-			BaseChange: BaseChange{ID: 1, Type: ChangeType(126), Time: 0},
-			Contest:    Contest{ID: 1, OwnerID: 1},
+			BaseChange: BaseChange{ID: 4, Type: ChangeType(126), Time: 0},
+			Contest:    Contest{ID: 2, OwnerID: 1},
 		})
 	}()
 	func() {

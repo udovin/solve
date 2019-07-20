@@ -14,7 +14,8 @@ import (
 	"github.com/udovin/solve/core"
 )
 
-const EtcDir = "/etc/solve"
+// Path to unix '/etc' directory
+const etcDir = "/etc/solve"
 
 func fileExists(path string) bool {
 	if _, err := os.Stat(path); err == nil {
@@ -32,7 +33,7 @@ func getConfig() (config.Config, error) {
 	if fileExists(path) {
 		return config.LoadFromFile(path)
 	}
-	path = filepath.Join(EtcDir, path)
+	path = filepath.Join(etcDir, path)
 	if fileExists(path) {
 		return config.LoadFromFile(path)
 	}

@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-func TestSecret_GetValue_ValueSecret(t *testing.T) {
+func TestSecret_GetValue_DataSecret(t *testing.T) {
 	expectedValue := "Hello, World!"
-	s := Secret{Type: ValueSecret, Data: expectedValue}
+	s := Secret{Type: DataSecret, Data: expectedValue}
 	value, err := s.GetValue()
 	if err != nil {
 		t.Error("Error: ", err)
@@ -18,30 +18,6 @@ func TestSecret_GetValue_ValueSecret(t *testing.T) {
 			"Expected '%s', but got '%s'",
 			expectedValue, value,
 		)
-	}
-}
-
-func TestSecret_GetValue_VariableSecret(t *testing.T) {
-	name := "SOLVE_TEST_ENV_VAR"
-	expectedValue := "Hello, World!"
-	err := os.Setenv(name, expectedValue)
-	if err != nil {
-		t.Error("Error: ", err)
-	}
-	s := Secret{Type: VariableSecret, Data: name}
-	value, err := s.GetValue()
-	if err != nil {
-		t.Error("Error: ", err)
-	}
-	if value != expectedValue {
-		t.Errorf(
-			"Expected '%s', but got '%s'",
-			expectedValue, value,
-		)
-	}
-	s.Data = s.Data + "_INVALID"
-	if _, err := s.GetValue(); err == nil {
-		t.Error("Expected error")
 	}
 }
 
@@ -70,9 +46,33 @@ func TestSecret_GetValue_FileSecret(t *testing.T) {
 			expectedValue, value,
 		)
 	}
-	s.Data = s.Data + "-invalid"
+	s = Secret{Type: FileSecret, Data: s.Data + "-invalid"}
 	value, err = s.GetValue()
 	if err == nil {
+		t.Error("Expected error")
+	}
+}
+
+func TestSecret_GetValue_EnvSecret(t *testing.T) {
+	name := "SOLVE_TEST_ENV_VAR"
+	expectedValue := "Hello, World!"
+	err := os.Setenv(name, expectedValue)
+	if err != nil {
+		t.Error("Error: ", err)
+	}
+	s := Secret{Type: EnvSecret, Data: name}
+	value, err := s.GetValue()
+	if err != nil {
+		t.Error("Error: ", err)
+	}
+	if value != expectedValue {
+		t.Errorf(
+			"Expected '%s', but got '%s'",
+			expectedValue, value,
+		)
+	}
+	s = Secret{Type: EnvSecret, Data: s.Data + "_INVALID"}
+	if _, err := s.GetValue(); err == nil {
 		t.Error("Expected error")
 	}
 }

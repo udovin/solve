@@ -26,7 +26,7 @@ func TestNewApp(t *testing.T) {
 	}
 	cfg.Security = config.SecurityConfig{
 		PasswordSalt: config.Secret{
-			Type: config.ValueSecret,
+			Type: config.DataSecret,
 			Data: "qwerty123",
 		},
 	}

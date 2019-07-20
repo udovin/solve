@@ -54,7 +54,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		),
 	}
 	// We do not want to load value every time
-	// in case of FileSecret or VariableSecret
+	// in case of FileSecret or EnvSecret
 	app.PasswordSalt, err = cfg.Security.PasswordSalt.GetValue()
 	if err != nil {
 		return nil, err

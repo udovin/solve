@@ -59,11 +59,11 @@ type ChangeStore interface {
 	// Setup changes
 	setupChanges(tx *sql.Tx) (int64, error)
 	// Load changes from gap
-	loadChangeGapTx(tx *ChangeTx, gap ChangeGap) (*sql.Rows, error)
+	loadChangeGapTx(tx *sql.Tx, gap ChangeGap) (*sql.Rows, error)
 	// Scan change from result row
 	scanChange(scan Scanner) (Change, error)
 	// Save change to database
-	saveChangeTx(tx *ChangeTx, change Change) error
+	saveChangeTx(tx *sql.Tx, change Change) error
 	// Apply change to store
 	applyChange(change Change)
 }
@@ -165,7 +165,7 @@ func (m *ChangeManager) ChangeTx(tx *ChangeTx, change Change) error {
 	if err := m.SyncTx(tx); err != nil {
 		return err
 	}
-	if err := m.store.saveChangeTx(tx, change); err != nil {
+	if err := m.store.saveChangeTx(tx.Tx, change); err != nil {
 		return err
 	}
 	tx.changes[m] = append(tx.changes[m], change)
@@ -198,7 +198,7 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	}
 	for e := m.changeGaps.Front(); e != nil; {
 		curr := e.Value.(ChangeGap)
-		rows, err := m.store.loadChangeGapTx(tx, curr)
+		rows, err := m.store.loadChangeGapTx(tx.Tx, curr)
 		if err != nil {
 			return err
 		}
@@ -242,7 +242,7 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 		_ = rows.Close()
 		e = e.Next()
 	}
-	rows, err := m.store.loadChangeGapTx(tx, ChangeGap{
+	rows, err := m.store.loadChangeGapTx(tx.Tx, ChangeGap{
 		BeginID: m.lastChangeID + 1,
 		EndID:   math.MaxInt64,
 	})

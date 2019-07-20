@@ -112,7 +112,7 @@ func (s *UserStore) setupChanges(tx *sql.Tx) (int64, error) {
 }
 
 func (s *UserStore) loadChangeGapTx(
-	tx *ChangeTx, gap ChangeGap,
+	tx *sql.Tx, gap ChangeGap,
 ) (*sql.Rows, error) {
 	return tx.Query(
 		fmt.Sprintf(
@@ -138,7 +138,7 @@ func (s *UserStore) scanChange(scan Scanner) (Change, error) {
 	return change, err
 }
 
-func (s *UserStore) saveChangeTx(tx *ChangeTx, change Change) error {
+func (s *UserStore) saveChangeTx(tx *sql.Tx, change Change) error {
 	user := change.(*UserChange)
 	user.Time = time.Now().Unix()
 	switch user.Type {

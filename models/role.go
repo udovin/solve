@@ -91,7 +91,7 @@ func (s *RoleStore) setupChanges(tx *sql.Tx) (int64, error) {
 }
 
 func (s *RoleStore) loadChangeGapTx(
-	tx *ChangeTx, gap ChangeGap,
+	tx *sql.Tx, gap ChangeGap,
 ) (*sql.Rows, error) {
 	return tx.Query(
 		fmt.Sprintf(
@@ -116,7 +116,7 @@ func (s *RoleStore) scanChange(scan Scanner) (Change, error) {
 	return change, err
 }
 
-func (s *RoleStore) saveChangeTx(tx *ChangeTx, change Change) error {
+func (s *RoleStore) saveChangeTx(tx *sql.Tx, change Change) error {
 	role := change.(*RoleChange)
 	role.Time = time.Now().Unix()
 	switch role.Type {

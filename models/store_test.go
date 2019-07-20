@@ -3,11 +3,8 @@ package models
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"testing"
 	"time"
-
-	"github.com/udovin/solve/config"
 )
 
 type Mock struct {
@@ -39,12 +36,12 @@ func (s *MockStore) setupChanges(tx *sql.Tx) (int64, error) {
 }
 
 func (s *MockStore) loadChangeGapTx(
-	tx *ChangeTx, gap ChangeGap,
+	tx *sql.Tx, gap ChangeGap,
 ) (*sql.Rows, error) {
 	return tx.Query(
 		`SELECT `+
 			`"change_id", "change_type", "change_time", "id", "value"`+
-			` FROM "mock_change"`+
+			` FROM "test_mock_change"`+
 			` WHERE "change_id" >= $1 AND "change_id" < $2`+
 			` ORDER BY "change_id"`,
 		gap.BeginID, gap.EndID,
@@ -60,11 +57,11 @@ func (s *MockStore) scanChange(scan Scanner) (Change, error) {
 	return change, err
 }
 
-func (s *MockStore) saveChangeTx(tx *ChangeTx, change Change) error {
+func (s *MockStore) saveChangeTx(tx *sql.Tx, change Change) error {
 	mock := change.(*MockChange)
 	mock.Time = time.Now().Unix()
 	res, err := tx.Exec(
-		`INSERT INTO "mock_change"`+
+		`INSERT INTO "test_mock_change"`+
 			` ("change_type", "change_time", "id", "value")`+
 			` VALUES ($1, $2, $3, $4)`,
 		mock.Type, mock.Time, mock.Mock.ID, mock.Value,
@@ -93,37 +90,9 @@ func (s *MockStore) applyChange(change Change) {
 	}
 }
 
-var db *sql.DB
-
-func setup() {
-	cfg := config.DatabaseConfig{
-		Driver:  config.SQLiteDriver,
-		Options: config.SQLiteOptions{Path: "?mode=memory"},
-	}
-	var err error
-	db, err = cfg.CreateDB()
-	if err != nil {
-		os.Exit(1)
-	}
-	_, err = db.Exec(
-		`CREATE TABLE "mock_change"` +
-			` ("change_id" INTEGER PRIMARY KEY,` +
-			` "change_type" INT8,` +
-			` "change_time" BIGINT,` +
-			` "id" INTEGER,` +
-			` "value" VARCHAR(255))`,
-	)
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
-func TestMain(m *testing.M) {
-	setup()
-	os.Exit(m.Run())
-}
-
 func TestChangeManager(t *testing.T) {
+	setup(t)
+	defer teardown(t)
 	store := MockStore{db: db, mocks: make(map[int]Mock)}
 	manager := NewChangeManager(&store)
 	mocks := []Mock{

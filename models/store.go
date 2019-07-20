@@ -16,20 +16,24 @@ const (
 	UpdateChange ChangeType = 3
 )
 
+// Record scanner
 type Scanner interface {
 	Scan(dest ...interface{}) error
 }
 
+// Base columns for typical change records
 type BaseChange struct {
 	ID   int64      `db:"change_id"   json:""`
 	Type ChangeType `db:"change_type" json:""`
 	Time int64      `db:"change_time" json:""`
 }
 
+// Get change identifier
 func (c *BaseChange) ChangeID() int64 {
 	return c.ID
 }
 
+// Get string representation of change type
 func (c ChangeType) String() string {
 	switch c {
 	case CreateChange:
@@ -52,6 +56,8 @@ type Change interface {
 type ChangeStore interface {
 	// Get database connection
 	GetDB() *sql.DB
+	// Setup changes
+	//	setupChanges(tx *ChangeTx) (int64, error)
 	// Load changes from gap
 	loadChangeGapTx(tx *ChangeTx, gap ChangeGap) (*sql.Rows, error)
 	// Scan change from result row
@@ -73,6 +79,8 @@ type ChangeTx struct {
 }
 
 // Supports store consistency using change table
+//
+// TODO: Replace list with Binary Search Tree
 type ChangeManager struct {
 	store ChangeStore
 	// Change gaps are required for allow transactions without
@@ -239,6 +247,35 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 // Apply change to store and increase change id
 func (m *ChangeManager) applyChange(change Change) {
 	if change.ChangeID() <= m.lastChangeID {
+		for e := m.changeGaps.Front(); e != nil; e = e.Next() {
+			curr := e.Value.(ChangeGap)
+			if change.ChangeID() < curr.BeginID {
+				continue
+			}
+			if change.ChangeID() >= curr.EndID {
+				break
+			}
+			m.store.applyChange(change)
+			next := ChangeGap{
+				BeginID: change.ChangeID() + 1,
+				EndID:   curr.EndID,
+			}
+			if curr.BeginID < change.ChangeID() {
+				curr.EndID = change.ChangeID()
+				e.Value = curr
+				if next.BeginID < next.EndID {
+					e = m.changeGaps.InsertAfter(next, e)
+					curr = next
+				}
+			} else {
+				curr.BeginID++
+				e.Value = curr
+				if curr.BeginID >= curr.EndID {
+					m.changeGaps.Remove(e)
+				}
+			}
+			return
+		}
 		panic("Change ID should be greater than last ChangeID")
 	}
 	m.store.applyChange(change)

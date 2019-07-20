@@ -149,3 +149,28 @@ func TestChangeManager(t *testing.T) {
 		}
 	}
 }
+
+func TestChangeManager_applyChange(t *testing.T) {
+	store := MockStore{db: db, mocks: make(map[int]Mock)}
+	manager := NewChangeManager(&store)
+	applyChange := func(id int64) {
+		manager.applyChange(&MockChange{
+			BaseChange{id, CreateChange, 0},
+			Mock{int(id), fmt.Sprintf("%d", id)},
+		})
+	}
+	checkGapsLen := func(l int) {
+		if manager.changeGaps.Len() != l {
+			t.Errorf(
+				"Expected len = %d, but found %d",
+				l, manager.changeGaps.Len(),
+			)
+		}
+	}
+	applyChange(3)
+	checkGapsLen(1)
+	applyChange(1)
+	checkGapsLen(1)
+	applyChange(2)
+	checkGapsLen(0)
+}

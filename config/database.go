@@ -34,6 +34,7 @@ type PostgresOptions struct {
 	Host     string `json:""`
 	User     string `json:""`
 	Password Secret `json:""`
+	Name     string `json:""`
 }
 
 // Parse JSON to create appropriate connection configuration

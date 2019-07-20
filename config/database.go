@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/udovin/solve/tools"
+
+	// Register SQL drivers
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type DatabaseDriver string
@@ -32,6 +34,7 @@ type SQLiteOptions struct {
 // Postgres connection options
 type PostgresOptions struct {
 	Host     string `json:""`
+	Port     int    `json:""`
 	User     string `json:""`
 	Password Secret `json:""`
 	Name     string `json:""`
@@ -83,7 +86,15 @@ func createSQLiteDB(opts SQLiteOptions) (*sql.DB, error) {
 }
 
 func createPostgresDB(opts PostgresOptions) (*sql.DB, error) {
-	return nil, tools.NotImplementedError
+	password, err := opts.Password.GetValue()
+	if err != nil {
+		return nil, err
+	}
+	db, err := sql.Open("postgres", fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s",
+		opts.Host, opts.Port, opts.User, password, opts.Name,
+	))
+	return db, err
 }
 
 // Creates database connection using current configuration

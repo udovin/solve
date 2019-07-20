@@ -76,3 +76,16 @@ func TestDatabaseConfig_CreateDB_SQLite(t *testing.T) {
 	}
 	_ = db.Close()
 }
+
+func TestDatabaseConfig_CreateDB_Postgres(t *testing.T) {
+	config := DatabaseConfig{
+		Driver: PostgresDriver,
+		Options: PostgresOptions{
+			Password: Secret{Type: DataSecret, Data: ""},
+		},
+	}
+	_, err := config.CreateDB()
+	if err != nil {
+		t.Error(err)
+	}
+}

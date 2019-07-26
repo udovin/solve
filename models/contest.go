@@ -3,54 +3,48 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 )
 
 type Contest struct {
-	ID         int64 `db:"id"          json:""`
-	OwnerID    int64 `db:"owner_id"    json:""`
-	CreateTime int64 `db:"create_time" json:""`
+	ID         int64 `json:"" db:"id"`
+	OwnerID    int64 `json:"" db:"owner_id"`
+	CreateTime int64 `json:"" db:"create_time"`
 }
 
-type ContestChange struct {
+type contestChange struct {
 	BaseChange
 	Contest
 }
 
 type ContestStore struct {
 	Manager     *ChangeManager
-	db          *sql.DB
 	table       string
 	changeTable string
 	contests    map[int64]Contest
+	mutex       sync.RWMutex
 }
 
-func NewContestStore(
-	db *sql.DB, table, changeTable string,
-) *ContestStore {
+func NewContestStore(db *sql.DB, table, changeTable string) *ContestStore {
 	store := ContestStore{
-		db: db, table: table, changeTable: changeTable,
-		contests: make(map[int64]Contest),
+		table:       table,
+		changeTable: changeTable,
+		contests:    make(map[int64]Contest),
 	}
-	store.Manager = NewChangeManager(&store)
+	store.Manager = NewChangeManager(&store, db)
 	return &store
 }
 
-func (s *ContestStore) GetDB() *sql.DB {
-	return s.db
-}
-
-func (s *ContestStore) ChangeTableName() string {
-	return s.changeTable
-}
-
 func (s *ContestStore) Get(id int64) (Contest, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	contest, ok := s.contests[id]
 	return contest, ok
 }
 
 func (s *ContestStore) Create(m *Contest) error {
-	change := ContestChange{
+	change := contestChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Contest:    *m,
 	}
@@ -63,7 +57,7 @@ func (s *ContestStore) Create(m *Contest) error {
 }
 
 func (s *ContestStore) Update(m *Contest) error {
-	change := ContestChange{
+	change := contestChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		Contest:    *m,
 	}
@@ -76,11 +70,15 @@ func (s *ContestStore) Update(m *Contest) error {
 }
 
 func (s *ContestStore) Delete(id int64) error {
-	change := ContestChange{
+	change := contestChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		Contest:    Contest{ID: id},
 	}
 	return s.Manager.Change(&change)
+}
+
+func (s *ContestStore) getLocker() sync.Locker {
+	return &s.mutex
 }
 
 func (s *ContestStore) setupChanges(tx *sql.Tx) (int64, error) {
@@ -98,23 +96,23 @@ func (s *ContestStore) loadChangeGapTx(
 				` FROM "%s"`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
-			s.ChangeTableName(),
+			s.changeTable,
 		),
 		gap.BeginID, gap.EndID,
 	)
 }
 
 func (s *ContestStore) scanChange(scan Scanner) (Change, error) {
-	change := &ContestChange{}
+	contest := contestChange{}
 	err := scan.Scan(
-		&change.BaseChange.ID, &change.Type, &change.Time,
-		&change.Contest.ID, &change.OwnerID, &change.CreateTime,
+		&contest.BaseChange.ID, &contest.Type, &contest.Time,
+		&contest.Contest.ID, &contest.OwnerID, &contest.CreateTime,
 	)
-	return change, err
+	return &contest, err
 }
 
 func (s *ContestStore) saveChangeTx(tx *sql.Tx, change Change) error {
-	contest := change.(*ContestChange)
+	contest := change.(*contestChange)
 	contest.Time = time.Now().Unix()
 	switch contest.Type {
 	case CreateChange:
@@ -181,7 +179,7 @@ func (s *ContestStore) saveChangeTx(tx *sql.Tx, change Change) error {
 				` ("change_type", "change_time",`+
 				` "id", "owner_id", "create_time")`+
 				` VALUES ($1, $2, $3, $4, $5)`,
-			s.ChangeTableName(),
+			s.changeTable,
 		),
 		contest.Type, contest.Time,
 		contest.Contest.ID, contest.OwnerID, contest.CreateTime,
@@ -194,19 +192,18 @@ func (s *ContestStore) saveChangeTx(tx *sql.Tx, change Change) error {
 }
 
 func (s *ContestStore) applyChange(change Change) {
-	contestChange := change.(*ContestChange)
-	contest := contestChange.Contest
-	switch contestChange.Type {
+	contest := change.(*contestChange)
+	switch contest.Type {
 	case UpdateChange:
 		fallthrough
 	case CreateChange:
-		s.contests[contest.ID] = contest
+		s.contests[contest.Contest.ID] = contest.Contest
 	case DeleteChange:
-		delete(s.contests, contest.ID)
+		delete(s.contests, contest.Contest.ID)
 	default:
 		panic(fmt.Errorf(
 			"unsupported change type = %s",
-			contestChange.Type,
+			contest.Type,
 		))
 	}
 }

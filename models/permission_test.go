@@ -4,12 +4,12 @@ import (
 	"testing"
 )
 
-func TestPermissionStore_GetDB(t *testing.T) {
+func TestPermissionStore_getLocker(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store := NewPermissionStore(db, "test_permission", "test_permission_change")
-	if store.GetDB() != db {
-		t.Error("Store has invalid database")
+	if store.getLocker() == nil {
+		t.Error("Locker should not be nil")
 	}
 }
 
@@ -19,7 +19,7 @@ func TestPermissionStore_applyChange(t *testing.T) {
 	store := NewPermissionStore(
 		db, "test_permission", "test_permission_change",
 	)
-	store.applyChange(&PermissionChange{
+	store.applyChange(&permissionChange{
 		BaseChange: BaseChange{ID: 1, Type: CreateChange, Time: 0},
 		Permission: Permission{ID: 1, Code: "test"},
 	})
@@ -30,7 +30,7 @@ func TestPermissionStore_applyChange(t *testing.T) {
 	if m.Code != "test" {
 		t.Error("Wrong permission code")
 	}
-	store.applyChange(&PermissionChange{
+	store.applyChange(&permissionChange{
 		BaseChange: BaseChange{ID: 2, Type: UpdateChange, Time: 1},
 		Permission: Permission{ID: 1, Code: "new_test"},
 	})
@@ -41,7 +41,7 @@ func TestPermissionStore_applyChange(t *testing.T) {
 	if m.Code != "new_test" {
 		t.Error("Wrong permission code")
 	}
-	store.applyChange(&PermissionChange{
+	store.applyChange(&permissionChange{
 		BaseChange: BaseChange{ID: 3, Type: DeleteChange, Time: 2},
 		Permission: Permission{ID: 1},
 	})
@@ -54,7 +54,7 @@ func TestPermissionStore_applyChange(t *testing.T) {
 				t.Error("Panic expected")
 			}
 		}()
-		store.applyChange(&PermissionChange{
+		store.applyChange(&permissionChange{
 			BaseChange: BaseChange{ID: 4, Type: ChangeType(126), Time: 0},
 			Permission: Permission{ID: 2, Code: "test"},
 		})
@@ -65,7 +65,7 @@ func TestPermissionStore_applyChange(t *testing.T) {
 				t.Error("Panic expected")
 			}
 		}()
-		store.applyChange(&MockChange{})
+		store.applyChange(&mockChange{})
 	}()
 	func() {
 		defer func() {

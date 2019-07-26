@@ -4,11 +4,11 @@ import (
 	"testing"
 )
 
-func TestSessionStore_GetDB(t *testing.T) {
+func TestSessionStore_getLocker(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store := NewSessionStore(db, "test_session", "test_session_change")
-	if store.GetDB() != db {
-		t.Error("Store has invalid database")
+	if store.getLocker() == nil {
+		t.Error("Locker should not be nil")
 	}
 }

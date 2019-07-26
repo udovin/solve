@@ -3,57 +3,54 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 )
 
 type Role struct {
-	ID   int64  `db:"id"   json:""`
-	Code string `db:"code" json:""`
+	ID     int64  `json:"" db:"id"`
+	UserID int64  `json:"" db:"user_id"`
+	Code   string `json:"" db:"code"`
 }
 
-type RoleChange struct {
+type roleChange struct {
 	BaseChange
 	Role
 }
 
 type RoleStore struct {
 	Manager     *ChangeManager
-	db          *sql.DB
 	table       string
 	changeTable string
 	roles       map[int64]Role
+	userRoles   map[int64]map[int64]struct{}
+	mutex       sync.RWMutex
 }
 
-func (c *RoleChange) ChangeData() interface{} {
+func (c *roleChange) ChangeData() interface{} {
 	return c.Role
 }
 
-func NewRoleStore(
-	db *sql.DB, table, changeTable string,
-) *RoleStore {
+func NewRoleStore(db *sql.DB, table, changeTable string) *RoleStore {
 	store := RoleStore{
-		db: db, table: table, changeTable: changeTable,
-		roles: make(map[int64]Role),
+		table:       table,
+		changeTable: changeTable,
+		roles:       make(map[int64]Role),
+		userRoles:   make(map[int64]map[int64]struct{}),
 	}
-	store.Manager = NewChangeManager(&store)
+	store.Manager = NewChangeManager(&store, db)
 	return &store
 }
 
-func (s *RoleStore) GetDB() *sql.DB {
-	return s.db
-}
-
-func (s *RoleStore) ChangeTableName() string {
-	return s.changeTable
-}
-
 func (s *RoleStore) Get(id int64) (Role, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	role, ok := s.roles[id]
 	return role, ok
 }
 
 func (s *RoleStore) Create(m *Role) error {
-	change := RoleChange{
+	change := roleChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Role:       *m,
 	}
@@ -66,7 +63,7 @@ func (s *RoleStore) Create(m *Role) error {
 }
 
 func (s *RoleStore) Update(m *Role) error {
-	change := RoleChange{
+	change := roleChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		Role:       *m,
 	}
@@ -79,11 +76,15 @@ func (s *RoleStore) Update(m *Role) error {
 }
 
 func (s *RoleStore) Delete(id int64) error {
-	change := RoleChange{
+	change := roleChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		Role:       Role{ID: id},
 	}
 	return s.Manager.Change(&change)
+}
+
+func (s *RoleStore) getLocker() sync.Locker {
+	return &s.mutex
 }
 
 func (s *RoleStore) setupChanges(tx *sql.Tx) (int64, error) {
@@ -101,23 +102,23 @@ func (s *RoleStore) loadChangeGapTx(
 				` FROM "%s"`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
-			s.ChangeTableName(),
+			s.changeTable,
 		),
 		gap.BeginID, gap.EndID,
 	)
 }
 
 func (s *RoleStore) scanChange(scan Scanner) (Change, error) {
-	change := &RoleChange{}
+	role := roleChange{}
 	err := scan.Scan(
-		&change.BaseChange.ID, &change.Type, &change.Time,
-		&change.Role.ID, &change.Code,
+		&role.BaseChange.ID, &role.Type, &role.Time,
+		&role.Role.ID, &role.Code,
 	)
-	return change, err
+	return &role, err
 }
 
 func (s *RoleStore) saveChangeTx(tx *sql.Tx, change Change) error {
-	role := change.(*RoleChange)
+	role := change.(*roleChange)
 	role.Time = time.Now().Unix()
 	switch role.Type {
 	case CreateChange:
@@ -180,7 +181,7 @@ func (s *RoleStore) saveChangeTx(tx *sql.Tx, change Change) error {
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time", "id", "code")`+
 				` VALUES ($1, $2, $3, $4)`,
-			s.ChangeTableName(),
+			s.changeTable,
 		),
 		role.Type, role.Time, role.Role.ID, role.Code,
 	)
@@ -192,19 +193,18 @@ func (s *RoleStore) saveChangeTx(tx *sql.Tx, change Change) error {
 }
 
 func (s *RoleStore) applyChange(change Change) {
-	roleChange := change.(*RoleChange)
-	role := roleChange.Role
-	switch roleChange.Type {
+	role := change.(*roleChange)
+	switch role.Type {
 	case UpdateChange:
 		fallthrough
 	case CreateChange:
-		s.roles[role.ID] = role
+		s.roles[role.Role.ID] = role.Role
 	case DeleteChange:
-		delete(s.roles, role.ID)
+		delete(s.roles, role.Role.ID)
 	default:
 		panic(fmt.Errorf(
 			"unsupported change type = %s",
-			roleChange.Type,
+			role.Type,
 		))
 	}
 }

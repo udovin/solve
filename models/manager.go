@@ -23,9 +23,9 @@ type Scanner interface {
 
 // Base columns for typical change records
 type BaseChange struct {
-	ID   int64      `db:"change_id"   json:""`
-	Type ChangeType `db:"change_type" json:""`
-	Time int64      `db:"change_time" json:""`
+	ID   int64      `json:"" db:"change_id"`
+	Type ChangeType `json:"" db:"change_type"`
+	Time int64      `json:"" db:"change_time"`
 }
 
 // Get change identifier
@@ -54,8 +54,8 @@ type Change interface {
 // Store that supports change table
 // Commonly used as in-memory cache for database table
 type ChangeStore interface {
-	// Get database connection
-	GetDB() *sql.DB
+	// Get write locker
+	getLocker() sync.Locker
 	// Setup changes
 	setupChanges(tx *sql.Tx) (int64, error)
 	// Load changes from gap
@@ -82,16 +82,22 @@ type ChangeTx struct {
 //
 // TODO: Replace list with Binary Search Tree
 type ChangeManager struct {
+	// Store for manager
 	store ChangeStore
+	// Connection to database
+	db *sql.DB
 	// Change gaps are required for allow transactions without
 	// locking full change table
 	changeGaps   *list.List
 	lastChangeID int64
-	mutex        sync.Mutex
 }
 
-func NewChangeManager(store ChangeStore) *ChangeManager {
-	return &ChangeManager{store: store, changeGaps: list.New()}
+func NewChangeManager(store ChangeStore, db *sql.DB) *ChangeManager {
+	return &ChangeManager{
+		store:      store,
+		db:         db,
+		changeGaps: list.New(),
+	}
 }
 
 func (tx *ChangeTx) Commit() error {
@@ -99,11 +105,12 @@ func (tx *ChangeTx) Commit() error {
 		return err
 	}
 	for manager, changes := range tx.changes {
-		manager.mutex.Lock()
+		locker := manager.store.getLocker()
+		locker.Lock()
 		for _, change := range changes {
 			manager.applyChange(change)
 		}
-		manager.mutex.Unlock()
+		locker.Unlock()
 		delete(tx.changes, manager)
 	}
 	return nil
@@ -120,7 +127,7 @@ func (tx *ChangeTx) Rollback() error {
 }
 
 func (m *ChangeManager) Setup() error {
-	tx, err := m.store.GetDB().Begin()
+	tx, err := m.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -137,12 +144,13 @@ func (m *ChangeManager) Setup() error {
 }
 
 func (m *ChangeManager) Begin() (*ChangeTx, error) {
-	tx, err := m.store.GetDB().Begin()
+	tx, err := m.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 	return &ChangeTx{
-		Tx: tx, changes: make(map[*ChangeManager][]Change),
+		Tx:      tx,
+		changes: make(map[*ChangeManager][]Change),
 	}, nil
 }
 
@@ -185,8 +193,9 @@ func (m *ChangeManager) Sync() error {
 const changeGapSkipWindow = 5000
 
 func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	locker := m.store.getLocker()
+	locker.Lock()
+	defer locker.Unlock()
 	for e := m.changeGaps.Front(); e != nil; {
 		curr := e.Value.(ChangeGap)
 		if curr.EndID+changeGapSkipWindow >= m.lastChangeID {

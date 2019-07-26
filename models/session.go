@@ -7,66 +7,70 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type Session struct {
-	ID         int64  `db:"id"          json:""`
-	UserID     int64  `db:"user_id"     json:""`
-	Secret     string `db:"secret"      json:"-"`
-	CreateTime int64  `db:"create_time" json:""`
-	ExpireTime int64  `db:"expire_time" json:""`
+	ID         int64  `json:""  db:"id"`
+	UserID     int64  `json:""  db:"user_id"`
+	Secret     string `json:"-" db:"secret"`
+	CreateTime int64  `json:""  db:"create_time"`
+	ExpireTime int64  `json:""  db:"expire_time"`
 }
 
-type SessionChange struct {
+type sessionChange struct {
 	BaseChange
 	Session
 }
 
 type SessionStore struct {
-	Manager     *ChangeManager
-	db          *sql.DB
-	table       string
-	changeTable string
-	sessions    map[int64]Session
-	userMap     map[int64]map[int64]struct{}
+	Manager      *ChangeManager
+	db           *sql.DB
+	table        string
+	changeTable  string
+	sessions     map[int64]Session
+	userSessions map[int64]map[int64]struct{}
+	mutex        sync.RWMutex
 }
 
-func (c *SessionChange) ChangeData() interface{} {
+func (c *sessionChange) ChangeData() interface{} {
 	return c.Session
 }
 
-func NewSessionStore(
-	db *sql.DB, table, changeTable string,
-) *SessionStore {
-	store := SessionStore{
-		db: db, table: table, changeTable: changeTable,
-		sessions: make(map[int64]Session),
-		userMap:  make(map[int64]map[int64]struct{}),
+func (m *Session) GenerateSecret() error {
+	secretBytes := make([]byte, 40)
+	if _, err := rand.Read(secretBytes); err != nil {
+		return err
 	}
-	store.Manager = NewChangeManager(&store)
+	m.Secret = base64.StdEncoding.EncodeToString(secretBytes)
+	return nil
+}
+
+func (m *Session) FormatCookie() string {
+	return fmt.Sprintf("%d_%s", m.ID, m.Secret)
+}
+
+func NewSessionStore(db *sql.DB, table, changeTable string) *SessionStore {
+	store := SessionStore{
+		table:        table,
+		changeTable:  changeTable,
+		sessions:     make(map[int64]Session),
+		userSessions: make(map[int64]map[int64]struct{}),
+	}
+	store.Manager = NewChangeManager(&store, db)
 	return &store
 }
 
-func (s *SessionStore) GetDB() *sql.DB {
-	return s.db
-}
-
-func (s *SessionStore) TableName() string {
-	return s.table
-}
-
-func (s *SessionStore) ChangeTableName() string {
-	return s.changeTable
-}
-
 func (s *SessionStore) Get(id int64) (Session, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	session, ok := s.sessions[id]
 	return session, ok
 }
 
 func (s *SessionStore) GetByUser(userID int64) []Session {
-	if idSet, ok := s.userMap[userID]; ok {
+	if idSet, ok := s.userSessions[userID]; ok {
 		var sessions []Session
 		for id := range idSet {
 			if session, ok := s.sessions[id]; ok {
@@ -92,7 +96,7 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, bool) {
 }
 
 func (s *SessionStore) Create(m *Session) error {
-	change := SessionChange{
+	change := sessionChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Session:    *m,
 	}
@@ -105,7 +109,7 @@ func (s *SessionStore) Create(m *Session) error {
 }
 
 func (s *SessionStore) Update(m *Session) error {
-	change := SessionChange{
+	change := sessionChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		Session:    *m,
 	}
@@ -118,11 +122,15 @@ func (s *SessionStore) Update(m *Session) error {
 }
 
 func (s *SessionStore) Delete(id int64) error {
-	change := SessionChange{
+	change := sessionChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		Session:    Session{ID: id},
 	}
 	return s.Manager.Change(&change)
+}
+
+func (s *SessionStore) getLocker() sync.Locker {
+	return &s.mutex
 }
 
 func (s *SessionStore) setupChanges(tx *sql.Tx) (int64, error) {
@@ -140,24 +148,24 @@ func (s *SessionStore) loadChangeGapTx(
 				` FROM "%s"`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
-			s.ChangeTableName(),
+			s.changeTable,
 		),
 		gap.BeginID, gap.EndID,
 	)
 }
 
 func (s *SessionStore) scanChange(scan Scanner) (Change, error) {
-	change := &SessionChange{}
+	session := sessionChange{}
 	err := scan.Scan(
-		&change.BaseChange.ID, &change.Type, &change.Time,
-		&change.Session.ID, &change.UserID, &change.Secret,
-		&change.CreateTime, &change.ExpireTime,
+		&session.BaseChange.ID, &session.Type, &session.Time,
+		&session.Session.ID, &session.UserID, &session.Secret,
+		&session.CreateTime, &session.ExpireTime,
 	)
-	return change, err
+	return &session, err
 }
 
 func (s *SessionStore) saveChangeTx(tx *sql.Tx, change Change) error {
-	session := change.(*SessionChange)
+	session := change.(*sessionChange)
 	session.Time = time.Now().Unix()
 	switch session.Type {
 	case CreateChange:
@@ -228,7 +236,7 @@ func (s *SessionStore) saveChangeTx(tx *sql.Tx, change Change) error {
 				` ("change_type", "change_time", "id", "user_id",`+
 				` "secret", "create_time", "expire_time")`+
 				` VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			s.ChangeTableName(),
+			s.changeTable,
 		),
 		session.Type, session.Time, session.Session.ID, session.UserID,
 		session.Secret, session.CreateTime, session.ExpireTime,
@@ -241,50 +249,36 @@ func (s *SessionStore) saveChangeTx(tx *sql.Tx, change Change) error {
 }
 
 func (s *SessionStore) applyChange(change Change) {
-	sessionChange := change.(*SessionChange)
-	session := sessionChange.Session
-	switch sessionChange.Type {
+	session := change.(*sessionChange)
+	switch session.Type {
 	case UpdateChange:
-		if oldSession, ok := s.sessions[session.ID]; ok {
+		if oldSession, ok := s.sessions[session.Session.ID]; ok {
 			if oldSession.UserID != session.UserID {
-				delete(s.userMap[oldSession.UserID], oldSession.ID)
-				if len(s.userMap[oldSession.UserID]) == 0 {
-					delete(s.userMap, oldSession.UserID)
+				delete(s.userSessions[oldSession.UserID], oldSession.ID)
+				if len(s.userSessions[oldSession.UserID]) == 0 {
+					delete(s.userSessions, oldSession.UserID)
 				}
 			}
 		}
 		fallthrough
 	case CreateChange:
-		if s.userMap[session.UserID] == nil {
-			s.userMap[session.UserID] = make(map[int64]struct{})
+		if s.userSessions[session.UserID] == nil {
+			s.userSessions[session.UserID] = make(map[int64]struct{})
 		}
-		s.userMap[session.UserID][session.ID] = struct{}{}
-		s.sessions[session.ID] = session
+		s.userSessions[session.UserID][session.Session.ID] = struct{}{}
+		s.sessions[session.Session.ID] = session.Session
 	case DeleteChange:
-		if s.userMap[session.UserID] != nil {
-			delete(s.userMap[session.UserID], session.ID)
-			if len(s.userMap[session.UserID]) == 0 {
-				delete(s.userMap, session.UserID)
+		if s.userSessions[session.UserID] != nil {
+			delete(s.userSessions[session.UserID], session.Session.ID)
+			if len(s.userSessions[session.UserID]) == 0 {
+				delete(s.userSessions, session.UserID)
 			}
 		}
-		delete(s.sessions, session.ID)
+		delete(s.sessions, session.Session.ID)
 	default:
 		panic(fmt.Errorf(
 			"unsupported change type = %s",
-			sessionChange.Type,
+			session.Type,
 		))
 	}
-}
-
-func (m *Session) GenerateSecret() error {
-	secretBytes := make([]byte, 40)
-	if _, err := rand.Read(secretBytes); err != nil {
-		return err
-	}
-	m.Secret = base64.StdEncoding.EncodeToString(secretBytes)
-	return nil
-}
-
-func (m *Session) FormatCookie() string {
-	return fmt.Sprintf("%d_%s", m.ID, m.Secret)
 }

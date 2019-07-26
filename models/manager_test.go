@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -13,17 +14,17 @@ type Mock struct {
 }
 
 type MockStore struct {
-	db    *sql.DB
 	mocks map[int]Mock
+	mutex sync.RWMutex
 }
 
-type MockChange struct {
+type mockChange struct {
 	BaseChange
 	Mock
 }
 
-func (s *MockStore) GetDB() *sql.DB {
-	return s.db
+func (s *MockStore) getLocker() sync.Locker {
+	return &s.mutex
 }
 
 func (s *MockStore) Get(id int) (Mock, bool) {
@@ -49,7 +50,7 @@ func (s *MockStore) loadChangeGapTx(
 }
 
 func (s *MockStore) scanChange(scan Scanner) (Change, error) {
-	change := &MockChange{}
+	change := &mockChange{}
 	err := scan.Scan(
 		&change.BaseChange.ID, &change.Type, &change.Time,
 		&change.Mock.ID, &change.Value,
@@ -58,7 +59,7 @@ func (s *MockStore) scanChange(scan Scanner) (Change, error) {
 }
 
 func (s *MockStore) saveChangeTx(tx *sql.Tx, change Change) error {
-	mock := change.(*MockChange)
+	mock := change.(*mockChange)
 	mock.Time = time.Now().Unix()
 	res, err := tx.Exec(
 		`INSERT INTO "test_mock_change"`+
@@ -74,18 +75,18 @@ func (s *MockStore) saveChangeTx(tx *sql.Tx, change Change) error {
 }
 
 func (s *MockStore) applyChange(change Change) {
-	mockChange := change.(*MockChange)
-	switch mockChange.Type {
+	mock := change.(*mockChange)
+	switch mock.Type {
 	case UpdateChange:
 		fallthrough
 	case CreateChange:
-		s.mocks[mockChange.Mock.ID] = mockChange.Mock
+		s.mocks[mock.Mock.ID] = mock.Mock
 	case DeleteChange:
-		delete(s.mocks, mockChange.Mock.ID)
+		delete(s.mocks, mock.Mock.ID)
 	default:
 		panic(fmt.Errorf(
 			"unsupported change type = %s",
-			mockChange.Type,
+			mock.Type,
 		))
 	}
 }
@@ -93,8 +94,8 @@ func (s *MockStore) applyChange(change Change) {
 func TestChangeManager(t *testing.T) {
 	setup(t)
 	defer teardown(t)
-	store := MockStore{db: db, mocks: make(map[int]Mock)}
-	manager := NewChangeManager(&store)
+	store := MockStore{mocks: make(map[int]Mock)}
+	manager := NewChangeManager(&store, db)
 	mocks := []Mock{
 		{ID: 1, Value: "hello"},
 		{ID: 2, Value: "golang"},
@@ -102,7 +103,7 @@ func TestChangeManager(t *testing.T) {
 		{ID: 4, Value: "model"},
 	}
 	for _, mock := range mocks {
-		if err := manager.Change(&MockChange{
+		if err := manager.Change(&mockChange{
 			BaseChange: BaseChange{Type: CreateChange},
 			Mock:       mock,
 		}); err != nil {
@@ -124,10 +125,10 @@ func TestChangeManager(t *testing.T) {
 }
 
 func TestChangeManager_applyChange(t *testing.T) {
-	store := MockStore{db: db, mocks: make(map[int]Mock)}
-	manager := NewChangeManager(&store)
+	store := MockStore{mocks: make(map[int]Mock)}
+	manager := NewChangeManager(&store, db)
 	applyChange := func(id int64) {
-		manager.applyChange(&MockChange{
+		manager.applyChange(&mockChange{
 			BaseChange{id, CreateChange, 0},
 			Mock{int(id), fmt.Sprintf("%d", id)},
 		})
@@ -146,4 +147,20 @@ func TestChangeManager_applyChange(t *testing.T) {
 	checkGapsLen(1)
 	applyChange(2)
 	checkGapsLen(0)
+	func() {
+		defer func() {
+			if err := recover(); err == nil {
+				t.Error("Panic expected")
+			}
+		}()
+		store.applyChange(&BaseChange{})
+	}()
+	func() {
+		defer func() {
+			if err := recover(); err == nil {
+				t.Error("Panic expected")
+			}
+		}()
+		store.applyChange(nil)
+	}()
 }

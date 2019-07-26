@@ -3,53 +3,52 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 )
 
 type Permission struct {
-	ID   int64  `db:"id"   json:""`
-	Code string `db:"code" json:""`
+	ID       int64  `json:"" db:"id"`
+	RoleCode string `json:"" db:"role_code"`
+	Code     string `json:"" db:"code"`
 }
 
-type PermissionChange struct {
+type permissionChange struct {
 	BaseChange
 	Permission
 }
 
 type PermissionStore struct {
-	Manager     *ChangeManager
-	db          *sql.DB
-	table       string
-	changeTable string
-	permissions map[int64]Permission
+	Manager         *ChangeManager
+	table           string
+	changeTable     string
+	permissions     map[int64]Permission
+	rolePermissions map[int64]map[int64]struct{}
+	mutex           sync.RWMutex
 }
 
 func NewPermissionStore(
 	db *sql.DB, table, changeTable string,
 ) *PermissionStore {
 	store := PermissionStore{
-		db: db, table: table, changeTable: changeTable,
-		permissions: make(map[int64]Permission),
+		table:           table,
+		changeTable:     changeTable,
+		permissions:     make(map[int64]Permission),
+		rolePermissions: make(map[int64]map[int64]struct{}),
 	}
-	store.Manager = NewChangeManager(&store)
+	store.Manager = NewChangeManager(&store, db)
 	return &store
 }
 
-func (s *PermissionStore) GetDB() *sql.DB {
-	return s.db
-}
-
-func (s *PermissionStore) ChangeTableName() string {
-	return s.changeTable
-}
-
 func (s *PermissionStore) Get(id int64) (Permission, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	permission, ok := s.permissions[id]
 	return permission, ok
 }
 
 func (s *PermissionStore) Create(m *Permission) error {
-	change := PermissionChange{
+	change := permissionChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Permission: *m,
 	}
@@ -62,7 +61,7 @@ func (s *PermissionStore) Create(m *Permission) error {
 }
 
 func (s *PermissionStore) Update(m *Permission) error {
-	change := PermissionChange{
+	change := permissionChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		Permission: *m,
 	}
@@ -75,11 +74,15 @@ func (s *PermissionStore) Update(m *Permission) error {
 }
 
 func (s *PermissionStore) Delete(id int64) error {
-	change := PermissionChange{
+	change := permissionChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		Permission: Permission{ID: id},
 	}
 	return s.Manager.Change(&change)
+}
+
+func (s *PermissionStore) getLocker() sync.Locker {
+	return &s.mutex
 }
 
 func (s *PermissionStore) setupChanges(tx *sql.Tx) (int64, error) {
@@ -93,36 +96,38 @@ func (s *PermissionStore) loadChangeGapTx(
 		fmt.Sprintf(
 			`SELECT`+
 				` "change_id", "change_type", "change_time",`+
-				` "id", "code"`+
+				` "id", "role_code", "code"`+
 				` FROM "%s"`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
-			s.ChangeTableName(),
+			s.changeTable,
 		),
 		gap.BeginID, gap.EndID,
 	)
 }
 
 func (s *PermissionStore) scanChange(scan Scanner) (Change, error) {
-	change := &PermissionChange{}
+	permission := permissionChange{}
 	err := scan.Scan(
-		&change.BaseChange.ID, &change.Type, &change.Time,
-		&change.Permission.ID, &change.Code,
+		&permission.BaseChange.ID, &permission.Type, &permission.Time,
+		&permission.Permission.ID, &permission.RoleCode, &permission.Code,
 	)
-	return change, err
+	return &permission, err
 }
 
 func (s *PermissionStore) saveChangeTx(tx *sql.Tx, change Change) error {
-	permission := change.(*PermissionChange)
+	permission := change.(*permissionChange)
 	permission.Time = time.Now().Unix()
 	switch permission.Type {
 	case CreateChange:
 		res, err := tx.Exec(
 			fmt.Sprintf(
-				`INSERT INTO "%s" ("code") VALUES ($1)`,
+				`INSERT INTO "%s"`+
+					` ("role_code", "code")`+
+					` VALUES ($1, $2)`,
 				s.table,
 			),
-			permission.Code,
+			permission.RoleCode, permission.Code,
 		)
 		if err != nil {
 			return err
@@ -140,10 +145,13 @@ func (s *PermissionStore) saveChangeTx(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET "code" = $1 WHERE "id" = $2`,
+				`UPDATE "%s" SET`+
+					` "role_code" = $1, "code" = $2`+
+					` WHERE "id" = $3`,
 				s.table,
 			),
-			permission.Code, permission.Permission.ID,
+			permission.RoleCode, permission.Code,
+			permission.Permission.ID,
 		)
 		if err != nil {
 			return err
@@ -174,12 +182,12 @@ func (s *PermissionStore) saveChangeTx(tx *sql.Tx, change Change) error {
 	res, err := tx.Exec(
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
-				` ("change_type", "change_time", "id", "code")`+
-				` VALUES ($1, $2, $3, $4)`,
-			s.ChangeTableName(),
+				` ("change_type", "change_time", "id", "role_code", "code")`+
+				` VALUES ($1, $2, $3, $4, $5)`,
+			s.changeTable,
 		),
-		permission.Type, permission.Time,
-		permission.Permission.ID, permission.Code,
+		permission.Type, permission.Time, permission.Permission.ID,
+		permission.RoleCode, permission.Code,
 	)
 	if err != nil {
 		return err
@@ -189,19 +197,18 @@ func (s *PermissionStore) saveChangeTx(tx *sql.Tx, change Change) error {
 }
 
 func (s *PermissionStore) applyChange(change Change) {
-	permissionChange := change.(*PermissionChange)
-	permission := permissionChange.Permission
-	switch permissionChange.Type {
+	permission := change.(*permissionChange)
+	switch permission.Type {
 	case UpdateChange:
 		fallthrough
 	case CreateChange:
-		s.permissions[permission.ID] = permission
+		s.permissions[permission.Permission.ID] = permission.Permission
 	case DeleteChange:
-		delete(s.permissions, permission.ID)
+		delete(s.permissions, permission.Permission.ID)
 	default:
 		panic(fmt.Errorf(
 			"unsupported change type = %s",
-			permissionChange.Type,
+			permission.Type,
 		))
 	}
 }

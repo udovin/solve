@@ -5,68 +5,72 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/sha3"
 )
 
 type User struct {
-	ID           int64  `db:"id"            json:""`
-	Login        string `db:"login"         json:""`
-	PasswordHash string `db:"password_hash" json:"-"`
-	PasswordSalt string `db:"password_salt" json:"-"`
-	CreateTime   int64  `db:"create_time"   json:""`
+	ID           int64  `json:""  db:"id"`
+	Login        string `json:""  db:"login"`
+	PasswordHash string `json:"-" db:"password_hash"`
+	PasswordSalt string `json:"-" db:"password_salt"`
+	CreateTime   int64  `json:""  db:"create_time"`
 }
 
-type UserChange struct {
+type userChange struct {
 	BaseChange
 	User
 }
 
 type UserStore struct {
 	Manager     *ChangeManager
-	db          *sql.DB
 	table       string
 	changeTable string
 	users       map[int64]User
-	loginMap    map[string]int64
+	loginUsers  map[string]int64
+	mutex       sync.RWMutex
 }
 
-func (c *UserChange) ChangeData() interface{} {
-	return c.User
-}
-
-func NewUserStore(
-	db *sql.DB, table, changeTable string,
-) *UserStore {
-	store := UserStore{
-		db: db, table: table, changeTable: changeTable,
-		users:    make(map[int64]User),
-		loginMap: make(map[string]int64),
+func (m *User) SetPassword(password, salt string) error {
+	saltBytes := make([]byte, 16)
+	_, err := rand.Read(saltBytes)
+	if err != nil {
+		return err
 	}
-	store.Manager = NewChangeManager(&store)
+	m.PasswordSalt = encodeBase64(saltBytes)
+	m.PasswordHash = m.hashPassword(password, salt)
+	return nil
+}
+
+func (m *User) CheckPassword(password, salt string) bool {
+	passwordHash := m.hashPassword(password, salt)
+	return passwordHash == m.PasswordHash
+}
+
+func NewUserStore(db *sql.DB, table, changeTable string) *UserStore {
+	store := UserStore{
+		table:       table,
+		changeTable: changeTable,
+		users:       make(map[int64]User),
+		loginUsers:  make(map[string]int64),
+	}
+	store.Manager = NewChangeManager(&store, db)
 	return &store
 }
 
-func (s *UserStore) GetDB() *sql.DB {
-	return s.db
-}
-
-func (s *UserStore) TableName() string {
-	return s.table
-}
-
-func (s *UserStore) ChangeTableName() string {
-	return s.changeTable
-}
-
 func (s *UserStore) Get(id int64) (User, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	user, ok := s.users[id]
 	return user, ok
 }
 
 func (s *UserStore) GetByLogin(login string) (User, bool) {
-	id, ok := s.loginMap[login]
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	id, ok := s.loginUsers[login]
 	if !ok {
 		return User{}, ok
 	}
@@ -74,7 +78,7 @@ func (s *UserStore) GetByLogin(login string) (User, bool) {
 }
 
 func (s *UserStore) Create(m *User) error {
-	change := UserChange{
+	change := userChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		User:       *m,
 	}
@@ -87,7 +91,7 @@ func (s *UserStore) Create(m *User) error {
 }
 
 func (s *UserStore) Update(m *User) error {
-	change := UserChange{
+	change := userChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		User:       *m,
 	}
@@ -100,11 +104,15 @@ func (s *UserStore) Update(m *User) error {
 }
 
 func (s *UserStore) Delete(id int64) error {
-	change := UserChange{
+	change := userChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		User:       User{ID: id},
 	}
 	return s.Manager.Change(&change)
+}
+
+func (s *UserStore) getLocker() sync.Locker {
+	return &s.mutex
 }
 
 func (s *UserStore) setupChanges(tx *sql.Tx) (int64, error) {
@@ -122,24 +130,24 @@ func (s *UserStore) loadChangeGapTx(
 				` FROM "%s"`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
-			s.ChangeTableName(),
+			s.changeTable,
 		),
 		gap.BeginID, gap.EndID,
 	)
 }
 
 func (s *UserStore) scanChange(scan Scanner) (Change, error) {
-	change := &UserChange{}
+	user := userChange{}
 	err := scan.Scan(
-		&change.BaseChange.ID, &change.Type, &change.Time,
-		&change.User.ID, &change.Login, &change.PasswordHash,
-		&change.PasswordSalt, &change.CreateTime,
+		&user.BaseChange.ID, &user.Type, &user.Time,
+		&user.User.ID, &user.Login, &user.PasswordHash,
+		&user.PasswordSalt, &user.CreateTime,
 	)
-	return change, err
+	return &user, err
 }
 
 func (s *UserStore) saveChangeTx(tx *sql.Tx, change Change) error {
-	user := change.(*UserChange)
+	user := change.(*userChange)
 	user.Time = time.Now().Unix()
 	switch user.Type {
 	case CreateChange:
@@ -213,7 +221,7 @@ func (s *UserStore) saveChangeTx(tx *sql.Tx, change Change) error {
 				`"id", "login", "password_hash", `+
 				`"password_salt", "create_time") `+
 				`VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			s.ChangeTableName(),
+			s.changeTable,
 		),
 		user.Type, user.Time, user.User.ID, user.Login,
 		user.PasswordHash, user.PasswordSalt, user.CreateTime,
@@ -226,28 +234,31 @@ func (s *UserStore) saveChangeTx(tx *sql.Tx, change Change) error {
 }
 
 func (s *UserStore) applyChange(change Change) {
-	userChange := change.(*UserChange)
-	user := userChange.User
-	switch userChange.Type {
+	user := change.(*userChange)
+	switch user.Type {
 	case UpdateChange:
-		if oldUser, ok := s.users[user.ID]; ok {
+		if oldUser, ok := s.users[user.User.ID]; ok {
 			if oldUser.Login != user.Login {
-				delete(s.loginMap, oldUser.Login)
+				delete(s.loginUsers, oldUser.Login)
 			}
 		}
 		fallthrough
 	case CreateChange:
-		s.loginMap[user.Login] = user.ID
-		s.users[user.ID] = user
+		s.loginUsers[user.Login] = user.User.ID
+		s.users[user.User.ID] = user.User
 	case DeleteChange:
-		delete(s.loginMap, user.Login)
-		delete(s.users, user.ID)
+		delete(s.loginUsers, user.Login)
+		delete(s.users, user.User.ID)
 	default:
 		panic(fmt.Errorf(
 			"unsupported change type = %s",
-			userChange.Type,
+			user.Type,
 		))
 	}
+}
+
+func (m *User) hashPassword(password, salt string) string {
+	return hashString(m.PasswordSalt + hashString(password) + salt)
 }
 
 func encodeBase64(bytes []byte) string {
@@ -257,24 +268,4 @@ func encodeBase64(bytes []byte) string {
 func hashString(value string) string {
 	bytes := sha3.Sum512([]byte(value))
 	return encodeBase64(bytes[:])
-}
-
-func (m *User) hashPassword(password, salt string) string {
-	return hashString(m.PasswordSalt + hashString(password) + salt)
-}
-
-func (m *User) SetPassword(password, salt string) error {
-	saltBytes := make([]byte, 16)
-	_, err := rand.Read(saltBytes)
-	if err != nil {
-		return err
-	}
-	m.PasswordSalt = encodeBase64(saltBytes)
-	m.PasswordHash = m.hashPassword(password, salt)
-	return nil
-}
-
-func (m *User) CheckPassword(password, salt string) bool {
-	passwordHash := m.hashPassword(password, salt)
-	return passwordHash == m.PasswordHash
 }

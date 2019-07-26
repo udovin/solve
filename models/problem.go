@@ -3,54 +3,48 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 )
 
 type Problem struct {
-	ID         int64 `db:"id"          json:""`
-	OwnerID    int64 `db:"owner_id"    json:""`
-	CreateTime int64 `db:"create_time" json:""`
+	ID         int64 `json:"" db:"id"`
+	OwnerID    int64 `json:"" db:"owner_id"`
+	CreateTime int64 `json:"" db:"create_time"`
 }
 
-type ProblemChange struct {
+type problemChange struct {
 	BaseChange
 	Problem
 }
 
 type ProblemStore struct {
 	Manager     *ChangeManager
-	db          *sql.DB
 	table       string
 	changeTable string
 	problems    map[int64]Problem
+	mutex       sync.RWMutex
 }
 
-func NewProblemStore(
-	db *sql.DB, table, changeTable string,
-) *ProblemStore {
+func NewProblemStore(db *sql.DB, table, changeTable string) *ProblemStore {
 	store := ProblemStore{
-		db: db, table: table, changeTable: changeTable,
-		problems: make(map[int64]Problem),
+		table:       table,
+		changeTable: changeTable,
+		problems:    make(map[int64]Problem),
 	}
-	store.Manager = NewChangeManager(&store)
+	store.Manager = NewChangeManager(&store, db)
 	return &store
 }
 
-func (s *ProblemStore) GetDB() *sql.DB {
-	return s.db
-}
-
-func (s *ProblemStore) ChangeTableName() string {
-	return s.changeTable
-}
-
 func (s *ProblemStore) Get(id int64) (Problem, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	problem, ok := s.problems[id]
 	return problem, ok
 }
 
 func (s *ProblemStore) Create(m *Problem) error {
-	change := ProblemChange{
+	change := problemChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Problem:    *m,
 	}
@@ -63,7 +57,7 @@ func (s *ProblemStore) Create(m *Problem) error {
 }
 
 func (s *ProblemStore) Update(m *Problem) error {
-	change := ProblemChange{
+	change := problemChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		Problem:    *m,
 	}
@@ -76,11 +70,15 @@ func (s *ProblemStore) Update(m *Problem) error {
 }
 
 func (s *ProblemStore) Delete(id int64) error {
-	change := ProblemChange{
+	change := problemChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		Problem:    Problem{ID: id},
 	}
 	return s.Manager.Change(&change)
+}
+
+func (s *ProblemStore) getLocker() sync.Locker {
+	return &s.mutex
 }
 
 func (s *ProblemStore) setupChanges(tx *sql.Tx) (int64, error) {
@@ -98,23 +96,23 @@ func (s *ProblemStore) loadChangeGapTx(
 				` FROM "%s"`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
-			s.ChangeTableName(),
+			s.changeTable,
 		),
 		gap.BeginID, gap.EndID,
 	)
 }
 
 func (s *ProblemStore) scanChange(scan Scanner) (Change, error) {
-	change := &ProblemChange{}
+	problem := problemChange{}
 	err := scan.Scan(
-		&change.BaseChange.ID, &change.Type, &change.Time,
-		&change.Problem.ID, &change.OwnerID, &change.CreateTime,
+		&problem.BaseChange.ID, &problem.Type, &problem.Time,
+		&problem.Problem.ID, &problem.OwnerID, &problem.CreateTime,
 	)
-	return change, err
+	return &problem, err
 }
 
 func (s *ProblemStore) saveChangeTx(tx *sql.Tx, change Change) error {
-	problem := change.(*ProblemChange)
+	problem := change.(*problemChange)
 	problem.Time = time.Now().Unix()
 	switch problem.Type {
 	case CreateChange:
@@ -181,7 +179,7 @@ func (s *ProblemStore) saveChangeTx(tx *sql.Tx, change Change) error {
 				` ("change_type", "change_time",`+
 				` "id", "owner_id", "create_time")`+
 				` VALUES ($1, $2, $3, $4, $5)`,
-			s.ChangeTableName(),
+			s.changeTable,
 		),
 		problem.Type, problem.Time,
 		problem.Problem.ID, problem.OwnerID, problem.CreateTime,
@@ -194,19 +192,18 @@ func (s *ProblemStore) saveChangeTx(tx *sql.Tx, change Change) error {
 }
 
 func (s *ProblemStore) applyChange(change Change) {
-	problemChange := change.(*ProblemChange)
-	problem := problemChange.Problem
-	switch problemChange.Type {
+	problem := change.(*problemChange)
+	switch problem.Type {
 	case UpdateChange:
 		fallthrough
 	case CreateChange:
-		s.problems[problem.ID] = problem
+		s.problems[problem.Problem.ID] = problem.Problem
 	case DeleteChange:
-		delete(s.problems, problem.ID)
+		delete(s.problems, problem.Problem.ID)
 	default:
 		panic(fmt.Errorf(
 			"unsupported change type = %s",
-			problemChange.Type,
+			problem.Type,
 		))
 	}
 }

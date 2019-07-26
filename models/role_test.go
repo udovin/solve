@@ -4,11 +4,11 @@ import (
 	"testing"
 )
 
-func TestRoleStore_GetDB(t *testing.T) {
+func TestRoleStore_getLocker(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store := NewRoleStore(db, "test_role", "test_role_change")
-	if store.GetDB() != db {
-		t.Error("Store has invalid database")
+	if store.getLocker() == nil {
+		t.Error("Locker should not be nil")
 	}
 }

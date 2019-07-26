@@ -16,7 +16,7 @@ func (v *View) GetProblem(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	problem, ok := v.app.ProblemStore.Get(problemID)
+	problem, ok := v.app.Problems.Get(problemID)
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}

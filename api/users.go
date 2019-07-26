@@ -28,7 +28,7 @@ func (v *View) CreateUser(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	if err := v.app.UserStore.Create(&user); err != nil {
+	if err := v.app.Users.Create(&user); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -41,7 +41,7 @@ func (v *View) GetUser(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	user, ok := v.app.UserStore.Get(userID)
+	user, ok := v.app.Users.Get(userID)
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
@@ -54,7 +54,7 @@ func (v *View) UpdateUser(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	user, ok := v.app.UserStore.Get(userID)
+	user, ok := v.app.Users.Get(userID)
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
@@ -73,7 +73,7 @@ func (v *View) UpdateUser(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
-	if err := v.app.UserStore.Update(&user); err != nil {
+	if err := v.app.Users.Update(&user); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}

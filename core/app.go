@@ -13,12 +13,12 @@ import (
 type App struct {
 	Config config.Config
 	// Stores
-	UserStore       *models.UserStore
-	SessionStore    *models.SessionStore
-	ProblemStore    *models.ProblemStore
-	ContestStore    *models.ContestStore
-	RoleStore       *models.RoleStore
-	PermissionStore *models.PermissionStore
+	Users       *models.UserStore
+	Sessions    *models.SessionStore
+	Problems    *models.ProblemStore
+	Contests    *models.ContestStore
+	Roles       *models.RoleStore
+	Permissions *models.PermissionStore
 	// Used for regularly updating stores
 	ticker *time.Ticker
 	// Password salt
@@ -34,22 +34,22 @@ func NewApp(cfg *config.Config) (*App, error) {
 	}
 	app := App{
 		Config: *cfg,
-		UserStore: models.NewUserStore(
+		Users: models.NewUserStore(
 			db, "solve_user", "solve_user_change",
 		),
-		SessionStore: models.NewSessionStore(
+		Sessions: models.NewSessionStore(
 			db, "solve_session", "solve_session_change",
 		),
-		ProblemStore: models.NewProblemStore(
+		Problems: models.NewProblemStore(
 			db, "solve_problem", "solve_problem_change",
 		),
-		ContestStore: models.NewContestStore(
+		Contests: models.NewContestStore(
 			db, "solve_contest", "solve_contest_change",
 		),
-		RoleStore: models.NewRoleStore(
+		Roles: models.NewRoleStore(
 			db, "solve_role", "solve_role_change",
 		),
-		PermissionStore: models.NewPermissionStore(
+		Permissions: models.NewPermissionStore(
 			db, "solve_permission", "solve_permission_change",
 		),
 	}
@@ -89,12 +89,12 @@ func (a *App) syncStores() {
 // Sync all stores with database state
 func (a *App) syncStoresTick() {
 	wg := sync.WaitGroup{}
-	go a.runManagerSync(wg, a.UserStore.Manager)
-	go a.runManagerSync(wg, a.SessionStore.Manager)
-	go a.runManagerSync(wg, a.ProblemStore.Manager)
-	go a.runManagerSync(wg, a.ContestStore.Manager)
-	go a.runManagerSync(wg, a.RoleStore.Manager)
-	go a.runManagerSync(wg, a.PermissionStore.Manager)
+	go a.runManagerSync(wg, a.Users.Manager)
+	go a.runManagerSync(wg, a.Sessions.Manager)
+	go a.runManagerSync(wg, a.Problems.Manager)
+	go a.runManagerSync(wg, a.Contests.Manager)
+	go a.runManagerSync(wg, a.Roles.Manager)
+	go a.runManagerSync(wg, a.Permissions.Manager)
 	wg.Wait()
 }
 

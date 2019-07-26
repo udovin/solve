@@ -27,7 +27,7 @@ func (v *View) CreateSession(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	if err := v.app.SessionStore.Create(&session); err != nil {
+	if err := v.app.Sessions.Create(&session); err != nil {
 		c.Logger().Error(err)
 		return err
 	}

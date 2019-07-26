@@ -45,11 +45,11 @@ func (v *View) sessionAuth(c echo.Context) error {
 	if err != nil {
 		return badAuthError
 	}
-	session, ok := v.app.SessionStore.GetByCookie(cookie.Value)
+	session, ok := v.app.Sessions.GetByCookie(cookie.Value)
 	if !ok {
 		return badAuthError
 	}
-	user, ok := v.app.UserStore.Get(session.UserID)
+	user, ok := v.app.Users.Get(session.UserID)
 	if !ok {
 		return badAuthError
 	}
@@ -66,7 +66,7 @@ func (v *View) passwordAuth(c echo.Context) error {
 	if err := c.Bind(&authData); err != nil {
 		return badAuthError
 	}
-	user, ok := v.app.UserStore.GetByLogin(authData.Login)
+	user, ok := v.app.Users.GetByLogin(authData.Login)
 	if !ok || !user.CheckPassword(authData.Password, v.app.PasswordSalt) {
 		return badAuthError
 	}

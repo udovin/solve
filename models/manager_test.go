@@ -28,6 +28,8 @@ func (s *MockStore) getLocker() sync.Locker {
 }
 
 func (s *MockStore) Get(id int) (Mock, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	mock, ok := s.mocks[id]
 	return mock, ok
 }
@@ -163,4 +165,39 @@ func TestChangeManager_applyChange(t *testing.T) {
 		}()
 		store.applyChange(nil)
 	}()
+}
+
+func TestBaseChange_ChangeID(t *testing.T) {
+	createChange := CreateChange
+	if createChange.String() != "Create" {
+		t.Error("Create change has invalid string representation")
+	}
+	updateChange := UpdateChange
+	if updateChange.String() != "Update" {
+		t.Error("Update change has invalid string representation")
+	}
+	deleteChange := DeleteChange
+	if deleteChange.String() != "Delete" {
+		t.Error("Delete change has invalid string representation")
+	}
+	unknownChange := ChangeType(127)
+	if unknownChange.String() != "ChangeType(127)" {
+		t.Error("Unknown change has invalid string representation")
+	}
+}
+
+func BenchmarkChangeManager_Change(b *testing.B) {
+	setup(b)
+	defer teardown(b)
+	store := MockStore{mocks: make(map[int]Mock)}
+	manager := NewChangeManager(&store, db)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := manager.Change(&mockChange{
+			BaseChange: BaseChange{Type: CreateChange},
+			Mock:       Mock{ID: i + 1, Value: "Value"},
+		}); err != nil {
+			b.Error("Error: ", err)
+		}
+	}
 }

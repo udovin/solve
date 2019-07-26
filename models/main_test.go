@@ -26,7 +26,7 @@ func teardownMain() {
 	_ = db.Close()
 }
 
-func setup(t *testing.T) {
+func setup(tb testing.TB) {
 	_, err := db.Exec(
 		`CREATE TABLE "test_mock_change"` +
 			` ("change_id" INTEGER PRIMARY KEY,` +
@@ -36,14 +36,14 @@ func setup(t *testing.T) {
 			` "value" VARCHAR(255))`,
 	)
 	if err != nil {
-		t.Error(err)
+		tb.Error(err)
 	}
 }
 
-func teardown(t *testing.T) {
+func teardown(tb testing.TB) {
 	_, err := db.Exec(`DROP TABLE "test_mock_change"`)
 	if err != nil {
-		t.Error(err)
+		tb.Error(err)
 	}
 }
 

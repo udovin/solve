@@ -34,11 +34,11 @@ func (s *MockStore) Get(id int) (Mock, bool) {
 	return mock, ok
 }
 
-func (s *MockStore) setupChanges(tx *sql.Tx) (int64, error) {
+func (s *MockStore) initChanges(tx *sql.Tx) (int64, error) {
 	return 0, nil
 }
 
-func (s *MockStore) loadChangeGapTx(
+func (s *MockStore) loadChanges(
 	tx *sql.Tx, gap ChangeGap,
 ) (*sql.Rows, error) {
 	return tx.Query(
@@ -60,7 +60,7 @@ func (s *MockStore) scanChange(scan Scanner) (Change, error) {
 	return change, err
 }
 
-func (s *MockStore) saveChangeTx(tx *sql.Tx, change Change) error {
+func (s *MockStore) saveChange(tx *sql.Tx, change Change) error {
 	mock := change.(*mockChange)
 	mock.Time = time.Now().Unix()
 	res, err := tx.Exec(

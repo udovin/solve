@@ -81,11 +81,11 @@ func (s *ContestStore) getLocker() sync.Locker {
 	return &s.mutex
 }
 
-func (s *ContestStore) setupChanges(tx *sql.Tx) (int64, error) {
+func (s *ContestStore) initChanges(tx *sql.Tx) (int64, error) {
 	return 0, nil
 }
 
-func (s *ContestStore) loadChangeGapTx(
+func (s *ContestStore) loadChanges(
 	tx *sql.Tx, gap ChangeGap,
 ) (*sql.Rows, error) {
 	return tx.Query(
@@ -111,7 +111,7 @@ func (s *ContestStore) scanChange(scan Scanner) (Change, error) {
 	return &contest, err
 }
 
-func (s *ContestStore) saveChangeTx(tx *sql.Tx, change Change) error {
+func (s *ContestStore) saveChange(tx *sql.Tx, change Change) error {
 	contest := change.(*contestChange)
 	contest.Time = time.Now().Unix()
 	switch contest.Type {

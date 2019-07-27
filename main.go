@@ -53,7 +53,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	app.Start()
+	if err := app.Start(); err != nil {
+		panic(err)
+	}
 	defer app.Stop()
 	server := echo.New()
 	server.Use(middleware.Recover())

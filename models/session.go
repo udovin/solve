@@ -133,11 +133,11 @@ func (s *SessionStore) getLocker() sync.Locker {
 	return &s.mutex
 }
 
-func (s *SessionStore) setupChanges(tx *sql.Tx) (int64, error) {
+func (s *SessionStore) initChanges(tx *sql.Tx) (int64, error) {
 	return 0, nil
 }
 
-func (s *SessionStore) loadChangeGapTx(
+func (s *SessionStore) loadChanges(
 	tx *sql.Tx, gap ChangeGap,
 ) (*sql.Rows, error) {
 	return tx.Query(
@@ -164,7 +164,7 @@ func (s *SessionStore) scanChange(scan Scanner) (Change, error) {
 	return &session, err
 }
 
-func (s *SessionStore) saveChangeTx(tx *sql.Tx, change Change) error {
+func (s *SessionStore) saveChange(tx *sql.Tx, change Change) error {
 	session := change.(*sessionChange)
 	session.Time = time.Now().Unix()
 	switch session.Type {

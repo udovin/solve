@@ -87,11 +87,11 @@ func (s *RoleStore) getLocker() sync.Locker {
 	return &s.mutex
 }
 
-func (s *RoleStore) setupChanges(tx *sql.Tx) (int64, error) {
+func (s *RoleStore) initChanges(tx *sql.Tx) (int64, error) {
 	return 0, nil
 }
 
-func (s *RoleStore) loadChangeGapTx(
+func (s *RoleStore) loadChanges(
 	tx *sql.Tx, gap ChangeGap,
 ) (*sql.Rows, error) {
 	return tx.Query(
@@ -117,7 +117,7 @@ func (s *RoleStore) scanChange(scan Scanner) (Change, error) {
 	return &role, err
 }
 
-func (s *RoleStore) saveChangeTx(tx *sql.Tx, change Change) error {
+func (s *RoleStore) saveChange(tx *sql.Tx, change Change) error {
 	role := change.(*roleChange)
 	role.Time = time.Now().Unix()
 	switch role.Type {

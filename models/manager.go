@@ -56,14 +56,14 @@ type Change interface {
 type ChangeStore interface {
 	// Get write locker
 	getLocker() sync.Locker
-	// Setup changes
-	setupChanges(tx *sql.Tx) (int64, error)
+	// Init changes
+	initChanges(tx *sql.Tx) (int64, error)
 	// Load changes from gap
-	loadChangeGapTx(tx *sql.Tx, gap ChangeGap) (*sql.Rows, error)
+	loadChanges(tx *sql.Tx, gap ChangeGap) (*sql.Rows, error)
 	// Scan change from result row
 	scanChange(scan Scanner) (Change, error)
 	// Save change to database
-	saveChangeTx(tx *sql.Tx, change Change) error
+	saveChange(tx *sql.Tx, change Change) error
 	// Apply change to store
 	applyChange(change Change)
 }
@@ -126,12 +126,12 @@ func (tx *ChangeTx) Rollback() error {
 	return nil
 }
 
-func (m *ChangeManager) Setup() error {
+func (m *ChangeManager) Init() error {
 	tx, err := m.db.Begin()
 	if err != nil {
 		return err
 	}
-	id, err := m.store.setupChanges(tx)
+	id, err := m.store.initChanges(tx)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
@@ -173,7 +173,7 @@ func (m *ChangeManager) ChangeTx(tx *ChangeTx, change Change) error {
 	if err := m.SyncTx(tx); err != nil {
 		return err
 	}
-	if err := m.store.saveChangeTx(tx.Tx, change); err != nil {
+	if err := m.store.saveChange(tx.Tx, change); err != nil {
 		return err
 	}
 	tx.changes[m] = append(tx.changes[m], change)
@@ -207,7 +207,7 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	}
 	for e := m.changeGaps.Front(); e != nil; {
 		curr := e.Value.(ChangeGap)
-		rows, err := m.store.loadChangeGapTx(tx.Tx, curr)
+		rows, err := m.store.loadChanges(tx.Tx, curr)
 		if err != nil {
 			return err
 		}
@@ -251,7 +251,7 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 		_ = rows.Close()
 		e = e.Next()
 	}
-	rows, err := m.store.loadChangeGapTx(tx.Tx, ChangeGap{
+	rows, err := m.store.loadChanges(tx.Tx, ChangeGap{
 		BeginID: m.lastChangeID + 1,
 		EndID:   math.MaxInt64,
 	})

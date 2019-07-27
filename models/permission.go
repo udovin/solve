@@ -85,11 +85,11 @@ func (s *PermissionStore) getLocker() sync.Locker {
 	return &s.mutex
 }
 
-func (s *PermissionStore) setupChanges(tx *sql.Tx) (int64, error) {
+func (s *PermissionStore) initChanges(tx *sql.Tx) (int64, error) {
 	return 0, nil
 }
 
-func (s *PermissionStore) loadChangeGapTx(
+func (s *PermissionStore) loadChanges(
 	tx *sql.Tx, gap ChangeGap,
 ) (*sql.Rows, error) {
 	return tx.Query(
@@ -115,7 +115,7 @@ func (s *PermissionStore) scanChange(scan Scanner) (Change, error) {
 	return &permission, err
 }
 
-func (s *PermissionStore) saveChangeTx(tx *sql.Tx, change Change) error {
+func (s *PermissionStore) saveChange(tx *sql.Tx, change Change) error {
 	permission := change.(*permissionChange)
 	permission.Time = time.Now().Unix()
 	switch permission.Type {

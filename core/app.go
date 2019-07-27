@@ -19,8 +19,8 @@ type App struct {
 	Contests    *models.ContestStore
 	Roles       *models.RoleStore
 	Permissions *models.PermissionStore
-	// Used for regularly updating stores
-	ticker *time.Ticker
+	closer      chan struct{}
+	waiter      sync.WaitGroup
 	// Password salt
 	PasswordSalt string
 }
@@ -62,49 +62,58 @@ func NewApp(cfg *config.Config) (*App, error) {
 	return &app, nil
 }
 
-// TODO: Some tables can be large and some other are not large,
-//   so we should update all tables fully asynchronously.
-func (a *App) Start() {
-	a.syncStoresTick()
-	// Update all store at most in one second. If exists a store which
-	// required more than one second for sync, we will slow down all
-	// other store syncs.
-	a.ticker = time.NewTicker(time.Second)
-	go a.syncStores()
+// Start application and data synchronization
+func (a *App) Start() error {
+	a.closer = make(chan struct{})
+	errs := make(chan error)
+	defer close(errs)
+	stores := 0
+	runManagerSync := func(m *models.ChangeManager) {
+		stores++
+		go a.runManagerSync(m, errs)
+	}
+	runManagerSync(a.Users.Manager)
+	runManagerSync(a.Sessions.Manager)
+	runManagerSync(a.Problems.Manager)
+	runManagerSync(a.Contests.Manager)
+	runManagerSync(a.Roles.Manager)
+	runManagerSync(a.Permissions.Manager)
+	var err error
+	for i := 0; i < stores; i++ {
+		lastErr := <-errs
+		if lastErr != nil {
+			log.Println("error:", lastErr)
+			err = lastErr
+		}
+	}
+	if err != nil {
+		a.Stop()
+	}
+	return err
 }
 
 // Stop syncing stores
-// TODO: Stop should hanging current goroutine while some syncs are running
 func (a *App) Stop() {
-	a.ticker.Stop()
-}
-
-// Almost infinite loop of syncing stores
-func (a *App) syncStores() {
-	for range a.ticker.C {
-		a.syncStoresTick()
-	}
-}
-
-// Sync all stores with database state
-func (a *App) syncStoresTick() {
-	wg := sync.WaitGroup{}
-	go a.runManagerSync(wg, a.Users.Manager)
-	go a.runManagerSync(wg, a.Sessions.Manager)
-	go a.runManagerSync(wg, a.Problems.Manager)
-	go a.runManagerSync(wg, a.Contests.Manager)
-	go a.runManagerSync(wg, a.Roles.Manager)
-	go a.runManagerSync(wg, a.Permissions.Manager)
-	wg.Wait()
+	close(a.closer)
+	// Wait for all manager syncs to finish
+	a.waiter.Wait()
 }
 
 // Sync store with database
-// This method is created for running in separate goroutine, so we
-// should pass WaitGroup to understand that goroutine is finished.
-func (a *App) runManagerSync(wg sync.WaitGroup, m *models.ChangeManager) {
-	wg.Add(1)
-	defer wg.Done()
-	if err := m.Sync(); err != nil {
-		log.Print("unable to sync store: ", err)
+func (a *App) runManagerSync(m *models.ChangeManager, errs chan<- error) {
+	a.waiter.Add(1)
+	defer a.waiter.Done()
+	errs <- m.Init()
+	ticker := time.NewTicker(time.Second)
+	for {
+		select {
+		case <-a.closer:
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			if err := m.Sync(); err != nil {
+				log.Println("error:", err)
+			}
+		}
 	}
 }

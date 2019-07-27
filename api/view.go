@@ -31,11 +31,12 @@ func (v *View) authMiddleware(methods ...authMethod) echo.MiddlewareFunc {
 					if err == badAuthError {
 						continue
 					}
+					c.Logger().Error(err)
 					return err
 				}
 				return next(c)
 			}
-			return badAuthError
+			return c.NoContent(http.StatusForbidden)
 		}
 	}
 }

@@ -254,23 +254,25 @@ func (s *SessionStore) applyChange(change Change) {
 	case UpdateChange:
 		if oldSession, ok := s.sessions[session.Session.ID]; ok {
 			if oldSession.UserID != session.UserID {
-				delete(s.userSessions[oldSession.UserID], oldSession.ID)
-				if len(s.userSessions[oldSession.UserID]) == 0 {
-					delete(s.userSessions, oldSession.UserID)
+				if userSessions, ok := s.userSessions[oldSession.UserID]; ok {
+					delete(userSessions, oldSession.ID)
+					if len(userSessions) == 0 {
+						delete(s.userSessions, oldSession.UserID)
+					}
 				}
 			}
 		}
 		fallthrough
 	case CreateChange:
-		if s.userSessions[session.UserID] == nil {
+		if _, ok := s.userSessions[session.UserID]; !ok {
 			s.userSessions[session.UserID] = make(map[int64]struct{})
 		}
 		s.userSessions[session.UserID][session.Session.ID] = struct{}{}
 		s.sessions[session.Session.ID] = session.Session
 	case DeleteChange:
-		if s.userSessions[session.UserID] != nil {
-			delete(s.userSessions[session.UserID], session.Session.ID)
-			if len(s.userSessions[session.UserID]) == 0 {
+		if userSessions, ok := s.userSessions[session.UserID]; ok {
+			delete(userSessions, session.Session.ID)
+			if len(userSessions) == 0 {
 				delete(s.userSessions, session.UserID)
 			}
 		}

@@ -283,10 +283,10 @@ func (m *ChangeManager) applyChange(change Change) {
 	if change.ChangeID() <= m.lastChangeID {
 		for e := m.changeGaps.Front(); e != nil; e = e.Next() {
 			curr := e.Value.(ChangeGap)
-			if change.ChangeID() < curr.BeginID {
+			if change.ChangeID() >= curr.EndID {
 				continue
 			}
-			if change.ChangeID() >= curr.EndID {
+			if change.ChangeID() < curr.BeginID {
 				break
 			}
 			m.store.applyChange(change)
@@ -299,7 +299,6 @@ func (m *ChangeManager) applyChange(change Change) {
 				e.Value = curr
 				if next.BeginID < next.EndID {
 					e = m.changeGaps.InsertAfter(next, e)
-					curr = next
 				}
 			} else {
 				curr.BeginID++

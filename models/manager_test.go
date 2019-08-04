@@ -150,7 +150,7 @@ func TestChangeManager_applyChange(t *testing.T) {
 	}
 	checkGapsLen := func(l int) {
 		if manager.changeGaps.Len() != l {
-			t.Errorf(
+			t.Fatalf(
 				"Expected len = %d, but found %d",
 				l, manager.changeGaps.Len(),
 			)
@@ -196,6 +196,12 @@ func TestChangeManager_applyChange(t *testing.T) {
 		}()
 		applyChange(5)
 	}()
+	applyChange(50)
+	checkGapsLen(1)
+	applyChange(40)
+	checkGapsLen(2)
+	applyChange(41)
+	applyChange(49)
 }
 
 func TestBaseChange_ChangeID(t *testing.T) {
@@ -264,6 +270,19 @@ func TestChangeManager_SyncClosed(t *testing.T) {
 
 func TestChangeManager_ChangeClosed(t *testing.T) {
 	setup(t)
+	teardown(t)
+	store := FakeStore{fakes: make(map[int]Fake)}
+	manager := NewChangeManager(&store, db)
+	if err := manager.Change(&fakeChange{
+		BaseChange: BaseChange{ID: 1, Type: CreateChange},
+		Fake:       Fake{ID: 1, Value: "Fake item"},
+	}); err == nil {
+		t.Fatal("Expected sync error")
+	}
+}
+
+func TestChangeManager_ChangeTxClosed(t *testing.T) {
+	setup(t)
 	store := FakeStore{fakes: make(map[int]Fake)}
 	manager := NewChangeManager(&store, db)
 	tx, err := manager.Begin()
@@ -279,6 +298,32 @@ func TestChangeManager_ChangeClosed(t *testing.T) {
 		Fake:       Fake{ID: 1, Value: "Fake item"},
 	}); err == nil {
 		t.Fatal("Expected sync error")
+	}
+}
+
+func TestChangeManager_CommitRollbackClosed(t *testing.T) {
+	setup(t)
+	store := FakeStore{fakes: make(map[int]Fake)}
+	manager := NewChangeManager(&store, db)
+	tx, err := manager.Begin()
+	if err != nil {
+		teardown(t)
+		t.Fatal(err)
+	}
+	if err := manager.ChangeTx(tx, &fakeChange{
+		BaseChange: BaseChange{ID: 1, Type: CreateChange},
+		Fake:       Fake{ID: 1, Value: "Fake item"},
+	}); err != nil {
+		teardown(t)
+		t.Fatal(err)
+	}
+	_ = tx.Rollback()
+	teardown(t)
+	if err := tx.Commit(); err == nil {
+		t.Fatal("Expected rollback error")
+	}
+	if err := tx.Rollback(); err == nil {
+		t.Fatal("Expected rollback error")
 	}
 }
 

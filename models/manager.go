@@ -76,6 +76,7 @@ type ChangeGap struct {
 type ChangeTx struct {
 	*sql.Tx
 	changes map[*ChangeManager][]Change
+	updated map[*ChangeManager]bool
 }
 
 // Supports store consistency using change table
@@ -106,11 +107,13 @@ func (tx *ChangeTx) Commit() error {
 	}
 	for manager, changes := range tx.changes {
 		locker := manager.store.getLocker()
-		locker.Lock()
-		for _, change := range changes {
-			manager.applyChange(change)
-		}
-		locker.Unlock()
+		func() {
+			locker.Lock()
+			defer locker.Unlock()
+			for _, change := range changes {
+				manager.applyChange(change)
+			}
+		}()
 		delete(tx.changes, manager)
 	}
 	return nil
@@ -151,6 +154,7 @@ func (m *ChangeManager) Begin() (*ChangeTx, error) {
 	return &ChangeTx{
 		Tx:      tx,
 		changes: make(map[*ChangeManager][]Change),
+		updated: make(map[*ChangeManager]bool),
 	}, nil
 }
 
@@ -177,6 +181,7 @@ func (m *ChangeManager) ChangeTx(tx *ChangeTx, change Change) error {
 		return err
 	}
 	tx.changes[m] = append(tx.changes[m], change)
+	tx.updated[m] = true
 	return nil
 }
 
@@ -193,6 +198,9 @@ func (m *ChangeManager) Sync() error {
 const changeGapSkipWindow = 5000
 
 func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
+	if tx.updated[m] {
+		return nil
+	}
 	locker := m.store.getLocker()
 	locker.Lock()
 	defer locker.Unlock()

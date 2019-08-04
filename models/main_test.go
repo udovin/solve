@@ -168,7 +168,7 @@ func setup(tb testing.TB) {
 	}
 	for _, query := range createTables {
 		if _, err := db.Exec(query); err != nil {
-			tb.Error(err)
+			tb.Fatal(err)
 		}
 	}
 }
@@ -176,7 +176,7 @@ func setup(tb testing.TB) {
 func teardown(tb testing.TB) {
 	for _, query := range dropTables {
 		if _, err := db.Exec(query); err != nil {
-			tb.Error(err)
+			tb.Fatal(err)
 		}
 	}
 	_ = db.Close()

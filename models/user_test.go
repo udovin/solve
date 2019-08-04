@@ -9,6 +9,6 @@ func TestUserStore_getLocker(t *testing.T) {
 	defer teardown(t)
 	store := NewUserStore(db, "test_user", "test_user_change")
 	if store.getLocker() == nil {
-		t.Error("Locker should not be nil")
+		t.Fatal("Locker should not be nil")
 	}
 }

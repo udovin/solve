@@ -11,6 +11,6 @@ func TestUserFieldStore_getLocker(t *testing.T) {
 		db, "test_user_field", "test_user_field_change",
 	)
 	if store.getLocker() == nil {
-		t.Error("Locker should not be nil")
+		t.Fatal("Locker should not be nil")
 	}
 }

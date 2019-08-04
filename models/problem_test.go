@@ -9,6 +9,6 @@ func TestProblemStore_getLocker(t *testing.T) {
 	defer teardown(t)
 	store := NewProblemStore(db, "test_problem", "test_problem_change")
 	if store.getLocker() == nil {
-		t.Error("Locker should not be nil")
+		t.Fatal("Locker should not be nil")
 	}
 }

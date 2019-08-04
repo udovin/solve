@@ -100,6 +100,18 @@ var fakes = []Fake{
 	{ID: 4, Value: "model"},
 }
 
+var fakeChangesWithGaps = []fakeChange{
+	{BaseChange{1, CreateChange, 1}, Fake{1, "golang"}},
+	{BaseChange{3, CreateChange, 2}, Fake{2, "solve"}},
+	{BaseChange{7, CreateChange, 3}, Fake{3, "model"}},
+	{BaseChange{15, CreateChange, 4}, Fake{4, "hello"}},
+	{BaseChange{16, CreateChange, 5}, Fake{5, "world"}},
+	{BaseChange{14, CreateChange, 6}, Fake{6, "task"}},
+	{BaseChange{8, CreateChange, 7}, Fake{7, "contest"}},
+	{BaseChange{10, CreateChange, 8}, Fake{8, "problem"}},
+	{BaseChange{9, CreateChange, 9}, Fake{9, "solution"}},
+}
+
 func TestChangeManager(t *testing.T) {
 	setup(t)
 	defer teardown(t)
@@ -179,7 +191,7 @@ func TestChangeManager_applyChange(t *testing.T) {
 	func() {
 		defer func() {
 			if err := recover(); err == nil {
-				t.Error("Panic expected")
+				t.Fatal("Panic expected")
 			}
 		}()
 		applyChange(5)
@@ -189,19 +201,19 @@ func TestChangeManager_applyChange(t *testing.T) {
 func TestBaseChange_ChangeID(t *testing.T) {
 	createChange := CreateChange
 	if createChange.String() != "Create" {
-		t.Error("Create change has invalid string representation")
+		t.Fatal("Create change has invalid string representation")
 	}
 	updateChange := UpdateChange
 	if updateChange.String() != "Update" {
-		t.Error("Update change has invalid string representation")
+		t.Fatal("Update change has invalid string representation")
 	}
 	deleteChange := DeleteChange
 	if deleteChange.String() != "Delete" {
-		t.Error("Delete change has invalid string representation")
+		t.Fatal("Delete change has invalid string representation")
 	}
 	unknownChange := ChangeType(127)
 	if unknownChange.String() != "ChangeType(127)" {
-		t.Error("Unknown change has invalid string representation")
+		t.Fatal("Unknown change has invalid string representation")
 	}
 }
 
@@ -217,25 +229,25 @@ func TestChangeManager_Sync(t *testing.T) {
 			BaseChange: BaseChange{ID: int64(i), Type: CreateChange},
 			Fake:       fake,
 		}); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 	}
 	for _, fake := range fakes {
 		if f, ok := store1.Get(fake.ID); !ok || f != fake {
-			t.Error("Invalid value")
+			t.Fatal("Invalid value")
 		}
 	}
 	for _, fake := range fakes {
 		if _, ok := store2.Get(fake.ID); ok {
-			t.Error("Store does not have items")
+			t.Fatal("Store does not have items")
 		}
 	}
 	if err := manager2.Sync(); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	for _, fake := range fakes {
 		if f, ok := store2.Get(fake.ID); !ok || f != fake {
-			t.Error("Invalid value")
+			t.Fatal("Invalid value")
 		}
 	}
 }
@@ -246,7 +258,7 @@ func TestChangeManager_SyncClosed(t *testing.T) {
 	store := FakeStore{fakes: make(map[int]Fake)}
 	manager := NewChangeManager(&store, db)
 	if err := manager.Sync(); err == nil {
-		t.Error("Expected sync error")
+		t.Fatal("Expected sync error")
 	}
 }
 
@@ -260,13 +272,129 @@ func TestChangeManager_ChangeClosed(t *testing.T) {
 	}
 	teardown(t)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if err := manager.ChangeTx(tx, &fakeChange{
 		BaseChange: BaseChange{ID: 1, Type: CreateChange},
 		Fake:       Fake{ID: 1, Value: "Fake item"},
 	}); err == nil {
-		t.Error("Expected sync error")
+		t.Fatal("Expected sync error")
+	}
+}
+
+func TestChangeManager_ChangeCommit(t *testing.T) {
+	setup(t)
+	defer teardown(t)
+	store1 := FakeStore{fakes: make(map[int]Fake)}
+	manager1 := NewChangeManager(&store1, db)
+	store2 := FakeStore{fakes: make(map[int]Fake)}
+	manager2 := NewChangeManager(&store2, db)
+	tx, err := manager1.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, fake := range fakes {
+		if err := manager1.ChangeTx(tx, &fakeChange{
+			BaseChange: BaseChange{ID: int64(i), Type: CreateChange},
+			Fake:       fake,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, fake := range fakes {
+		if _, ok := store1.Get(fake.ID); ok {
+			t.Error("Store should not have items")
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	for _, fake := range fakes {
+		if f, ok := store1.Get(fake.ID); !ok || f != fake {
+			t.Fatal("Invalid value")
+		}
+	}
+	for _, fake := range fakes {
+		if _, ok := store2.Get(fake.ID); ok {
+			t.Fatal("Store does not have items")
+		}
+	}
+	if err := manager2.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	for _, fake := range fakes {
+		if f, ok := store2.Get(fake.ID); !ok || f != fake {
+			t.Fatal("Invalid value")
+		}
+	}
+}
+
+func TestChangeManager_ChangeRollback(t *testing.T) {
+	setup(t)
+	defer teardown(t)
+	store1 := FakeStore{fakes: make(map[int]Fake)}
+	manager1 := NewChangeManager(&store1, db)
+	store2 := FakeStore{fakes: make(map[int]Fake)}
+	manager2 := NewChangeManager(&store2, db)
+	tx, err := manager1.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, fake := range fakes {
+		if err := manager1.ChangeTx(tx, &fakeChange{
+			BaseChange: BaseChange{ID: int64(i), Type: CreateChange},
+			Fake:       fake,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, fake := range fakes {
+		if _, ok := store1.Get(fake.ID); ok {
+			t.Error("Store should not have items")
+		}
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	for _, fake := range fakes {
+		if _, ok := store1.Get(fake.ID); ok {
+			t.Fatal("Invalid value")
+		}
+	}
+	for _, fake := range fakes {
+		if _, ok := store2.Get(fake.ID); ok {
+			t.Fatal("Store does not have items")
+		}
+	}
+	if err := manager2.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	for _, fake := range fakes {
+		if _, ok := store2.Get(fake.ID); ok {
+			t.Fatal("Invalid value")
+		}
+	}
+}
+
+func TestChangeManager_ChangeGaps(t *testing.T) {
+	setup(t)
+	defer teardown(t)
+	store := FakeStore{fakes: make(map[int]Fake)}
+	manager := NewChangeManager(&store, db)
+	for _, change := range fakeChangesWithGaps {
+		_, err := db.Exec(
+			`INSERT INTO "test_fake_change"`+
+				` ("change_id", "change_type", "change_time", "id", "value")`+
+				` VALUES ($1, $2, $3, $4, $5)`,
+			change.BaseChange.ID, change.Type, change.Time,
+			change.Fake.ID, change.Value,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := manager.Sync(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -281,7 +409,7 @@ func BenchmarkChangeManager_Change(b *testing.B) {
 			BaseChange: BaseChange{Type: CreateChange},
 			Fake:       Fake{ID: i + 1, Value: "Value"},
 		}); err != nil {
-			b.Error("Error: ", err)
+			b.Fatal("Error: ", err)
 		}
 	}
 }

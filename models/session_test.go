@@ -9,6 +9,6 @@ func TestSessionStore_getLocker(t *testing.T) {
 	defer teardown(t)
 	store := NewSessionStore(db, "test_session", "test_session_change")
 	if store.getLocker() == nil {
-		t.Error("Locker should not be nil")
+		t.Fatal("Locker should not be nil")
 	}
 }

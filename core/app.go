@@ -13,13 +13,13 @@ import (
 type App struct {
 	Config config.Config
 	// Stores
-	Users       *models.UserStore
-	UserOptions *models.UserOptionStore
-	Sessions    *models.SessionStore
-	Problems    *models.ProblemStore
-	Contests    *models.ContestStore
-	closer      chan struct{}
-	waiter      sync.WaitGroup
+	Users      *models.UserStore
+	UserFields *models.UserFieldStore
+	Sessions   *models.SessionStore
+	Problems   *models.ProblemStore
+	Contests   *models.ContestStore
+	closer     chan struct{}
+	waiter     sync.WaitGroup
 	// Password salt
 	PasswordSalt string
 }
@@ -36,8 +36,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 		Users: models.NewUserStore(
 			db, "solve_user", "solve_user_change",
 		),
-		UserOptions: models.NewUserOptionStore(
-			db, "solve_user_option", "solve_user_option_change",
+		UserFields: models.NewUserFieldStore(
+			db, "solve_user_field", "solve_user_field_change",
 		),
 		Sessions: models.NewSessionStore(
 			db, "solve_session", "solve_session_change",
@@ -69,7 +69,7 @@ func (a *App) Start() error {
 		go a.runManagerSync(m, errs)
 	}
 	runManagerSync(a.Users.Manager)
-	runManagerSync(a.UserOptions.Manager)
+	runManagerSync(a.UserFields.Manager)
 	runManagerSync(a.Sessions.Manager)
 	runManagerSync(a.Problems.Manager)
 	runManagerSync(a.Contests.Manager)

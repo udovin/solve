@@ -2,6 +2,7 @@ package models
 
 import (
 	"testing"
+	"time"
 )
 
 func TestContestStore_getLocker(t *testing.T) {
@@ -63,7 +64,7 @@ func TestContestStore_applyChange(t *testing.T) {
 				t.Error("Panic expected")
 			}
 		}()
-		store.applyChange(&mockChange{})
+		store.applyChange(&fakeChange{})
 	}()
 	func() {
 		defer func() {
@@ -73,4 +74,17 @@ func TestContestStore_applyChange(t *testing.T) {
 		}()
 		store.applyChange(nil)
 	}()
+}
+
+func TestContestStore_Create(t *testing.T) {
+	setup(t)
+	defer teardown(t)
+	store := NewContestStore(db, "test_contest", "test_contest_change")
+	for i := 0; i < 10; i++ {
+		if err := store.Create(
+			&Contest{0, 0, time.Now().Unix()},
+		); err != nil {
+			t.Error(err)
+		}
+	}
 }

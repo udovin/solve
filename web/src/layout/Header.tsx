@@ -1,6 +1,6 @@
 import React, {ReactNode} from "react";
 import {Link, RouteComponentProps, withRouter} from "react-router-dom";
-import {AuthConsumer} from "../AuthContext";
+import {AuthConsumer, AuthState} from "../AuthContext";
 
 class Header extends React.Component<RouteComponentProps> {
 	render(): ReactNode {
@@ -13,7 +13,7 @@ class Header extends React.Component<RouteComponentProps> {
 					</div>
 					<div id="header-account">
 						<ul>
-							<AuthConsumer>{this.getAccountLinks}</AuthConsumer>
+							<AuthConsumer>{Header.getAccountLinks}</AuthConsumer>
 						</ul>
 					</div>
 				</div>
@@ -32,11 +32,12 @@ class Header extends React.Component<RouteComponentProps> {
 		);
 	}
 
-	public getAccountLinks(isAuth: boolean): ReactNode {
-		if (isAuth) {
+	public static getAccountLinks(state: AuthState): ReactNode {
+		if (state.session) {
+			let login = state.session.User.Login;
 			return <>
 				<li>
-					<Link to="/profile">Profile</Link>
+					Hello, <Link to={"/users/"+login}>{login}</Link>!
 				</li>
 				<li>
 					<Link to="/logout">Logout</Link>

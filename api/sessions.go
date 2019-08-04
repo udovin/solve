@@ -46,3 +46,23 @@ func (v *View) UpdateSession(c echo.Context) error {
 func (v *View) DeleteSession(c echo.Context) error {
 	return c.NoContent(http.StatusNotImplemented)
 }
+
+type CurrentSessionResponse struct {
+	models.Session
+	User models.User `json:""`
+}
+
+func (v *View) GetCurrentSession(c echo.Context) error {
+	session, ok := c.Get(sessionKey).(models.Session)
+	if !ok {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	user, ok := v.app.Users.Get(session.UserID)
+	if !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	return c.JSON(http.StatusOK, CurrentSessionResponse{
+		Session: session,
+		User:    user,
+	})
+}

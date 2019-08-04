@@ -20,7 +20,7 @@ var badAuthError = errors.New("bad auth")
 
 const (
 	userKey    = "User"
-	sessionKey = "Session"
+	sessionKey = "CurrentSession"
 )
 
 func (v *View) authMiddleware(methods ...authMethod) echo.MiddlewareFunc {
@@ -98,6 +98,10 @@ func Register(app *core.App, server *echo.Echo) {
 	// Sessions management
 	api.GET(
 		"/sessions", v.GetSessionList,
+		v.authMiddleware(v.sessionAuth),
+	)
+	api.GET(
+		"/sessions/current", v.GetCurrentSession,
 		v.authMiddleware(v.sessionAuth),
 	)
 	api.POST(

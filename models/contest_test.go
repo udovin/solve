@@ -88,3 +88,42 @@ func TestContestStore_Create(t *testing.T) {
 		}
 	}
 }
+
+func TestContestStore_Modify(t *testing.T) {
+	setup(t)
+	defer teardown(t)
+	store := NewContestStore(db, "test_contest", "test_contest_change")
+	contest := Contest{
+		CreateTime: 1,
+	}
+	if err := store.Create(&contest); err != nil {
+		t.Fatal(err)
+	}
+	if contest.ID <= 0 {
+		t.Fatal("ID should be greater that zero")
+	}
+	found, ok := store.Get(contest.ID)
+	if !ok {
+		t.Fatal("Unable to found contest")
+	}
+	if found.CreateTime != contest.CreateTime {
+		t.Fatal("Contest has invalid create time")
+	}
+	contest.CreateTime = 2
+	if err := store.Update(&contest); err != nil {
+		t.Fatal(err)
+	}
+	found, ok = store.Get(contest.ID)
+	if !ok {
+		t.Fatal("Unable to found contest")
+	}
+	if found.CreateTime != contest.CreateTime {
+		t.Fatal("Contest has invalid create time")
+	}
+	if err := store.Delete(contest.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := store.Get(contest.ID); ok {
+		t.Fatal("Contest should be deleted")
+	}
+}

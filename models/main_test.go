@@ -58,7 +58,7 @@ var createTables = []string{
 	name varchar(255) not null,
 	data text not null
 )`,
-	// Session store
+	// CurrentSession store
 	`CREATE TABLE test_session
 (
 	id integer not null
@@ -143,7 +143,7 @@ var dropTables = []string{
 	// User field store
 	`DROP TABLE "test_user_field"`,
 	`DROP TABLE "test_user_field_change"`,
-	// Session store
+	// CurrentSession store
 	`DROP TABLE "test_session"`,
 	`DROP TABLE "test_session_change"`,
 	// Problem store

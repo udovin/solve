@@ -8,25 +8,30 @@ export default class LoginPage extends React.Component {
 		return (
 			<Page title="Login">
 				<div className="ui-block-wrap">
-					<form className="ui-block" onSubmit={this.handleSubmit}>
+					<form className="ui-block" onSubmit={LoginPage.handleSubmit}>
 						<div className="ui-block-header">
 							<h2 className="title">Login</h2>
 						</div>
 						<div className="ui-block-content">
-							<label className="ui-field">
-								<span className="label">Username:</span>
-								<Input
-									type="text" name="login"
-									placeholder="Username" required autoFocus
-								/>
-							</label>
-							<label className="ui-field">
-								<span className="label">Password:</span>
-								<Input
-									type="password" name="password"
-									placeholder="Password" required
-								/>
-							</label>
+							<div className="ui-field">
+								<label>
+									<span className="label">Username:</span>
+									<Input
+										type="text" name="login"
+										placeholder="Username" required
+										autoFocus
+									/>
+								</label>
+							</div>
+							<div className="ui-field">
+								<label>
+									<span className="label">Password:</span>
+									<Input
+										type="password" name="password"
+										placeholder="Password" required
+									/>
+								</label>
+							</div>
 						</div>
 						<div className="ui-block-footer">
 							<Button type="submit" color="primary">
@@ -39,7 +44,7 @@ export default class LoginPage extends React.Component {
 		);
 	}
 
-	handleSubmit(event: any) {
+	static handleSubmit(event: any) {
 		const login = event.target.login.value;
 		const password = event.target.password.value;
 		let request = new XMLHttpRequest();
@@ -49,7 +54,6 @@ export default class LoginPage extends React.Component {
 			"Login": login,
 			"Password": password,
 		}));
-		console.log(request.response);
 		event.preventDefault();
 	}
 }

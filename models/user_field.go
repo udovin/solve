@@ -41,6 +41,13 @@ func NewUserFieldStore(
 	return &store
 }
 
+func (s *UserFieldStore) Get(id int64) (UserField, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	field, ok := s.fields[id]
+	return field, ok
+}
+
 func (s *UserFieldStore) Create(m *UserField) error {
 	change := userFieldChange{
 		BaseChange: BaseChange{Type: CreateChange},

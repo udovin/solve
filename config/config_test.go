@@ -25,7 +25,7 @@ func TestLoadFromFile(t *testing.T) {
 	}
 	expectedConfigData, err := json.Marshal(expectedConfig)
 	if err != nil {
-		t.Error("Error: ", err)
+		t.Fatal("Error: ", err)
 	}
 	_, err = file.Write(expectedConfigData)
 	_ = file.Close()
@@ -33,14 +33,17 @@ func TestLoadFromFile(t *testing.T) {
 		_ = os.Remove(file.Name())
 	}()
 	if err != nil {
-		t.Error("Error: ", err)
+		t.Fatal("Error: ", err)
 	}
 	_, err = LoadFromFile(path.Join(os.TempDir(), "solve-test-deleted"))
 	if err == nil {
-		t.Error("Expected error for config from deleted file")
+		t.Fatal("Expected error for config from deleted file")
 	}
 	config, err := LoadFromFile(file.Name())
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
 	if config != expectedConfig {
-		t.Error("Config was corrupted")
+		t.Fatal("Config was corrupted")
 	}
 }

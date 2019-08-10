@@ -16,6 +16,8 @@ const (
 	EnvSecret  SecretType = "Env"
 )
 
+var mutex sync.Mutex
+
 // Store configuration for secret data
 //
 // Used for inserting secret values to configs like passwords and tokens.
@@ -26,19 +28,18 @@ const (
 // For passing environment variable to secret you should use EnvSecret:
 //   Secret{Type: EnvSecret, Data: "DB_PASSWORD"}
 type Secret struct {
-	Type  SecretType `json:""`
-	Data  string     `json:""`
-	mutex sync.Mutex
+	Type SecretType `json:""`
+	Data string     `json:""`
 }
 
 // Get secret value
 func (s *Secret) GetValue() (string, error) {
-	s.mutex.Lock()
+	mutex.Lock()
 	switch s.Type {
 	case FileSecret:
 		bytes, err := ioutil.ReadFile(s.Data)
 		if err != nil {
-			s.mutex.Unlock()
+			mutex.Unlock()
 			return "", err
 		}
 		s.Data = strings.TrimRight(string(bytes), "\r\n")
@@ -46,14 +47,14 @@ func (s *Secret) GetValue() (string, error) {
 	case EnvSecret:
 		value, ok := os.LookupEnv(s.Data)
 		if !ok {
-			s.mutex.Unlock()
+			mutex.Unlock()
 			return "", fmt.Errorf(
 				"environment variable '%s' does not exists", s.Data,
 			)
 		}
 		s.Data, s.Type = value, DataSecret
 	}
-	s.mutex.Unlock()
+	mutex.Unlock()
 	if s.Type == DataSecret {
 		return s.Data, nil
 	}

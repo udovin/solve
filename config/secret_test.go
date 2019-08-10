@@ -47,8 +47,7 @@ func TestSecret_GetValue_FileSecret(t *testing.T) {
 		)
 	}
 	s = Secret{Type: FileSecret, Data: s.Data + "-invalid"}
-	value, err = s.GetValue()
-	if err == nil {
+	if _, err := s.GetValue(); err == nil {
 		t.Error("Expected error")
 	}
 }

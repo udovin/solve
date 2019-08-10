@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+// Additional information about user
+// like E-mail, first name, last name and etc
 type UserField struct {
 	ID     int64  `json:"" db:"id"`
 	UserID int64  `json:"" db:"user_id"`
@@ -19,6 +21,7 @@ type userFieldChange struct {
 	UserField
 }
 
+// Store that caches database records about user fields
 type UserFieldStore struct {
 	Manager     *ChangeManager
 	table       string
@@ -28,6 +31,7 @@ type UserFieldStore struct {
 	mutex       sync.RWMutex
 }
 
+// Create new instance of UserFieldStore
 func NewUserFieldStore(
 	db *sql.DB, table, changeTable string,
 ) *UserFieldStore {
@@ -41,6 +45,7 @@ func NewUserFieldStore(
 	return &store
 }
 
+// Get user field by field's ID
 func (s *UserFieldStore) Get(id int64) (UserField, bool) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -48,6 +53,7 @@ func (s *UserFieldStore) Get(id int64) (UserField, bool) {
 	return field, ok
 }
 
+// Create user field with specified data
 func (s *UserFieldStore) Create(m *UserField) error {
 	change := userFieldChange{
 		BaseChange: BaseChange{Type: CreateChange},
@@ -61,6 +67,8 @@ func (s *UserFieldStore) Create(m *UserField) error {
 	return nil
 }
 
+// Modify user field
+// Modification will be applied to field with ID = m.ID
 func (s *UserFieldStore) Update(m *UserField) error {
 	change := userFieldChange{
 		BaseChange: BaseChange{Type: UpdateChange},
@@ -74,6 +82,7 @@ func (s *UserFieldStore) Update(m *UserField) error {
 	return nil
 }
 
+// Delete user field with specified ID
 func (s *UserFieldStore) Delete(id int64) error {
 	change := userFieldChange{
 		BaseChange: BaseChange{Type: DeleteChange},

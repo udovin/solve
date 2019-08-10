@@ -77,15 +77,15 @@ func (s *ContestStore) Delete(id int64) error {
 	return s.Manager.Change(&change)
 }
 
-func (s *ContestStore) getLocker() sync.Locker {
+func (s *ContestStore) GetLocker() sync.Locker {
 	return &s.mutex
 }
 
-func (s *ContestStore) initChanges(tx *sql.Tx) (int64, error) {
+func (s *ContestStore) InitChanges(tx *sql.Tx) (int64, error) {
 	return 0, nil
 }
 
-func (s *ContestStore) loadChanges(
+func (s *ContestStore) LoadChanges(
 	tx *sql.Tx, gap ChangeGap,
 ) (*sql.Rows, error) {
 	return tx.Query(
@@ -102,7 +102,7 @@ func (s *ContestStore) loadChanges(
 	)
 }
 
-func (s *ContestStore) scanChange(scan Scanner) (Change, error) {
+func (s *ContestStore) ScanChange(scan Scanner) (Change, error) {
 	contest := contestChange{}
 	err := scan.Scan(
 		&contest.BaseChange.ID, &contest.Type, &contest.Time,
@@ -111,7 +111,7 @@ func (s *ContestStore) scanChange(scan Scanner) (Change, error) {
 	return &contest, err
 }
 
-func (s *ContestStore) saveChange(tx *sql.Tx, change Change) error {
+func (s *ContestStore) SaveChange(tx *sql.Tx, change Change) error {
 	contest := change.(*contestChange)
 	contest.Time = time.Now().Unix()
 	switch contest.Type {
@@ -191,7 +191,7 @@ func (s *ContestStore) saveChange(tx *sql.Tx, change Change) error {
 	return err
 }
 
-func (s *ContestStore) applyChange(change Change) {
+func (s *ContestStore) ApplyChange(change Change) {
 	contest := change.(*contestChange)
 	switch contest.Type {
 	case UpdateChange:

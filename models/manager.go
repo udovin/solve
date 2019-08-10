@@ -55,17 +55,17 @@ type Change interface {
 // Commonly used as in-memory cache for database table
 type ChangeStore interface {
 	// Get write locker
-	getLocker() sync.Locker
+	GetLocker() sync.Locker
 	// Init changes
-	initChanges(tx *sql.Tx) (int64, error)
+	InitChanges(tx *sql.Tx) (int64, error)
 	// Load changes from gap
-	loadChanges(tx *sql.Tx, gap ChangeGap) (*sql.Rows, error)
+	LoadChanges(tx *sql.Tx, gap ChangeGap) (*sql.Rows, error)
 	// Scan change from result row
-	scanChange(scan Scanner) (Change, error)
+	ScanChange(scan Scanner) (Change, error)
 	// Save change to database
-	saveChange(tx *sql.Tx, change Change) error
+	SaveChange(tx *sql.Tx, change Change) error
 	// Apply change to store
-	applyChange(change Change)
+	ApplyChange(change Change)
 }
 
 type ChangeGap struct {
@@ -106,7 +106,7 @@ func (tx *ChangeTx) Commit() error {
 		return err
 	}
 	for manager, changes := range tx.changes {
-		locker := manager.store.getLocker()
+		locker := manager.store.GetLocker()
 		func() {
 			locker.Lock()
 			defer locker.Unlock()
@@ -134,7 +134,7 @@ func (m *ChangeManager) Init() error {
 	if err != nil {
 		return err
 	}
-	id, err := m.store.initChanges(tx)
+	id, err := m.store.InitChanges(tx)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
@@ -177,7 +177,7 @@ func (m *ChangeManager) ChangeTx(tx *ChangeTx, change Change) error {
 	if err := m.SyncTx(tx); err != nil {
 		return err
 	}
-	if err := m.store.saveChange(tx.Tx, change); err != nil {
+	if err := m.store.SaveChange(tx.Tx, change); err != nil {
 		return err
 	}
 	tx.changes[m] = append(tx.changes[m], change)
@@ -201,7 +201,7 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	if tx.updated[m] {
 		return nil
 	}
-	locker := m.store.getLocker()
+	locker := m.store.GetLocker()
 	locker.Lock()
 	defer locker.Unlock()
 	for e := m.changeGaps.Front(); e != nil; {
@@ -215,12 +215,12 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	}
 	for e := m.changeGaps.Front(); e != nil; {
 		curr := e.Value.(ChangeGap)
-		rows, err := m.store.loadChanges(tx.Tx, curr)
+		rows, err := m.store.LoadChanges(tx.Tx, curr)
 		if err != nil {
 			return err
 		}
 		for rows.Next() {
-			change, err := m.store.scanChange(rows)
+			change, err := m.store.ScanChange(rows)
 			if err != nil {
 				_ = rows.Close()
 				return err
@@ -233,7 +233,7 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 				_ = rows.Close()
 				panic("ChangeID should be less than gap EndID")
 			}
-			m.store.applyChange(change)
+			m.store.ApplyChange(change)
 			next := ChangeGap{
 				BeginID: change.ChangeID() + 1,
 				EndID:   curr.EndID,
@@ -259,7 +259,7 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 		_ = rows.Close()
 		e = e.Next()
 	}
-	rows, err := m.store.loadChanges(tx.Tx, ChangeGap{
+	rows, err := m.store.LoadChanges(tx.Tx, ChangeGap{
 		BeginID: m.lastChangeID + 1,
 		EndID:   math.MaxInt64,
 	})
@@ -267,7 +267,7 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 		return err
 	}
 	for rows.Next() {
-		change, err := m.store.scanChange(rows)
+		change, err := m.store.ScanChange(rows)
 		if err != nil {
 			_ = rows.Close()
 			return err
@@ -289,7 +289,7 @@ func (m *ChangeManager) applyChange(change Change) {
 			if change.ChangeID() < curr.BeginID {
 				break
 			}
-			m.store.applyChange(change)
+			m.store.ApplyChange(change)
 			next := ChangeGap{
 				BeginID: change.ChangeID() + 1,
 				EndID:   curr.EndID,
@@ -311,7 +311,7 @@ func (m *ChangeManager) applyChange(change Change) {
 		}
 		panic("Change ID should be greater than last ChangeID")
 	}
-	m.store.applyChange(change)
+	m.store.ApplyChange(change)
 	if m.lastChangeID+1 < change.ChangeID() {
 		_ = m.changeGaps.PushBack(ChangeGap{
 			BeginID: m.lastChangeID + 1,

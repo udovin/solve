@@ -9,7 +9,7 @@ func TestContestStore_getLocker(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store := NewContestStore(db, "test_contest", "test_contest_change")
-	if store.getLocker() == nil {
+	if store.GetLocker() == nil {
 		t.Fatal("locker should not be nil")
 	}
 }
@@ -18,7 +18,7 @@ func TestContestStore_applyChange(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store := NewContestStore(db, "test_contest", "test_contest_change")
-	store.applyChange(&contestChange{
+	store.ApplyChange(&contestChange{
 		BaseChange: BaseChange{ID: 1, Type: CreateChange, Time: 0},
 		Contest:    Contest{ID: 1, OwnerID: 1},
 	})
@@ -29,7 +29,7 @@ func TestContestStore_applyChange(t *testing.T) {
 	if m.OwnerID != 1 {
 		t.Fatal("Wrong owner ID")
 	}
-	store.applyChange(&contestChange{
+	store.ApplyChange(&contestChange{
 		BaseChange: BaseChange{ID: 2, Type: UpdateChange, Time: 1},
 		Contest:    Contest{ID: 1, OwnerID: 2},
 	})
@@ -40,7 +40,7 @@ func TestContestStore_applyChange(t *testing.T) {
 	if m.OwnerID != 2 {
 		t.Fatal("Wrong owner ID")
 	}
-	store.applyChange(&contestChange{
+	store.ApplyChange(&contestChange{
 		BaseChange: BaseChange{ID: 3, Type: DeleteChange, Time: 2},
 		Contest:    Contest{ID: 1},
 	})
@@ -53,7 +53,7 @@ func TestContestStore_applyChange(t *testing.T) {
 				t.Fatal("Panic expected")
 			}
 		}()
-		store.applyChange(&contestChange{
+		store.ApplyChange(&contestChange{
 			BaseChange: BaseChange{ID: 4, Type: ChangeType(126), Time: 0},
 			Contest:    Contest{ID: 2, OwnerID: 1},
 		})
@@ -64,7 +64,7 @@ func TestContestStore_applyChange(t *testing.T) {
 				t.Fatal("Panic expected")
 			}
 		}()
-		store.applyChange(&fakeChange{})
+		store.ApplyChange(&fakeChange{})
 	}()
 	func() {
 		defer func() {
@@ -72,7 +72,7 @@ func TestContestStore_applyChange(t *testing.T) {
 				t.Fatal("Panic expected")
 			}
 		}()
-		store.applyChange(nil)
+		store.ApplyChange(nil)
 	}()
 }
 

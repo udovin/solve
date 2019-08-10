@@ -10,7 +10,7 @@ func TestUserFieldStore_getLocker(t *testing.T) {
 	store := NewUserFieldStore(
 		db, "test_user_field", "test_user_field_change",
 	)
-	if store.getLocker() == nil {
+	if store.GetLocker() == nil {
 		t.Fatal("Locker should not be nil")
 	}
 }

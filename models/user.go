@@ -123,15 +123,15 @@ func (s *UserStore) Delete(id int64) error {
 	return s.Manager.Change(&change)
 }
 
-func (s *UserStore) getLocker() sync.Locker {
+func (s *UserStore) GetLocker() sync.Locker {
 	return &s.mutex
 }
 
-func (s *UserStore) initChanges(tx *sql.Tx) (int64, error) {
+func (s *UserStore) InitChanges(tx *sql.Tx) (int64, error) {
 	return 0, nil
 }
 
-func (s *UserStore) loadChanges(
+func (s *UserStore) LoadChanges(
 	tx *sql.Tx, gap ChangeGap,
 ) (*sql.Rows, error) {
 	return tx.Query(
@@ -148,7 +148,7 @@ func (s *UserStore) loadChanges(
 	)
 }
 
-func (s *UserStore) scanChange(scan Scanner) (Change, error) {
+func (s *UserStore) ScanChange(scan Scanner) (Change, error) {
 	user := userChange{}
 	err := scan.Scan(
 		&user.BaseChange.ID, &user.Type, &user.Time,
@@ -158,7 +158,7 @@ func (s *UserStore) scanChange(scan Scanner) (Change, error) {
 	return &user, err
 }
 
-func (s *UserStore) saveChange(tx *sql.Tx, change Change) error {
+func (s *UserStore) SaveChange(tx *sql.Tx, change Change) error {
 	user := change.(*userChange)
 	user.Time = time.Now().Unix()
 	switch user.Type {
@@ -245,7 +245,7 @@ func (s *UserStore) saveChange(tx *sql.Tx, change Change) error {
 	return err
 }
 
-func (s *UserStore) applyChange(change Change) {
+func (s *UserStore) ApplyChange(change Change) {
 	user := change.(*userChange)
 	switch user.Type {
 	case UpdateChange:

@@ -23,7 +23,7 @@ type fakeChange struct {
 	Fake
 }
 
-func (s *FakeStore) getLocker() sync.Locker {
+func (s *FakeStore) GetLocker() sync.Locker {
 	return &s.mutex
 }
 
@@ -34,11 +34,11 @@ func (s *FakeStore) Get(id int) (Fake, bool) {
 	return mock, ok
 }
 
-func (s *FakeStore) initChanges(tx *sql.Tx) (int64, error) {
+func (s *FakeStore) InitChanges(tx *sql.Tx) (int64, error) {
 	return 0, nil
 }
 
-func (s *FakeStore) loadChanges(
+func (s *FakeStore) LoadChanges(
 	tx *sql.Tx, gap ChangeGap,
 ) (*sql.Rows, error) {
 	return tx.Query(
@@ -51,7 +51,7 @@ func (s *FakeStore) loadChanges(
 	)
 }
 
-func (s *FakeStore) scanChange(scan Scanner) (Change, error) {
+func (s *FakeStore) ScanChange(scan Scanner) (Change, error) {
 	change := &fakeChange{}
 	err := scan.Scan(
 		&change.BaseChange.ID, &change.Type, &change.Time,
@@ -60,7 +60,7 @@ func (s *FakeStore) scanChange(scan Scanner) (Change, error) {
 	return change, err
 }
 
-func (s *FakeStore) saveChange(tx *sql.Tx, change Change) error {
+func (s *FakeStore) SaveChange(tx *sql.Tx, change Change) error {
 	mock := change.(*fakeChange)
 	mock.Time = time.Now().Unix()
 	res, err := tx.Exec(
@@ -76,7 +76,7 @@ func (s *FakeStore) saveChange(tx *sql.Tx, change Change) error {
 	return err
 }
 
-func (s *FakeStore) applyChange(change Change) {
+func (s *FakeStore) ApplyChange(change Change) {
 	mock := change.(*fakeChange)
 	switch mock.Type {
 	case UpdateChange:
@@ -168,7 +168,7 @@ func TestChangeManager_applyChange(t *testing.T) {
 				t.Error("Panic expected")
 			}
 		}()
-		store.applyChange(&BaseChange{})
+		store.ApplyChange(&BaseChange{})
 	}()
 	func() {
 		defer func() {
@@ -176,7 +176,7 @@ func TestChangeManager_applyChange(t *testing.T) {
 				t.Error("Panic expected")
 			}
 		}()
-		store.applyChange(nil)
+		store.ApplyChange(nil)
 	}()
 	for i := int64(11); i <= 20; i++ {
 		applyChange(i)

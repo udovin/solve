@@ -21,7 +21,7 @@ const (
 )
 
 // Configuration for database connection
-type DatabaseConfig struct {
+type DB struct {
 	Driver  DatabaseDriver `json:""`
 	Options interface{}    `json:""`
 }
@@ -41,7 +41,7 @@ type PostgresOptions struct {
 }
 
 // Parse JSON to create appropriate connection configuration
-func (c *DatabaseConfig) UnmarshalJSON(bytes []byte) error {
+func (c *DB) UnmarshalJSON(bytes []byte) error {
 	var g struct {
 		Driver  DatabaseDriver           `json:""`
 		Options tools.InterfaceUnmarshal `json:""`
@@ -98,7 +98,7 @@ func createPostgresDB(opts PostgresOptions) (*sql.DB, error) {
 }
 
 // Creates database connection using current configuration
-func (c *DatabaseConfig) CreateDB() (*sql.DB, error) {
+func (c *DB) Create() (*sql.DB, error) {
 	switch t := c.Options.(type) {
 	case SQLiteOptions:
 		return createSQLiteDB(t)

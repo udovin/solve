@@ -7,9 +7,9 @@ import (
 
 // Configuration for Solve API and Invoker
 type Config struct {
-	Server   ServerConfig   `json:""`
-	Database DatabaseConfig `json:""`
-	Security SecurityConfig `json:""`
+	Server   Server   `json:""`
+	DB       DB       `json:""`
+	Security Security `json:""`
 }
 
 // Loads configuration from json file

@@ -7,7 +7,7 @@ import (
 )
 
 func TestDatabaseConfig_UnmarshalJSON_SQLite(t *testing.T) {
-	expectedConfig := DatabaseConfig{
+	expectedConfig := DB{
 		Driver:  SQLiteDriver,
 		Options: SQLiteOptions{Path: "test.sql"},
 	}
@@ -15,7 +15,7 @@ func TestDatabaseConfig_UnmarshalJSON_SQLite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var config DatabaseConfig
+	var config DB
 	if err := json.Unmarshal(data, &config); err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestDatabaseConfig_UnmarshalJSON_SQLite(t *testing.T) {
 }
 
 func TestDatabaseConfig_UnmarshalJSON_Postgres(t *testing.T) {
-	expectedConfig := DatabaseConfig{
+	expectedConfig := DB{
 		Driver: PostgresDriver,
 		Options: PostgresOptions{
 			Host:     "localhost",
@@ -38,7 +38,7 @@ func TestDatabaseConfig_UnmarshalJSON_Postgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var config DatabaseConfig
+	var config DB
 	if err := json.Unmarshal(data, &config); err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestDatabaseConfig_UnmarshalJSON_Postgres(t *testing.T) {
 }
 
 func TestDatabaseConfig_UnmarshalJSON_Unsupported(t *testing.T) {
-	expectedConfig := DatabaseConfig{
+	expectedConfig := DB{
 		Driver:  "Unsupported",
 		Options: nil,
 	}
@@ -56,21 +56,21 @@ func TestDatabaseConfig_UnmarshalJSON_Unsupported(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var config DatabaseConfig
+	var config DB
 	if err := json.Unmarshal(data, &config); err == nil {
 		t.Fatal("Expected error")
 	}
 }
 
 func TestDatabaseConfig_UnmarshalJSON_Invalid(t *testing.T) {
-	var config DatabaseConfig
+	var config DB
 	if err := json.Unmarshal([]byte("Invalid"), &config); err == nil {
 		t.Fatal("Expected error")
 	}
 }
 
 func TestDatabaseConfig_UnmarshalJSON_InvalidSQLiteOptions(t *testing.T) {
-	expectedConfig := DatabaseConfig{
+	expectedConfig := DB{
 		Driver:  SQLiteDriver,
 		Options: "Invalid",
 	}
@@ -78,14 +78,14 @@ func TestDatabaseConfig_UnmarshalJSON_InvalidSQLiteOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var config DatabaseConfig
+	var config DB
 	if err := json.Unmarshal(data, &config); err == nil {
 		t.Fatal("Expected error")
 	}
 }
 
 func TestDatabaseConfig_UnmarshalJSON_InvalidPostgresOptions(t *testing.T) {
-	expectedConfig := DatabaseConfig{
+	expectedConfig := DB{
 		Driver:  PostgresDriver,
 		Options: "Invalid",
 	}
@@ -93,18 +93,18 @@ func TestDatabaseConfig_UnmarshalJSON_InvalidPostgresOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var config DatabaseConfig
+	var config DB
 	if err := json.Unmarshal(data, &config); err == nil {
 		t.Fatal("Expected error")
 	}
 }
 
 func TestDatabaseConfig_CreateDB_SQLite(t *testing.T) {
-	config := DatabaseConfig{
+	config := DB{
 		Driver:  SQLiteDriver,
 		Options: SQLiteOptions{Path: "?mode=memory"},
 	}
-	db, err := config.CreateDB()
+	db, err := config.Create()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,29 +115,29 @@ func TestDatabaseConfig_CreateDB_SQLite(t *testing.T) {
 }
 
 func TestDatabaseConfig_CreateDB_Postgres(t *testing.T) {
-	config := DatabaseConfig{
+	config := DB{
 		Driver: PostgresDriver,
 		Options: PostgresOptions{
 			Password: Secret{Type: DataSecret, Data: ""},
 		},
 	}
-	if _, err := config.CreateDB(); err != nil {
+	if _, err := config.Create(); err != nil {
 		t.Fatal(err)
 	}
 	config.Options = PostgresOptions{
 		Password: Secret{Type: "Unsupported"},
 	}
-	if _, err := config.CreateDB(); err == nil {
+	if _, err := config.Create(); err == nil {
 		t.Fatal("Expected error")
 	}
 }
 
 func TestDatabaseConfig_CreateDB_Unsupported(t *testing.T) {
-	config := DatabaseConfig{
+	config := DB{
 		Driver:  "Unsupported",
 		Options: nil,
 	}
-	if _, err := config.CreateDB(); err == nil {
+	if _, err := config.Create(); err == nil {
 		t.Fatal("Expected error")
 	}
 }

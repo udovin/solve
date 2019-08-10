@@ -1,6 +1,6 @@
 package config
 
-type ServerConfig struct {
+type Server struct {
 	Host string `json:""`
 	Port int    `json:""`
 }

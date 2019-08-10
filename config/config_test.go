@@ -14,11 +14,11 @@ func TestLoadFromFile(t *testing.T) {
 		t.Error("Error: ", err)
 	}
 	expectedConfig := Config{
-		Server: ServerConfig{
+		Server: Server{
 			Host: "localhost",
 			Port: 4242,
 		},
-		Database: DatabaseConfig{
+		DB: DB{
 			Driver:  SQLiteDriver,
 			Options: SQLiteOptions{Path: "?mode=memory"},
 		},

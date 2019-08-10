@@ -40,7 +40,7 @@ func getConfig() (config.Config, error) {
 	return config.Config{}, errors.New("unable to find config file")
 }
 
-func getAddress(cfg config.ServerConfig) string {
+func getAddress(cfg config.Server) string {
 	return fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 }
 
@@ -65,7 +65,5 @@ func main() {
 	server.Pre(middleware.RemoveTrailingSlash())
 	server.Use(middleware.Gzip())
 	api.Register(app, server)
-	server.Logger.Fatal(server.Start(fmt.Sprintf(
-		"%s:%d", cfg.Server.Host, cfg.Server.Port,
-	)))
+	server.Logger.Fatal(server.Start(getAddress(cfg.Server)))
 }

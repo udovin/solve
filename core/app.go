@@ -27,7 +27,7 @@ type App struct {
 // Create solve app from config
 func NewApp(cfg *config.Config) (*App, error) {
 	// Try to create database connection pool
-	db, err := cfg.Database.CreateDB()
+	db, err := cfg.DB.Create()
 	if err != nil {
 		return nil, err
 	}

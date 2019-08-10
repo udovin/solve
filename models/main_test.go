@@ -157,12 +157,12 @@ var dropTables = []string{
 }
 
 func setup(tb testing.TB) {
-	cfg := config.DatabaseConfig{
+	cfg := config.DB{
 		Driver:  config.SQLiteDriver,
 		Options: config.SQLiteOptions{Path: "?mode=memory"},
 	}
 	var err error
-	db, err = cfg.CreateDB()
+	db, err = cfg.Create()
 	if err != nil {
 		os.Exit(1)
 	}

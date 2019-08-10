@@ -1,5 +1,5 @@
 package config
 
-type SecurityConfig struct {
+type Security struct {
 	PasswordSalt Secret `json:""`
 }

@@ -11,20 +11,20 @@ func TestNewApp(t *testing.T) {
 	if _, err := NewApp(&cfg); err == nil {
 		t.Fatal("Expected error while creating app")
 	}
-	cfg.Database = config.DatabaseConfig{
+	cfg.DB = config.DB{
 		Driver: config.SQLiteDriver,
 	}
 	if _, err := NewApp(&cfg); err == nil {
 		t.Fatal("Expected error while creating app")
 	}
-	cfg.Database = config.DatabaseConfig{
+	cfg.DB = config.DB{
 		Driver:  config.SQLiteDriver,
 		Options: config.SQLiteOptions{Path: "?mode=memory"},
 	}
 	if _, err := NewApp(&cfg); err == nil {
 		t.Fatal("Expected error while creating app")
 	}
-	cfg.Security = config.SecurityConfig{
+	cfg.Security = config.Security{
 		PasswordSalt: config.Secret{
 			Type: config.DataSecret,
 			Data: "qwerty123",
@@ -37,11 +37,11 @@ func TestNewApp(t *testing.T) {
 
 func TestApp_StartStop(t *testing.T) {
 	cfg := config.Config{
-		Database: config.DatabaseConfig{
+		DB: config.DB{
 			Driver:  config.SQLiteDriver,
 			Options: config.SQLiteOptions{Path: "?mode=memory"},
 		},
-		Security: config.SecurityConfig{
+		Security: config.Security{
 			PasswordSalt: config.Secret{
 				Type: config.DataSecret,
 				Data: "qwerty123",

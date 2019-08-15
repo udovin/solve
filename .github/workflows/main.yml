@@ -1,8 +1,8 @@
-name: Test
+name: Main
 on: [push]
 jobs:
   test:
-    name: Run tests
+    name: Test Repository
     runs-on: ubuntu-latest
     steps:
     - name: Set up Go 1.12
@@ -29,3 +29,6 @@ jobs:
             rm profile.out
           fi
         done
+    - name: Upload to Codecov
+      run: |
+        curl -s https://codecov.io/bash | bash

@@ -23,5 +23,7 @@ jobs:
       run: |
         go test -race -coverprofile=coverage.txt -covermode=atomic ./...
     - name: Upload to Codecov
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
         curl -s https://codecov.io/bash | bash

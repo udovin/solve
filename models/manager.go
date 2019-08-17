@@ -8,32 +8,37 @@ import (
 	"sync"
 )
 
+// ChangeType identifies BaseChange type
 type ChangeType int8
 
 const (
+	// CreateChange should be used for create objects
 	CreateChange ChangeType = 1
+	// DeleteChange should be used for delete objects
 	DeleteChange ChangeType = 2
+	// UpdateChange should be used for update objects
 	UpdateChange ChangeType = 3
 )
 
-// Record scanner
+// Scanner should scan into specified destinations
 type Scanner interface {
+	// Scan scans into specified destinations
 	Scan(dest ...interface{}) error
 }
 
-// Base columns for typical change records
+// BaseChange contains columns for typical change records
 type BaseChange struct {
 	ID   int64      `json:"" db:"change_id"`
 	Type ChangeType `json:"" db:"change_type"`
 	Time int64      `json:"" db:"change_time"`
 }
 
-// Get change identifier
+// ChangeID returns change identifier
 func (c *BaseChange) ChangeID() int64 {
 	return c.ID
 }
 
-// Get string representation of change type
+// String returns string representation of change type
 func (c ChangeType) String() string {
 	switch c {
 	case CreateChange:
@@ -47,39 +52,43 @@ func (c ChangeType) String() string {
 	}
 }
 
+// Change is an object that has ChangeID
 type Change interface {
+	// ChangeID should return index of change
 	ChangeID() int64
 }
 
-// Store that supports change table
+// ChangeStore is a store that supports change table
 // Commonly used as in-memory cache for database table
 type ChangeStore interface {
-	// Get write locker
+	// GetLocker should return write locker
 	GetLocker() sync.Locker
-	// Init changes
+	// InitChanges should initialize change store
 	InitChanges(tx *sql.Tx) (int64, error)
-	// Load changes from gap
+	// LoadChanges should load changes from gap
 	LoadChanges(tx *sql.Tx, gap ChangeGap) (*sql.Rows, error)
-	// Scan change from result row
+	// ScanChange should scan change from result row
 	ScanChange(scan Scanner) (Change, error)
-	// Save change to database
+	// SaveChange should save change to database
 	SaveChange(tx *sql.Tx, change Change) error
-	// Apply change to store
+	// ApplyChange should apply change to store
 	ApplyChange(change Change)
 }
 
+// ChangeGap stores change gap range for specified change store
 type ChangeGap struct {
 	BeginID int64
 	EndID   int64
 }
 
+// ChangeTx stores non applied changes for current transaction
 type ChangeTx struct {
 	*sql.Tx
 	changes map[*ChangeManager][]Change
 	updated map[*ChangeManager]bool
 }
 
-// Supports store consistency using change table
+// ChangeManager supports store consistency using change table
 //
 // TODO: Replace list with Binary Search Tree
 type ChangeManager struct {
@@ -93,6 +102,7 @@ type ChangeManager struct {
 	lastChangeID int64
 }
 
+// NewChangeManager creates new instance of ChangeManager
 func NewChangeManager(store ChangeStore, db *sql.DB) *ChangeManager {
 	return &ChangeManager{
 		store:      store,
@@ -101,6 +111,7 @@ func NewChangeManager(store ChangeStore, db *sql.DB) *ChangeManager {
 	}
 }
 
+// Commit applies changes to all change managers
 func (tx *ChangeTx) Commit() error {
 	if err := tx.Tx.Commit(); err != nil {
 		return err
@@ -119,6 +130,7 @@ func (tx *ChangeTx) Commit() error {
 	return nil
 }
 
+// Rollback removes non applied changes from all change managers
 func (tx *ChangeTx) Rollback() error {
 	if err := tx.Tx.Rollback(); err != nil {
 		return err
@@ -129,6 +141,7 @@ func (tx *ChangeTx) Rollback() error {
 	return nil
 }
 
+// Init initializes change manager an change store
 func (m *ChangeManager) Init() error {
 	tx, err := m.db.Begin()
 	if err != nil {
@@ -146,6 +159,7 @@ func (m *ChangeManager) Init() error {
 	return nil
 }
 
+// Begin starts new transaction
 func (m *ChangeManager) Begin() (*ChangeTx, error) {
 	tx, err := m.db.Begin()
 	if err != nil {
@@ -158,6 +172,7 @@ func (m *ChangeManager) Begin() (*ChangeTx, error) {
 	}, nil
 }
 
+// Change immediately applies change to change store
 func (m *ChangeManager) Change(change Change) error {
 	tx, err := m.Begin()
 	if err != nil {
@@ -173,6 +188,7 @@ func (m *ChangeManager) Change(change Change) error {
 	return nil
 }
 
+// ChangeTx adds change of change store to transaction
 func (m *ChangeManager) ChangeTx(tx *ChangeTx, change Change) error {
 	if err := m.SyncTx(tx); err != nil {
 		return err
@@ -185,6 +201,7 @@ func (m *ChangeManager) ChangeTx(tx *ChangeTx, change Change) error {
 	return nil
 }
 
+// Sync loads new changes from change table
 func (m *ChangeManager) Sync() error {
 	tx, err := m.Begin()
 	if err != nil {
@@ -195,8 +212,11 @@ func (m *ChangeManager) Sync() error {
 	return err
 }
 
+// Some transactions may failure and such gaps will never been removed
+// so we should skip this gaps after some other changes
 const changeGapSkipWindow = 5000
 
+// SyncTx syncs store with change table in transaction
 func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	if tx.updated[m] {
 		return nil
@@ -204,6 +224,31 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	locker := m.store.GetLocker()
 	locker.Lock()
 	defer locker.Unlock()
+	m.skipOldChangeGaps()
+	if err := m.loadChangeGaps(tx); err != nil {
+		return err
+	}
+	rows, err := m.store.LoadChanges(tx.Tx, ChangeGap{
+		BeginID: m.lastChangeID + 1,
+		EndID:   math.MaxInt64,
+	})
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		change, err := m.store.ScanChange(rows)
+		if err != nil {
+			_ = rows.Close()
+			return err
+		}
+		m.applyChange(change)
+	}
+	_ = rows.Close()
+	return nil
+}
+
+// skipOldGaps removes old gaps from change manager
+func (m *ChangeManager) skipOldChangeGaps() {
 	for e := m.changeGaps.Front(); e != nil; {
 		curr := e.Value.(ChangeGap)
 		if curr.EndID+changeGapSkipWindow >= m.lastChangeID {
@@ -213,6 +258,10 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 		m.changeGaps.Remove(e)
 		e = next
 	}
+}
+
+// loadChangeGaps loads changes from change table for existing gaps
+func (m *ChangeManager) loadChangeGaps(tx *ChangeTx) error {
 	for e := m.changeGaps.Front(); e != nil; {
 		curr := e.Value.(ChangeGap)
 		rows, err := m.store.LoadChanges(tx.Tx, curr)
@@ -259,26 +308,10 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 		_ = rows.Close()
 		e = e.Next()
 	}
-	rows, err := m.store.LoadChanges(tx.Tx, ChangeGap{
-		BeginID: m.lastChangeID + 1,
-		EndID:   math.MaxInt64,
-	})
-	if err != nil {
-		return err
-	}
-	for rows.Next() {
-		change, err := m.store.ScanChange(rows)
-		if err != nil {
-			_ = rows.Close()
-			return err
-		}
-		m.applyChange(change)
-	}
-	_ = rows.Close()
 	return nil
 }
 
-// Apply change to store and increase change id
+// applyChange applies change to store and increase change id
 func (m *ChangeManager) applyChange(change Change) {
 	if change.ChangeID() <= m.lastChangeID {
 		for e := m.changeGaps.Front(); e != nil; e = e.Next() {

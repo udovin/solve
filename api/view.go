@@ -16,11 +16,11 @@ type View struct {
 
 type authMethod func(ctx echo.Context) error
 
-var badAuthError = errors.New("bad auth")
+var errBadAuth = errors.New("bad auth")
 
 const (
 	userKey    = "User"
-	sessionKey = "CurrentSession"
+	sessionKey = "Session"
 )
 
 func (v *View) authMiddleware(methods ...authMethod) echo.MiddlewareFunc {
@@ -28,7 +28,7 @@ func (v *View) authMiddleware(methods ...authMethod) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			for _, method := range methods {
 				if err := method(c); err != nil {
-					if err == badAuthError {
+					if err == errBadAuth {
 						continue
 					}
 					c.Logger().Error(err)
@@ -44,15 +44,15 @@ func (v *View) authMiddleware(methods ...authMethod) echo.MiddlewareFunc {
 func (v *View) sessionAuth(c echo.Context) error {
 	cookie, err := c.Cookie(sessionKey)
 	if err != nil {
-		return badAuthError
+		return errBadAuth
 	}
 	session, ok := v.app.Sessions.GetByCookie(cookie.Value)
 	if !ok {
-		return badAuthError
+		return errBadAuth
 	}
 	user, ok := v.app.Users.Get(session.UserID)
 	if !ok {
-		return badAuthError
+		return errBadAuth
 	}
 	c.Set(userKey, user)
 	c.Set(sessionKey, session)
@@ -65,11 +65,11 @@ func (v *View) passwordAuth(c echo.Context) error {
 		Password string `json:""`
 	}
 	if err := c.Bind(&authData); err != nil {
-		return badAuthError
+		return errBadAuth
 	}
 	user, ok := v.app.Users.GetByLogin(authData.Login)
 	if !ok || !user.CheckPassword(authData.Password, v.app.PasswordSalt) {
-		return badAuthError
+		return errBadAuth
 	}
 	c.Set(userKey, user)
 	return nil

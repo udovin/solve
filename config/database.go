@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/udovin/solve/tools"
-
 	// Register SQL drivers
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -20,18 +18,18 @@ const (
 	PostgresDriver DatabaseDriver = "Postgres"
 )
 
-// Configuration for database connection
+// DB stores configuration for database connection
 type DB struct {
 	Driver  DatabaseDriver `json:""`
 	Options interface{}    `json:""`
 }
 
-// SQLite connection options
+// SQLiteOptions stores SQLite connection options
 type SQLiteOptions struct {
 	Path string `json:""`
 }
 
-// Postgres connection options
+// PostgresOptions stores Postgres connection options
 type PostgresOptions struct {
 	Host     string `json:""`
 	Port     int    `json:""`
@@ -40,11 +38,18 @@ type PostgresOptions struct {
 	Name     string `json:""`
 }
 
+type genericOptions []byte
+
+func (g *genericOptions) UnmarshalJSON(bytes []byte) error {
+	*g = bytes
+	return nil
+}
+
 // Parse JSON to create appropriate connection configuration
 func (c *DB) UnmarshalJSON(bytes []byte) error {
 	var g struct {
-		Driver  DatabaseDriver           `json:""`
-		Options tools.InterfaceUnmarshal `json:""`
+		Driver  DatabaseDriver `json:""`
+		Options genericOptions `json:""`
 	}
 	if err := json.Unmarshal(bytes, &g); err != nil {
 		return err
@@ -97,7 +102,7 @@ func createPostgresDB(opts PostgresOptions) (*sql.DB, error) {
 	return db, err
 }
 
-// Creates database connection using current configuration
+// Create creates database connection using current configuration
 func (c *DB) Create() (*sql.DB, error) {
 	switch t := c.Options.(type) {
 	case SQLiteOptions:

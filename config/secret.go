@@ -18,7 +18,7 @@ const (
 
 var mutex sync.Mutex
 
-// Store configuration for secret data
+// Secret stores configuration for secret data
 //
 // Used for inserting secret values to configs like passwords and tokens.
 // If you want to pass secret as plain text, use type DataSecret:
@@ -32,7 +32,7 @@ type Secret struct {
 	Data string     `json:""`
 }
 
-// Get secret value
+// GetValue returns secret value
 func (s *Secret) GetValue() (string, error) {
 	mutex.Lock()
 	switch s.Type {

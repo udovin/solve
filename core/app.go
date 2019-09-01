@@ -19,6 +19,7 @@ type App struct {
 	Problems   *models.ProblemStore
 	Contests   *models.ContestStore
 	Solutions  *models.SolutionStore
+	Compilers  *models.CompilerStore
 	closer     chan struct{}
 	waiter     sync.WaitGroup
 	// Password salt
@@ -52,6 +53,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 		Solutions: models.NewSolutionStore(
 			db, "solve_solution", "solve_solution_change",
 		),
+		Compilers: models.NewCompilerStore(
+			db, "solve_compiler", "solve_compiler_change",
+		),
 	}
 	// We do not want to load value every time
 	// in case of FileSecret or EnvSecret
@@ -78,6 +82,7 @@ func (a *App) Start() error {
 	runManagerSync(a.Problems.Manager)
 	runManagerSync(a.Contests.Manager)
 	runManagerSync(a.Solutions.Manager)
+	runManagerSync(a.Compilers.Manager)
 	var err error
 	for i := 0; i < stores; i++ {
 		lastErr := <-errs

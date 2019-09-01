@@ -11,7 +11,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-// Common information about user
+// User contains common information about user
 type User struct {
 	ID           int64  `json:""  db:"id"`
 	Login        string `json:""  db:"login"`
@@ -25,7 +25,7 @@ type userChange struct {
 	User
 }
 
-// Represents cached store for users
+// UserStore represents cached store for users
 type UserStore struct {
 	Manager     *ChangeManager
 	table       string
@@ -35,9 +35,10 @@ type UserStore struct {
 	mutex       sync.RWMutex
 }
 
-// Modify PasswordHash and PasswordSalt fields
+// SetPassword modifies PasswordHash and PasswordSalt fields
+//
 // PasswordSalt will be replaced with random 16 byte string and
-// PasswordHash will be calculated using password, salt and PasswordSalt
+// PasswordHash will be calculated using password, salt and PasswordSalt.
 func (m *User) SetPassword(password, salt string) error {
 	saltBytes := make([]byte, 16)
 	_, err := rand.Read(saltBytes)
@@ -49,13 +50,13 @@ func (m *User) SetPassword(password, salt string) error {
 	return nil
 }
 
-// Check that passwords are the same
+// CheckPassword checks that passwords are the same
 func (m *User) CheckPassword(password, salt string) bool {
 	passwordHash := m.hashPassword(password, salt)
 	return passwordHash == m.PasswordHash
 }
 
-// Create new instance of user store
+// NewUserStore creates new instance of user store
 func NewUserStore(db *sql.DB, table, changeTable string) *UserStore {
 	store := UserStore{
 		table:       table,
@@ -67,7 +68,7 @@ func NewUserStore(db *sql.DB, table, changeTable string) *UserStore {
 	return &store
 }
 
-// Get user by ID
+// Get returns user by ID
 func (s *UserStore) Get(id int64) (User, bool) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -75,7 +76,7 @@ func (s *UserStore) Get(id int64) (User, bool) {
 	return user, ok
 }
 
-// Get user by login
+// GetByLogin returns user by login
 func (s *UserStore) GetByLogin(login string) (User, bool) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -86,7 +87,7 @@ func (s *UserStore) GetByLogin(login string) (User, bool) {
 	return s.Get(id)
 }
 
-// Create new user
+// Create creates new user
 func (s *UserStore) Create(m *User) error {
 	change := userChange{
 		BaseChange: BaseChange{Type: CreateChange},
@@ -100,7 +101,7 @@ func (s *UserStore) Create(m *User) error {
 	return nil
 }
 
-// Modify user data
+// Update modifies user data
 func (s *UserStore) Update(m *User) error {
 	change := userChange{
 		BaseChange: BaseChange{Type: UpdateChange},
@@ -114,7 +115,7 @@ func (s *UserStore) Update(m *User) error {
 	return nil
 }
 
-// Delete user with specified id
+// Delete deletes user with specified id
 func (s *UserStore) Delete(id int64) error {
 	change := userChange{
 		BaseChange: BaseChange{Type: DeleteChange},

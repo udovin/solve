@@ -1,51 +1,32 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	"github.com/spf13/cobra"
 
 	"github.com/udovin/solve/api"
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 )
 
-// Path to unix '/etc' directory
-const etcDir = "/etc/solve"
-
-func fileExists(path string) bool {
-	if _, err := os.Stat(path); err == nil {
-		return true
+func getConfig(cmd *cobra.Command) (config.Config, error) {
+	path, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return config.Config{}, err
 	}
-	return false
-}
-
-func getConfig() (config.Config, error) {
-	path, ok := os.LookupEnv("SOLVE_CONFIG_FILE")
-	if ok {
-		return config.LoadFromFile(path)
-	}
-	path = "config.json"
-	if fileExists(path) {
-		return config.LoadFromFile(path)
-	}
-	path = filepath.Join(etcDir, path)
-	if fileExists(path) {
-		return config.LoadFromFile(path)
-	}
-	return config.Config{}, errors.New("unable to find config file")
+	return config.LoadFromFile(path)
 }
 
 func getAddress(cfg config.Server) string {
 	return fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 }
 
-func main() {
-	cfg, err := getConfig()
+func serverMain(cmd *cobra.Command, args []string) {
+	cfg, err := getConfig(cmd)
 	if err != nil {
 		panic(err)
 	}
@@ -66,4 +47,27 @@ func main() {
 	server.Use(middleware.Gzip())
 	api.Register(app, server)
 	server.Logger.Fatal(server.Start(getAddress(cfg.Server)))
+}
+
+func invokerMain(cmd *cobra.Command, args []string) {
+	_, err := getConfig(cmd)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func main() {
+	rootCmd := cobra.Command{}
+	rootCmd.PersistentFlags().String("config", "config.json", "")
+	rootCmd.AddCommand(&cobra.Command{
+		Use: "server",
+		Run: serverMain,
+	})
+	rootCmd.AddCommand(&cobra.Command{
+		Use: "invoker",
+		Run: invokerMain,
+	})
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }

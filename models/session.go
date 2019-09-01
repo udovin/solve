@@ -70,6 +70,8 @@ func (s *SessionStore) Get(id int64) (Session, bool) {
 }
 
 func (s *SessionStore) GetByUser(userID int64) []Session {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	if idSet, ok := s.userSessions[userID]; ok {
 		var sessions []Session
 		for id := range idSet {
@@ -83,6 +85,8 @@ func (s *SessionStore) GetByUser(userID int64) []Session {
 }
 
 func (s *SessionStore) GetByCookie(cookie string) (Session, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	parts := strings.SplitN(cookie, "_", 2)
 	id, err := strconv.ParseInt(parts[0], 10, 60)
 	if err != nil {

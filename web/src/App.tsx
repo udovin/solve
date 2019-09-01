@@ -9,6 +9,7 @@ import IndexPage from "./pages/IndexPage";
 import ContestsPage from "./pages/ContestsPage";
 import LanguagePage from "./pages/LanguagePage";
 import {AuthProvider} from "./AuthContext";
+import ProblemPage from "./pages/ProblemPage";
 
 const App: React.FC = () => {
 	return (
@@ -22,6 +23,7 @@ const App: React.FC = () => {
 						<Route exact path="/login" component={LoginPage}/>
 						<Route exact path="/register" component={RegisterPage}/>
 						<Route exact path="/language" component={LanguagePage}/>
+						<Route exact path="/problem/:ProblemID" component={ProblemPage}/>
 					</Switch>
 					<Footer/>
 				</BrowserRouter>

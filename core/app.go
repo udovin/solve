@@ -16,10 +16,11 @@ type App struct {
 	Users      *models.UserStore
 	UserFields *models.UserFieldStore
 	Sessions   *models.SessionStore
-	Problems   *models.ProblemStore
-	Contests   *models.ContestStore
-	Solutions  *models.SolutionStore
 	Compilers  *models.CompilerStore
+	Problems   *models.ProblemStore
+	Statements *models.StatementStore
+	Solutions  *models.SolutionStore
+	Contests   *models.ContestStore
 	closer     chan struct{}
 	waiter     sync.WaitGroup
 	// Password salt
@@ -56,6 +57,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 		Compilers: models.NewCompilerStore(
 			db, "solve_compiler", "solve_compiler_change",
 		),
+		Statements: models.NewStatementStore(
+			db, "solve_statement", "solve_statement_change",
+		),
 	}
 	// We do not want to load value every time
 	// in case of FileSecret or EnvSecret
@@ -83,6 +87,7 @@ func (a *App) Start() error {
 	runManagerSync(a.Contests.Manager)
 	runManagerSync(a.Solutions.Manager)
 	runManagerSync(a.Compilers.Manager)
+	runManagerSync(a.Statements.Manager)
 	var err error
 	for i := 0; i < stores; i++ {
 		lastErr := <-errs

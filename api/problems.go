@@ -5,10 +5,17 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo"
+
+	"github.com/udovin/solve/models"
 )
 
 func (v *View) CreateProblem(c echo.Context) error {
 	return c.NoContent(http.StatusNotImplemented)
+}
+
+type Problem struct {
+	models.Problem
+	Statement models.Statement `json:""`
 }
 
 func (v *View) GetProblem(c echo.Context) error {
@@ -20,7 +27,11 @@ func (v *View) GetProblem(c echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
-	return c.JSON(http.StatusOK, problem)
+	statement, ok := v.app.Statements.GetByProblem(problem.ID)
+	return c.JSON(http.StatusOK, Problem{
+		Problem:   problem,
+		Statement: statement,
+	})
 }
 
 func (v *View) UpdateProblem(c echo.Context) error {

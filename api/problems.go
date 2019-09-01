@@ -13,13 +13,13 @@ func (v *View) CreateProblem(c echo.Context) error {
 	return c.NoContent(http.StatusNotImplemented)
 }
 
-type Problem struct {
+type ProblemResponse struct {
 	models.Problem
 	Statement models.Statement `json:""`
 }
 
 func (v *View) GetProblem(c echo.Context) error {
-	problemID, err := strconv.ParseInt(c.Param("ProblemID"), 10, 60)
+	problemID, err := strconv.ParseInt(c.Param("ProblemID"), 10, 64)
 	if err != nil {
 		return err
 	}
@@ -28,7 +28,10 @@ func (v *View) GetProblem(c echo.Context) error {
 		return c.NoContent(http.StatusNotFound)
 	}
 	statement, ok := v.app.Statements.GetByProblem(problem.ID)
-	return c.JSON(http.StatusOK, Problem{
+	if !ok {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, ProblemResponse{
 		Problem:   problem,
 		Statement: statement,
 	})

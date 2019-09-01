@@ -112,6 +112,10 @@ func Register(app *core.App, server *echo.Echo) {
 		"/sessions/:SessionID", v.UpdateSession,
 		v.authMiddleware(v.sessionAuth),
 	)
+	api.DELETE(
+		"/sessions/:SessionID", v.DeleteSession,
+		v.authMiddleware(v.sessionAuth),
+	)
 	// Problems management
 	api.POST(
 		"/problems", v.CreateProblem,

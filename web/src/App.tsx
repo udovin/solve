@@ -23,7 +23,7 @@ const App: React.FC = () => {
 						<Route exact path="/login" component={LoginPage}/>
 						<Route exact path="/register" component={RegisterPage}/>
 						<Route exact path="/language" component={LanguagePage}/>
-						<Route exact path="/problem/:ProblemID" component={ProblemPage}/>
+						<Route exact path="/problems/:ProblemID" component={ProblemPage}/>
 					</Switch>
 					<Footer/>
 				</BrowserRouter>

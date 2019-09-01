@@ -42,6 +42,7 @@ type ReportStore struct {
 	table       string
 	changeTable string
 	reports     map[int64]Report
+	queued      map[int64]struct{}
 	mutex       sync.RWMutex
 }
 
@@ -50,6 +51,7 @@ func NewReportStore(db *sql.DB, table, changeTable string) *ReportStore {
 		table:       table,
 		changeTable: changeTable,
 		reports:     make(map[int64]Report),
+		queued:      make(map[int64]struct{}),
 	}
 	store.Manager = NewChangeManager(&store, db)
 	return &store
@@ -60,6 +62,13 @@ func (s *ReportStore) Get(id int64) (Report, bool) {
 	defer s.mutex.RUnlock()
 	report, ok := s.reports[id]
 	return report, ok
+}
+
+func (s *ReportStore) GetQueuedIDs() (ids []int64) {
+	for id := range s.queued {
+		ids = append(ids, id)
+	}
+	return
 }
 
 func (s *ReportStore) Create(m *Report) error {
@@ -81,6 +90,19 @@ func (s *ReportStore) Update(m *Report) error {
 		Report:     *m,
 	}
 	err := s.Manager.Change(&change)
+	if err != nil {
+		return err
+	}
+	*m = change.Report
+	return nil
+}
+
+func (s *ReportStore) UpdateTx(tx *ChangeTx, m *Report) error {
+	change := reportChange{
+		BaseChange: BaseChange{Type: UpdateChange},
+		Report:     *m,
+	}
+	err := s.Manager.ChangeTx(tx, &change)
 	if err != nil {
 		return err
 	}
@@ -221,11 +243,18 @@ func (s *ReportStore) ApplyChange(change Change) {
 	report := change.(*reportChange)
 	switch report.Type {
 	case UpdateChange:
+		if report.Verdict != 0 {
+			delete(s.queued, report.Report.ID)
+		}
 		fallthrough
 	case CreateChange:
 		s.reports[report.Report.ID] = report.Report
+		if report.Verdict == 0 {
+			s.queued[report.Report.ID] = struct{}{}
+		}
 	case DeleteChange:
 		delete(s.reports, report.Report.ID)
+		delete(s.queued, report.Report.ID)
 	default:
 		panic(fmt.Errorf(
 			"unsupported change type = %s",

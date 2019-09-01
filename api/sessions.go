@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo"
@@ -44,7 +45,26 @@ func (v *View) UpdateSession(c echo.Context) error {
 }
 
 func (v *View) DeleteSession(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
+	sessionID, err := strconv.ParseInt(c.Param("SessionID"), 10, 64)
+	if err != nil {
+		return err
+	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	session, ok := v.app.Sessions.Get(sessionID)
+	if !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	if session.UserID != user.ID {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if err := v.app.Sessions.Delete(session.ID); err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	return c.NoContent(http.StatusOK)
 }
 
 type CurrentSessionResponse struct {

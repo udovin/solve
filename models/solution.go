@@ -8,9 +8,12 @@ import (
 )
 
 type Solution struct {
-	ID         int64 `json:"" db:"id"`
-	UserID     int64 `json:"" db:"user_id"`
-	CreateTime int64 `json:"" db:"create_time"`
+	ID         int64  `json:"" db:"id"`
+	UserID     int64  `json:"" db:"user_id"`
+	ProblemID  int64  `json:"" db:"problem_id"`
+	CompilerID int64  `json:"" db:"compiler_id"`
+	SourceCode string `json:"" db:"source_code"`
+	CreateTime int64  `json:"" db:"create_time"`
 }
 
 type solutionChange struct {
@@ -92,7 +95,8 @@ func (s *SolutionStore) LoadChanges(
 		fmt.Sprintf(
 			`SELECT`+
 				` "change_id", "change_type", "change_time",`+
-				` "id", "user_id", "create_time"`+
+				` "id", "user_id", "problem_id", "compiler_id",`+
+				` "source_code", "create_time"`+
 				` FROM "%s"`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
@@ -106,7 +110,8 @@ func (s *SolutionStore) ScanChange(scan Scanner) (Change, error) {
 	solution := solutionChange{}
 	err := scan.Scan(
 		&solution.BaseChange.ID, &solution.Type, &solution.Time,
-		&solution.Solution.ID, &solution.UserID, &solution.CreateTime,
+		&solution.Solution.ID, &solution.UserID, &solution.ProblemID,
+		&solution.CompilerID, &solution.SourceCode, &solution.CreateTime,
 	)
 	return &solution, err
 }
@@ -120,11 +125,13 @@ func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
 		res, err := tx.Exec(
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
-					` ("user_id", "create_time")`+
-					` VALUES ($1, $2)`,
+					` ("user_id", "problem_id", "compiler_id",`+
+					` "source_code", "create_time")`+
+					` VALUES ($1, $2, $3, $4, $5)`,
 				s.table,
 			),
-			solution.UserID, solution.CreateTime,
+			solution.UserID, solution.ProblemID, solution.CompilerID,
+			solution.SourceCode, solution.CreateTime,
 		)
 		if err != nil {
 			return err
@@ -142,10 +149,14 @@ func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET "user_id" = $1 WHERE "id" = $2`,
+				`UPDATE "%s"`+
+					` SET "user_id" = $1, "problem_id" = $2,`+
+					` "compiler_id" = $3, "source_code" = $4`+
+					` WHERE "id" = $5`,
 				s.table,
 			),
-			solution.UserID, solution.Solution.ID,
+			solution.UserID, solution.ProblemID, solution.CompilerID,
+			solution.SourceCode, solution.Solution.ID,
 		)
 		if err != nil {
 			return err
@@ -177,12 +188,15 @@ func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time",`+
-				` "id", "user_id", "create_time")`+
-				` VALUES ($1, $2, $3, $4, $5)`,
+				` "id", "user_id", "problem_id", "compiler_id",`+
+				` "source_code", "create_time")`+
+				` VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 			s.changeTable,
 		),
 		solution.Type, solution.Time,
-		solution.Solution.ID, solution.UserID, solution.CreateTime,
+		solution.Solution.ID, solution.UserID, solution.ProblemID,
+		solution.CompilerID, solution.SourceCode,
+		solution.CreateTime,
 	)
 	if err != nil {
 		return err

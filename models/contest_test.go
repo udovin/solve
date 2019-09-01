@@ -20,24 +20,24 @@ func TestContestStore_applyChange(t *testing.T) {
 	store := NewContestStore(db, "test_contest", "test_contest_change")
 	store.ApplyChange(&contestChange{
 		BaseChange: BaseChange{ID: 1, Type: CreateChange, Time: 0},
-		Contest:    Contest{ID: 1, OwnerID: 1},
+		Contest:    Contest{ID: 1, UserID: 1},
 	})
 	m, ok := store.Get(1)
 	if !ok {
 		t.Fatal("Contest should exists")
 	}
-	if m.OwnerID != 1 {
+	if m.UserID != 1 {
 		t.Fatal("Wrong owner ID")
 	}
 	store.ApplyChange(&contestChange{
 		BaseChange: BaseChange{ID: 2, Type: UpdateChange, Time: 1},
-		Contest:    Contest{ID: 1, OwnerID: 2},
+		Contest:    Contest{ID: 1, UserID: 2},
 	})
 	m, ok = store.Get(1)
 	if !ok {
 		t.Fatal("Contest should exists")
 	}
-	if m.OwnerID != 2 {
+	if m.UserID != 2 {
 		t.Fatal("Wrong owner ID")
 	}
 	store.ApplyChange(&contestChange{
@@ -55,7 +55,7 @@ func TestContestStore_applyChange(t *testing.T) {
 		}()
 		store.ApplyChange(&contestChange{
 			BaseChange: BaseChange{ID: 4, Type: ChangeType(126), Time: 0},
-			Contest:    Contest{ID: 2, OwnerID: 1},
+			Contest:    Contest{ID: 2, UserID: 1},
 		})
 	}()
 	func() {

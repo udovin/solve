@@ -9,7 +9,7 @@ import (
 
 type Problem struct {
 	ID         int64 `json:"" db:"id"`
-	OwnerID    int64 `json:"" db:"owner_id"`
+	UserID     int64 `json:"" db:"user_id"`
 	CreateTime int64 `json:"" db:"create_time"`
 }
 
@@ -92,7 +92,7 @@ func (s *ProblemStore) LoadChanges(
 		fmt.Sprintf(
 			`SELECT`+
 				` "change_id", "change_type", "change_time",`+
-				` "id", "owner_id", "create_time"`+
+				` "id", "user_id", "create_time"`+
 				` FROM "%s"`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
@@ -106,7 +106,7 @@ func (s *ProblemStore) ScanChange(scan Scanner) (Change, error) {
 	problem := problemChange{}
 	err := scan.Scan(
 		&problem.BaseChange.ID, &problem.Type, &problem.Time,
-		&problem.Problem.ID, &problem.OwnerID, &problem.CreateTime,
+		&problem.Problem.ID, &problem.UserID, &problem.CreateTime,
 	)
 	return &problem, err
 }
@@ -120,11 +120,11 @@ func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 		res, err := tx.Exec(
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
-					` ("owner_id", "create_time")`+
+					` ("user_id", "create_time")`+
 					` VALUES ($1, $2)`,
 				s.table,
 			),
-			problem.OwnerID, problem.CreateTime,
+			problem.UserID, problem.CreateTime,
 		)
 		if err != nil {
 			return err
@@ -142,10 +142,10 @@ func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET "owner_id" = $1 WHERE "id" = $2`,
+				`UPDATE "%s" SET "user_id" = $1 WHERE "id" = $2`,
 				s.table,
 			),
-			problem.OwnerID, problem.Problem.ID,
+			problem.UserID, problem.Problem.ID,
 		)
 		if err != nil {
 			return err
@@ -177,12 +177,12 @@ func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time",`+
-				` "id", "owner_id", "create_time")`+
+				` "id", "user_id", "create_time")`+
 				` VALUES ($1, $2, $3, $4, $5)`,
 			s.changeTable,
 		),
 		problem.Type, problem.Time,
-		problem.Problem.ID, problem.OwnerID, problem.CreateTime,
+		problem.Problem.ID, problem.UserID, problem.CreateTime,
 	)
 	if err != nil {
 		return err

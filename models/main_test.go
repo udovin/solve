@@ -89,7 +89,7 @@ var createTables = []string{
 	id integer not null
 		constraint test_problem_pk
 			primary key autoincrement,
-	owner_id integer not null
+	user_id integer not null
 		references test_user,
 	create_time bigint not null
 )`,
@@ -101,7 +101,7 @@ var createTables = []string{
 	change_type int8 not null,
 	change_time bigint not null,
 	id integer not null,
-	owner_id integer not null,
+	user_id integer not null,
 	create_time bigint not null
 )`,
 	// Contest store
@@ -110,7 +110,7 @@ var createTables = []string{
 	id integer not null
 		constraint test_contest_pk
 			primary key autoincrement,
-	owner_id integer not null
+	user_id integer not null
 		references test_user,
 	create_time bigint not null
 )`,
@@ -122,7 +122,7 @@ var createTables = []string{
 	change_type int8 not null,
 	change_time bigint not null,
 	id integer not null,
-	owner_id integer not null,
+	user_id integer not null,
 	create_time bigint not null
 )`,
 	// Fake store

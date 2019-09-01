@@ -3,15 +3,33 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"runtime"
+	"syscall"
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	"github.com/opencontainers/runc/libcontainer"
 	"github.com/spf13/cobra"
 
 	"github.com/udovin/solve/api"
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/worker"
+
+	_ "github.com/opencontainers/runc/libcontainer/nsenter"
 )
+
+func init() {
+	if len(os.Args) > 1 && os.Args[1] == "init" {
+		runtime.GOMAXPROCS(1)
+		runtime.LockOSThread()
+		factory, _ := libcontainer.New("")
+		if err := factory.StartInitialization(); err != nil {
+			panic(err)
+		}
+	}
+}
 
 func getConfig(cmd *cobra.Command) (config.Config, error) {
 	path, err := cmd.Flags().GetString("config")
@@ -50,10 +68,24 @@ func serverMain(cmd *cobra.Command, args []string) {
 }
 
 func invokerMain(cmd *cobra.Command, args []string) {
-	_, err := getConfig(cmd)
+	cfg, err := getConfig(cmd)
 	if err != nil {
 		panic(err)
 	}
+	app, err := core.NewApp(&cfg)
+	if err != nil {
+		panic(err)
+	}
+	if err := app.Start(); err != nil {
+		panic(err)
+	}
+	defer app.Stop()
+	server := worker.New(app)
+	server.Start()
+	defer server.Stop()
+	wait := make(chan os.Signal)
+	signal.Notify(wait, os.Interrupt, syscall.SIGTERM)
+	<-wait
 }
 
 func main() {
@@ -64,7 +96,7 @@ func main() {
 		Run: serverMain,
 	})
 	rootCmd.AddCommand(&cobra.Command{
-		Use: "invoker",
+		Use: "worker",
 		Run: invokerMain,
 	})
 	if err := rootCmd.Execute(); err != nil {

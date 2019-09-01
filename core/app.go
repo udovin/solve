@@ -20,6 +20,7 @@ type App struct {
 	Problems   *models.ProblemStore
 	Statements *models.StatementStore
 	Solutions  *models.SolutionStore
+	Reports    *models.ReportStore
 	Contests   *models.ContestStore
 	closer     chan struct{}
 	waiter     sync.WaitGroup
@@ -27,7 +28,7 @@ type App struct {
 	PasswordSalt string
 }
 
-// Create solve app from config
+// NewApp creates app instance from config
 func NewApp(cfg *config.Config) (*App, error) {
 	// Try to create database connection pool
 	db, err := cfg.DB.Create()
@@ -45,20 +46,23 @@ func NewApp(cfg *config.Config) (*App, error) {
 		Sessions: models.NewSessionStore(
 			db, "solve_session", "solve_session_change",
 		),
+		Compilers: models.NewCompilerStore(
+			db, "solve_compiler", "solve_compiler_change",
+		),
 		Problems: models.NewProblemStore(
 			db, "solve_problem", "solve_problem_change",
 		),
-		Contests: models.NewContestStore(
-			db, "solve_contest", "solve_contest_change",
+		Statements: models.NewStatementStore(
+			db, "solve_statement", "solve_statement_change",
 		),
 		Solutions: models.NewSolutionStore(
 			db, "solve_solution", "solve_solution_change",
 		),
-		Compilers: models.NewCompilerStore(
-			db, "solve_compiler", "solve_compiler_change",
+		Reports: models.NewReportStore(
+			db, "solve_report", "solve_report_change",
 		),
-		Statements: models.NewStatementStore(
-			db, "solve_statement", "solve_statement_change",
+		Contests: models.NewContestStore(
+			db, "solve_contest", "solve_contest_change",
 		),
 	}
 	// We do not want to load value every time
@@ -70,7 +74,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	return &app, nil
 }
 
-// Start application and data synchronization
+// Start starts application and data synchronization
 func (a *App) Start() error {
 	a.closer = make(chan struct{})
 	errs := make(chan error)
@@ -83,11 +87,12 @@ func (a *App) Start() error {
 	runManagerSync(a.Users.Manager)
 	runManagerSync(a.UserFields.Manager)
 	runManagerSync(a.Sessions.Manager)
-	runManagerSync(a.Problems.Manager)
-	runManagerSync(a.Contests.Manager)
-	runManagerSync(a.Solutions.Manager)
 	runManagerSync(a.Compilers.Manager)
+	runManagerSync(a.Problems.Manager)
 	runManagerSync(a.Statements.Manager)
+	runManagerSync(a.Solutions.Manager)
+	runManagerSync(a.Reports.Manager)
+	runManagerSync(a.Contests.Manager)
 	var err error
 	for i := 0; i < stores; i++ {
 		lastErr := <-errs
@@ -102,14 +107,14 @@ func (a *App) Start() error {
 	return err
 }
 
-// Stop syncing stores
+// Stop stops syncing stores
 func (a *App) Stop() {
 	close(a.closer)
 	// Wait for all manager syncs to finish
 	a.waiter.Wait()
 }
 
-// Sync store with database
+// runManagerSync syncs store with database
 func (a *App) runManagerSync(m *models.ChangeManager, errs chan<- error) {
 	a.waiter.Add(1)
 	defer a.waiter.Done()
@@ -122,7 +127,7 @@ func (a *App) runManagerSync(m *models.ChangeManager, errs chan<- error) {
 			return
 		case <-ticker.C:
 			if err := m.Sync(); err != nil {
-				log.Println("error:", err)
+				log.Println("Error:", err)
 			}
 		}
 	}

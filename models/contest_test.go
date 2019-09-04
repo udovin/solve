@@ -82,7 +82,7 @@ func TestContestStore_Create(t *testing.T) {
 	store := NewContestStore(db, "test_contest", "test_contest_change")
 	for i := 0; i < 10; i++ {
 		if err := store.Create(
-			&Contest{0, 0, time.Now().Unix()},
+			&Contest{0, 0, time.Now().Unix(), "Contest"},
 		); err != nil {
 			t.Fatal(err)
 		}

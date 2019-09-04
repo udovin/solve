@@ -112,7 +112,8 @@ var createTables = []string{
 			primary key autoincrement,
 	user_id integer not null
 		references test_user,
-	create_time bigint not null
+	create_time bigint not null,
+	title varchar(255) not null
 )`,
 	`CREATE TABLE test_contest_change
 (
@@ -123,7 +124,8 @@ var createTables = []string{
 	change_time bigint not null,
 	id integer not null,
 	user_id integer not null,
-	create_time bigint not null
+	create_time bigint not null,
+	title varchar(255) not null
 )`,
 	// Fake store
 	`CREATE TABLE "test_fake_change"

@@ -64,6 +64,19 @@ func (s *StatementStore) Create(m *Statement) error {
 	return nil
 }
 
+func (s *StatementStore) CreateTx(tx *ChangeTx, m *Statement) error {
+	change := statementChange{
+		BaseChange: BaseChange{Type: CreateChange},
+		Statement:  *m,
+	}
+	err := s.Manager.ChangeTx(tx, &change)
+	if err != nil {
+		return err
+	}
+	*m = change.Statement
+	return nil
+}
+
 func (s *StatementStore) Update(m *Statement) error {
 	change := statementChange{
 		BaseChange: BaseChange{Type: UpdateChange},
@@ -132,7 +145,7 @@ func (s *StatementStore) SaveChange(tx *sql.Tx, change Change) error {
 				`INSERT INTO "%s"`+
 					` ("problem_id", "title", "description",`+
 					` "create_time")`+
-					` VALUES ($1, $2, $3, $4, $5)`,
+					` VALUES ($1, $2, $3, $4)`,
 				s.table,
 			),
 			statement.ProblemID, statement.Title, statement.Description,

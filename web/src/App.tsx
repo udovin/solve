@@ -6,11 +6,14 @@ import Footer from "./layout/Footer";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import IndexPage from "./pages/IndexPage";
-import ContestsPage from "./pages/ContestsPage";
 import LanguagePage from "./pages/LanguagePage";
 import {AuthProvider} from "./AuthContext";
+import CreateProblemPage from "./pages/CreateProblemPage";
 import ProblemPage from "./pages/ProblemPage";
+import ContestsPage from "./pages/ContestsPage";
+import CreateContestPage from "./pages/CreateContestPage";
 import ContestPage from "./pages/ContestPage";
+import ContestProblemPage from "./pages/ContestProblemPage";
 
 const App: React.FC = () => {
 	return (
@@ -20,12 +23,15 @@ const App: React.FC = () => {
 					<Header/>
 					<Switch>
 						<Route exact path="/" component={IndexPage}/>
+						<Route exact path="/problems/create" component={CreateProblemPage}/>
+						<Route exact path="/problems/:ProblemID" component={ProblemPage}/>
 						<Route exact path="/contests" component={ContestsPage}/>
+						<Route exact path="/contests/create" component={CreateContestPage}/>
 						<Route exact path="/contests/:ContestID" component={ContestPage}/>
+						<Route exact path="/contests/:ContestID/problems/:ProblemCode" component={ContestProblemPage}/>
 						<Route exact path="/login" component={LoginPage}/>
 						<Route exact path="/register" component={RegisterPage}/>
 						<Route exact path="/language" component={LanguagePage}/>
-						<Route exact path="/problems/:ProblemID" component={ProblemPage}/>
 					</Switch>
 					<Footer/>
 				</BrowserRouter>

@@ -10,6 +10,11 @@ import (
 	"github.com/udovin/solve/models"
 )
 
+type Session struct {
+	models.Session
+	User models.User `json:""`
+}
+
 func (v *View) GetSessions(c echo.Context) error {
 	return c.NoContent(http.StatusNotImplemented)
 }
@@ -67,11 +72,6 @@ func (v *View) DeleteSession(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-type CurrentSessionResponse struct {
-	models.Session
-	User models.User `json:""`
-}
-
 func (v *View) GetCurrentSession(c echo.Context) error {
 	session, ok := c.Get(sessionKey).(models.Session)
 	if !ok {
@@ -81,7 +81,7 @@ func (v *View) GetCurrentSession(c echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
-	return c.JSON(http.StatusOK, CurrentSessionResponse{
+	return c.JSON(http.StatusOK, Session{
 		Session: session,
 		User:    user,
 	})

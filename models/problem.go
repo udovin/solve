@@ -56,6 +56,19 @@ func (s *ProblemStore) Create(m *Problem) error {
 	return nil
 }
 
+func (s *ProblemStore) CreateTx(tx *ChangeTx, m *Problem) error {
+	change := problemChange{
+		BaseChange: BaseChange{Type: CreateChange},
+		Problem:    *m,
+	}
+	err := s.Manager.ChangeTx(tx, &change)
+	if err != nil {
+		return err
+	}
+	*m = change.Problem
+	return nil
+}
+
 func (s *ProblemStore) Update(m *Problem) error {
 	change := problemChange{
 		BaseChange: BaseChange{Type: UpdateChange},

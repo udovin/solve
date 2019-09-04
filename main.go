@@ -63,7 +63,7 @@ func serverMain(cmd *cobra.Command, args []string) {
 	}))
 	server.Pre(middleware.RemoveTrailingSlash())
 	server.Use(middleware.Gzip())
-	api.Register(app, server)
+	api.Register(app, server.Group("/api/v0"))
 	server.Logger.Fatal(server.Start(getAddress(cfg.Server)))
 }
 

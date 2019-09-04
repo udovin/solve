@@ -10,8 +10,7 @@ import (
 )
 
 type View struct {
-	app    *core.App
-	server *echo.Echo
+	app *core.App
 }
 
 type authMethod func(ctx echo.Context) error
@@ -75,10 +74,8 @@ func (v *View) passwordAuth(c echo.Context) error {
 	return nil
 }
 
-func Register(app *core.App, server *echo.Echo) {
-	v := View{app: app, server: server}
-	// Create group for api handlers
-	api := server.Group("/api/v0")
+func Register(app *core.App, api *echo.Group) {
+	v := View{app: app}
 	// Service handlers
 	api.GET("/ping", v.Ping)
 	// Users management
@@ -145,6 +142,10 @@ func Register(app *core.App, server *echo.Echo) {
 	api.PATCH(
 		"/contests/:ContestID", v.UpdateContest,
 		v.authMiddleware(v.sessionAuth),
+	)
+	api.GET(
+		"/contests/:ContestID/problems/:ProblemCode",
+		v.GetContestProblem, v.authMiddleware(v.sessionAuth),
 	)
 }
 

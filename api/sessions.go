@@ -10,7 +10,7 @@ import (
 	"github.com/udovin/solve/models"
 )
 
-func (v *View) GetSessionList(c echo.Context) error {
+func (v *View) GetSessions(c echo.Context) error {
 	return c.NoContent(http.StatusNotImplemented)
 }
 
@@ -37,7 +37,7 @@ func (v *View) CreateSession(c echo.Context) error {
 		Value:   session.FormatCookie(),
 		Expires: expires,
 	})
-	return c.JSON(http.StatusOK, session)
+	return c.JSON(http.StatusCreated, session)
 }
 
 func (v *View) UpdateSession(c echo.Context) error {

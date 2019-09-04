@@ -1,4 +1,4 @@
-package worker
+package invoker
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 	"github.com/udovin/solve/models"
 )
 
-type Worker struct {
+type Invoker struct {
 	app    *core.App
 	closer chan struct{}
 	waiter sync.WaitGroup
@@ -18,33 +18,33 @@ type Worker struct {
 
 var errEmptyQueue = errors.New("empty queue")
 
-func New(app *core.App) *Worker {
-	return &Worker{
+func New(app *core.App) *Invoker {
+	return &Invoker{
 		app: app,
 	}
 }
 
-func (w *Worker) Start() {
-	w.waiter.Add(1)
-	w.closer = make(chan struct{})
-	go w.loop()
+func (s *Invoker) Start() {
+	s.waiter.Add(1)
+	s.closer = make(chan struct{})
+	go s.loop()
 }
 
-func (w *Worker) Stop() {
-	close(w.closer)
-	w.waiter.Wait()
+func (s *Invoker) Stop() {
+	close(s.closer)
+	s.waiter.Wait()
 }
 
-func (w *Worker) loop() {
-	defer w.waiter.Done()
+func (s *Invoker) loop() {
+	defer s.waiter.Done()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
 		select {
-		case <-w.closer:
+		case <-s.closer:
 			return
 		case <-ticker.C:
-			report, err := w.popQueuedReport()
+			report, err := s.popQueuedReport()
 			if err != nil {
 				if err != errEmptyQueue {
 					log.Println("Error:", err)
@@ -56,15 +56,15 @@ func (w *Worker) loop() {
 	}
 }
 
-func (w *Worker) popQueuedReport() (report models.Report, err error) {
-	tx, err := w.app.Reports.Manager.Begin()
+func (s *Invoker) popQueuedReport() (report models.Report, err error) {
+	tx, err := s.app.Reports.Manager.Begin()
 	if err != nil {
 		return
 	}
-	if err = w.app.Reports.Manager.SyncTx(tx); err != nil {
+	if err = s.app.Reports.Manager.SyncTx(tx); err != nil {
 		return
 	}
-	queuedIDs := w.app.Reports.GetQueuedIDs()
+	queuedIDs := s.app.Reports.GetQueuedIDs()
 	if len(queuedIDs) == 0 {
 		if err := tx.Rollback(); err != nil {
 			log.Println("Error:", err)
@@ -72,13 +72,13 @@ func (w *Worker) popQueuedReport() (report models.Report, err error) {
 		err = errEmptyQueue
 		return
 	}
-	report, ok := w.app.Reports.Get(queuedIDs[0])
+	report, ok := s.app.Reports.Get(queuedIDs[0])
 	if !ok {
 		err = errEmptyQueue
 		return
 	}
 	report.Verdict = -1
-	if err = w.app.Reports.UpdateTx(tx, &report); err != nil {
+	if err = s.app.Reports.UpdateTx(tx, &report); err != nil {
 		if err := tx.Rollback(); err != nil {
 			log.Println("Error:", err)
 		}

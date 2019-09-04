@@ -11,7 +11,7 @@ type Config struct {
 	DB DB `json:""`
 	// Server contains API server config
 	Server Server `json:""`
-	// Invoker contains worker config
+	// Invoker contains invoker config
 	Invoker Invoker `json:""`
 	// Security contains security config
 	Security Security `json:""`

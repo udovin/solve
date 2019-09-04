@@ -10,6 +10,7 @@ import ContestsPage from "./pages/ContestsPage";
 import LanguagePage from "./pages/LanguagePage";
 import {AuthProvider} from "./AuthContext";
 import ProblemPage from "./pages/ProblemPage";
+import ContestPage from "./pages/ContestPage";
 
 const App: React.FC = () => {
 	return (
@@ -20,6 +21,7 @@ const App: React.FC = () => {
 					<Switch>
 						<Route exact path="/" component={IndexPage}/>
 						<Route exact path="/contests" component={ContestsPage}/>
+						<Route exact path="/contests/:ContestID" component={ContestPage}/>
 						<Route exact path="/login" component={LoginPage}/>
 						<Route exact path="/register" component={RegisterPage}/>
 						<Route exact path="/language" component={LanguagePage}/>

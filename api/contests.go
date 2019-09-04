@@ -10,12 +10,19 @@ import (
 	"github.com/udovin/solve/models"
 )
 
-func (v *View) GetContestList(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
+func (v *View) GetContests(c echo.Context) error {
+	return c.JSON(http.StatusOK, v.app.Contests.All())
 }
 
 func (v *View) CreateContest(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
+	var contest models.Contest
+	if err := c.Bind(&contest); err != nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if err := v.app.Contests.Create(&contest); err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusCreated, contest)
 }
 
 type Contest struct {

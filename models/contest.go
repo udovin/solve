@@ -8,9 +8,10 @@ import (
 )
 
 type Contest struct {
-	ID         int64 `json:"" db:"id"`
-	UserID     int64 `json:"" db:"user_id"`
-	CreateTime int64 `json:"" db:"create_time"`
+	ID         int64  `json:"" db:"id"`
+	UserID     int64  `json:"" db:"user_id"`
+	CreateTime int64  `json:"" db:"create_time"`
+	Title      string `json:"" db:"title"`
 }
 
 type contestChange struct {
@@ -34,6 +35,14 @@ func NewContestStore(db *sql.DB, table, changeTable string) *ContestStore {
 	}
 	store.Manager = NewChangeManager(&store, db)
 	return &store
+}
+
+func (s *ContestStore) All() []Contest {
+	var result []Contest
+	for _, contest := range s.contests {
+		result = append(result, contest)
+	}
+	return result
 }
 
 func (s *ContestStore) Get(id int64) (Contest, bool) {
@@ -92,7 +101,7 @@ func (s *ContestStore) LoadChanges(
 		fmt.Sprintf(
 			`SELECT`+
 				` "change_id", "change_type", "change_time",`+
-				` "id", "user_id", "create_time"`+
+				` "id", "user_id", "create_time", "title"`+
 				` FROM "%s"`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
@@ -107,6 +116,7 @@ func (s *ContestStore) ScanChange(scan Scanner) (Change, error) {
 	err := scan.Scan(
 		&contest.BaseChange.ID, &contest.Type, &contest.Time,
 		&contest.Contest.ID, &contest.UserID, &contest.CreateTime,
+		&contest.Title,
 	)
 	return &contest, err
 }
@@ -120,11 +130,11 @@ func (s *ContestStore) SaveChange(tx *sql.Tx, change Change) error {
 		res, err := tx.Exec(
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
-					` ("user_id", "create_time")`+
-					` VALUES ($1, $2)`,
+					` ("user_id", "create_time", "title")`+
+					` VALUES ($1, $2, $3)`,
 				s.table,
 			),
-			contest.UserID, contest.CreateTime,
+			contest.UserID, contest.CreateTime, contest.Title,
 		)
 		if err != nil {
 			return err
@@ -142,10 +152,11 @@ func (s *ContestStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET "user_id" = $1 WHERE "id" = $2`,
+				`UPDATE "%s" SET "user_id" = $1, "title" = $2`+
+					` WHERE "id" = $3`,
 				s.table,
 			),
-			contest.UserID, contest.Contest.ID,
+			contest.UserID, contest.Title, contest.Contest.ID,
 		)
 		if err != nil {
 			return err
@@ -177,12 +188,13 @@ func (s *ContestStore) SaveChange(tx *sql.Tx, change Change) error {
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time",`+
-				` "id", "user_id", "create_time")`+
-				` VALUES ($1, $2, $3, $4, $5)`,
+				` "id", "user_id", "create_time", "title")`+
+				` VALUES ($1, $2, $3, $4, $5, $6)`,
 			s.changeTable,
 		),
 		contest.Type, contest.Time,
 		contest.Contest.ID, contest.UserID, contest.CreateTime,
+		contest.Title,
 	)
 	if err != nil {
 		return err

@@ -15,7 +15,7 @@ import (
 	"github.com/udovin/solve/api"
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
-	"github.com/udovin/solve/worker"
+	"github.com/udovin/solve/invoker"
 
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
 )
@@ -80,7 +80,7 @@ func invokerMain(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 	defer app.Stop()
-	server := worker.New(app)
+	server := invoker.New(app)
 	server.Start()
 	defer server.Stop()
 	wait := make(chan os.Signal)
@@ -96,7 +96,7 @@ func main() {
 		Run: serverMain,
 	})
 	rootCmd.AddCommand(&cobra.Command{
-		Use: "worker",
+		Use: "invoker",
 		Run: invokerMain,
 	})
 	if err := rootCmd.Execute(); err != nil {

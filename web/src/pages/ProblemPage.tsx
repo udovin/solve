@@ -2,24 +2,10 @@ import React from "react";
 import Page from "../layout/Page";
 import {RouteComponentProps} from "react-router";
 import NotFoundPage from "./NotFoundPage";
+import {Problem} from "../api";
 
 type ProblemPageParams = {
 	ProblemID: string;
-}
-
-type Statement = {
-	ID: number;
-	ProblemID: number;
-	Title: string;
-	Description: string;
-	CreateTime: number;
-}
-
-type Problem = {
-	ID: number;
-	UserID: number;
-	CreateTime: number;
-	Statement: Statement;
 }
 
 const ProblemPage = ({match}: RouteComponentProps<ProblemPageParams>) => {
@@ -32,14 +18,14 @@ const ProblemPage = ({match}: RouteComponentProps<ProblemPageParams>) => {
 	}
 	let problem: Problem = JSON.parse(request.response);
 	return (
-		<Page title={problem.Statement.Title}>
+		<Page title={problem.Title}>
 			<div className="ui-block-wrap">
 				<div className="ui-block">
 					<div className="ui-block-header">
-						<h2 className="title">{problem.Statement.Title}</h2>
+						<h2 className="title">{problem.Title}</h2>
 					</div>
 					<div className="ui-block-content">
-						{problem.Statement.Description}
+						{problem.Description}
 					</div>
 				</div>
 			</div>

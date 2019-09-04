@@ -32,7 +32,7 @@ func (v *View) CreateUser(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusOK, user)
+	return c.JSON(http.StatusCreated, user)
 }
 
 func (v *View) GetUser(c echo.Context) error {

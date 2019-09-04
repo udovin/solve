@@ -97,7 +97,7 @@ func Register(app *core.App, server *echo.Echo) {
 	)
 	// Sessions management
 	api.GET(
-		"/sessions", v.GetSessionList,
+		"/sessions", v.GetSessions,
 		v.authMiddleware(v.sessionAuth),
 	)
 	api.GET(
@@ -131,7 +131,7 @@ func Register(app *core.App, server *echo.Echo) {
 	)
 	// Contests management
 	api.GET(
-		"/contests", v.GetContestList,
+		"/contests", v.GetContests,
 		v.authMiddleware(v.sessionAuth),
 	)
 	api.POST(

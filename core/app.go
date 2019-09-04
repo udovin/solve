@@ -13,17 +13,18 @@ import (
 type App struct {
 	Config config.Config
 	// Stores
-	Users      *models.UserStore
-	UserFields *models.UserFieldStore
-	Sessions   *models.SessionStore
-	Compilers  *models.CompilerStore
-	Problems   *models.ProblemStore
-	Statements *models.StatementStore
-	Solutions  *models.SolutionStore
-	Reports    *models.ReportStore
-	Contests   *models.ContestStore
-	closer     chan struct{}
-	waiter     sync.WaitGroup
+	Users           *models.UserStore
+	UserFields      *models.UserFieldStore
+	Sessions        *models.SessionStore
+	Compilers       *models.CompilerStore
+	Problems        *models.ProblemStore
+	Statements      *models.StatementStore
+	Solutions       *models.SolutionStore
+	Reports         *models.ReportStore
+	Contests        *models.ContestStore
+	ContestProblems *models.ContestProblemStore
+	closer          chan struct{}
+	waiter          sync.WaitGroup
 	// Password salt
 	PasswordSalt string
 }
@@ -64,6 +65,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 		Contests: models.NewContestStore(
 			db, "solve_contest", "solve_contest_change",
 		),
+		ContestProblems: models.NewContestProblemStore(
+			db, "solve_contest_problem", "solve_contest_problem_change",
+		),
 	}
 	// We do not want to load value every time
 	// in case of FileSecret or EnvSecret
@@ -93,6 +97,7 @@ func (a *App) Start() error {
 	runManagerSync(a.Solutions.Manager)
 	runManagerSync(a.Reports.Manager)
 	runManagerSync(a.Contests.Manager)
+	runManagerSync(a.ContestProblems.Manager)
 	var err error
 	for i := 0; i < stores; i++ {
 		lastErr := <-errs

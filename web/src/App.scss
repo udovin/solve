@@ -172,14 +172,14 @@
 }
 
 /*
- * Body style
+ * Main style
  */
-#body {
+#main {
 	display: block;
 	position: relative;
 }
 
-#body:after {
+#main:after {
 	content: '.';
 	display: block;
 	clear: both;
@@ -214,11 +214,11 @@
 }
 
 /* Content only */
-#body.content > #sidebar-wrap {
+#main.content > #sidebar-wrap {
 	display: none;
 }
 
-#body.content > #content-wrap {
+#main.content > #content-wrap {
 	margin-right: 0;
 	padding-right: 0;
 }

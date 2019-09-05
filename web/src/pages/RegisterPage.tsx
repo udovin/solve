@@ -1,7 +1,7 @@
 import React, {ReactNode} from "react";
 import Page from "../layout/Page";
 import Input from "../layout/Input";
-import Button from "../layout/Button";
+import {Button} from "../layout/buttons";
 
 export default class RegisterPage extends React.Component {
 	render(): ReactNode {

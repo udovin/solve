@@ -1,17 +1,15 @@
 import React, {ReactNode} from "react";
 import {Link} from "react-router-dom";
-import Block from "./Block";
+import {Block} from "./blocks";
 import {AuthConsumer, AuthState} from "../AuthContext";
 
 export default class Sidebar extends React.Component {
 	render(): ReactNode {
-		return <>
-			<Block>
-				<ul>
-					<AuthConsumer>{Sidebar.getItems}</AuthConsumer>
-				</ul>
-			</Block>
-		</>;
+		return <Block>
+			<ul>
+				<AuthConsumer>{Sidebar.getItems}</AuthConsumer>
+			</ul>
+		</Block>;
 	}
 
 	public static getItems(state: AuthState): ReactNode {

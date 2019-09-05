@@ -1,6 +1,6 @@
 import React, {ReactNode} from "react";
 import Page from "../layout/Page";
-import Block from "../layout/Block";
+import {Block} from "../layout/blocks";
 import Sidebar from "../layout/Sidebar";
 
 export default class IndexPage extends React.Component {

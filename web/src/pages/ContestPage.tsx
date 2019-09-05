@@ -4,6 +4,7 @@ import {Link} from "react-router-dom";
 import Page from "../layout/Page";
 import NotFoundPage from "./NotFoundPage";
 import {Contest} from "../api";
+import {Block} from "../layout/blocks";
 
 type ContestPageParams = {
 	ContestID: string;
@@ -20,23 +21,16 @@ const ContestPage = ({match}: RouteComponentProps<ContestPageParams>) => {
 	let contest: Contest = JSON.parse(request.response);
 	return (
 		<Page title={contest.Title}>
-			<div className="ui-block-wrap">
-				<div className="ui-block">
-					<div className="ui-block-header">
-						<h2 className="title">{contest.Title}</h2>
-					</div>
-					<div className="ui-block-content">
-						<ul>{contest.Problems.map(
-							(problem) => <li className="problem">
-								<Link to={"/contests/" + contest.ID + "/problems/" + problem.Code}>
-									<span className="code">{problem.Code}</span>
-									<span className="title">{problem.Title}</span>
-								</Link>
-							</li>
-						)}</ul>
-					</div>
-				</div>
-			</div>
+			<Block title={contest.Title}>
+				<ul>{contest.Problems.map(
+					(problem) => <li className="problem">
+						<Link to={"/contests/" + contest.ID + "/problems/" + problem.Code}>
+							<span className="code">{problem.Code}</span>
+							<span className="title">{problem.Title}</span>
+						</Link>
+					</li>
+				)}</ul>
+			</Block>
 		</Page>
 	);
 };

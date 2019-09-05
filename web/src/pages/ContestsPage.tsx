@@ -1,7 +1,7 @@
 import React from "react";
 import {Link} from "react-router-dom";
 import Page from "../layout/Page";
-import Block from "../layout/Block";
+import {Block} from "../layout/blocks";
 import NotFoundPage from "./NotFoundPage";
 
 type Contest = {

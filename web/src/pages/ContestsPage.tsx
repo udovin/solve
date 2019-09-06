@@ -1,8 +1,7 @@
-import React from "react";
+import React, {useEffect, useState} from "react";
 import {Link} from "react-router-dom";
 import Page from "../layout/Page";
 import {Block} from "../layout/blocks";
-import NotFoundPage from "./NotFoundPage";
 
 type Contest = {
 	ID: number;
@@ -12,14 +11,12 @@ type Contest = {
 }
 
 const ContestsPage = () => {
-	let request = new XMLHttpRequest();
-	request.open("GET", "/api/v0/contests", false);
-	request.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
-	request.send();
-	if (request.status !== 200) {
-		return <NotFoundPage/>;
-	}
-	let contests: Contest[] = JSON.parse(request.response);
+	const [contests, setContests] = useState<Contest[]>([]);
+	useEffect(() => {
+		fetch("/api/v0/contests")
+			.then(result => result.json())
+			.then(result => setContests(result))
+	}, []);
 	return (
 		<Page title="Contests">
 			<Block title="Contests">

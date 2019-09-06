@@ -2,46 +2,34 @@ import React from "react";
 import Page from "../layout/Page";
 import Input from "../layout/Input";
 import {Button} from "../layout/buttons";
+import {FormBlock} from "../layout/blocks";
 
 const CreateContestPage = () => {
-	let handleSubmit = function (event: any) {
-		const title = event.target.title.value;
-		let request = new XMLHttpRequest();
-		request.open("POST", "/api/v0/contests");
-		request.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
-		request.send(JSON.stringify({
-			"Title": title,
-		}));
+	const onSubmit = (event: any) => {
 		event.preventDefault();
+		const {title} = event.target;
+		fetch("/api/v0/contests", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json; charset=UTF-8",
+			},
+			body: JSON.stringify({
+				Title: title.value,
+			})
+		}).then();
 	};
-	return (
-		<Page title="Create contest">
-			<div className="ui-block-wrap">
-				<form className="ui-block" onSubmit={handleSubmit}>
-					<div className="ui-block-header">
-						<h2 className="title">Create contest</h2>
-					</div>
-					<div className="ui-block-content">
-						<div className="ui-field">
-							<label>
-								<span className="label">Title:</span>
-								<Input
-									type="text" name="title"
-									placeholder="Title" required
-									autoFocus
-								/>
-							</label>
-						</div>
-					</div>
-					<div className="ui-block-footer">
-						<Button type="submit" color="primary">
-							Create
-						</Button>
-					</div>
-				</form>
+	return <Page title="Create contest">
+		<FormBlock onSubmit={onSubmit} title="Create contest" footer={
+			<Button type="submit" color="primary">Create</Button>
+		}>
+			<div className="ui-field">
+				<label>
+					<span className="label">Title:</span>
+					<Input type="text" name="title" placeholder="Title" required autoFocus/>
+				</label>
 			</div>
-		</Page>
-	);
+		</FormBlock>
+	</Page>;
 };
 
 export default CreateContestPage;

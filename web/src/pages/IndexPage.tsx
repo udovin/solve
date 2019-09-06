@@ -1,16 +1,13 @@
-import React, {ReactNode} from "react";
+import React from "react";
 import Page from "../layout/Page";
 import {Block} from "../layout/blocks";
 import Sidebar from "../layout/Sidebar";
 
-export default class IndexPage extends React.Component {
-	render(): ReactNode {
-		return (
-			<Page title="Index" sidebar={<Sidebar/>}>
-				<Block title="Index">
+const IndexPage = () => {
+	return <Page title="Index" sidebar={<Sidebar/>}>
+		<Block title="Index">
+		</Block>
+	</Page>;
+};
 
-				</Block>
-			</Page>
-		);
-	}
-}
+export default IndexPage;

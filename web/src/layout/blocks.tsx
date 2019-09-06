@@ -1,4 +1,4 @@
-import React, {FunctionComponent, ReactNode} from "react";
+import React, {FormEventHandler, FunctionComponent, ReactNode} from "react";
 
 type BlockProps = {
 	title?: string;
@@ -19,12 +19,16 @@ export const Block: FunctionComponent<BlockProps> = ({title, header, footer, chi
 	</div>;
 };
 
-export const FormBlock: FunctionComponent<BlockProps> = ({title, header, footer, children}) => {
+type FormBlockProps = BlockProps & {
+	onSubmit: FormEventHandler<HTMLFormElement>;
+};
+
+export const FormBlock: FunctionComponent<FormBlockProps> = ({title, header, footer, onSubmit, children}) => {
 	if (title) {
 		header = <span className="title">{title}</span>;
 	}
 	return <div className="ui-block-wrap">
-		<form className="ui-block">
+		<form className="ui-block" onSubmit={onSubmit}>
 			{header && <div className="ui-block-header">{header}</div>}
 			<div className="ui-block-content">{children}</div>
 			{footer && <div className="ui-block-footer">{footer}</div>}

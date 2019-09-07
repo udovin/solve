@@ -21,7 +21,11 @@ type ContestProblem struct {
 }
 
 func (v *View) GetContests(c echo.Context) error {
-	return c.JSON(http.StatusOK, v.app.Contests.All())
+	contests := v.app.Contests.All()
+	if contests == nil {
+		contests = make([]models.Contest, 0)
+	}
+	return c.JSON(http.StatusOK, contests)
 }
 
 func (v *View) CreateContest(c echo.Context) error {

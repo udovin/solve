@@ -38,6 +38,8 @@ func NewContestStore(db *sql.DB, table, changeTable string) *ContestStore {
 }
 
 func (s *ContestStore) All() []Contest {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	var result []Contest
 	for _, contest := range s.contests {
 		result = append(result, contest)

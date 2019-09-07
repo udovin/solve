@@ -147,6 +147,19 @@ func Register(app *core.App, api *echo.Group) {
 		"/contests/:ContestID/problems/:ProblemCode",
 		v.GetContestProblem, v.authMiddleware(v.sessionAuth),
 	)
+	// Compilers management
+	api.GET(
+		"/compilers", v.GetCompilers,
+		v.authMiddleware(v.sessionAuth),
+	)
+	api.POST(
+		"/compilers", v.CreateCompiler,
+		v.authMiddleware(v.sessionAuth),
+	)
+	api.GET(
+		"/compilers/:CompilerID", v.GetCompiler,
+		v.authMiddleware(v.sessionAuth),
+	)
 }
 
 func (v *View) Ping(c echo.Context) error {

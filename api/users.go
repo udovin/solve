@@ -36,7 +36,7 @@ func (v *View) CreateUser(c echo.Context) error {
 }
 
 func (v *View) GetUser(c echo.Context) error {
-	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 60)
+	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 64)
 	if err != nil {
 		c.Logger().Error(err)
 		return err
@@ -49,7 +49,7 @@ func (v *View) GetUser(c echo.Context) error {
 }
 
 func (v *View) UpdateUser(c echo.Context) error {
-	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 60)
+	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 64)
 	if err != nil {
 		c.Logger().Error(err)
 		return err

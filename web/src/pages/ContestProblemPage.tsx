@@ -16,22 +16,21 @@ const ContestProblemPage = ({match}: RouteComponentProps<ContestProblemPageParam
 			.then(result => result.json())
 			.then(result => setProblem(result))
 	}, [ContestID, ProblemCode]);
-	if (problem) {
-		return <Page title={problem.Title}>
-			<div className="ui-block-wrap">
-				<div className="ui-block">
-					<div className="ui-block-header">
-						<h2 className="title">{problem.Title}</h2>
-					</div>
-					<div className="ui-block-content">
-						{problem.Description}
-					</div>
-				</div>
-			</div>
-		</Page>;
-	} else {
+	if (!problem) {
 		return <>Loading...</>;
 	}
+	return <Page title={problem.Title}>
+		<div className="ui-block-wrap">
+			<div className="ui-block">
+				<div className="ui-block-header">
+					<h2 className="title">{problem.Title}</h2>
+				</div>
+				<div className="ui-block-content">
+					{problem.Description}
+				</div>
+			</div>
+		</div>
+	</Page>;
 };
 
 export default ContestProblemPage;

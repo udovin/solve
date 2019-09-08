@@ -1,10 +1,12 @@
-import React from "react";
+import React, {useState} from "react";
 import Page from "../layout/Page";
 import Input from "../layout/Input";
 import {Button} from "../layout/buttons";
 import {FormBlock} from "../layout/blocks";
+import {Redirect} from "react-router";
 
 const RegisterPage = () => {
+	const [success, setSuccess] = useState<boolean>();
 	const onSubmit = (event: any) => {
 		event.preventDefault();
 		const {login, password, email} = event.target;
@@ -18,8 +20,11 @@ const RegisterPage = () => {
 				Password: password.value,
 				Email: email.value,
 			})
-		}).then();
+		}).then(() => setSuccess(true));
 	};
+	if (success) {
+		return <Redirect to={"/login"}/>
+	}
 	return <Page title="Register">
 		<FormBlock onSubmit={onSubmit} title="Register" footer={
 			<Button type="submit" color="primary">Register</Button>

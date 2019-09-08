@@ -17,19 +17,17 @@ const ContestsPage = () => {
 			.then(result => result.json())
 			.then(result => setContests(result))
 	}, []);
-	return (
-		<Page title="Contests">
-			<Block title="Contests">
-				<ul>
-					{contests.map((contest) => <li className="contest">
-						<Link to={"/contests/" + contest.ID}>
-							{contest.Title}
-						</Link>
-					</li>)}
-				</ul>
-			</Block>
-		</Page>
-	);
+	return <Page title="Contests">
+		<Block title="Contests">
+			<ul>{contests.map(
+				(contest, index) => <li className="contest" key={index}>
+					<Link to={"/contests/" + contest.ID}>
+						{contest.Title}
+					</Link>
+				</li>
+			)}</ul>
+		</Block>
+	</Page>;
 };
 
 export default ContestsPage;

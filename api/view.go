@@ -160,6 +160,15 @@ func Register(app *core.App, api *echo.Group) {
 		"/compilers/:CompilerID", v.GetCompiler,
 		v.authMiddleware(v.sessionAuth),
 	)
+	// Solutions management
+	api.POST(
+		"/solutions", v.CreateSolution,
+		v.authMiddleware(v.sessionAuth),
+	)
+	api.GET(
+		"/solutions/:SolutionID", v.GetSolution,
+		v.authMiddleware(v.sessionAuth),
+	)
 }
 
 func (v *View) Ping(c echo.Context) error {

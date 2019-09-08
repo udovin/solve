@@ -1,14 +1,17 @@
-import React from "react";
+import React, {useContext} from "react";
 import Page from "../layout/Page";
 import Input from "../layout/Input";
 import {Button} from "../layout/buttons";
 import {FormBlock} from "../layout/blocks";
+import {Redirect} from "react-router";
+import {AuthContext} from "../AuthContext";
 
 const LoginPage = () => {
+	const {session, setSession} = useContext(AuthContext);
 	let onSubmit = (event: any) => {
 		event.preventDefault();
 		const {login, password} = event.target;
-		fetch("/api/v0/session", {
+		fetch("/api/v0/sessions", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json; charset=UTF-8",
@@ -17,8 +20,16 @@ const LoginPage = () => {
 				Login: login.value,
 				Password: password.value,
 			})
-		}).then();
+		})
+			.then(() => {
+				fetch("/api/v0/sessions/current")
+					.then(result => result.json())
+					.then(result => setSession(result))
+			});
 	};
+	if (session) {
+		return <Redirect to={"/"}/>
+	}
 	return <Page title="Login">
 		<FormBlock onSubmit={onSubmit} title="Login" footer={
 			<Button type="submit" color="primary">Login</Button>

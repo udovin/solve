@@ -1,45 +1,25 @@
-import React, {ReactNode} from "react";
+import React, {FC, useEffect, useState} from "react";
 import {CurrentSession} from "./api";
 
-export interface AuthState {
-	session: CurrentSession | null;
-}
+type Auth = {
+	session?: CurrentSession;
+	setSession(session?: CurrentSession): void;
+};
 
-const AuthContext = React.createContext<AuthState>({session: null});
+const AuthContext = React.createContext<Auth>({
+	setSession(): void {}
+});
 
-class AuthProvider extends React.Component {
-	state: AuthState = {session: null};
+const AuthProvider: FC = props => {
+	const [session, setSession] = useState<CurrentSession>();
+	useEffect(() => {
+		fetch("/api/v0/sessions/current")
+			.then(result => result.json())
+			.then(result => setSession(result))
+	}, []);
+	return <AuthContext.Provider value={{session, setSession}}>
+		{props.children}
+	</AuthContext.Provider>;
+};
 
-	componentDidMount(): void {
-		let request = new XMLHttpRequest();
-		request.open("GET", "/api/v0/sessions/current", true);
-		request.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
-		request.responseType = "json";
-		let that = this;
-		request.onload = function() {
-			if (this.status !== 200) {
-				that.setState({
-					session: null,
-				})
-			} else {
-				that.setState({
-					session: this.response,
-				})
-			}
-		};
-		request.send();
-	}
-
-	render(): ReactNode {
-		const {children} = this.props;
-		return (
-			<AuthContext.Provider value={this.state}>
-				{children}
-			</AuthContext.Provider>
-		);
-	}
-}
-
-const AuthConsumer = AuthContext.Consumer;
-
-export {AuthProvider, AuthConsumer};
+export {AuthContext, AuthProvider};

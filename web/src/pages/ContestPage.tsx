@@ -17,25 +17,22 @@ const ContestPage = ({match}: RouteComponentProps<ContestPageParams>) => {
 			.then(result => result.json())
 			.then(result => setContest(result))
 	}, [ContestID]);
-	if (contest) {
-		return (
-			<Page title={contest.Title}>
-				<Block title={contest.Title}>
-					<ul>{contest.Problems.map(
-						(problem) => <li className="problem">
-							<Link
-								to={"/contests/" + contest.ID + "/problems/" + problem.Code}>
-								<span className="code">{problem.Code}</span>
-								<span className="title">{problem.Title}</span>
-							</Link>
-						</li>
-					)}</ul>
-				</Block>
-			</Page>
-		);
-	} else {
+	if (!contest) {
 		return <>Loading...</>;
 	}
+	return <Page title={contest.Title}>
+		<Block title={contest.Title}>
+			<ul>{contest.Problems.map(
+				(problem, index) => <li className="problem" key={index}>
+					<Link
+						to={"/contests/" + contest.ID + "/problems/" + problem.Code}>
+						<span className="code">{problem.Code}</span>
+						<span className="title">{problem.Title}</span>
+					</Link>
+				</li>
+			)}</ul>
+		</Block>
+	</Page>;
 };
 
 export default ContestPage;

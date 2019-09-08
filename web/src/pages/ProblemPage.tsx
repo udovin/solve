@@ -16,15 +16,14 @@ const ProblemPage = ({match}: RouteComponentProps<ProblemPageParams>) => {
 			.then(result => result.json())
 			.then(result => setProblem(result))
 	}, [ProblemID]);
-	if (problem) {
-		return <Page title={problem.Title}>
-			<Block title={problem.Title}>
-				{problem.Description}
-			</Block>
-		</Page>;
-	} else {
+	if (!problem) {
 		return <>Loading...</>;
 	}
+	return <Page title={problem.Title}>
+		<Block title={problem.Title}>
+			{problem.Description}
+		</Block>
+	</Page>;
 };
 
 export default ProblemPage;

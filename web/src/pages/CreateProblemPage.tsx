@@ -32,7 +32,7 @@ const CreateProblemPage = () => {
 			<div className="ui-field">
 				<label>
 					<span className="label">Description:</span>
-					<Input type="text" name="description" placeholder="Description"/>
+					<textarea className="ui-textarea" name="description" placeholder="Description"/>
 				</label>
 			</div>
 		</FormBlock>

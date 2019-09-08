@@ -34,3 +34,19 @@ export interface Contest {
 	Title: string;
 	Problems: ContestProblem[];
 }
+
+export interface Compiler {
+	ID: number;
+	Name: string;
+	CreateTime: number;
+}
+
+export interface Solution {
+	ID: number;
+	ProblemID: number;
+	ContestID?: number;
+	CompilerID: number;
+	UserID: number;
+	SourceCode: string;
+	CreateTime: number;
+}

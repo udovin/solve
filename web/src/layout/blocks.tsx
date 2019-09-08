@@ -1,18 +1,23 @@
-import React, {FC, FormEventHandler, ReactNode} from "react";
+import React, {
+	BaseHTMLAttributes,
+	FC,
+	FormHTMLAttributes,
+	ReactNode
+} from "react";
 
-type BlockProps = {
-	id?: string;
+type BlockProps = BaseHTMLAttributes<HTMLDivElement> & {
 	title?: string;
 	header?: ReactNode;
 	footer?: ReactNode;
 };
 
-export const Block: FC<BlockProps> = ({id, title, header, footer, children}) => {
+export const Block: FC<BlockProps> = props => {
+	let {title, header, footer, children, ...rest} = props;
 	if (title) {
 		header = <span className="title">{title}</span>;
 	}
 	return <div className="ui-block-wrap">
-		<div className="ui-block" id={id}>
+		<div className="ui-block" {...rest}>
 			{header && <div className="ui-block-header">{header}</div>}
 			<div className="ui-block-content">{children}</div>
 			{footer && <div className="ui-block-footer">{footer}</div>}
@@ -20,16 +25,15 @@ export const Block: FC<BlockProps> = ({id, title, header, footer, children}) => 
 	</div>;
 };
 
-type FormBlockProps = BlockProps & {
-	onSubmit: FormEventHandler<HTMLFormElement>;
-};
+type FormBlockProps = BlockProps & FormHTMLAttributes<HTMLFormElement>;
 
-export const FormBlock: FC<FormBlockProps> = ({title, header, footer, onSubmit, children}) => {
+export const FormBlock: FC<FormBlockProps> = props => {
+	let {title, header, footer, children, ...rest} = props;
 	if (title) {
 		header = <span className="title">{title}</span>;
 	}
 	return <div className="ui-block-wrap">
-		<form className="ui-block" onSubmit={onSubmit}>
+		<form className="ui-block" {...rest}>
 			{header && <div className="ui-block-header">{header}</div>}
 			<div className="ui-block-content">{children}</div>
 			{footer && <div className="ui-block-footer">{footer}</div>}

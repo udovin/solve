@@ -39,6 +39,8 @@
 }
 
 .problem-statement ul {
+    margin: 0;
+    padding: 0;
     list-style: disc;
     list-style-type: disc;
     list-style-position: outside;
@@ -221,4 +223,8 @@
 .problem-statement .tex-graphics {
     max-width: 75%;
     display: block;
+}
+
+[aria-hidden="true"] {
+    display: none;
 }

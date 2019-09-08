@@ -11,6 +11,7 @@ type Solution struct {
 	ID         int64  `json:"" db:"id"`
 	UserID     int64  `json:"" db:"user_id"`
 	ProblemID  int64  `json:"" db:"problem_id"`
+	ContestID  int64  `json:"" db:"contest_id"`
 	CompilerID int64  `json:"" db:"compiler_id"`
 	SourceCode string `json:"" db:"source_code"`
 	CreateTime int64  `json:"" db:"create_time"`
@@ -95,8 +96,8 @@ func (s *SolutionStore) LoadChanges(
 		fmt.Sprintf(
 			`SELECT`+
 				` "change_id", "change_type", "change_time",`+
-				` "id", "user_id", "problem_id", "compiler_id",`+
-				` "source_code", "create_time"`+
+				` "id", "user_id", "problem_id", "contest_id",`+
+				` "compiler_id", "source_code", "create_time"`+
 				` FROM "%s"`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
@@ -108,12 +109,24 @@ func (s *SolutionStore) LoadChanges(
 
 func (s *SolutionStore) ScanChange(scan Scanner) (Change, error) {
 	solution := solutionChange{}
+	var contestID *int64
 	err := scan.Scan(
 		&solution.BaseChange.ID, &solution.Type, &solution.Time,
-		&solution.Solution.ID, &solution.UserID, &solution.ProblemID,
-		&solution.CompilerID, &solution.SourceCode, &solution.CreateTime,
+		&solution.Solution.ID, &solution.UserID, &contestID,
+		&solution.ProblemID, &solution.CompilerID, &solution.SourceCode,
+		&solution.CreateTime,
 	)
+	if contestID != nil {
+		solution.ContestID = *contestID
+	}
 	return &solution, err
+}
+
+func int64OrNil(i int64) *int64 {
+	if i == 0 {
+		return nil
+	}
+	return &i
 }
 
 func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
@@ -125,13 +138,14 @@ func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
 		res, err := tx.Exec(
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
-					` ("user_id", "problem_id", "compiler_id",`+
+					` ("user_id", "contest_id", "problem_id", "compiler_id",`+
 					` "source_code", "create_time")`+
-					` VALUES ($1, $2, $3, $4, $5)`,
+					` VALUES ($1, $2, $3, $4, $5, $6)`,
 				s.table,
 			),
-			solution.UserID, solution.ProblemID, solution.CompilerID,
-			solution.SourceCode, solution.CreateTime,
+			solution.UserID, int64OrNil(solution.ContestID),
+			solution.ProblemID, solution.CompilerID, solution.SourceCode,
+			solution.CreateTime,
 		)
 		if err != nil {
 			return err
@@ -150,12 +164,14 @@ func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
 		_, err := tx.Exec(
 			fmt.Sprintf(
 				`UPDATE "%s"`+
-					` SET "user_id" = $1, "problem_id" = $2,`+
-					` "compiler_id" = $3, "source_code" = $4`+
-					` WHERE "id" = $5`,
+					` SET "user_id" = $1, "contest_id" = $2,`+
+					` "problem_id" = $3, "compiler_id" = $4,`+
+					` "source_code" = $5`+
+					` WHERE "id" = $6`,
 				s.table,
 			),
-			solution.UserID, solution.ProblemID, solution.CompilerID,
+			solution.UserID, int64OrNil(solution.ContestID),
+			solution.ProblemID, solution.CompilerID,
 			solution.SourceCode, solution.Solution.ID,
 		)
 		if err != nil {
@@ -188,14 +204,14 @@ func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time",`+
-				` "id", "user_id", "problem_id", "compiler_id",`+
-				` "source_code", "create_time")`+
-				` VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+				` "id", "user_id", "contest_id", "problem_id",`+
+				` "compiler_id", "source_code", "create_time")`+
+				` VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 			s.changeTable,
 		),
 		solution.Type, solution.Time,
-		solution.Solution.ID, solution.UserID, solution.ProblemID,
-		solution.CompilerID, solution.SourceCode,
+		solution.Solution.ID, solution.UserID, int64OrNil(solution.ContestID),
+		solution.ProblemID, solution.CompilerID, solution.SourceCode,
 		solution.CreateTime,
 	)
 	if err != nil {

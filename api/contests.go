@@ -140,7 +140,29 @@ func (v *View) CreateContestSolution(c echo.Context) error {
 	solution.UserID = user.ID
 	solution.ContestID = contestProblem.ContestID
 	solution.ProblemID = contestProblem.ProblemID
-	if err := v.app.Solutions.Create(&solution); err != nil {
+	tx, err := v.app.Solutions.Manager.Begin()
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	if err := v.app.Solutions.CreateTx(tx, &solution); err != nil {
+		c.Logger().Error(err)
+		if err := tx.Rollback(); err != nil {
+			c.Logger().Error(err)
+		}
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	report := models.Report{
+		SolutionID: solution.ID,
+	}
+	if err := v.app.Reports.CreateTx(tx, &report); err != nil {
+		c.Logger().Error(err)
+		if err := tx.Rollback(); err != nil {
+			c.Logger().Error(err)
+		}
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	if err := tx.Commit(); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}

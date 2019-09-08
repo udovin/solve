@@ -84,6 +84,19 @@ func (s *ReportStore) Create(m *Report) error {
 	return nil
 }
 
+func (s *ReportStore) CreateTx(tx *ChangeTx, m *Report) error {
+	change := reportChange{
+		BaseChange: BaseChange{Type: CreateChange},
+		Report:     *m,
+	}
+	err := s.Manager.ChangeTx(tx, &change)
+	if err != nil {
+		return err
+	}
+	*m = change.Report
+	return nil
+}
+
 func (s *ReportStore) Update(m *Report) error {
 	change := reportChange{
 		BaseChange: BaseChange{Type: UpdateChange},

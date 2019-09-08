@@ -27,6 +27,7 @@ type Security struct {
 }
 
 type Invoker struct {
+	ProblemsDir string `json:""`
 }
 
 // LoadFromFile loads configuration from json file

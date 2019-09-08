@@ -169,10 +169,6 @@ func Register(app *core.App, api *echo.Group) {
 		v.authMiddleware(v.sessionAuth),
 	)
 	// Solutions management
-	api.POST(
-		"/solutions", v.CreateSolution,
-		v.authMiddleware(v.sessionAuth),
-	)
 	api.GET(
 		"/solutions/:SolutionID", v.GetSolution,
 		v.authMiddleware(v.sessionAuth),

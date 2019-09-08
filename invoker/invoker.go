@@ -51,7 +51,29 @@ func (s *Invoker) loop() {
 				}
 				continue
 			}
-			log.Println(report)
+			if err := s.app.Solutions.Manager.Sync(); err != nil {
+				log.Println("Error:", err)
+			}
+			if err := s.app.Compilers.Manager.Sync(); err != nil {
+				log.Println("Error:", err)
+			}
+			solution, ok := s.app.Solutions.Get(report.SolutionID)
+			if !ok {
+				log.Printf(
+					"Unable to find solution for report = %d",
+					report.SolutionID,
+				)
+				continue
+			}
+			compiler, ok := s.app.Compilers.Get(solution.CompilerID)
+			if !ok {
+				log.Printf(
+					"Unable to find compiler for solution = %d",
+					solution.CompilerID,
+				)
+				continue
+			}
+			log.Println(compiler)
 		}
 	}
 }

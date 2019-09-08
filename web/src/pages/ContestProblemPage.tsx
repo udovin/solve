@@ -2,6 +2,7 @@ import React, {useEffect, useState} from "react";
 import {RouteComponentProps} from "react-router";
 import Page from "../layout/Page";
 import {ContestProblem} from "../api";
+import {Block} from "../layout/blocks";
 
 type ContestProblemPageParams = {
 	ContestID: string;
@@ -20,16 +21,9 @@ const ContestProblemPage = ({match}: RouteComponentProps<ContestProblemPageParam
 		return <>Loading...</>;
 	}
 	return <Page title={problem.Title}>
-		<div className="ui-block-wrap">
-			<div className="ui-block">
-				<div className="ui-block-header">
-					<h2 className="title">{problem.Title}</h2>
-				</div>
-				<div className="ui-block-content">
-					{problem.Description}
-				</div>
-			</div>
-		</div>
+		<Block title={problem.Title}>
+			<div className="problem-statement" dangerouslySetInnerHTML={{__html: problem.Description}}/>
+		</Block>
 	</Page>;
 };
 

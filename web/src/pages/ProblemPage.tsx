@@ -21,7 +21,7 @@ const ProblemPage = ({match}: RouteComponentProps<ProblemPageParams>) => {
 	}
 	return <Page title={problem.Title}>
 		<Block title={problem.Title}>
-			{problem.Description}
+			<div className="problem-statement" dangerouslySetInnerHTML={{__html: problem.Description}}/>
 		</Block>
 	</Page>;
 };

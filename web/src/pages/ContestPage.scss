@@ -1,0 +1,63 @@
+#block-contest-problems .ui-block-content {
+  padding: 0;
+  overflow-x: auto;
+}
+
+#block-contest-problems .ui-table {
+  border: none;
+}
+
+#block-contest-problems .ui-table .id {
+  width: 1%;
+  text-align: right;
+}
+
+#block-contest-problems .ui-table td.id {
+  padding: 0;
+}
+
+#block-contest-problems .ui-table .id > a {
+  display: inline-block;
+  padding: 8px 10px;
+}
+
+#block-contest-problems .ui-table .name {
+  text-align: left;
+}
+
+#block-contest-problems .ui-table td.name {
+  padding: 0;
+}
+
+#block-contest-problems .ui-table .name > a {
+  display: inline-block;
+  padding: 8px 10px;
+}
+
+#block-contest-problems .ui-table .files {
+  width: 140px;
+  text-align: right;
+}
+
+#block-contest-problems .ui-table td.files {
+  font-size: 13px;
+}
+
+#block-contest-problems .ui-table .files > .input,
+#block-contest-problems .ui-table .files > .output {
+  display: block;
+}
+
+#block-contest-problems .ui-table .limits {
+  width: 80px;
+  text-align: center;
+}
+
+#block-contest-problems .ui-table td.limits {
+  font-size: 13px;
+}
+
+#block-contest-problems .ui-table .limits .timeLimit,
+#block-contest-problems .ui-table .limits .memoryLimit {
+  display: block;
+}

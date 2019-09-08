@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -79,6 +80,32 @@ func (v *View) GetContestProblem(c echo.Context) error {
 		return c.NoContent(http.StatusNotFound)
 	}
 	return c.JSON(http.StatusOK, problem)
+}
+
+func (v *View) CreateContestProblem(c echo.Context) error {
+	contestID, err := strconv.ParseInt(c.Param("ContestID"), 10, 64)
+	if err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	var contestProblem models.ContestProblem
+	if err := c.Bind(&contestProblem); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	contestProblem.ContestID = contestID
+	log.Println(contestProblem)
+	if _, ok := v.app.Contests.Get(contestProblem.ContestID); !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	if _, ok := v.app.Problems.Get(contestProblem.ProblemID); !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	if err := v.app.ContestProblems.Create(&contestProblem); err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, contestProblem)
 }
 
 func (v *View) UpdateContest(c echo.Context) error {

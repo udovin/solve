@@ -1,17 +1,18 @@
 import React, {FC, FormEventHandler, ReactNode} from "react";
 
 type BlockProps = {
+	id?: string;
 	title?: string;
 	header?: ReactNode;
 	footer?: ReactNode;
 };
 
-export const Block: FC<BlockProps> = ({title, header, footer, children}) => {
+export const Block: FC<BlockProps> = ({id, title, header, footer, children}) => {
 	if (title) {
 		header = <span className="title">{title}</span>;
 	}
 	return <div className="ui-block-wrap">
-		<div className="ui-block">
+		<div className="ui-block" id={id}>
 			{header && <div className="ui-block-header">{header}</div>}
 			<div className="ui-block-content">{children}</div>
 			{footer && <div className="ui-block-footer">{footer}</div>}

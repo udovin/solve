@@ -65,15 +65,13 @@ func (s *Invoker) loop() {
 				)
 				continue
 			}
-			compiler, ok := s.app.Compilers.Get(solution.CompilerID)
-			if !ok {
-				log.Printf(
-					"Unable to find compiler for solution = %d",
-					solution.CompilerID,
-				)
-				continue
+			req := context{
+				Solution: &solution,
+				Report:   &report,
 			}
-			log.Println(compiler)
+			if err := s.processSolution(&req); err != nil {
+				log.Println("Error:", err)
+			}
 		}
 	}
 }

@@ -72,9 +72,9 @@ func (s *SessionStore) Get(id int64) (Session, bool) {
 func (s *SessionStore) GetByUser(userID int64) []Session {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if idSet, ok := s.userSessions[userID]; ok {
+	if ids, ok := s.userSessions[userID]; ok {
 		var sessions []Session
-		for id := range idSet {
+		for id := range ids {
 			if session, ok := s.sessions[id]; ok {
 				sessions = append(sessions, session)
 			}
@@ -174,20 +174,19 @@ func (s *SessionStore) SaveChange(tx *sql.Tx, change Change) error {
 	switch session.Type {
 	case CreateChange:
 		session.CreateTime = session.Time
-		res, err := tx.Exec(
+		var err error
+		session.Session.ID, err = execTxReturningID(
+			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
 					` ("user_id", "secret", "create_time", "expire_time")`+
 					` VALUES ($1, $2, $3, $4)`,
 				s.table,
 			),
+			"id",
 			session.UserID, session.Secret,
 			session.CreateTime, session.ExpireTime,
 		)
-		if err != nil {
-			return err
-		}
-		session.Session.ID, err = res.LastInsertId()
 		if err != nil {
 			return err
 		}
@@ -234,7 +233,9 @@ func (s *SessionStore) SaveChange(tx *sql.Tx, change Change) error {
 			session.Type,
 		)
 	}
-	res, err := tx.Exec(
+	var err error
+	session.BaseChange.ID, err = execTxReturningID(
+		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time", "id", "user_id",`+
@@ -242,13 +243,10 @@ func (s *SessionStore) SaveChange(tx *sql.Tx, change Change) error {
 				` VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			s.changeTable,
 		),
+		"change_id",
 		session.Type, session.Time, session.Session.ID, session.UserID,
 		session.Secret, session.CreateTime, session.ExpireTime,
 	)
-	if err != nil {
-		return err
-	}
-	session.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 
@@ -256,12 +254,12 @@ func (s *SessionStore) ApplyChange(change Change) {
 	session := change.(*sessionChange)
 	switch session.Type {
 	case UpdateChange:
-		if oldSession, ok := s.sessions[session.Session.ID]; ok {
-			if oldSession.UserID != session.UserID {
-				if userSessions, ok := s.userSessions[oldSession.UserID]; ok {
-					delete(userSessions, oldSession.ID)
-					if len(userSessions) == 0 {
-						delete(s.userSessions, oldSession.UserID)
+		if old, ok := s.sessions[session.Session.ID]; ok {
+			if old.UserID != session.UserID {
+				if sessions, ok := s.userSessions[old.UserID]; ok {
+					delete(sessions, old.ID)
+					if len(sessions) == 0 {
+						delete(s.userSessions, old.UserID)
 					}
 				}
 			}
@@ -274,9 +272,9 @@ func (s *SessionStore) ApplyChange(change Change) {
 		s.userSessions[session.UserID][session.Session.ID] = struct{}{}
 		s.sessions[session.Session.ID] = session.Session
 	case DeleteChange:
-		if userSessions, ok := s.userSessions[session.UserID]; ok {
-			delete(userSessions, session.Session.ID)
-			if len(userSessions) == 0 {
+		if sessions, ok := s.userSessions[session.UserID]; ok {
+			delete(sessions, session.Session.ID)
+			if len(sessions) == 0 {
 				delete(s.userSessions, session.UserID)
 			}
 		}

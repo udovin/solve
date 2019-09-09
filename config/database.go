@@ -96,7 +96,7 @@ func createPostgresDB(opts PostgresOptions) (*sql.DB, error) {
 		return nil, err
 	}
 	db, err := sql.Open("postgres", fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s",
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=require",
 		opts.Host, opts.Port, opts.User, password, opts.Name,
 	))
 	return db, err

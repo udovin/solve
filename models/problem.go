@@ -130,19 +130,18 @@ func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 	switch problem.Type {
 	case CreateChange:
 		problem.Problem.CreateTime = problem.Time
-		res, err := tx.Exec(
+		var err error
+		problem.Problem.ID, err = execTxReturningID(
+			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
 					` ("user_id", "create_time")`+
 					` VALUES ($1, $2)`,
 				s.table,
 			),
+			"id",
 			problem.UserID, problem.CreateTime,
 		)
-		if err != nil {
-			return err
-		}
-		problem.Problem.ID, err = res.LastInsertId()
 		if err != nil {
 			return err
 		}
@@ -186,7 +185,9 @@ func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 			problem.Type,
 		)
 	}
-	res, err := tx.Exec(
+	var err error
+	problem.BaseChange.ID, err = execTxReturningID(
+		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time",`+
@@ -194,13 +195,10 @@ func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 				` VALUES ($1, $2, $3, $4, $5)`,
 			s.changeTable,
 		),
+		"change_id",
 		problem.Type, problem.Time,
 		problem.Problem.ID, problem.UserID, problem.CreateTime,
 	)
-	if err != nil {
-		return err
-	}
-	problem.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 

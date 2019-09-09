@@ -14,7 +14,7 @@ const ProblemPage = ({match}: RouteComponentProps<ProblemPageParams>) => {
 	useEffect(() => {
 		fetch("/api/v0/problems/" + ProblemID)
 			.then(result => result.json())
-			.then(result => setProblem(result))
+			.then(result => setProblem(result));
 	}, [ProblemID]);
 	if (!problem) {
 		return <>Loading...</>;

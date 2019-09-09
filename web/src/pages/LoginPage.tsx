@@ -24,7 +24,7 @@ const LoginPage = () => {
 			.then(() => {
 				fetch("/api/v0/sessions/current")
 					.then(result => result.json())
-					.then(result => setSession(result))
+					.then(result => setSession(result));
 			});
 	};
 	if (session) {

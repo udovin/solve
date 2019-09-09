@@ -1,24 +1,30 @@
-import React from "react";
+import React, {useState} from "react";
 import Page from "../layout/Page";
 import Input from "../layout/Input";
 import {Button} from "../layout/buttons";
 import {FormBlock} from "../layout/blocks";
+import {Problem} from "../api";
+import {Redirect} from "react-router";
 
 const CreateProblemPage = () => {
+	let [problem, setProblem] = useState<Problem>();
 	let onSubmit = (event: any) => {
 		event.preventDefault();
-		const {title, description} = event.target;
+		const {title, file} = event.target;
+		let form = new FormData();
+		form.append("Title", title.value);
+		form.append("File", file.files[0]);
 		fetch("/api/v0/problems", {
 			method: "POST",
-			headers: {
-				"Content-Type": "application/json; charset=UTF-8",
-			},
-			body: JSON.stringify({
-				Title: title.value,
-				Description: description.value,
-			})
-		}).then();
+			body: form,
+		})
+			.then(result => result.json())
+			.then(result => setProblem(result))
+			.catch(error => console.log(error));
 	};
+	if (problem) {
+		return <Redirect to={"/problems/" + problem.ID}/>
+	}
 	return <Page title="Create problem">
 		<FormBlock onSubmit={onSubmit} title="Create problem" footer={
 			<Button type="submit" color="primary">Create</Button>
@@ -31,8 +37,8 @@ const CreateProblemPage = () => {
 			</div>
 			<div className="ui-field">
 				<label>
-					<span className="label">Description:</span>
-					<textarea className="ui-textarea" name="description" placeholder="Description"/>
+					<span className="label">Package:</span>
+					<Input type="file" name="file" placeholder="Package" required/>
 				</label>
 			</div>
 		</FormBlock>

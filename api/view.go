@@ -173,6 +173,11 @@ func Register(app *core.App, api *echo.Group) {
 		"/solutions/:SolutionID", v.GetSolution,
 		v.authMiddleware(v.sessionAuth),
 	)
+	// Participants management
+	api.POST(
+		"/participants", v.CreateParticipant,
+		v.authMiddleware(v.sessionAuth),
+	)
 }
 
 func (v *View) Ping(c echo.Context) error {

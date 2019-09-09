@@ -22,6 +22,13 @@ func (v *View) CreateCompiler(c echo.Context) error {
 	if err := c.Bind(&compiler); err != nil {
 		return c.NoContent(http.StatusBadRequest)
 	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if !user.IsSuper {
+		return c.NoContent(http.StatusForbidden)
+	}
 	if err := v.app.Compilers.Create(&compiler); err != nil {
 		return c.NoContent(http.StatusInternalServerError)
 	}

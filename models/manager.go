@@ -3,9 +3,12 @@ package models
 import (
 	"container/list"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"math"
 	"sync"
+
+	"github.com/mattn/go-sqlite3"
 )
 
 // ChangeType identifies BaseChange type
@@ -217,6 +220,8 @@ func (m *ChangeManager) Sync() error {
 const changeGapSkipWindow = 5000
 
 // SyncTx syncs store with change table in transaction
+//
+// TODO(iudovin): Make normal code for non existent right border
 func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	if tx.updated[m] {
 		return nil
@@ -230,7 +235,7 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	}
 	rows, err := m.store.LoadChanges(tx.Tx, ChangeGap{
 		BeginID: m.lastChangeID + 1,
-		EndID:   math.MaxInt64,
+		EndID:   math.MaxInt32,
 	})
 	if err != nil {
 		return err
@@ -352,4 +357,34 @@ func (m *ChangeManager) applyChange(change Change) {
 		})
 	}
 	m.lastChangeID = change.ChangeID()
+}
+
+func execTxReturningID(
+	driver driver.Driver, tx *sql.Tx, query, name string, args ...interface{},
+) (id int64, err error) {
+	if _, ok := driver.(*sqlite3.SQLiteDriver); ok {
+		return execSQLiteTxReturningID(tx, query, args...)
+	}
+	return execPostgresTxReturningID(tx, query, name, args...)
+}
+
+func execSQLiteTxReturningID(
+	tx *sql.Tx, query string, args ...interface{},
+) (id int64, err error) {
+	res, err := tx.Exec(query, args...)
+	if err != nil {
+		return
+	}
+	id, err = res.LastInsertId()
+	return
+}
+
+func execPostgresTxReturningID(
+	tx *sql.Tx, query, name string, args ...interface{},
+) (id int64, err error) {
+	err = tx.QueryRow(
+		fmt.Sprintf("%s RETURNING %q", query, name),
+		args...,
+	).Scan(&id)
+	return
 }

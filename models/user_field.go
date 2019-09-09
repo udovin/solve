@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Additional information about user
+// UserField contains additional information about user
 // like E-mail, first name, last name and etc
 type UserField struct {
 	ID     int64  `json:"" db:"id"`
@@ -15,6 +15,13 @@ type UserField struct {
 	Type   string `json:"" db:"type"`
 	Data   string `json:"" db:"data"`
 }
+
+const (
+	EmailField      = "email"
+	FirstNameField  = "first_name"
+	LastNameField   = "last_name"
+	MiddleNameField = "middle_name"
+)
 
 type userFieldChange struct {
 	BaseChange
@@ -51,6 +58,21 @@ func (s *UserFieldStore) Get(id int64) (UserField, bool) {
 	defer s.mutex.RUnlock()
 	field, ok := s.fields[id]
 	return field, ok
+}
+
+func (s *UserFieldStore) GetByUser(userID int64) []UserField {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if ids, ok := s.userFields[userID]; ok {
+		var fields []UserField
+		for id := range ids {
+			if field, ok := s.fields[id]; ok {
+				fields = append(fields, field)
+			}
+		}
+		return fields
+	}
+	return nil
 }
 
 // Create user field with specified data
@@ -131,19 +153,18 @@ func (s *UserFieldStore) SaveChange(tx *sql.Tx, change Change) error {
 	field.Time = time.Now().Unix()
 	switch field.BaseChange.Type {
 	case CreateChange:
-		res, err := tx.Exec(
+		var err error
+		field.UserField.ID, err = execTxReturningID(
+			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
 					` ("user_id", "name", "data")`+
 					` VALUES ($1, $2, $3)`,
 				s.table,
 			),
+			"id",
 			field.UserID, field.UserField.Type, field.Data,
 		)
-		if err != nil {
-			return err
-		}
-		field.UserField.ID, err = res.LastInsertId()
 		if err != nil {
 			return err
 		}
@@ -190,7 +211,9 @@ func (s *UserFieldStore) SaveChange(tx *sql.Tx, change Change) error {
 			field.UserField.Type,
 		)
 	}
-	res, err := tx.Exec(
+	var err error
+	field.BaseChange.ID, err = execTxReturningID(
+		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time",`+
@@ -198,13 +221,10 @@ func (s *UserFieldStore) SaveChange(tx *sql.Tx, change Change) error {
 				` VALUES ($1, $2, $3, $4, $5, $6)`,
 			s.changeTable,
 		),
+		"change_id",
 		field.BaseChange.Type, field.Time, field.UserField.ID,
 		field.UserID, field.UserField.Type, field.Data,
 	)
-	if err != nil {
-		return err
-	}
-	field.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 
@@ -212,12 +232,12 @@ func (s *UserFieldStore) ApplyChange(change Change) {
 	field := change.(*userFieldChange)
 	switch field.BaseChange.Type {
 	case UpdateChange:
-		if oldField, ok := s.fields[field.UserField.ID]; ok {
-			if oldField.UserID != field.UserID {
-				if userFields, ok := s.userFields[oldField.UserID]; ok {
-					delete(userFields, oldField.ID)
-					if len(userFields) == 0 {
-						delete(s.userFields, field.UserID)
+		if old, ok := s.fields[field.UserField.ID]; ok {
+			if old.UserID != field.UserID {
+				if fields, ok := s.userFields[old.UserID]; ok {
+					delete(fields, old.ID)
+					if len(fields) == 0 {
+						delete(s.userFields, old.UserID)
 					}
 				}
 			}
@@ -230,9 +250,9 @@ func (s *UserFieldStore) ApplyChange(change Change) {
 		s.userFields[field.UserID][field.UserField.ID] = struct{}{}
 		s.fields[field.UserField.ID] = field.UserField
 	case DeleteChange:
-		if userFields, ok := s.userFields[field.UserID]; ok {
-			delete(userFields, field.UserField.ID)
-			if len(userFields) == 0 {
+		if fields, ok := s.userFields[field.UserID]; ok {
+			delete(fields, field.UserField.ID)
+			if len(fields) == 0 {
 				delete(s.userFields, field.UserID)
 			}
 		}

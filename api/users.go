@@ -9,6 +9,13 @@ import (
 	"github.com/udovin/solve/models"
 )
 
+type User struct {
+	models.User
+	FirstName  string `json:",omitempty"`
+	LastName   string `json:",omitempty"`
+	MiddleName string `json:",omitempty"`
+}
+
 func (v *View) CreateUser(c echo.Context) error {
 	var userData struct {
 		Login    string `json:""`
@@ -45,7 +52,18 @@ func (v *View) GetUser(c echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
-	return c.JSON(http.StatusOK, user)
+	result := User{User: user}
+	for _, field := range v.app.UserFields.GetByUser(userID) {
+		switch field.Type {
+		case models.FirstNameField:
+			result.FirstName = field.Data
+		case models.LastNameField:
+			result.LastName = field.Data
+		case models.MiddleNameField:
+			result.MiddleName = field.Data
+		}
+	}
+	return c.JSON(http.StatusOK, result)
 }
 
 func (v *View) UpdateUser(c echo.Context) error {

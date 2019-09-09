@@ -3,7 +3,7 @@ import {Redirect, RouteComponentProps} from "react-router";
 import Page from "../layout/Page";
 import {Compiler, ContestProblem, Solution} from "../api";
 import {Block} from "../layout/blocks";
-import {SubmitSolutionSideBlock} from "../layout/solutions";
+import {SolutionsSideBlock, SubmitSolutionSideBlock} from "../layout/solutions";
 
 type ContestProblemPageParams = {
 	ContestID: string;
@@ -44,16 +44,19 @@ const ContestProblemPage = ({match}: RouteComponentProps<ContestProblemPageParam
 	useEffect(() => {
 		fetch("/api/v0/contests/" + ContestID + "/problems/" + ProblemCode)
 			.then(result => result.json())
-			.then(result => setProblem(result))
+			.then(result => setProblem(result));
 	}, [ContestID, ProblemCode]);
 	if (solution) {
-		return <Redirect to={"/solutions/" + solution.ID}/>;
+		return <Redirect to={"/solutions/" + solution.ID} push={true}/>;
 	}
 	if (!problem) {
 		return <>Loading...</>;
 	}
 	return <Page title={problem.Title} sidebar={
-		<SubmitSolutionSideBlock onSubmit={onSubmit} compilers={compilers}/>
+		<>
+			<SubmitSolutionSideBlock onSubmit={onSubmit} compilers={compilers}/>
+			{problem.Solutions && <SolutionsSideBlock solutions={problem.Solutions}/>}
+		</>
 	}>
 		<Block title={problem.Title}>
 			<div className="problem-statement" dangerouslySetInnerHTML={{__html: problem.Description}}/>

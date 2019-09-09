@@ -15,11 +15,11 @@ const ContestsPage = () => {
 	useEffect(() => {
 		fetch("/api/v0/contests")
 			.then(result => result.json())
-			.then(result => setContests(result))
+			.then(result => setContests(result));
 	}, []);
 	return <Page title="Contests">
 		<Block title="Contests">
-			<ul>{contests.map(
+			<ul>{contests && contests.map(
 				(contest, index) => <li className="contest" key={index}>
 					<Link to={"/contests/" + contest.ID}>
 						{contest.Title}

@@ -1,14 +1,16 @@
 import React, {FC, FormEventHandler} from "react";
-import {FormBlock} from "./blocks";
+import {Block, FormBlock} from "./blocks";
 import {Button} from "./buttons";
-import {Compiler} from "../api";
+import {Compiler, Solution} from "../api";
+import Input from "./Input";
+import {Link} from "react-router-dom";
 
-type SubmitSolutionSideBlockProps = {
+export type SubmitSolutionSideBlockProps = {
 	onSubmit: FormEventHandler;
 	compilers?: Compiler[];
 };
 
-const SubmitSolutionSideBlock: FC<SubmitSolutionSideBlockProps> = props => {
+export const SubmitSolutionSideBlock: FC<SubmitSolutionSideBlockProps> = props => {
 	const {onSubmit, compilers} = props;
 	return <FormBlock onSubmit={onSubmit} title="Submit solution" footer={
 		<Button color="primary">Submit</Button>
@@ -24,10 +26,23 @@ const SubmitSolutionSideBlock: FC<SubmitSolutionSideBlockProps> = props => {
 			</label>
 			<label>
 				<span className="label">Source file:</span>
-				<input type="file" name="sourceFile" placeholder="Source code"/>
+				<Input type="file" name="sourceFile" placeholder="Source code"/>
 			</label>
 		</div>
 	</FormBlock>;
 };
 
-export {SubmitSolutionSideBlock};
+export type SolutionsSideBlockProps = {
+	solutions: Solution[];
+};
+
+export const SolutionsSideBlock: FC<SolutionsSideBlockProps> = props => {
+	const {solutions} = props;
+	return <Block title="Solutions">
+		<ul>{solutions && solutions.map(
+			(solution, index) => <li key={index}>
+				<Link to={"/solutions/" + solution.ID}>{solution.ID}</Link>
+			</li>
+		)}</ul>
+	</Block>
+};

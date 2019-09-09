@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"runtime"
@@ -89,6 +90,8 @@ func invokerMain(cmd *cobra.Command, args []string) {
 }
 
 func main() {
+	// Setup good logs
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	rootCmd := cobra.Command{}
 	rootCmd.PersistentFlags().String("config", "config.json", "")
 	rootCmd.AddCommand(&cobra.Command{

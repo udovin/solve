@@ -16,13 +16,14 @@ const ContestPage = ({match}: RouteComponentProps<ContestPageParams>) => {
 	useEffect(() => {
 		fetch("/api/v0/contests/" + ContestID)
 			.then(result => result.json())
-			.then(result => setContest(result))
+			.then(result => setContest(result));
 	}, [ContestID]);
 	if (!contest) {
 		return <>Loading...</>;
 	}
-	return <Page title={contest.Title}>
-		<Block title={contest.Title} id="block-contest-problems">
+	const {ID, Title, Problems} = contest;
+	return <Page title={Title}>
+		<Block title={Title} id="block-contest-problems">
 			<table className="ui-table">
 				<thead>
 				<tr>
@@ -30,15 +31,15 @@ const ContestPage = ({match}: RouteComponentProps<ContestPageParams>) => {
 					<th className="name">Name</th>
 				</tr>
 				</thead>
-				<tbody>{contest.Problems.map(
-				(problem, index) => <tr className="problem" key={index}>
-					<td className="id">
-						<Link to={"/contests/" + contest.ID + "/problems/" + problem.Code}>{problem.Code}</Link>
-					</td>
-					<td className="name">
-						<Link to={"/contests/" + contest.ID + "/problems/" + problem.Code}>{problem.Title}</Link>
-					</td>
-				</tr>
+				<tbody>{Problems && Problems.map(
+					(problem, index) => <tr className="problem" key={index}>
+						<td className="id">
+							<Link to={"/contests/" + ID + "/problems/" + problem.Code}>{problem.Code}</Link>
+						</td>
+						<td className="name">
+							<Link to={"/contests/" + ID + "/problems/" + problem.Code}>{problem.Title}</Link>
+						</td>
+					</tr>
 				)}</tbody>
 			</table>
 		</Block>

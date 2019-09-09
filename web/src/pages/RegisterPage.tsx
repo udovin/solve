@@ -20,7 +20,8 @@ const RegisterPage = () => {
 				Password: password.value,
 				Email: email.value,
 			})
-		}).then(() => setSuccess(true));
+		})
+			.then(() => setSuccess(true));
 	};
 	if (success) {
 		return <Redirect to={"/login"}/>

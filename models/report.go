@@ -38,20 +38,22 @@ type reportChange struct {
 }
 
 type ReportStore struct {
-	Manager     *ChangeManager
-	table       string
-	changeTable string
-	reports     map[int64]Report
-	queued      map[int64]struct{}
-	mutex       sync.RWMutex
+	Manager         *ChangeManager
+	table           string
+	changeTable     string
+	reports         map[int64]Report
+	solutionReports map[int64]map[int64]struct{}
+	queued          map[int64]struct{}
+	mutex           sync.RWMutex
 }
 
 func NewReportStore(db *sql.DB, table, changeTable string) *ReportStore {
 	store := ReportStore{
-		table:       table,
-		changeTable: changeTable,
-		reports:     make(map[int64]Report),
-		queued:      make(map[int64]struct{}),
+		table:           table,
+		changeTable:     changeTable,
+		reports:         make(map[int64]Report),
+		solutionReports: make(map[int64]map[int64]struct{}),
+		queued:          make(map[int64]struct{}),
 	}
 	store.Manager = NewChangeManager(&store, db)
 	return &store
@@ -62,6 +64,23 @@ func (s *ReportStore) Get(id int64) (Report, bool) {
 	defer s.mutex.RUnlock()
 	report, ok := s.reports[id]
 	return report, ok
+}
+
+func (s *ReportStore) GetLatest(solutionID int64) (Report, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if ids, ok := s.solutionReports[solutionID]; ok {
+		var latest Report
+		for id := range ids {
+			if report, ok := s.reports[id]; ok {
+				if report.ID > latest.ID {
+					latest = report
+				}
+			}
+		}
+		return latest, true
+	}
+	return Report{}, false
 }
 
 func (s *ReportStore) GetQueuedIDs() (ids []int64) {
@@ -172,20 +191,19 @@ func (s *ReportStore) SaveChange(tx *sql.Tx, change Change) error {
 	switch report.Type {
 	case CreateChange:
 		report.Report.CreateTime = report.Time
-		res, err := tx.Exec(
+		var err error
+		report.Report.ID, err = execTxReturningID(
+			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
 					` ("solution_id", "verdict", "data", "create_time")`+
 					` VALUES ($1, $2, $3, $4)`,
 				s.table,
 			),
+			"id",
 			report.SolutionID, report.Verdict,
 			report.Data, report.CreateTime,
 		)
-		if err != nil {
-			return err
-		}
-		report.Report.ID, err = res.LastInsertId()
 		if err != nil {
 			return err
 		}
@@ -200,7 +218,7 @@ func (s *ReportStore) SaveChange(tx *sql.Tx, change Change) error {
 			fmt.Sprintf(
 				`UPDATE "%s"`+
 					` SET "solution_id" = $1, "verdict" = $2, "data" = $3`+
-					` WHERE "id" = $5`,
+					` WHERE "id" = $4`,
 				s.table,
 			),
 			report.SolutionID, report.Verdict,
@@ -232,7 +250,9 @@ func (s *ReportStore) SaveChange(tx *sql.Tx, change Change) error {
 			report.Type,
 		)
 	}
-	res, err := tx.Exec(
+	var err error
+	report.BaseChange.ID, err = execTxReturningID(
+		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time",`+
@@ -241,14 +261,11 @@ func (s *ReportStore) SaveChange(tx *sql.Tx, change Change) error {
 				` VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			s.changeTable,
 		),
+		"change_id",
 		report.Type, report.Time,
 		report.Report.ID, report.SolutionID, report.Verdict,
 		report.Data, report.CreateTime,
 	)
-	if err != nil {
-		return err
-	}
-	report.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 
@@ -256,16 +273,36 @@ func (s *ReportStore) ApplyChange(change Change) {
 	report := change.(*reportChange)
 	switch report.Type {
 	case UpdateChange:
+		if old, ok := s.reports[report.Report.ID]; ok {
+			if old.SolutionID != old.SolutionID {
+				if reports, ok := s.solutionReports[old.SolutionID]; ok {
+					delete(reports, old.ID)
+					if len(reports) == 0 {
+						delete(s.solutionReports, old.SolutionID)
+					}
+				}
+			}
+		}
 		if report.Verdict != 0 {
 			delete(s.queued, report.Report.ID)
 		}
 		fallthrough
 	case CreateChange:
-		s.reports[report.Report.ID] = report.Report
+		if _, ok := s.solutionReports[report.SolutionID]; !ok {
+			s.solutionReports[report.SolutionID] = make(map[int64]struct{})
+		}
+		s.solutionReports[report.SolutionID][report.Report.ID] = struct{}{}
 		if report.Verdict == 0 {
 			s.queued[report.Report.ID] = struct{}{}
 		}
+		s.reports[report.Report.ID] = report.Report
 	case DeleteChange:
+		if reports, ok := s.solutionReports[report.SolutionID]; ok {
+			delete(reports, report.Report.ID)
+			if len(reports) == 0 {
+				delete(s.solutionReports, report.SolutionID)
+			}
+		}
 		delete(s.reports, report.Report.ID)
 		delete(s.queued, report.Report.ID)
 	default:

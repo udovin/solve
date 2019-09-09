@@ -127,19 +127,18 @@ func (s *CompilerStore) SaveChange(tx *sql.Tx, change Change) error {
 	switch compiler.Type {
 	case CreateChange:
 		compiler.Compiler.CreateTime = compiler.Time
-		res, err := tx.Exec(
+		var err error
+		compiler.Compiler.ID, err = execTxReturningID(
+			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
 					` ("name", "create_time")`+
 					` VALUES ($1, $2)`,
 				s.table,
 			),
+			"id",
 			compiler.Name, compiler.CreateTime,
 		)
-		if err != nil {
-			return err
-		}
-		compiler.Compiler.ID, err = res.LastInsertId()
 		if err != nil {
 			return err
 		}
@@ -183,7 +182,9 @@ func (s *CompilerStore) SaveChange(tx *sql.Tx, change Change) error {
 			compiler.Type,
 		)
 	}
-	res, err := tx.Exec(
+	var err error
+	compiler.BaseChange.ID, err = execTxReturningID(
+		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time",`+
@@ -191,13 +192,10 @@ func (s *CompilerStore) SaveChange(tx *sql.Tx, change Change) error {
 				` VALUES ($1, $2, $3, $4, $5)`,
 			s.changeTable,
 		),
+		"change_id",
 		compiler.Type, compiler.Time,
 		compiler.Compiler.ID, compiler.Name, compiler.CreateTime,
 	)
-	if err != nil {
-		return err
-	}
-	compiler.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 

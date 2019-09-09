@@ -129,19 +129,18 @@ func (s *ContestStore) SaveChange(tx *sql.Tx, change Change) error {
 	switch contest.Type {
 	case CreateChange:
 		contest.Contest.CreateTime = contest.Time
-		res, err := tx.Exec(
+		var err error
+		contest.Contest.ID, err = execTxReturningID(
+			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
 					` ("user_id", "create_time", "title")`+
 					` VALUES ($1, $2, $3)`,
 				s.table,
 			),
+			"id",
 			contest.UserID, contest.CreateTime, contest.Title,
 		)
-		if err != nil {
-			return err
-		}
-		contest.Contest.ID, err = res.LastInsertId()
 		if err != nil {
 			return err
 		}
@@ -186,7 +185,9 @@ func (s *ContestStore) SaveChange(tx *sql.Tx, change Change) error {
 			contest.Type,
 		)
 	}
-	res, err := tx.Exec(
+	var err error
+	contest.BaseChange.ID, err = execTxReturningID(
+		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time",`+
@@ -194,14 +195,11 @@ func (s *ContestStore) SaveChange(tx *sql.Tx, change Change) error {
 				` VALUES ($1, $2, $3, $4, $5, $6)`,
 			s.changeTable,
 		),
+		"change_id",
 		contest.Type, contest.Time,
 		contest.Contest.ID, contest.UserID, contest.CreateTime,
 		contest.Title,
 	)
-	if err != nil {
-		return err
-	}
-	contest.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 

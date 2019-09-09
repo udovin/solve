@@ -24,7 +24,8 @@ const CreateContestProblemPage = ({match}: RouteComponentProps<ContestPageParams
 				ProblemID: Number(problemID.value),
 				Code: code.value,
 			})
-		}).then(() => setSuccess(true));
+		})
+			.then(() => setSuccess(true));
 	};
 	if (success) {
 		return <Redirect to={"/contests/" + ContestID}/>

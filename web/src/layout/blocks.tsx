@@ -5,7 +5,7 @@ import React, {
 	ReactNode
 } from "react";
 
-type BlockProps = BaseHTMLAttributes<HTMLDivElement> & {
+export type BlockProps = BaseHTMLAttributes<HTMLDivElement> & {
 	title?: string;
 	header?: ReactNode;
 	footer?: ReactNode;
@@ -25,7 +25,7 @@ export const Block: FC<BlockProps> = props => {
 	</div>;
 };
 
-type FormBlockProps = BlockProps & FormHTMLAttributes<HTMLFormElement>;
+export type FormBlockProps = BlockProps & FormHTMLAttributes<HTMLFormElement>;
 
 export const FormBlock: FC<FormBlockProps> = props => {
 	let {title, header, footer, children, ...rest} = props;

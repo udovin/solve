@@ -18,6 +18,7 @@ type User struct {
 	PasswordHash string `json:"-" db:"password_hash"`
 	PasswordSalt string `json:"-" db:"password_salt"`
 	CreateTime   int64  `json:""  db:"create_time"`
+	IsSuper      bool   `json:""  db:"is_super"`
 }
 
 type userChange struct {
@@ -139,7 +140,8 @@ func (s *UserStore) LoadChanges(
 		fmt.Sprintf(
 			`SELECT`+
 				` "change_id", "change_type", "change_time", "id",`+
-				` "login", "password_hash", "password_salt", "create_time"`+
+				` "login", "password_hash", "password_salt", "create_time",`+
+				` "is_super"`+
 				` FROM "%s"`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
@@ -154,7 +156,7 @@ func (s *UserStore) ScanChange(scan Scanner) (Change, error) {
 	err := scan.Scan(
 		&user.BaseChange.ID, &user.Type, &user.Time,
 		&user.User.ID, &user.Login, &user.PasswordHash,
-		&user.PasswordSalt, &user.CreateTime,
+		&user.PasswordSalt, &user.CreateTime, &user.IsSuper,
 	)
 	return &user, err
 }
@@ -165,21 +167,20 @@ func (s *UserStore) SaveChange(tx *sql.Tx, change Change) error {
 	switch user.Type {
 	case CreateChange:
 		user.CreateTime = user.Time
-		res, err := tx.Exec(
+		var err error
+		user.User.ID, err = execTxReturningID(
+			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
-					` ("login", "password_hash",`+
-					` "password_salt", "create_time")`+
-					` VALUES ($1, $2, $3, $4)`,
+					` ("login", "password_hash", "password_salt",`+
+					` "create_time", "is_super")`+
+					` VALUES ($1, $2, $3, $4, $5)`,
 				s.table,
 			),
-			user.Login, user.PasswordHash,
-			user.PasswordSalt, user.CreateTime,
+			"id",
+			user.Login, user.PasswordHash, user.PasswordSalt,
+			user.CreateTime, user.IsSuper,
 		)
-		if err != nil {
-			return err
-		}
-		user.User.ID, err = res.LastInsertId()
 		if err != nil {
 			return err
 		}
@@ -194,12 +195,13 @@ func (s *UserStore) SaveChange(tx *sql.Tx, change Change) error {
 			fmt.Sprintf(
 				`UPDATE "%s" SET`+
 					` "login" = $1, "password_hash" = $2,`+
-					` "password_salt" = $3`+
-					` WHERE "id" = $4`,
+					` "password_salt" = $3, "create_time" = $4,`+
+					` "is_super" = $5`+
+					` WHERE "id" = $6`,
 				s.table,
 			),
-			user.Login, user.PasswordHash,
-			user.PasswordSalt, user.User.ID,
+			user.Login, user.PasswordHash, user.PasswordSalt,
+			user.CreateTime, user.IsSuper, user.User.ID,
 		)
 		if err != nil {
 			return err
@@ -227,22 +229,21 @@ func (s *UserStore) SaveChange(tx *sql.Tx, change Change) error {
 			user.Type,
 		)
 	}
-	res, err := tx.Exec(
+	var err error
+	user.BaseChange.ID, err = execTxReturningID(
+		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
-			`INSERT INTO "%s" `+
-				`("change_type", "change_time", `+
-				`"id", "login", "password_hash", `+
-				`"password_salt", "create_time") `+
-				`VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			`INSERT INTO "%s"`+
+				` ("change_type", "change_time",`+
+				` "id", "login", "password_hash", "password_salt",`+
+				` "create_time", "is_super")`+
+				` VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 			s.changeTable,
 		),
-		user.Type, user.Time, user.User.ID, user.Login,
-		user.PasswordHash, user.PasswordSalt, user.CreateTime,
+		"change_id",
+		user.Type, user.Time, user.User.ID, user.Login, user.PasswordHash,
+		user.PasswordSalt, user.CreateTime, user.IsSuper,
 	)
-	if err != nil {
-		return err
-	}
-	user.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 

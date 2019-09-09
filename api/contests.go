@@ -1,7 +1,6 @@
 package api
 
 import (
-	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -26,17 +25,30 @@ func (v *View) GetContests(c echo.Context) error {
 	if contests == nil {
 		contests = make([]models.Contest, 0)
 	}
-	return c.JSON(http.StatusOK, contests)
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	var result []models.Contest
+	for _, contest := range contests {
+		if v.canGetContest(user, contest) {
+			result = append(result, contest)
+		}
+	}
+	return c.JSON(http.StatusOK, result)
 }
 
 func (v *View) CreateContest(c echo.Context) error {
-	user, ok := c.Get(userKey).(models.User)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
-	}
 	var contest models.Contest
 	if err := c.Bind(&contest); err != nil {
 		return c.NoContent(http.StatusBadRequest)
+	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if !user.IsSuper {
+		return c.NoContent(http.StatusForbidden)
 	}
 	contest.UserID = user.ID
 	if err := v.app.Contests.Create(&contest); err != nil {
@@ -51,9 +63,16 @@ func (v *View) GetContest(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
 	contest, ok := v.buildContest(contestID)
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
+	}
+	if !v.canGetContest(user, contest.Contest) {
+		return c.NoContent(http.StatusForbidden)
 	}
 	return c.JSON(http.StatusOK, contest)
 }
@@ -79,6 +98,16 @@ func (v *View) GetContestProblem(c echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	for _, sol := range v.app.Solutions.GetByProblemUser(problem.ID, user.ID) {
+		solution, ok := v.buildSolution(sol.ID)
+		if ok && solution.ContestID == contestID {
+			problem.Solutions = append(problem.Solutions, solution)
+		}
+	}
 	return c.JSON(http.StatusOK, problem)
 }
 
@@ -94,7 +123,13 @@ func (v *View) CreateContestProblem(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 	contestProblem.ContestID = contestID
-	log.Println(contestProblem)
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if !user.IsSuper {
+		return c.NoContent(http.StatusForbidden)
+	}
 	if _, ok := v.app.Contests.Get(contestProblem.ContestID); !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
@@ -114,6 +149,17 @@ func (v *View) CreateContestSolution(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
+	contest, ok := v.app.Contests.Get(contestID)
+	if !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if !v.canGetContest(user, contest) {
+		return c.NoContent(http.StatusForbidden)
+	}
 	problemCode := c.Param("ProblemCode")
 	var contestProblem models.ContestProblem
 	for _, problem := range v.app.ContestProblems.GetByContest(contestID) {
@@ -129,10 +175,6 @@ func (v *View) CreateContestSolution(c echo.Context) error {
 	if err := c.Bind(&solution); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
-	}
-	user, ok := c.Get(userKey).(models.User)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
 	}
 	if _, ok := v.app.Compilers.Get(solution.CompilerID); !ok {
 		return c.NoContent(http.StatusNotFound)
@@ -212,4 +254,19 @@ func (v *View) buildContest(id int64) (Contest, bool) {
 	}
 	sort.Sort(contestProblemSorter(result.Problems))
 	return result, true
+}
+
+func (v *View) canGetContest(
+	user models.User, contest models.Contest,
+) bool {
+	if user.IsSuper {
+		return true
+	}
+	if user.ID == contest.UserID {
+		return true
+	}
+	participants := v.app.Participants.GetByContestUser(
+		contest.ID, user.ID,
+	)
+	return len(participants) > 0
 }

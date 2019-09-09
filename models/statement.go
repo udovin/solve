@@ -140,7 +140,9 @@ func (s *StatementStore) SaveChange(tx *sql.Tx, change Change) error {
 	switch statement.Type {
 	case CreateChange:
 		statement.Statement.CreateTime = statement.Time
-		res, err := tx.Exec(
+		var err error
+		statement.Statement.ID, err = execTxReturningID(
+			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
 				`INSERT INTO "%s"`+
 					` ("problem_id", "title", "description",`+
@@ -148,13 +150,10 @@ func (s *StatementStore) SaveChange(tx *sql.Tx, change Change) error {
 					` VALUES ($1, $2, $3, $4)`,
 				s.table,
 			),
+			"id",
 			statement.ProblemID, statement.Title, statement.Description,
 			statement.CreateTime,
 		)
-		if err != nil {
-			return err
-		}
-		statement.Statement.ID, err = res.LastInsertId()
 		if err != nil {
 			return err
 		}
@@ -202,7 +201,9 @@ func (s *StatementStore) SaveChange(tx *sql.Tx, change Change) error {
 			statement.Type,
 		)
 	}
-	res, err := tx.Exec(
+	var err error
+	statement.BaseChange.ID, err = execTxReturningID(
+		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time",`+
@@ -211,14 +212,11 @@ func (s *StatementStore) SaveChange(tx *sql.Tx, change Change) error {
 				` VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			s.changeTable,
 		),
+		"change_id",
 		statement.Type, statement.Time,
 		statement.Statement.ID, statement.ProblemID, statement.Title,
 		statement.Description, statement.CreateTime,
 	)
-	if err != nil {
-		return err
-	}
-	statement.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 

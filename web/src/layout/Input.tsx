@@ -1,12 +1,10 @@
-import React, {ReactNode, InputHTMLAttributes} from "react";
+import React, {FC, InputHTMLAttributes} from "react";
 
-interface Props extends InputHTMLAttributes<HTMLInputElement> {}
+export type InputProps = InputHTMLAttributes<HTMLInputElement>
 
-export default class Input extends React.Component<Props> {
-	render(): ReactNode {
-		const {...rest} = this.props;
-		return (
-			<input className="ui-input" {...rest}/>
-		);
-	}
-}
+const Input: FC<InputProps> = props => {
+	const {...rest} = props;
+	return <input className="ui-input" {...rest}/>
+};
+
+export default Input;

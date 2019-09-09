@@ -194,7 +194,9 @@ func (s *ContestProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 			problem.Type,
 		)
 	}
-	res, err := tx.Exec(
+	var err error
+	problem.BaseChange.ID, err = execTxReturningID(
+		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
 			`INSERT INTO "%s"`+
 				` ("change_type", "change_time",`+
@@ -202,13 +204,10 @@ func (s *ContestProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 				` VALUES ($1, $2, $3, $4, $5)`,
 			s.changeTable,
 		),
+		"change_id",
 		problem.Type, problem.Time,
 		problem.ContestID, problem.ProblemID, problem.Code,
 	)
-	if err != nil {
-		return err
-	}
-	problem.BaseChange.ID, err = res.LastInsertId()
 	return err
 }
 

@@ -1,10 +1,13 @@
-import React from "react";
+import React, {useState} from "react";
 import Page from "../layout/Page";
 import Input from "../layout/Input";
 import {Button} from "../layout/buttons";
 import {FormBlock} from "../layout/blocks";
+import {Contest} from "../api";
+import {Redirect} from "react-router";
 
 const CreateContestPage = () => {
+	let [contest, setContest] = useState<Contest>();
 	const onSubmit = (event: any) => {
 		event.preventDefault();
 		const {title} = event.target;
@@ -16,8 +19,13 @@ const CreateContestPage = () => {
 			body: JSON.stringify({
 				Title: title.value,
 			})
-		}).then();
+		})
+			.then(result => result.json())
+			.then(result => setContest(result));
 	};
+	if (contest) {
+		return <Redirect to={"/contests/" + contest.ID}/>
+	}
 	return <Page title="Create contest">
 		<FormBlock onSubmit={onSubmit} title="Create contest" footer={
 			<Button type="submit" color="primary">Create</Button>

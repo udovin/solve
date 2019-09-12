@@ -20,7 +20,7 @@ const UpdateProblemPage = ({match}: RouteComponentProps<UpdateProblemPageParams>
 		form.append("ID", ProblemID);
 		form.append("Title", title.value);
 		form.append("File", file.files[0]);
-		fetch("/api/v0/problems", {
+		fetch("/api/v0/problems/" + ProblemID, {
 			method: "PATCH",
 			body: form,
 		})

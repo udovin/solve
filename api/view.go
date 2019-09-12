@@ -170,6 +170,10 @@ func Register(app *core.App, api *echo.Group) {
 	)
 	// Solutions management
 	api.GET(
+		"/solutions", v.GetSolutions,
+		v.authMiddleware(v.sessionAuth),
+	)
+	api.GET(
 		"/solutions/:SolutionID", v.GetSolution,
 		v.authMiddleware(v.sessionAuth),
 	)

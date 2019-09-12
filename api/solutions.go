@@ -47,7 +47,13 @@ func (v *View) GetSolutions(c echo.Context) error {
 	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
-	return c.JSON(http.StatusOK, v.app.Solutions.All())
+	var solutions []Solution
+	for _, m := range v.app.Solutions.All() {
+		if solution, ok := v.buildSolution(m.ID); ok {
+			solutions = append(solutions, solution)
+		}
+	}
+	return c.JSON(http.StatusOK, solutions)
 }
 
 func (v *View) CreateSolutionReport(c echo.Context) error {

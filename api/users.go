@@ -18,13 +18,16 @@ type User struct {
 
 func (v *View) CreateUser(c echo.Context) error {
 	var userData struct {
-		Login    string `json:""`
-		Email    string `json:""`
-		Password string `json:""`
+		Login      string `json:""`
+		Email      string `json:""`
+		Password   string `json:""`
+		FirstName  string `json:""`
+		LastName   string `json:""`
+		MiddleName string `json:""`
 	}
 	if err := c.Bind(&userData); err != nil {
 		c.Logger().Error(err)
-		return err
+		return c.NoContent(http.StatusBadRequest)
 	}
 	user := models.User{
 		Login: userData.Login,
@@ -33,11 +36,58 @@ func (v *View) CreateUser(c echo.Context) error {
 		userData.Password, v.app.PasswordSalt,
 	); err != nil {
 		c.Logger().Error(err)
-		return err
+		return c.NoContent(http.StatusInternalServerError)
 	}
-	if err := v.app.Users.Create(&user); err != nil {
+	tx, err := v.app.Users.Manager.Begin()
+	if err != nil {
 		c.Logger().Error(err)
-		return err
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	if err := func() error {
+		if err := v.app.Users.CreateTx(tx, &user); err != nil {
+			return err
+		}
+		email := models.UserField{
+			Type: models.EmailField,
+			Data: userData.Email,
+		}
+		if err := v.app.UserFields.CreateTx(tx, &email); err != nil {
+			return err
+		}
+		if userData.FirstName != "" {
+			field := models.UserField{
+				Type: models.FirstNameField,
+				Data: userData.FirstName,
+			}
+			if err := v.app.UserFields.CreateTx(tx, &field); err != nil {
+				return err
+			}
+		}
+		if userData.LastName != "" {
+			field := models.UserField{
+				Type: models.LastNameField,
+				Data: userData.LastName,
+			}
+			if err := v.app.UserFields.CreateTx(tx, &field); err != nil {
+				return err
+			}
+		}
+		if userData.MiddleName != "" {
+			field := models.UserField{
+				Type: models.MiddleNameField,
+				Data: userData.MiddleName,
+			}
+			if err := v.app.UserFields.CreateTx(tx, &field); err != nil {
+				return err
+			}
+		}
+		return tx.Commit()
+	}(); err != nil {
+		if err := tx.Rollback(); err != nil {
+			c.Logger().Error(err)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.JSON(http.StatusCreated, user)
 }

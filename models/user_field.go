@@ -75,13 +75,27 @@ func (s *UserFieldStore) GetByUser(userID int64) []UserField {
 	return nil
 }
 
-// Create user field with specified data
+// Create creates user field with specified data
 func (s *UserFieldStore) Create(m *UserField) error {
 	change := userFieldChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		UserField:  *m,
 	}
 	err := s.Manager.Change(&change)
+	if err != nil {
+		return err
+	}
+	*m = change.UserField
+	return nil
+}
+
+// CreateTx creates user field with specified data
+func (s *UserFieldStore) CreateTx(tx *ChangeTx, m *UserField) error {
+	change := userFieldChange{
+		BaseChange: BaseChange{Type: CreateChange},
+		UserField:  *m,
+	}
+	err := s.Manager.ChangeTx(tx, &change)
 	if err != nil {
 		return err
 	}

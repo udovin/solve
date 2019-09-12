@@ -102,6 +102,20 @@ func (s *UserStore) Create(m *User) error {
 	return nil
 }
 
+// CreateTx creates new user
+func (s *UserStore) CreateTx(tx *ChangeTx, m *User) error {
+	change := userChange{
+		BaseChange: BaseChange{Type: CreateChange},
+		User:       *m,
+	}
+	err := s.Manager.ChangeTx(tx, &change)
+	if err != nil {
+		return err
+	}
+	*m = change.User
+	return nil
+}
+
 // Update modifies user data
 func (s *UserStore) Update(m *User) error {
 	change := userChange{

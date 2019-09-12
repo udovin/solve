@@ -111,30 +111,6 @@ func (v *View) GetContestProblem(c echo.Context) error {
 	return c.JSON(http.StatusOK, problem)
 }
 
-func (v *View) GetContestProblemDescription(c echo.Context) error {
-	contestID, err := strconv.ParseInt(c.Param("ContestID"), 10, 64)
-	if err != nil {
-		c.Logger().Warn(err)
-		return c.NoContent(http.StatusBadRequest)
-	}
-	problemCode := c.Param("ProblemCode")
-	var contestProblem models.ContestProblem
-	for _, problem := range v.app.ContestProblems.GetByContest(contestID) {
-		if problem.Code == problemCode {
-			contestProblem = problem
-			break
-		}
-	}
-	if contestProblem.Code != problemCode {
-		return c.NoContent(http.StatusNotFound)
-	}
-	problem, ok := v.buildProblem(contestProblem.ProblemID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
-	}
-	return c.HTML(http.StatusOK, problem.Description)
-}
-
 func (v *View) CreateContestProblem(c echo.Context) error {
 	contestID, err := strconv.ParseInt(c.Param("ContestID"), 10, 64)
 	if err != nil {

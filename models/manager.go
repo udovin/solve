@@ -117,19 +117,28 @@ func NewChangeManager(store ChangeStore, db *sql.DB) *ChangeManager {
 }
 
 // Commit applies changes to all change managers
-func (tx *ChangeTx) Commit() error {
+func (tx *ChangeTx) Commit() (err error) {
+	// Lock all managers before commiting transaction.
+	// This action is required due to applyChange duplicates.
+	for manager := range tx.changes {
+		manager.mutex.Lock()
+	}
+	// After applying new changes unlock managers
+	defer func() {
+		for manager := range tx.changes {
+			manager.mutex.Unlock()
+			if err == nil {
+				delete(tx.changes, manager)
+			}
+		}
+	}()
 	if err := tx.Tx.Commit(); err != nil {
 		return err
 	}
 	for manager, changes := range tx.changes {
-		func() {
-			manager.mutex.Lock()
-			defer manager.mutex.Unlock()
-			for _, change := range changes {
-				manager.applyChange(change)
-			}
-		}()
-		delete(tx.changes, manager)
+		for _, change := range changes {
+			manager.applyChange(change)
+		}
 	}
 	return nil
 }

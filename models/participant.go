@@ -41,6 +41,7 @@ func NewParticipantStore(db *sql.DB, table, changeTable string) *ParticipantStor
 		table:        table,
 		changeTable:  changeTable,
 		participants: make(map[int64]Participant),
+		contestUser:  make(map[contestUserPair]map[int64]struct{}),
 	}
 	store.Manager = NewChangeManager(&store, db)
 	return &store

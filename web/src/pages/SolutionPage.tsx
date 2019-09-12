@@ -1,5 +1,5 @@
 import React, {useContext, useEffect, useState} from "react";
-import {Redirect, RouteComponentProps} from "react-router";
+import {RouteComponentProps} from "react-router";
 import Page from "../layout/Page";
 import {getDefense, getShortVerdict, Solution} from "../api";
 import {Block} from "../layout/blocks";
@@ -16,7 +16,6 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 	const {SolutionID} = match.params;
 	const [solution, setSolution] = useState<Solution>();
 	const {session} = useContext(AuthContext);
-	const [update, setUpdate] = useState<boolean>();
 	useEffect(() => {
 		fetch("/api/v0/solutions/" + SolutionID)
 			.then(result => result.json())
@@ -34,7 +33,7 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 				Defense: Number(verdict.value),
 			}),
 		})
-			.then(() => setUpdate(true));
+			.then(() => document.location.reload());
 	};
 	const updatePoints = (event: any) => {
 		event.preventDefault();
@@ -48,13 +47,10 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 				Points: Number(points.value),
 			}),
 		})
-			.then(() => setUpdate(true));
+			.then(() => document.location.reload());
 	};
 	if (!solution) {
 		return <>Loading...</>;
-	}
-	if (update) {
-		return <Redirect to={"/solutions/" + solution.ID}/>
 	}
 	let isSuper = Boolean(session && session.User.IsSuper);
 	const {ID, Report} = solution;

@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from "react";
 import {RouteComponentProps} from "react-router";
 import Page from "../layout/Page";
-import {Solution} from "../api";
+import {getShortVerdict, Solution} from "../api";
 import {Block} from "../layout/blocks";
 import "./ContestPage.scss"
 
@@ -20,9 +20,25 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 	if (!solution) {
 		return <>Loading...</>;
 	}
+	const {ID, Report} = solution;
 	return <Page title={"Solution #" + solution.ID}>
-		<Block title={"Solution #" + solution.ID}>
+		<Block title={"Solution #" + solution.ID} footer={
 			<pre><code>{solution.SourceCode}</code></pre>
+		}>
+			<table className="ui-table">
+				<thead>
+				<tr>
+					<th>#</th>
+					<th>Verdict</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr>
+					<td>{ID}</td>
+					<td>{Report && getShortVerdict(Report.Verdict)}</td>
+				</tr>
+				</tbody>
+			</table>
 		</Block>
 	</Page>;
 };

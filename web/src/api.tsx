@@ -42,11 +42,37 @@ export type Compiler = {
 	CreateTime: number;
 };
 
+type ReportDataLogs = {
+	Stderr: string;
+	Stdout: string;
+};
+
+type ReportDataUsage = {
+	Time: number;
+	Memory: number;
+};
+
+type ReportDataTest = {
+	CheckLogs: ReportDataLogs;
+	Usage: ReportDataUsage;
+	Verdict: number;
+	Points?: number;
+};
+
+type ReportData = {
+	PrecompileLogs: ReportDataLogs;
+	CompileLogs: ReportDataLogs;
+	Usage: ReportDataUsage;
+	Tests: ReportDataTest[];
+	Points?: number;
+};
+
 export type Report = {
 	ID: number;
 	SolutionID: number;
 	Verdict: number;
 	CreateTime: number;
+	Data: ReportData;
 };
 
 export type Solution = {

@@ -18,6 +18,7 @@ import CreateCompilerPage from "./pages/CreateCompilerPage";
 import LogoutPage from "./pages/LogoutPage";
 import CreateContestProblemPage from "./pages/CreateContestProblemPage";
 import SolutionPage from "./pages/SolutionPage";
+import UpdateProblemPage from "./pages/UpdateProblemPage";
 
 const App: React.FC = () => {
 	return (
@@ -29,6 +30,7 @@ const App: React.FC = () => {
 						<Route exact path="/" component={IndexPage}/>
 						<Route exact path="/problems/create" component={CreateProblemPage}/>
 						<Route exact path="/problems/:ProblemID" component={ProblemPage}/>
+						<Route exact path="/problems/:ProblemID/update" component={UpdateProblemPage}/>
 						<Route exact path="/contests" component={ContestsPage}/>
 						<Route exact path="/contests/create" component={CreateContestPage}/>
 						<Route exact path="/contests/:ContestID" component={ContestPage}/>

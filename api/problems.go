@@ -176,7 +176,66 @@ func (v *View) buildProblem(id int64) (Problem, bool) {
 }
 
 func (v *View) UpdateProblem(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
+	var problem Problem
+	if err := c.Bind(&problem); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if !user.IsSuper {
+		return c.NoContent(http.StatusForbidden)
+	}
+	file, err := c.FormFile("File")
+	if err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	data, err := file.Open()
+	if err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	defer func() {
+		if err := data.Close(); err != nil {
+			c.Logger().Error(err)
+		}
+	}()
+	_ = os.Remove(fmt.Sprintf("%d.zip", problem.ID))
+	pkg, err := os.Create(path.Join(
+		v.app.Config.Invoker.ProblemsDir,
+		fmt.Sprintf("%d.zip", problem.ID),
+	))
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	defer func() {
+		if err := pkg.Close(); err != nil {
+			c.Logger().Error(err)
+		}
+	}()
+	if _, err := io.Copy(pkg, data); err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	description, err := v.extractPackageStatement(pkg.Name())
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	statement := models.Statement{
+		ProblemID:   problem.ID,
+		Title:       problem.Title,
+		Description: description,
+	}
+	if err := v.app.Statements.Create(&statement); err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, problem)
 }
 
 func (v *View) DeleteProblem(c echo.Context) error {

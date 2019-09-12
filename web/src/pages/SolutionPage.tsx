@@ -1,7 +1,7 @@
 import React, {useContext, useEffect, useState} from "react";
 import {RouteComponentProps} from "react-router";
 import Page from "../layout/Page";
-import {ACCEPTED, getDefense, getShortVerdict, Solution} from "../api";
+import {getDefense, getShortVerdict, Solution} from "../api";
 import {Block} from "../layout/blocks";
 import "./ContestPage.scss"
 import {AuthContext} from "../AuthContext";
@@ -26,6 +26,9 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 		const {verdict} = event.target;
 		fetch("/api/v0/solutions/" + SolutionID + "/report", {
 			method: "POST",
+			headers: {
+				"Content-Type": "application/json; charset=UTF-8",
+			},
 			body: JSON.stringify({
 				Defense: Number(verdict.value),
 			}),
@@ -36,6 +39,9 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 		const {points} = event.target;
 		fetch("/api/v0/solutions/" + SolutionID + "/report", {
 			method: "POST",
+			headers: {
+				"Content-Type": "application/json; charset=UTF-8",
+			},
 			body: JSON.stringify({
 				Points: Number(points.value),
 			}),

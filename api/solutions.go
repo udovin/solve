@@ -35,8 +35,19 @@ func (v *View) GetSolution(c echo.Context) error {
 }
 
 type ReportDiff struct {
-	Points  *float64
-	Defense *int8
+	Points  *float64 `json:""`
+	Defense *int8    `json:""`
+}
+
+func (v *View) GetSolutions(c echo.Context) error {
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if !user.IsSuper {
+		return c.NoContent(http.StatusForbidden)
+	}
+	return c.JSON(http.StatusOK, v.app.Solutions.All())
 }
 
 func (v *View) CreateSolutionReport(c echo.Context) error {

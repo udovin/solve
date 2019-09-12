@@ -54,6 +54,16 @@ func (s *SolutionStore) Get(id int64) (Solution, bool) {
 	return solution, ok
 }
 
+func (s *SolutionStore) All() []Solution {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	var solutions []Solution
+	for _, solution := range s.solutions {
+		solutions = append(solutions, solution)
+	}
+	return solutions
+}
+
 func (s *SolutionStore) GetByProblemUser(
 	problemID, userID int64,
 ) []Solution {

@@ -17,7 +17,8 @@ type Solution struct {
 func (v *View) GetSolution(c echo.Context) error {
 	solutionID, err := strconv.ParseInt(c.Param("SolutionID"), 10, 64)
 	if err != nil {
-		return err
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
 	}
 	solution, ok := v.buildSolution(solutionID)
 	if !ok {
@@ -31,6 +32,36 @@ func (v *View) GetSolution(c echo.Context) error {
 		return c.NoContent(http.StatusForbidden)
 	}
 	return c.JSON(http.StatusOK, solution)
+}
+
+func (v *View) CreateSolutionReport(c echo.Context) error {
+	solutionID, err := strconv.ParseInt(c.Param("SolutionID"), 10, 64)
+	if err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	var report models.Report
+	if err := c.Bind(&report); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	solution, ok := v.buildSolution(solutionID)
+	if !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if !user.IsSuper {
+		return c.NoContent(http.StatusForbidden)
+	}
+	report.SolutionID = solution.ID
+	if err := v.app.Reports.Create(&report); err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusCreated, report)
 }
 
 func (v *View) canGetSolution(

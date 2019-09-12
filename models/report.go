@@ -43,12 +43,14 @@ type ReportDataTest struct {
 	Points    *float64        `json:""`
 }
 
+// TODO(iudovin): remove 'Defense'
 type ReportData struct {
 	PrecompileLogs ReportDataLogs   `json:""`
 	CompileLogs    ReportDataLogs   `json:""`
 	Usage          ReportDataUsage  `json:""`
 	Tests          []ReportDataTest `json:""`
 	Points         *float64         `json:""`
+	Defense        *int8            `json:""`
 }
 
 func (d ReportData) Value() (driver.Value, error) {

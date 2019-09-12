@@ -2,6 +2,7 @@ export type User = {
 	ID: number;
 	Login: string;
 	CreateTime: number;
+	IsSuper: boolean;
 };
 
 export type Session = {
@@ -65,6 +66,7 @@ type ReportData = {
 	Usage: ReportDataUsage;
 	Tests: ReportDataTest[];
 	Points?: number;
+	Defense?: number;
 };
 
 export type Report = {
@@ -115,6 +117,25 @@ export const getShortVerdict = (verdict: number) => {
 			return "WA";
 		case PRESENTATION_ERROR:
 			return "PE";
+	}
+	return "?";
+};
+
+export const ACCEPTED_DEFENSE = 1;
+export const REJECTED_DEFENSE = 2;
+export const DEFENSED = 3;
+
+export const getDefense = (verdict?: number) => {
+	if (!verdict) {
+		return "Ожидает проверки";
+	}
+	switch (verdict) {
+		case ACCEPTED_DEFENSE:
+			return "Допущена к защите";
+		case REJECTED_DEFENSE:
+			return "Отклонена";
+		case DEFENSED:
+			return "Принята";
 	}
 	return "?";
 };

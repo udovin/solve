@@ -1,9 +1,12 @@
-import React, {useEffect, useState} from "react";
+import React, {useContext, useEffect, useState} from "react";
 import {RouteComponentProps} from "react-router";
 import Page from "../layout/Page";
-import {getShortVerdict, Solution} from "../api";
+import {ACCEPTED, getDefense, getShortVerdict, Solution} from "../api";
 import {Block} from "../layout/blocks";
 import "./ContestPage.scss"
+import {AuthContext} from "../AuthContext";
+import {Button} from "../layout/buttons";
+import Input from "../layout/Input";
 
 type SolutionPageParams = {
 	SolutionID: string;
@@ -12,14 +15,42 @@ type SolutionPageParams = {
 const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 	const {SolutionID} = match.params;
 	const [solution, setSolution] = useState<Solution>();
+	const {session} = useContext(AuthContext);
 	useEffect(() => {
 		fetch("/api/v0/solutions/" + SolutionID)
 			.then(result => result.json())
 			.then(result => setSolution(result));
 	}, [SolutionID]);
+	const updateVerdict = (event: any) => {
+		event.preventDefault();
+		const {verdict} = event.target;
+		fetch("/api/v0/solutions/" + SolutionID + "/report", {
+			method: "POST",
+			body: JSON.stringify({
+				Verdict: ACCEPTED,
+				Data: {
+					Defense: Number(verdict.value),
+				},
+			}),
+		}).then();
+	};
+	const updatePoints = (event: any) => {
+		event.preventDefault();
+		const {points} = event.target;
+		fetch("/api/v0/solutions/" + SolutionID + "/report", {
+			method: "POST",
+			body: JSON.stringify({
+				Verdict: ACCEPTED,
+				Data: {
+					Points: Number(points.value),
+				},
+			}),
+		}).then();
+	};
 	if (!solution) {
 		return <>Loading...</>;
 	}
+	let isSuper = Boolean(session && session.User.IsSuper);
 	const {ID, Report} = solution;
 	return <Page title={"Solution #" + solution.ID}>
 		<Block title={"Solution #" + solution.ID} footer={
@@ -30,13 +61,36 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 				<tr>
 					<th>#</th>
 					<th>Verdict</th>
+					<th>Defense</th>
+					<th>Points</th>
 				</tr>
 				</thead>
 				<tbody>
 				<tr>
 					<td>{ID}</td>
 					<td>{Report && getShortVerdict(Report.Verdict)}</td>
+					<td>{Report && getDefense(Report.Data.Defense)}</td>
+					<td>{Report && Report.Data.Points}</td>
 				</tr>
+				{isSuper && <tr>
+					<td colSpan={2}>Изменить:</td>
+					<td>
+						<form onSubmit={updateVerdict}>
+							<select name="verdict">
+								<option value="1">{getDefense(1)}</option>
+								<option value="1">{getDefense(2)}</option>
+								<option value="1">{getDefense(3)}</option>
+							</select>
+							<Button type="submit">@</Button>
+						</form>
+					</td>
+					<td>
+						<form onSubmit={updatePoints}>
+							<Input type="number" name="points"/>
+							<Button type="submit">@</Button>
+						</form>
+					</td>
+				</tr>}
 				</tbody>
 			</table>
 		</Block>

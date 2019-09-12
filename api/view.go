@@ -177,6 +177,10 @@ func Register(app *core.App, api *echo.Group) {
 		"/solutions/:SolutionID", v.GetSolution,
 		v.authMiddleware(v.sessionAuth),
 	)
+	api.POST(
+		"/solutions/:SolutionID/report", v.CreateSolutionReport,
+		v.authMiddleware(v.sessionAuth),
+	)
 	// Participants management
 	api.POST(
 		"/participants", v.CreateParticipant,

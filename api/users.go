@@ -48,16 +48,18 @@ func (v *View) CreateUser(c echo.Context) error {
 			return err
 		}
 		email := models.UserField{
-			Type: models.EmailField,
-			Data: userData.Email,
+			UserID: user.ID,
+			Type:   models.EmailField,
+			Data:   userData.Email,
 		}
 		if err := v.app.UserFields.CreateTx(tx, &email); err != nil {
 			return err
 		}
 		if userData.FirstName != "" {
 			field := models.UserField{
-				Type: models.FirstNameField,
-				Data: userData.FirstName,
+				UserID: user.ID,
+				Type:   models.FirstNameField,
+				Data:   userData.FirstName,
 			}
 			if err := v.app.UserFields.CreateTx(tx, &field); err != nil {
 				return err
@@ -65,8 +67,9 @@ func (v *View) CreateUser(c echo.Context) error {
 		}
 		if userData.LastName != "" {
 			field := models.UserField{
-				Type: models.LastNameField,
-				Data: userData.LastName,
+				UserID: user.ID,
+				Type:   models.LastNameField,
+				Data:   userData.LastName,
 			}
 			if err := v.app.UserFields.CreateTx(tx, &field); err != nil {
 				return err
@@ -74,8 +77,9 @@ func (v *View) CreateUser(c echo.Context) error {
 		}
 		if userData.MiddleName != "" {
 			field := models.UserField{
-				Type: models.MiddleNameField,
-				Data: userData.MiddleName,
+				UserID: user.ID,
+				Type:   models.MiddleNameField,
+				Data:   userData.MiddleName,
 			}
 			if err := v.app.UserFields.CreateTx(tx, &field); err != nil {
 				return err

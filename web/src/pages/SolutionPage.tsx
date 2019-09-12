@@ -1,5 +1,5 @@
 import React, {useContext, useEffect, useState} from "react";
-import {RouteComponentProps} from "react-router";
+import {Redirect, RouteComponentProps} from "react-router";
 import Page from "../layout/Page";
 import {getDefense, getShortVerdict, Solution} from "../api";
 import {Block} from "../layout/blocks";
@@ -16,6 +16,7 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 	const {SolutionID} = match.params;
 	const [solution, setSolution] = useState<Solution>();
 	const {session} = useContext(AuthContext);
+	const [update, setUpdate] = useState<boolean>();
 	useEffect(() => {
 		fetch("/api/v0/solutions/" + SolutionID)
 			.then(result => result.json())
@@ -32,7 +33,8 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 			body: JSON.stringify({
 				Defense: Number(verdict.value),
 			}),
-		}).then();
+		})
+			.then(() => setUpdate(true));
 	};
 	const updatePoints = (event: any) => {
 		event.preventDefault();
@@ -45,10 +47,14 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 			body: JSON.stringify({
 				Points: Number(points.value),
 			}),
-		}).then();
+		})
+			.then(() => setUpdate(true));
 	};
 	if (!solution) {
 		return <>Loading...</>;
+	}
+	if (update) {
+		return <Redirect to={"/solutions/" + solution.ID}/>
 	}
 	let isSuper = Boolean(session && session.User.IsSuper);
 	const {ID, Report} = solution;
@@ -82,8 +88,8 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 						<form onSubmit={updateVerdict}>
 							<select name="verdict">
 								<option value="1">{getDefense(1)}</option>
-								<option value="1">{getDefense(2)}</option>
-								<option value="1">{getDefense(3)}</option>
+								<option value="2">{getDefense(2)}</option>
+								<option value="3">{getDefense(3)}</option>
 							</select>
 							<Button type="submit">@</Button>
 						</form>

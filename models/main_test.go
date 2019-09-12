@@ -20,7 +20,8 @@ var createTables = []string{
 	login varchar(255) not null,
 	password_hash char(88) not null,
 	password_salt char(24) not null,
-	create_time bigint not null
+	create_time bigint not null,
+	is_super boolean not null
 )`,
 	`CREATE TABLE test_user_change
 (
@@ -33,7 +34,8 @@ var createTables = []string{
 	login varchar(255) not null,
 	password_hash char(88) not null,
 	password_salt char(24) not null,
-	create_time bigint not null
+	create_time bigint not null,
+	is_super boolean not null
 )`,
 	// User field store
 	`CREATE TABLE test_user_field

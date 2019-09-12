@@ -88,21 +88,11 @@ func (a *App) Start() error {
 	errs := make(chan error)
 	defer close(errs)
 	stores := 0
-	runManagerSync := func(m *models.ChangeManager) {
+	runManager := func(m *models.ChangeManager) {
 		stores++
 		go a.runManagerSync(m, errs)
 	}
-	runManagerSync(a.Users.Manager)
-	runManagerSync(a.UserFields.Manager)
-	runManagerSync(a.Sessions.Manager)
-	runManagerSync(a.Compilers.Manager)
-	runManagerSync(a.Problems.Manager)
-	runManagerSync(a.Statements.Manager)
-	runManagerSync(a.Solutions.Manager)
-	runManagerSync(a.Reports.Manager)
-	runManagerSync(a.Contests.Manager)
-	runManagerSync(a.ContestProblems.Manager)
-	runManagerSync(a.Participants.Manager)
+	a.runManagers(runManager)
 	var err error
 	for i := 0; i < stores; i++ {
 		lastErr := <-errs
@@ -115,6 +105,42 @@ func (a *App) Start() error {
 		a.Stop()
 	}
 	return err
+}
+
+func (a *App) runManagers(runManager func(m *models.ChangeManager)) {
+	if a.Users != nil {
+		runManager(a.Users.Manager)
+	}
+	if a.UserFields != nil {
+		runManager(a.UserFields.Manager)
+	}
+	if a.Sessions != nil {
+		runManager(a.Sessions.Manager)
+	}
+	if a.Compilers != nil {
+		runManager(a.Compilers.Manager)
+	}
+	if a.Problems != nil {
+		runManager(a.Problems.Manager)
+	}
+	if a.Statements != nil {
+		runManager(a.Statements.Manager)
+	}
+	if a.Solutions != nil {
+		runManager(a.Solutions.Manager)
+	}
+	if a.Reports != nil {
+		runManager(a.Reports.Manager)
+	}
+	if a.Contests != nil {
+		runManager(a.Contests.Manager)
+	}
+	if a.ContestProblems != nil {
+		runManager(a.ContestProblems.Manager)
+	}
+	if a.Participants != nil {
+		runManager(a.Participants.Manager)
+	}
 }
 
 // Stop stops syncing stores

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"log"
 	"math"
 	"sync"
 
@@ -103,6 +104,7 @@ type ChangeManager struct {
 	// locking full change table
 	changeGaps   *list.List
 	lastChangeID int64
+	mutex        sync.Mutex
 }
 
 // NewChangeManager creates new instance of ChangeManager
@@ -120,10 +122,9 @@ func (tx *ChangeTx) Commit() error {
 		return err
 	}
 	for manager, changes := range tx.changes {
-		locker := manager.store.GetLocker()
 		func() {
-			locker.Lock()
-			defer locker.Unlock()
+			manager.mutex.Lock()
+			defer manager.mutex.Unlock()
 			for _, change := range changes {
 				manager.applyChange(change)
 			}
@@ -220,36 +221,17 @@ func (m *ChangeManager) Sync() error {
 const changeGapSkipWindow = 5000
 
 // SyncTx syncs store with change table in transaction
-//
-// TODO(iudovin): Make normal code for non existent right border
 func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	if tx.updated[m] {
 		return nil
 	}
-	locker := m.store.GetLocker()
-	locker.Lock()
-	defer locker.Unlock()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	m.skipOldChangeGaps()
 	if err := m.loadChangeGaps(tx); err != nil {
 		return err
 	}
-	rows, err := m.store.LoadChanges(tx.Tx, ChangeGap{
-		BeginID: m.lastChangeID + 1,
-		EndID:   math.MaxInt32,
-	})
-	if err != nil {
-		return err
-	}
-	for rows.Next() {
-		change, err := m.store.ScanChange(rows)
-		if err != nil {
-			_ = rows.Close()
-			return err
-		}
-		m.applyChange(change)
-	}
-	_ = rows.Close()
-	return nil
+	return m.loadNewChanges(tx)
 }
 
 // skipOldGaps removes old gaps from change manager
@@ -287,7 +269,7 @@ func (m *ChangeManager) loadChangeGaps(tx *ChangeTx) error {
 				_ = rows.Close()
 				panic("ChangeID should be less than gap EndID")
 			}
-			m.store.ApplyChange(change)
+			m.applyStoreChange(change)
 			next := ChangeGap{
 				BeginID: change.ChangeID() + 1,
 				EndID:   curr.EndID,
@@ -316,6 +298,32 @@ func (m *ChangeManager) loadChangeGaps(tx *ChangeTx) error {
 	return nil
 }
 
+// loadNewChanges loads new changes and applies them to store
+//
+// TODO(iudovin): Make normal code for non existent right border
+func (m *ChangeManager) loadNewChanges(tx *ChangeTx) error {
+	rows, err := m.store.LoadChanges(tx.Tx, ChangeGap{
+		BeginID: m.lastChangeID + 1,
+		EndID:   math.MaxInt32,
+	})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("Error:", err)
+		}
+	}()
+	for rows.Next() {
+		change, err := m.store.ScanChange(rows)
+		if err != nil {
+			return err
+		}
+		m.applyChange(change)
+	}
+	return nil
+}
+
 // applyChange applies change to store and increase change id
 func (m *ChangeManager) applyChange(change Change) {
 	if change.ChangeID() <= m.lastChangeID {
@@ -327,7 +335,7 @@ func (m *ChangeManager) applyChange(change Change) {
 			if change.ChangeID() < curr.BeginID {
 				break
 			}
-			m.store.ApplyChange(change)
+			m.applyStoreChange(change)
 			next := ChangeGap{
 				BeginID: change.ChangeID() + 1,
 				EndID:   curr.EndID,
@@ -349,7 +357,7 @@ func (m *ChangeManager) applyChange(change Change) {
 		}
 		panic("Change ID should be greater than last ChangeID")
 	}
-	m.store.ApplyChange(change)
+	m.applyStoreChange(change)
 	if m.lastChangeID+1 < change.ChangeID() {
 		_ = m.changeGaps.PushBack(ChangeGap{
 			BeginID: m.lastChangeID + 1,
@@ -357,6 +365,14 @@ func (m *ChangeManager) applyChange(change Change) {
 		})
 	}
 	m.lastChangeID = change.ChangeID()
+}
+
+// applyStoreChange safely applies change to store
+func (m *ChangeManager) applyStoreChange(change Change) {
+	locker := m.store.GetLocker()
+	locker.Lock()
+	defer locker.Unlock()
+	m.store.ApplyChange(change)
 }
 
 func execTxReturningID(

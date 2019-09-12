@@ -27,10 +27,7 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 		fetch("/api/v0/solutions/" + SolutionID + "/report", {
 			method: "POST",
 			body: JSON.stringify({
-				Verdict: ACCEPTED,
-				Data: {
-					Defense: Number(verdict.value),
-				},
+				Defense: Number(verdict.value),
 			}),
 		}).then();
 	};
@@ -40,10 +37,7 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 		fetch("/api/v0/solutions/" + SolutionID + "/report", {
 			method: "POST",
 			body: JSON.stringify({
-				Verdict: ACCEPTED,
-				Data: {
-					Points: Number(points.value),
-				},
+				Points: Number(points.value),
 			}),
 		}).then();
 	};
@@ -53,9 +47,13 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 	let isSuper = Boolean(session && session.User.IsSuper);
 	const {ID, Report} = solution;
 	return <Page title={"Solution #" + solution.ID}>
-		<Block title={"Solution #" + solution.ID} footer={
+		<Block title={"Solution #" + solution.ID} footer={<>
+			{Report && <>
+				<h3>Compile logs:</h3><pre><code>{Report.Data.CompileLogs.Stdout}</code></pre>
+			</>}
+			<h3>Source code:</h3>
 			<pre><code>{solution.SourceCode}</code></pre>
-		}>
+		</>}>
 			<table className="ui-table">
 				<thead>
 				<tr>
@@ -94,6 +92,20 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 				</tbody>
 			</table>
 		</Block>
+		{Report && <Block title="Tests">
+			<table className="ui-table">
+				<thead>
+				<tr>
+					<th>Stderr</th>
+					<th>Verdict</th>
+				</tr>
+				</thead>
+				<tbody>{Report.Data.Tests && Report.Data.Tests.map((test, index) => <tr key={index}>
+					<td>{test.CheckLogs.Stderr}</td>
+					<td>{getShortVerdict(test.Verdict)}</td>
+				</tr>)}</tbody>
+			</table>
+		</Block>}
 	</Page>;
 };
 

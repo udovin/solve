@@ -34,14 +34,19 @@ func (v *View) GetSolution(c echo.Context) error {
 	return c.JSON(http.StatusOK, solution)
 }
 
+type ReportDiff struct {
+	Points  *float64
+	Defense *int8
+}
+
 func (v *View) CreateSolutionReport(c echo.Context) error {
 	solutionID, err := strconv.ParseInt(c.Param("SolutionID"), 10, 64)
 	if err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	var report models.Report
-	if err := c.Bind(&report); err != nil {
+	var diff ReportDiff
+	if err := c.Bind(&diff); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
@@ -56,7 +61,16 @@ func (v *View) CreateSolutionReport(c echo.Context) error {
 	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
-	report.SolutionID = solution.ID
+	report, ok := v.app.Reports.GetLatest(solution.ID)
+	if !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	if diff.Defense != nil {
+		report.Data.Defense = diff.Defense
+	}
+	if diff.Points != nil {
+		report.Data.Points = diff.Points
+	}
 	if err := v.app.Reports.Create(&report); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)

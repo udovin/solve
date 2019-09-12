@@ -155,6 +155,10 @@ func Register(app *core.App, api *echo.Group) {
 		"/contests/:ContestID/problems/:ProblemCode",
 		v.CreateContestSolution, v.authMiddleware(v.sessionAuth),
 	)
+	api.GET(
+		"/contests/:ContestID/problems/:ProblemCode/description.html",
+		v.GetContestProblemDescription, v.authMiddleware(v.sessionAuth),
+	)
 	// Compilers management
 	api.GET(
 		"/compilers", v.GetCompilers,

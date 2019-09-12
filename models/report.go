@@ -2,6 +2,8 @@ package models
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -24,12 +26,52 @@ const (
 	PresentationError = 7
 )
 
+type ReportDataLogs struct {
+	Stderr string `json:""`
+	Stdout string `json:""`
+}
+
+type ReportDataUsage struct {
+	Time   int64 `json:""`
+	Memory int64 `json:""`
+}
+
+type ReportDataTest struct {
+	CheckLogs ReportDataLogs  `json:""`
+	Usage     ReportDataUsage `json:""`
+	Verdict   int8            `json:""`
+	Points    *float64        `json:""`
+}
+
+type ReportData struct {
+	PrecompileLogs ReportDataLogs   `json:""`
+	CompileLogs    ReportDataLogs   `json:""`
+	Usage          ReportDataUsage  `json:""`
+	Tests          []ReportDataTest `json:""`
+	Points         *float64         `json:""`
+}
+
+func (d ReportData) Value() (driver.Value, error) {
+	return json.Marshal(d)
+}
+
+func (d *ReportData) Scan(value interface{}) error {
+	switch data := value.(type) {
+	case []byte:
+		return json.Unmarshal(data, d)
+	case string:
+		return json.Unmarshal([]byte(data), d)
+	default:
+		return fmt.Errorf("unsupported type: %T", data)
+	}
+}
+
 type Report struct {
-	ID         int64  `json:"" db:"id"`
-	SolutionID int64  `json:"" db:"solution_id"`
-	Verdict    int8   `json:"" db:"verdict"`
-	Data       string `json:"" db:"data"`
-	CreateTime int64  `json:"" db:"create_time"`
+	ID         int64      `json:"" db:"id"`
+	SolutionID int64      `json:"" db:"solution_id"`
+	Verdict    int8       `json:"" db:"verdict"`
+	Data       ReportData `json:"" db:"data"`
+	CreateTime int64      `json:"" db:"create_time"`
 }
 
 type reportChange struct {

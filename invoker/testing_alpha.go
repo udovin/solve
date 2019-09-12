@@ -121,10 +121,7 @@ func (s *Invoker) compileSolution(c *context) error {
 	bin := exec.Cmd{
 		Path: dockerPath,
 		Args: []string{
-			"docker",
-			"run",
-			"-t",
-			"-v",
+			"docker", "run", "--rm", "-t", "-v",
 			fmt.Sprintf("%s:%s", c.TempDir, solutionHome),
 			compileImage,
 		},
@@ -141,7 +138,7 @@ func (s *Invoker) compileSolution(c *context) error {
 			return err
 		}
 		c.Verdict = models.CompilationError
-		c.Data = string(logs)
+		c.Data.CompileLogs.Stdout = string(logs)
 	}
 	return nil
 }
@@ -161,10 +158,15 @@ func (s *Invoker) runTests(c *context) error {
 		}
 		answerFile := path.Join(c.TempDir, testsDir, fmt.Sprintf("%s.a", file.Name()))
 		inputFile := path.Join(c.TempDir, testsDir, file.Name())
+		c.Data.Tests = append(c.Data.Tests, models.ReportDataTest{})
+		test := len(c.Data.Tests) - 1
+		c.Data.Tests[test].Verdict = models.Accepted
 		if err := s.runTest(c, tempDir, inputFile); err != nil {
+			c.Data.Tests[test].Verdict = c.Report.Verdict
 			return err
 		}
 		if err := s.checkTest(c, tempDir, inputFile, answerFile); err != nil {
+			c.Data.Tests[test].Verdict = c.Report.Verdict
 			return err
 		}
 	}
@@ -214,10 +216,7 @@ func (s *Invoker) runTest(c *context, tempDir, inputFile string) error {
 	bin := exec.Cmd{
 		Path: dockerPath,
 		Args: []string{
-			"docker",
-			"run",
-			"-t",
-			"-v",
+			"docker", "run", "--rm", "-t", "-v",
 			fmt.Sprintf("%s:%s", tempDir, solutionHome),
 			executeImage,
 		},
@@ -243,7 +242,8 @@ func (s *Invoker) runTest(c *context, tempDir, inputFile string) error {
 
 func (s *Invoker) checkTest(c *context, tempDir, inputFile, answerFile string) error {
 	solOutputFile := path.Join(tempDir, outputFileName)
-	bufferError := &strings.Builder{}
+	stdout := &strings.Builder{}
+	stderr := &strings.Builder{}
 	bin := exec.Cmd{
 		Path: path.Join(c.TempDir, checkerName),
 		Args: []string{
@@ -253,16 +253,21 @@ func (s *Invoker) checkTest(c *context, tempDir, inputFile, answerFile string) e
 			answerFile,
 		},
 		Dir:    c.TempDir,
-		Stdout: bufferError,
+		Stdout: stdout,
+		Stderr: stderr,
 	}
 	if err := bin.Start(); err != nil {
 		return err
 	}
+	defer func() {
+		test := len(c.Data.Tests) - 1
+		c.Data.Tests[test].CheckLogs.Stdout = stdout.String()
+		c.Data.Tests[test].CheckLogs.Stderr = stderr.String()
+	}()
 	if err := bin.Wait(); err != nil {
 		c.Verdict = models.WrongAnswer
 		return err
 	}
-	c.Data = bufferError.String()
 	if !bin.ProcessState.Success() {
 		c.Verdict = models.WrongAnswer
 		return errors.New("wrong answer")

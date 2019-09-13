@@ -129,6 +129,89 @@ var createTables = []string{
 	create_time bigint not null,
 	title varchar(255) not null
 )`,
+	// Solution store
+	`CREATE TABLE test_solution
+(
+	id integer not null
+		constraint test_contest_pk
+			primary key autoincrement,
+	user_id integer not null
+		references test_user,
+	problem_id integer not null
+		references test_problem,
+	contest_id integer
+		references test_contest,
+	compiler_id integer not null
+		references test_compiler,
+	source_code text not null,
+	create_time bigint not null
+)`,
+	`CREATE TABLE test_solution_change
+(
+	change_id integer not null
+		constraint test_contest_change_pk
+			primary key autoincrement,
+	change_type int8 not null,
+	change_time bigint not null,
+	id integer not null,
+	user_id integer not null,
+	problem_id integer not null,
+	contest_id integer,
+	compiler_id integer not null,
+	source_code text not null,
+	create_time bigint not null
+)`,
+	// Report store
+	`CREATE TABLE test_report
+(
+	id integer not null
+		constraint test_contest_pk
+			primary key autoincrement,
+	solution_id integer not null
+		references test_solution,
+	verdict int8 not null,
+	data text not null,
+	create_time bigint not null
+)`,
+	`CREATE TABLE test_report_change
+(
+	change_id integer not null
+		constraint test_contest_change_pk
+			primary key autoincrement,
+	change_type int8 not null,
+	change_time bigint not null,
+	id integer not null,
+	solution_id integer not null,
+	verdict int8 not null,
+	data text not null,
+	create_time bigint not null
+)`,
+	// Participant store
+	`CREATE TABLE test_participant
+(
+	id integer not null
+		constraint test_contest_pk
+			primary key autoincrement,
+	type int8 not null,
+	contest_id integer not null
+		references test_contest,
+	user_id integer not null
+		references test_user,
+	create_time bigint not null
+)`,
+	`CREATE TABLE test_participant_change
+(
+	change_id integer not null
+		constraint test_contest_change_pk
+			primary key autoincrement,
+	change_type int8 not null,
+	change_time bigint not null,
+	id integer not null,
+	type int8 not null,
+	contest_id integer not null,
+	user_id integer not null,
+	create_time bigint not null
+)`,
 	// Fake store
 	`CREATE TABLE "test_fake_change"
 (
@@ -156,6 +239,15 @@ var dropTables = []string{
 	// Contest store
 	`DROP TABLE "test_contest"`,
 	`DROP TABLE "test_contest_change"`,
+	// Solution store
+	`DROP TABLE "test_solution"`,
+	`DROP TABLE "test_solution_change"`,
+	// Report store
+	`DROP TABLE "test_report"`,
+	`DROP TABLE "test_report_change"`,
+	// Participant store
+	`DROP TABLE "test_participant"`,
+	`DROP TABLE "test_participant_change"`,
 	// Fake store
 	`DROP TABLE "test_fake_change"`,
 }

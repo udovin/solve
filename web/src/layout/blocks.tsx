@@ -12,12 +12,13 @@ export type BlockProps = BaseHTMLAttributes<HTMLDivElement> & {
 };
 
 export const Block: FC<BlockProps> = props => {
-	let {title, header, footer, children, ...rest} = props;
+	let {title, header, footer, children, className, ...rest} = props;
 	if (title) {
 		header = <span className="title">{title}</span>;
 	}
-	return <div className="ui-block-wrap">
-		<div className="ui-block" {...rest}>
+	className = className ? "ui-block-wrap " + className : "ui-block-wrap";
+	return <div className={className} {...rest}>
+		<div className="ui-block">
 			{header && <div className="ui-block-header">{header}</div>}
 			<div className="ui-block-content">{children}</div>
 			{footer && <div className="ui-block-footer">{footer}</div>}
@@ -28,12 +29,13 @@ export const Block: FC<BlockProps> = props => {
 export type FormBlockProps = BlockProps & FormHTMLAttributes<HTMLFormElement>;
 
 export const FormBlock: FC<FormBlockProps> = props => {
-	let {title, header, footer, children, ...rest} = props;
+	let {title, header, footer, children, className, ...rest} = props;
 	if (title) {
 		header = <span className="title">{title}</span>;
 	}
-	return <div className="ui-block-wrap">
-		<form className="ui-block" {...rest}>
+	className = className ? "ui-block-wrap " + className : "ui-block-wrap";
+	return <div className={className} {...rest}>
+		<form className="ui-block">
 			{header && <div className="ui-block-header">{header}</div>}
 			<div className="ui-block-content">{children}</div>
 			{footer && <div className="ui-block-footer">{footer}</div>}

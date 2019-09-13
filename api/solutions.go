@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/labstack/echo"
@@ -11,6 +12,7 @@ import (
 
 type Solution struct {
 	models.Solution
+	User   *models.User   `json:""`
 	Report *models.Report `json:""`
 }
 
@@ -34,11 +36,6 @@ func (v *View) GetSolution(c echo.Context) error {
 	return c.JSON(http.StatusOK, solution)
 }
 
-type ReportDiff struct {
-	Points  *float64 `json:""`
-	Defense *int8    `json:""`
-}
-
 func (v *View) GetSolutions(c echo.Context) error {
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {
@@ -53,16 +50,22 @@ func (v *View) GetSolutions(c echo.Context) error {
 			solutions = append(solutions, solution)
 		}
 	}
+	sort.Sort(solutionSorter(solutions))
 	return c.JSON(http.StatusOK, solutions)
 }
 
-func (v *View) CreateSolutionReport(c echo.Context) error {
+type reportDiff struct {
+	Points  *float64 `json:""`
+	Defense *int8    `json:""`
+}
+
+func (v *View) createSolutionReport(c echo.Context) error {
 	solutionID, err := strconv.ParseInt(c.Param("SolutionID"), 10, 64)
 	if err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	var diff ReportDiff
+	var diff reportDiff
 	if err := c.Bind(&diff); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
@@ -118,14 +121,28 @@ func (v *View) buildSolution(id int64) (Solution, bool) {
 	if !ok {
 		return Solution{}, false
 	}
-	report, ok := v.app.Reports.GetLatest(solution.ID)
-	if ok {
-		return Solution{
-			Solution: solution,
-			Report:   &report,
-		}, true
-	}
-	return Solution{
+	result := Solution{
 		Solution: solution,
-	}, true
+	}
+	if user, ok := v.app.Users.Get(solution.UserID); ok {
+		result.User = &user
+	}
+	if report, ok := v.app.Reports.GetLatest(solution.ID); ok {
+		result.Report = &report
+	}
+	return result, true
+}
+
+type solutionSorter []Solution
+
+func (c solutionSorter) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+
+func (c solutionSorter) Len() int {
+	return len(c)
+}
+
+func (c solutionSorter) Less(i, j int) bool {
+	return c[i].ID > c[j].ID
 }

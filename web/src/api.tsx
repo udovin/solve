@@ -83,6 +83,7 @@ export type Solution = {
 	ContestID?: number;
 	CompilerID: number;
 	UserID: number;
+	User?: User;
 	SourceCode: string;
 	CreateTime: number;
 	Report?: Report;

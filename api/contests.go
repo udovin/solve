@@ -35,6 +35,7 @@ func (v *View) GetContests(c echo.Context) error {
 			result = append(result, contest)
 		}
 	}
+	sort.Sort(contestModelSorter(result))
 	return c.JSON(http.StatusOK, result)
 }
 
@@ -219,20 +220,6 @@ func (v *View) DeleteContest(c echo.Context) error {
 	return c.NoContent(http.StatusNotImplemented)
 }
 
-type contestProblemSorter []ContestProblem
-
-func (c contestProblemSorter) Swap(i, j int) {
-	c[i], c[j] = c[j], c[i]
-}
-
-func (c contestProblemSorter) Len() int {
-	return len(c)
-}
-
-func (c contestProblemSorter) Less(i, j int) bool {
-	return c[i].Code < c[j].Code
-}
-
 func (v *View) buildContest(id int64) (Contest, bool) {
 	contest, ok := v.app.Contests.Get(id)
 	if !ok {
@@ -269,4 +256,32 @@ func (v *View) canGetContest(
 		contest.ID, user.ID,
 	)
 	return len(participants) > 0
+}
+
+type contestModelSorter []models.Contest
+
+func (c contestModelSorter) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+
+func (c contestModelSorter) Len() int {
+	return len(c)
+}
+
+func (c contestModelSorter) Less(i, j int) bool {
+	return c[i].ID > c[j].ID
+}
+
+type contestProblemSorter []ContestProblem
+
+func (c contestProblemSorter) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+
+func (c contestProblemSorter) Len() int {
+	return len(c)
+}
+
+func (c contestProblemSorter) Less(i, j int) bool {
+	return c[i].Code < c[j].Code
 }

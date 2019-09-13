@@ -96,15 +96,17 @@ type ChangeTx struct {
 //
 // TODO: Replace list with Binary Search Tree
 type ChangeManager struct {
-	// Store for manager
+	// store contains store for manager
 	store ChangeStore
-	// Connection to database
+	// db stores connection to database
 	db *sql.DB
-	// Change gaps are required for allow transactions without
+	// changeGaps are required for allow transactions without
 	// locking full change table
-	changeGaps   *list.List
+	changeGaps *list.List
+	// lastChangeID contains last change ID
 	lastChangeID int64
-	mutex        sync.Mutex
+	// mutex is used for consistency guarantee
+	mutex sync.Mutex
 }
 
 // NewChangeManager creates new instance of ChangeManager
@@ -116,13 +118,22 @@ func NewChangeManager(store ChangeStore, db *sql.DB) *ChangeManager {
 	}
 }
 
+// mutex is required to fix issues with deadlocks
+//
+// TODO(iudovin): Replace this mutex with sorted managers
+var mutex sync.Mutex
+
 // Commit applies changes to all change managers
 func (tx *ChangeTx) Commit() (err error) {
 	// Lock all managers before commiting transaction.
 	// This action is required due to applyChange duplicates.
-	for manager := range tx.changes {
-		manager.mutex.Lock()
-	}
+	func() {
+		mutex.Lock()
+		defer mutex.Unlock()
+		for manager := range tx.changes {
+			manager.mutex.Lock()
+		}
+	}()
 	// After applying new changes unlock managers
 	defer func() {
 		for manager := range tx.changes {

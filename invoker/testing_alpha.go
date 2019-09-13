@@ -148,6 +148,7 @@ func (s *Invoker) runTests(c *context) error {
 	if err != nil {
 		return err
 	}
+	c.Verdict = models.Accepted
 	for _, file := range files {
 		if _, err := strconv.Atoi(file.Name()); err != nil {
 			continue
@@ -228,7 +229,7 @@ func (s *Invoker) runSolution(c *context, dir, input string) error {
 		exited <- cmd.Wait()
 	}()
 	select {
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 		c.LastTest.Verdict = models.TimeLimitExceeded
 		if err := cmd.Process.Kill(); err != nil {
 			log.Println("Error:", err)

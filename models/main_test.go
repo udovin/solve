@@ -212,6 +212,26 @@ var createTables = []string{
 	user_id integer not null,
 	create_time bigint not null
 )`,
+	// Participant store
+	`CREATE TABLE test_contest_problem
+(
+	contest_id integer not null
+		references test_contest,
+	problem_id integer not null
+		references test_problem,
+	code varchar(255)
+)`,
+	`CREATE TABLE test_contest_problem_change
+(
+	change_id integer not null
+		constraint test_contest_change_pk
+			primary key autoincrement,
+	change_type int8 not null,
+	change_time bigint not null,
+	contest_id integer not null,
+	problem_id integer not null,
+	code varchar(255)
+)`,
 	// Fake store
 	`CREATE TABLE "test_fake_change"
 (
@@ -248,6 +268,9 @@ var dropTables = []string{
 	// Participant store
 	`DROP TABLE "test_participant"`,
 	`DROP TABLE "test_participant_change"`,
+	// Contest problem store
+	`DROP TABLE "test_contest_problem"`,
+	`DROP TABLE "test_contest_problem_change"`,
 	// Fake store
 	`DROP TABLE "test_fake_change"`,
 }

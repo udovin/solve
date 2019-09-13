@@ -108,6 +108,7 @@ func (s *Invoker) preprocessSolution(c *context) error {
 	}
 	err := bin.Start()
 	if err != nil {
+		c.Verdict = models.CompilationError
 		return err
 	}
 	return bin.Wait()
@@ -116,29 +117,33 @@ func (s *Invoker) preprocessSolution(c *context) error {
 func (s *Invoker) compileSolution(c *context) error {
 	dockerPath, err := exec.LookPath("docker")
 	if err != nil {
+		c.Verdict = models.CompilationError
 		return err
 	}
 	bin := exec.Cmd{
 		Path: dockerPath,
 		Args: []string{
-			"docker", "run", "--rm", "-t", "-v",
+			"docker", "run", "--rm", "-t", "--stop-timeout", "10", "-v",
 			fmt.Sprintf("%s:%s", c.TempDir, solutionHome),
 			compileImage,
 		},
 	}
 	if err := bin.Start(); err != nil {
+		c.Verdict = models.CompilationError
 		return err
 	}
 	if err := bin.Wait(); err != nil {
+		c.Verdict = models.CompilationError
 		return err
 	}
 	if _, err := os.Stat(path.Join(c.TempDir, executableFileName)); os.IsNotExist(err) {
+		c.Verdict = models.CompilationError
 		logs, err := ioutil.ReadFile(path.Join(c.TempDir, compilationLogFileName))
 		if err != nil {
 			return err
 		}
-		c.Verdict = models.CompilationError
 		c.Data.CompileLogs.Stdout = string(logs)
+		return fmt.Errorf("compilation error")
 	}
 	return nil
 }
@@ -214,7 +219,7 @@ func (s *Invoker) runSolution(c *context, dir, input string) error {
 	cmd := exec.Cmd{
 		Path: docker,
 		Args: []string{
-			"docker", "run", "--rm", "-t", "-v",
+			"docker", "run", "--rm", "-t", "--stop-timeout", "10", "-v",
 			fmt.Sprintf("%s:%s", dir, solutionHome),
 			executeImage,
 		},

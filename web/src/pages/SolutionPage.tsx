@@ -49,6 +49,12 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 		})
 			.then(() => document.location.reload());
 	};
+	const rejudge = (event: any) => {
+		event.preventDefault();
+		fetch("/api/v0/solutions/" + SolutionID, {
+			method: "POST",
+		}).then(() => document.location.reload());
+	};
 	if (!solution) {
 		return <>Loading...</>;
 	}
@@ -79,7 +85,11 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 					<td>{Report && Report.Data.Points}</td>
 				</tr>
 				{isSuper && <tr>
-					<td colSpan={2}>Изменить:</td>
+					<td colSpan={2}>
+						<form onSubmit={rejudge}>
+							<Button type="submit">Rejudge</Button>
+						</form>
+					</td>
 					<td>
 						<form onSubmit={updateVerdict}>
 							<select name="verdict">

@@ -36,6 +36,33 @@ func (v *View) GetSolution(c echo.Context) error {
 	return c.JSON(http.StatusOK, solution)
 }
 
+func (v *View) RejudgeSolution(c echo.Context) error {
+	solutionID, err := strconv.ParseInt(c.Param("SolutionID"), 10, 64)
+	if err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	solution, ok := v.buildSolution(solutionID)
+	if !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if !user.IsSuper {
+		return c.NoContent(http.StatusForbidden)
+	}
+	report := models.Report{
+		SolutionID: solution.ID,
+	}
+	if err := v.app.Reports.Create(&report); err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, report)
+}
+
 func (v *View) GetSolutions(c echo.Context) error {
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {

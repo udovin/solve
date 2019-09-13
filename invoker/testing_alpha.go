@@ -1,7 +1,6 @@
 package invoker
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -23,7 +22,8 @@ type context struct {
 	*models.Compiler
 	*models.Problem
 	*models.Report
-	TempDir string
+	LastTest models.ReportDataTest
+	TempDir  string
 }
 
 const (
@@ -144,10 +144,6 @@ func (s *Invoker) compileSolution(c *context) error {
 }
 
 func (s *Invoker) runTests(c *context) error {
-	tempDir := path.Join(os.TempDir(), uuid.New().String())
-	if err := os.Mkdir(tempDir, 0777); err != nil {
-		return err
-	}
 	files, err := ioutil.ReadDir(path.Join(c.TempDir, testsDir))
 	if err != nil {
 		return err
@@ -156,19 +152,123 @@ func (s *Invoker) runTests(c *context) error {
 		if _, err := strconv.Atoi(file.Name()); err != nil {
 			continue
 		}
-		answerFile := path.Join(c.TempDir, testsDir, fmt.Sprintf("%s.a", file.Name()))
-		inputFile := path.Join(c.TempDir, testsDir, file.Name())
-		c.Data.Tests = append(c.Data.Tests, models.ReportDataTest{})
-		test := len(c.Data.Tests) - 1
-		c.Data.Tests[test].Verdict = models.Accepted
-		if err := s.runTest(c, tempDir, inputFile); err != nil {
-			c.Data.Tests[test].Verdict = c.Report.Verdict
+		input := path.Join(c.TempDir, testsDir, file.Name())
+		answer := path.Join(c.TempDir, testsDir, fmt.Sprintf("%s.a", file.Name()))
+		if err := s.runTest(c, input, answer); err != nil {
+			c.Verdict = c.LastTest.Verdict
 			return err
 		}
-		if err := s.checkTest(c, tempDir, inputFile, answerFile); err != nil {
-			c.Data.Tests[test].Verdict = c.Report.Verdict
-			return err
+	}
+	return nil
+}
+
+func (s *Invoker) runTest(c *context, input, answer string) error {
+	dir := path.Join(os.TempDir(), uuid.New().String())
+	if err := os.Mkdir(dir, 0777); err != nil {
+		return err
+	}
+	defer func() {
+		if err := os.RemoveAll(dir); err != nil {
+			log.Println("Error:", err)
 		}
+	}()
+	c.LastTest = models.ReportDataTest{
+		Verdict: models.Accepted,
+	}
+	defer func() {
+		if c.LastTest.Verdict != models.Accepted {
+			c.Verdict = c.LastTest.Verdict
+		}
+		c.Data.Tests = append(c.Data.Tests, c.LastTest)
+	}()
+	if err := s.runSolution(c, dir, input); err != nil {
+		return err
+	}
+	if err := s.runChecker(c, dir, input, answer); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Invoker) runSolution(c *context, dir, input string) error {
+	testInput := path.Join(dir, inputFileName)
+	if err := copyFile(input, testInput); err != nil {
+		c.LastTest.Verdict = models.RuntimeError
+		log.Println("Error:", err)
+		return err
+	}
+	binary := path.Join(c.TempDir, executableFileName)
+	testBinary := path.Join(dir, executableFileName)
+	if err := copyFile(binary, testBinary); err != nil {
+		c.LastTest.Verdict = models.RuntimeError
+		log.Println("Error:", err)
+		return err
+	}
+	docker, err := exec.LookPath("docker")
+	if err != nil {
+		c.LastTest.Verdict = models.RuntimeError
+		log.Println("Error:", err)
+		return err
+	}
+	cmd := exec.Cmd{
+		Path: docker,
+		Args: []string{
+			"docker", "run", "--rm", "-t", "-v",
+			fmt.Sprintf("%s:%s", dir, solutionHome),
+			executeImage,
+		},
+	}
+	if err := cmd.Start(); err != nil {
+		c.LastTest.Verdict = models.RuntimeError
+		log.Println("Error:", err)
+		return err
+	}
+	exited := make(chan error)
+	go func() {
+		exited <- cmd.Wait()
+	}()
+	select {
+	case <-time.After(5 * time.Second):
+		c.LastTest.Verdict = models.TimeLimitExceeded
+		if err := cmd.Process.Kill(); err != nil {
+			log.Println("Error:", err)
+		}
+		return fmt.Errorf("time limit exceeded")
+	case err := <-exited:
+		if err != nil {
+			c.LastTest.Verdict = models.RuntimeError
+			log.Println("Error:", err)
+		}
+		return err
+	}
+}
+
+func (s *Invoker) runChecker(c *context, dir, input, answer string) error {
+	testOutput := path.Join(dir, outputFileName)
+	stdout := &strings.Builder{}
+	stderr := &strings.Builder{}
+	bin := exec.Cmd{
+		Path: path.Join(c.TempDir, checkerName),
+		Args: []string{
+			checkerName, input, testOutput, answer,
+		},
+		Dir:    c.TempDir,
+		Stdout: stdout,
+		Stderr: stderr,
+	}
+	if err := bin.Start(); err != nil {
+		c.LastTest.Verdict = models.WrongAnswer
+		return err
+	}
+	if err := bin.Wait(); err != nil {
+		c.LastTest.Verdict = models.WrongAnswer
+		return err
+	}
+	c.LastTest.CheckLogs.Stdout = stdout.String()
+	c.LastTest.CheckLogs.Stderr = stderr.String()
+	if !bin.ProcessState.Success() {
+		c.LastTest.Verdict = models.WrongAnswer
+		return fmt.Errorf("wrong answer")
 	}
 	return nil
 }
@@ -196,83 +296,4 @@ func copyFile(source, target string) error {
 		return err
 	}
 	return nil
-}
-
-func (s *Invoker) runTest(c *context, tempDir, inputFile string) error {
-	testInputFile := path.Join(tempDir, inputFileName)
-	if err := copyFile(inputFile, testInputFile); err != nil {
-		return err
-	}
-	binary := path.Join(c.TempDir, executableFileName)
-	testBinary := path.Join(tempDir, executableFileName)
-	if err := copyFile(binary, testBinary); err != nil {
-		return err
-	}
-	// Run solution
-	dockerPath, err := exec.LookPath("docker")
-	if err != nil {
-		return err
-	}
-	bin := exec.Cmd{
-		Path: dockerPath,
-		Args: []string{
-			"docker", "run", "--rm", "-t", "-v",
-			fmt.Sprintf("%s:%s", tempDir, solutionHome),
-			executeImage,
-		},
-	}
-	if err := bin.Start(); err != nil {
-		return err
-	}
-	exited := make(chan error)
-	go func() {
-		exited <- bin.Wait()
-	}()
-	select {
-	case <-time.After(2 * time.Second):
-		if err := bin.Process.Kill(); err != nil {
-			log.Println("Error:", err)
-		}
-		c.Verdict = models.TimeLimitExceeded
-		return nil
-	case err := <-exited:
-		return err
-	}
-}
-
-func (s *Invoker) checkTest(c *context, tempDir, inputFile, answerFile string) error {
-	solOutputFile := path.Join(tempDir, outputFileName)
-	stdout := &strings.Builder{}
-	stderr := &strings.Builder{}
-	bin := exec.Cmd{
-		Path: path.Join(c.TempDir, checkerName),
-		Args: []string{
-			checkerName,
-			inputFile,
-			solOutputFile,
-			answerFile,
-		},
-		Dir:    c.TempDir,
-		Stdout: stdout,
-		Stderr: stderr,
-	}
-	if err := bin.Start(); err != nil {
-		return err
-	}
-	defer func() {
-		test := len(c.Data.Tests) - 1
-		c.Data.Tests[test].CheckLogs.Stdout = stdout.String()
-		c.Data.Tests[test].CheckLogs.Stderr = stderr.String()
-	}()
-	if err := bin.Wait(); err != nil {
-		c.Verdict = models.WrongAnswer
-		return err
-	}
-	if !bin.ProcessState.Success() {
-		c.Verdict = models.WrongAnswer
-		return errors.New("wrong answer")
-	} else {
-		c.Verdict = models.Accepted
-		return nil
-	}
 }

@@ -14,6 +14,7 @@ type Invoker struct {
 	app    *core.App
 	closer chan struct{}
 	waiter sync.WaitGroup
+	mutex  sync.Mutex
 }
 
 var errEmptyQueue = errors.New("empty queue")
@@ -83,6 +84,8 @@ func (s *Invoker) loop() {
 }
 
 func (s *Invoker) popQueuedReport() (report models.Report, err error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	tx, err := s.app.Reports.Manager.Begin()
 	if err != nil {
 		return

@@ -25,9 +25,15 @@ func New(app *core.App) *Invoker {
 }
 
 func (s *Invoker) Start() {
-	s.waiter.Add(1)
+	threads := s.app.Config.Invoker.Threads
+	if threads <= 0 {
+		threads = 1
+	}
 	s.closer = make(chan struct{})
-	go s.loop()
+	for i := 0; i < threads; i++ {
+		s.waiter.Add(1)
+		go s.loop()
+	}
 }
 
 func (s *Invoker) Stop() {

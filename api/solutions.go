@@ -77,7 +77,9 @@ func (v *View) GetSolutions(c echo.Context) error {
 		if solution, ok := v.buildSolution(m.ID); ok {
 			solution.SourceCode = ""
 			if solution.Report != nil {
-				solution.Report.Data = models.ReportData{}
+				solution.Report.Data.PrecompileLogs = models.ReportDataLogs{}
+				solution.Report.Data.CompileLogs = models.ReportDataLogs{}
+				solution.Report.Data.Tests = nil
 			}
 			solutions = append(solutions, solution)
 		}

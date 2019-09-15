@@ -102,7 +102,9 @@ func (v *View) GetContestSolutions(c echo.Context) error {
 			if solution, ok := v.buildSolution(model.ID); ok {
 				solution.SourceCode = ""
 				if solution.Report != nil {
-					solution.Report.Data = models.ReportData{}
+					solution.Report.Data.PrecompileLogs = models.ReportDataLogs{}
+					solution.Report.Data.CompileLogs = models.ReportDataLogs{}
+					solution.Report.Data.Tests = nil
 				}
 				solutions = append(solutions, solution)
 			}
@@ -142,7 +144,9 @@ func (v *View) GetContestProblem(c echo.Context) error {
 		if ok && solution.ContestID == contestID {
 			solution.SourceCode = ""
 			if solution.Report != nil {
-				solution.Report.Data = models.ReportData{}
+				solution.Report.Data.PrecompileLogs = models.ReportDataLogs{}
+				solution.Report.Data.CompileLogs = models.ReportDataLogs{}
+				solution.Report.Data.Tests = nil
 			}
 			problem.Solutions = append(problem.Solutions, solution)
 		}

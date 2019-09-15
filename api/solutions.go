@@ -12,8 +12,9 @@ import (
 
 type Solution struct {
 	models.Solution
-	User   *models.User   `json:""`
-	Report *models.Report `json:""`
+	User    *models.User   `json:""`
+	Problem *Problem       `json:""`
+	Report  *models.Report `json:""`
 }
 
 func (v *View) GetSolution(c echo.Context) error {
@@ -153,6 +154,10 @@ func (v *View) buildSolution(id int64) (Solution, bool) {
 	}
 	if user, ok := v.app.Users.Get(solution.UserID); ok {
 		result.User = &user
+	}
+	if problem, ok := v.buildProblem(solution.ProblemID); ok {
+		problem.Description = ""
+		result.Problem = &problem
 	}
 	if report, ok := v.app.Reports.GetLatest(solution.ID); ok {
 		result.Report = &report

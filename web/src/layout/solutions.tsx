@@ -76,7 +76,7 @@ export const SolutionsBlock: FC<SolutionsBlockProps> = props => {
 			</thead>
 			<tbody>
 			{solutions && solutions.map((solution, index) => {
-				const {ID, CreateTime, User, Report} = solution;
+				const {ID, CreateTime, User, Problem, Report} = solution;
 				let createDate = new Date(CreateTime * 1000);
 				return <tr key={index} className="solution">
 					<td className="id">
@@ -86,9 +86,13 @@ export const SolutionsBlock: FC<SolutionsBlockProps> = props => {
 						<div className="time">{formatTime(createDate)}</div>
 						<div className="date">{formatDate(createDate)}</div>
 					</td>
-					<td className="author">{User ?
+					<td className="participant">{User ?
 						<Link to={"/users/" + User.Login}>{User.Login}</Link> :
 						<>&mdash;</>
+					}</td>
+					<td className="problem">{Problem ?
+						<Link to={"/problems/" + Problem.ID}>{Problem.Title}</Link> :
+						<span>&mdash;</span>
 					}</td>
 					<td className="verdict">
 						<div className="type">{Report && getShortVerdict(Report.Verdict)}</div>

@@ -26,7 +26,7 @@ const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 	const onSubmit = (event: any) => {
 		event.preventDefault();
 		const {password, passwordRepeat} = event.target;
-		if (password.value.length < 8 && password.value.length > 32 &&
+		if (password.value.length < 8 || password.value.length > 32 ||
 			password !== passwordRepeat) {
 			setSuccess(false);
 			return;

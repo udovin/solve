@@ -43,7 +43,8 @@
 	padding: 0;
 }
 
-.b-solutions .ui-table .problem > a {
+.b-solutions .ui-table .problem > a,
+.b-solutions .ui-table .problem > span {
 	display: inline-block;
 	padding: 8px 10px;
 }

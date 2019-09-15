@@ -29,6 +29,7 @@ export type Problem = {
 };
 
 export type ContestProblem = Problem & {
+	ContestID: number;
 	Code: string;
 };
 
@@ -87,6 +88,7 @@ export type Solution = {
 	CompilerID: number;
 	UserID: number;
 	User?: User;
+	Problem?: Problem;
 	SourceCode: string;
 	CreateTime: number;
 	Report?: Report;

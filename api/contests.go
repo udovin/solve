@@ -17,7 +17,8 @@ type Contest struct {
 
 type ContestProblem struct {
 	Problem
-	Code string `json:""`
+	ContestID int64  `json:""`
+	Code      string `json:""`
 }
 
 func (v *View) GetContests(c echo.Context) error {
@@ -263,9 +264,11 @@ func (v *View) buildContest(id int64) (Contest, bool) {
 		if !ok {
 			continue
 		}
+		problem.Description = ""
 		result.Problems = append(result.Problems, ContestProblem{
-			Problem: problem,
-			Code:    contestProblem.Code,
+			Problem:   problem,
+			ContestID: contestProblem.ContestID,
+			Code:      contestProblem.Code,
 		})
 	}
 	sort.Sort(contestProblemSorter(result.Problems))

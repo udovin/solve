@@ -125,7 +125,7 @@ var mutex sync.Mutex
 
 // Commit applies changes to all change managers
 func (tx *ChangeTx) Commit() (err error) {
-	// Lock all managers before commiting transaction.
+	// Lock all managers before committing transaction.
 	// This action is required due to applyChange duplicates.
 	func() {
 		mutex.Lock()
@@ -143,15 +143,15 @@ func (tx *ChangeTx) Commit() (err error) {
 			}
 		}
 	}()
-	if err := tx.Tx.Commit(); err != nil {
-		return err
+	if err = tx.Tx.Commit(); err != nil {
+		return
 	}
 	for manager, changes := range tx.changes {
 		for _, change := range changes {
 			manager.applyChange(change)
 		}
 	}
-	return nil
+	return
 }
 
 // Rollback removes non applied changes from all change managers
@@ -179,8 +179,8 @@ func (m *ChangeManager) Init() error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	m.lastChangeID = id
-	return nil
+	m.lastChangeID = id - changeGapSkipWindow
+	return m.Sync()
 }
 
 // Begin starts new transaction

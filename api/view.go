@@ -143,6 +143,10 @@ func Register(app *core.App, api *echo.Group) {
 		"/contests/:ContestID", v.UpdateContest,
 		v.authMiddleware(v.sessionAuth),
 	)
+	api.GET(
+		"/contests/:ContestID/solutions", v.GetContestSolutions,
+		v.authMiddleware(v.sessionAuth),
+	)
 	api.POST(
 		"/contests/:ContestID/problems", v.CreateContestProblem,
 		v.authMiddleware(v.sessionAuth),

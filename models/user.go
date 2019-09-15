@@ -265,9 +265,9 @@ func (s *UserStore) ApplyChange(change Change) {
 	user := change.(*userChange)
 	switch user.Type {
 	case UpdateChange:
-		if oldUser, ok := s.users[user.User.ID]; ok {
-			if oldUser.Login != user.Login {
-				delete(s.loginUsers, oldUser.Login)
+		if old, ok := s.users[user.User.ID]; ok {
+			if old.Login != user.Login {
+				delete(s.loginUsers, old.Login)
 			}
 		}
 		fallthrough

@@ -28,20 +28,22 @@ type problemUserPair struct {
 }
 
 type SolutionStore struct {
-	Manager     *ChangeManager
-	table       string
-	changeTable string
-	solutions   map[int64]Solution
-	problemUser map[problemUserPair]map[int64]struct{}
-	mutex       sync.RWMutex
+	Manager          *ChangeManager
+	table            string
+	changeTable      string
+	solutions        map[int64]Solution
+	contestSolutions map[int64]map[int64]struct{}
+	problemUser      map[problemUserPair]map[int64]struct{}
+	mutex            sync.RWMutex
 }
 
 func NewSolutionStore(db *sql.DB, table, changeTable string) *SolutionStore {
 	store := SolutionStore{
-		table:       table,
-		changeTable: changeTable,
-		solutions:   make(map[int64]Solution),
-		problemUser: make(map[problemUserPair]map[int64]struct{}),
+		table:            table,
+		changeTable:      changeTable,
+		solutions:        make(map[int64]Solution),
+		contestSolutions: make(map[int64]map[int64]struct{}),
+		problemUser:      make(map[problemUserPair]map[int64]struct{}),
 	}
 	store.Manager = NewChangeManager(&store, db)
 	return &store
@@ -60,6 +62,20 @@ func (s *SolutionStore) All() []Solution {
 	var solutions []Solution
 	for _, solution := range s.solutions {
 		solutions = append(solutions, solution)
+	}
+	return solutions
+}
+
+func (s *SolutionStore) GetByContest(contestID int64) []Solution {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	var solutions []Solution
+	if contest, ok := s.contestSolutions[contestID]; ok {
+		for id := range contest {
+			if solution, ok := s.solutions[id]; ok {
+				solutions = append(solutions, solution)
+			}
+		}
 	}
 	return solutions
 }
@@ -284,29 +300,47 @@ func (s *SolutionStore) ApplyChange(change Change) {
 				UserID:    old.UserID,
 			}
 			if oldKey != problemUser {
-				if fields, ok := s.problemUser[problemUser]; ok {
+				if solution, ok := s.problemUser[oldKey]; ok {
+					delete(solution, old.ID)
+					if len(solution) == 0 {
+						delete(s.problemUser, oldKey)
+					}
+				}
+			}
+			if old.ContestID != solution.ContestID {
+				if fields, ok := s.contestSolutions[old.ContestID]; ok {
 					delete(fields, old.ID)
 					if len(fields) == 0 {
-						delete(s.problemUser, oldKey)
+						delete(s.contestSolutions, old.ContestID)
 					}
 				}
 			}
 		}
 		fallthrough
 	case CreateChange:
+		s.solutions[solution.Solution.ID] = solution.Solution
 		if _, ok := s.problemUser[problemUser]; !ok {
 			s.problemUser[problemUser] = make(map[int64]struct{})
 		}
 		s.problemUser[problemUser][solution.Solution.ID] = struct{}{}
-		s.solutions[solution.Solution.ID] = solution.Solution
+		if _, ok := s.contestSolutions[solution.ContestID]; !ok {
+			s.contestSolutions[solution.ContestID] = make(map[int64]struct{})
+		}
+		s.contestSolutions[solution.ContestID][solution.Solution.ID] = struct{}{}
 	case DeleteChange:
+		delete(s.solutions, solution.Solution.ID)
 		if fields, ok := s.problemUser[problemUser]; ok {
 			delete(fields, solution.Solution.ID)
 			if len(fields) == 0 {
 				delete(s.problemUser, problemUser)
 			}
 		}
-		delete(s.solutions, solution.Solution.ID)
+		if fields, ok := s.contestSolutions[solution.ContestID]; ok {
+			delete(fields, solution.Solution.ID)
+			if len(fields) == 0 {
+				delete(s.contestSolutions, solution.ContestID)
+			}
+		}
 	default:
 		panic(fmt.Errorf(
 			"unsupported change type = %s",

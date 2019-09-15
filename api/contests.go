@@ -78,6 +78,34 @@ func (v *View) GetContest(c echo.Context) error {
 	return c.JSON(http.StatusOK, contest)
 }
 
+func (v *View) GetContestSolutions(c echo.Context) error {
+	contestID, err := strconv.ParseInt(c.Param("ContestID"), 10, 64)
+	if err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	contest, ok := v.app.Contests.Get(contestID)
+	if !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if !v.canGetContest(user, contest) {
+		return c.NoContent(http.StatusForbidden)
+	}
+	var solutions []Solution
+	for _, model := range v.app.Solutions.GetByContest(contest.ID) {
+		if v.canGetSolution(user, model) {
+			if solution, ok := v.buildSolution(model.ID); ok {
+				solutions = append(solutions, solution)
+			}
+		}
+	}
+	return c.JSON(http.StatusOK, solutions)
+}
+
 func (v *View) GetContestProblem(c echo.Context) error {
 	contestID, err := strconv.ParseInt(c.Param("ContestID"), 10, 64)
 	if err != nil {

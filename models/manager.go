@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"sync"
+	"time"
 
 	"github.com/mattn/go-sqlite3"
 )
@@ -83,6 +84,7 @@ type ChangeStore interface {
 type ChangeGap struct {
 	BeginID int64
 	EndID   int64
+	time    time.Time
 }
 
 // ChangeTx stores non applied changes for current transaction
@@ -240,6 +242,8 @@ func (m *ChangeManager) Sync() error {
 // so we should skip this gaps after some other changes
 const changeGapSkipWindow = 5000
 
+const changeGapSkipTimeout = 2 * time.Minute
+
 // SyncTx syncs store with change table in transaction
 func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 	if tx.updated[m] {
@@ -256,9 +260,11 @@ func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
 
 // skipOldGaps removes old gaps from change manager
 func (m *ChangeManager) skipOldChangeGaps() {
+	window := m.lastChangeID - changeGapSkipWindow
+	timeout := time.Now().Add(-changeGapSkipTimeout)
 	for e := m.changeGaps.Front(); e != nil; {
 		curr := e.Value.(ChangeGap)
-		if curr.EndID+changeGapSkipWindow >= m.lastChangeID {
+		if curr.EndID >= window && curr.time.After(timeout) {
 			break
 		}
 		next := e.Next()
@@ -293,6 +299,7 @@ func (m *ChangeManager) loadChangeGaps(tx *ChangeTx) error {
 			next := ChangeGap{
 				BeginID: change.ChangeID() + 1,
 				EndID:   curr.EndID,
+				time:    time.Now(),
 			}
 			if curr.BeginID < change.ChangeID() {
 				curr.EndID = change.ChangeID()
@@ -359,6 +366,7 @@ func (m *ChangeManager) applyChange(change Change) {
 			next := ChangeGap{
 				BeginID: change.ChangeID() + 1,
 				EndID:   curr.EndID,
+				time:    time.Now(),
 			}
 			if curr.BeginID < change.ChangeID() {
 				curr.EndID = change.ChangeID()
@@ -382,6 +390,7 @@ func (m *ChangeManager) applyChange(change Change) {
 		_ = m.changeGaps.PushBack(ChangeGap{
 			BeginID: m.lastChangeID + 1,
 			EndID:   change.ChangeID(),
+			time:    time.Now(),
 		})
 	}
 	m.lastChangeID = change.ChangeID()

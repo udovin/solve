@@ -100,6 +100,10 @@ func (v *View) GetContestSolutions(c echo.Context) error {
 	for _, model := range v.app.Solutions.GetByContest(contest.ID) {
 		if v.canGetSolution(user, model) {
 			if solution, ok := v.buildSolution(model.ID); ok {
+				solution.SourceCode = ""
+				if solution.Report != nil {
+					solution.Report.Data = models.ReportData{}
+				}
 				solutions = append(solutions, solution)
 			}
 		}
@@ -136,9 +140,14 @@ func (v *View) GetContestProblem(c echo.Context) error {
 	for _, sol := range v.app.Solutions.GetByProblemUser(problem.ID, user.ID) {
 		solution, ok := v.buildSolution(sol.ID)
 		if ok && solution.ContestID == contestID {
+			solution.SourceCode = ""
+			if solution.Report != nil {
+				solution.Report.Data = models.ReportData{}
+			}
 			problem.Solutions = append(problem.Solutions, solution)
 		}
 	}
+	sort.Sort(solutionSorter(problem.Solutions))
 	return c.JSON(http.StatusOK, problem)
 }
 

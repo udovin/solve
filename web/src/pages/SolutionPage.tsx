@@ -78,7 +78,6 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 					<th className="participant">Participant</th>
 					<th className="problem">Problem</th>
 					<th className="verdict">Verdict</th>
-					<th className="defense">Defense</th>
 				</tr>
 				</thead>
 				<tbody>
@@ -98,9 +97,7 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 					<td className="verdict">
 						<div className="type">{Report && getShortVerdict(Report.Verdict)}</div>
 						<div className="value">{Report && Report.Data.Points}</div>
-					</td>
-					<td className="defense">
-						{Report && getDefense(Report.Data.Defense)}
+						<div className="defense">{Report && getDefense(Report.Data.Defense)}</div>
 					</td>
 				</tr>
 				</tbody>

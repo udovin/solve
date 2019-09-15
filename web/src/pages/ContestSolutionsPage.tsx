@@ -4,6 +4,7 @@ import Page from "../layout/Page";
 import {Solution} from "../api";
 import "./ContestPage.scss"
 import {SolutionsBlock} from "../layout/solutions";
+import ContestTabs from "../layout/ContestTabs";
 
 type ContestPageParams = {
 	ContestID: string;
@@ -21,6 +22,7 @@ const ContestSolutionsPage = ({match}: RouteComponentProps<ContestPageParams>) =
 		return <>Loading...</>;
 	}
 	return <Page title="Solutions">
+		<ContestTabs contestID={+ContestID} pageType="solutions"/>
 		<SolutionsBlock title="Solutions" solutions={solutions}/>
 	</Page>;
 };

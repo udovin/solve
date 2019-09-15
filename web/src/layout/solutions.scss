@@ -63,16 +63,20 @@
 	text-align: center;
 }
 
-.b-solutions .ui-table .verdict .type,
 .b-solutions .ui-table .verdict .type {
 	display: block;
 	cursor: default;
 }
 
-.b-solutions .ui-table .verdict .value,
 .b-solutions .ui-table .verdict .value {
 	display: block;
 	font-size: 13px;
+	color: #666666;
+}
+
+.b-solutions .ui-table .verdict .defense {
+	display: block;
+	font-size: 10px;
 	color: #666666;
 }
 

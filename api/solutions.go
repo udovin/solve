@@ -75,6 +75,10 @@ func (v *View) GetSolutions(c echo.Context) error {
 	var solutions []Solution
 	for _, m := range v.app.Solutions.All() {
 		if solution, ok := v.buildSolution(m.ID); ok {
+			solution.SourceCode = ""
+			if solution.Report != nil {
+				solution.Report.Data = models.ReportData{}
+			}
 			solutions = append(solutions, solution)
 		}
 	}

@@ -19,7 +19,7 @@ export const SubmitSolutionSideBlock: FC<SubmitSolutionSideBlockProps> = props =
 		<div className="ui-field">
 			<label>
 				<span className="label">Compiler:</span>
-				<select name="compilerID">
+				<select className="ui-select" name="compilerID">
 					{compilers && compilers.map((compiler, index) =>
 						<option value={compiler.ID} key={index}>{compiler.Name}</option>
 					)}
@@ -31,22 +31,6 @@ export const SubmitSolutionSideBlock: FC<SubmitSolutionSideBlockProps> = props =
 			</label>
 		</div>
 	</FormBlock>;
-};
-
-export type SolutionsSideBlockProps = {
-	solutions: Solution[];
-};
-
-export const SolutionsSideBlock: FC<SolutionsSideBlockProps> = props => {
-	const {solutions} = props;
-	return <Block title="Solutions">
-		<ul>{solutions && solutions.map(
-			(solution, index) => <li key={index}>
-				<Link to={"/solutions/" + solution.ID}>{solution.ID}</Link>
-				{solution.Report && <span className="verdict">{getShortVerdict(solution.Report.Verdict)}</span>}
-			</li>
-		)}</ul>
-	</Block>
 };
 
 export type SolutionsBlockProps = BlockProps & {
@@ -72,7 +56,6 @@ export const SolutionsBlock: FC<SolutionsBlockProps> = props => {
 				<th className="participant">Participant</th>
 				<th className="problem">Problem</th>
 				<th className="verdict">Verdict</th>
-				<th className="defense">Defense</th>
 			</tr>
 			</thead>
 			<tbody>
@@ -98,9 +81,50 @@ export const SolutionsBlock: FC<SolutionsBlockProps> = props => {
 					<td className="verdict">
 						<div className="type">{Report && getShortVerdict(Report.Verdict)}</div>
 						<div className="value">{Report && Report.Data.Points}</div>
+						<div className="defense">{Report && getDefense(Report.Data.Defense)}</div>
 					</td>
-					<td className="defense">
-						{Report && getDefense(Report.Data.Defense)}
+				</tr>;
+			})}
+			</tbody>
+		</table>
+	</Block>;
+};
+
+export const SolutionsSideBlock: FC<SolutionsBlockProps> = props => {
+	let {solutions, className, ...rest} = props;
+	className = className ? "b-solutions " + className : "b-solutions";
+	const format = (n: number) => {
+		return ("0" + n).slice(-Math.max(2, String(n).length));
+	};
+	const formatDate = (d: Date) =>
+		[d.getFullYear(), d.getMonth() + 1, d.getDate()].map(format).join("-");
+	const formatTime = (d: Date) =>
+		[d.getHours(), d.getMinutes(), d.getSeconds()].map(format).join(":");
+	return <Block className={className} {...rest}>
+		<table className="ui-table">
+			<thead>
+			<tr>
+				<th className="id">#</th>
+				<th className="created">Created</th>
+				<th className="verdict">Verdict</th>
+			</tr>
+			</thead>
+			<tbody>
+			{solutions && solutions.map((solution, index) => {
+				const {ID, CreateTime, Report} = solution;
+				let createDate = new Date(CreateTime * 1000);
+				return <tr key={index} className="solution">
+					<td className="id">
+						<Link to={"/solutions/" + ID}>{ID}</Link>
+					</td>
+					<td className="created">
+						<div className="time">{formatTime(createDate)}</div>
+						<div className="date">{formatDate(createDate)}</div>
+					</td>
+					<td className="verdict">
+						<div className="type">{Report && getShortVerdict(Report.Verdict)}</div>
+						<div className="value">{Report && Report.Data.Points}</div>
+						<div className="defense">{Report && getDefense(Report.Data.Defense)}</div>
 					</td>
 				</tr>;
 			})}

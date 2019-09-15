@@ -20,6 +20,9 @@ const Sidebar: FC = () => {
 				<Link to={"/users/"+login}>Profile</Link>
 			</li>
 			<li>
+				<Link to={"/users/"+login+"/edit"}>Edit</Link>
+			</li>
+			<li>
 				<Link to="/logout">Logout</Link>
 			</li>
 		</>;

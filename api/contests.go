@@ -103,6 +103,7 @@ func (v *View) GetContestSolutions(c echo.Context) error {
 			}
 		}
 	}
+	sort.Sort(solutionSorter(solutions))
 	return c.JSON(http.StatusOK, solutions)
 }
 

@@ -3,6 +3,9 @@ export type User = {
 	Login: string;
 	CreateTime: number;
 	IsSuper: boolean;
+	FirstName?: string;
+	LastName?: string;
+	MiddleName?: string;
 };
 
 export type Session = {

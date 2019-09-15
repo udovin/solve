@@ -1,0 +1,28 @@
+import React, {useEffect, useState} from "react";
+import {RouteComponentProps} from "react-router";
+import Page from "../layout/Page";
+import {Solution} from "../api";
+import "./ContestPage.scss"
+import {SolutionsBlock} from "../layout/solutions";
+
+type ContestPageParams = {
+	ContestID: string;
+}
+
+const ContestSolutionsPage = ({match}: RouteComponentProps<ContestPageParams>) => {
+	const {ContestID} = match.params;
+	const [solutions, setSolutions] = useState<Solution[]>();
+	useEffect(() => {
+		fetch("/api/v0/contests/" + ContestID + "/solutions")
+			.then(result => result.json())
+			.then(result => setSolutions(result || []));
+	}, [ContestID]);
+	if (!solutions) {
+		return <>Loading...</>;
+	}
+	return <Page title="Solutions">
+		<SolutionsBlock title="Solutions" solutions={solutions}/>
+	</Page>;
+};
+
+export default ContestSolutionsPage;

@@ -111,7 +111,7 @@ func (v *View) GetUser(c echo.Context) error {
 		return c.NoContent(http.StatusNotFound)
 	}
 	result := User{User: user}
-	for _, field := range v.app.UserFields.GetByUser(userID) {
+	for _, field := range v.app.UserFields.GetByUser(user.ID) {
 		switch field.Type {
 		case models.FirstNameField:
 			result.FirstName = field.Data
@@ -126,13 +126,24 @@ func (v *View) GetUser(c echo.Context) error {
 
 func (v *View) UpdateUser(c echo.Context) error {
 	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 64)
+	var (
+		okUser bool
+		user   models.User
+	)
 	if err != nil {
-		c.Logger().Error(err)
-		return err
+		user, okUser = v.app.Users.GetByLogin(c.Param("UserID"))
+	} else {
+		user, okUser = v.app.Users.Get(userID)
 	}
-	user, ok := v.app.Users.Get(userID)
-	if !ok {
+	if !okUser {
 		return c.NoContent(http.StatusNotFound)
+	}
+	performer, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if user.ID != performer.ID && !performer.IsSuper {
+		return c.NoContent(http.StatusForbidden)
 	}
 	var userData struct {
 		Password *string `json:""`

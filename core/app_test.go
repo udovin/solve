@@ -2,7 +2,6 @@ package core
 
 import (
 	"testing"
-	"time"
 
 	"github.com/udovin/solve/config"
 )
@@ -53,9 +52,7 @@ func TestApp_StartStop(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	if err := app.Start(); err != nil {
-		t.Fatal("Error: ", err)
+	if err := app.Start(); err == nil {
+		t.Fatal("Expected error")
 	}
-	time.Sleep(2 * time.Second)
-	app.Stop()
 }

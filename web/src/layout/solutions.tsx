@@ -70,6 +70,7 @@ export const SolutionsBlock: FC<SolutionsBlockProps> = props => {
 				<th className="id">#</th>
 				<th className="created">Created</th>
 				<th className="participant">Participant</th>
+				<th className="problem">Problem</th>
 				<th className="verdict">Verdict</th>
 				<th className="defense">Defense</th>
 			</tr>

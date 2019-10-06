@@ -36,21 +36,23 @@ func NewCompilerStore(db *sql.DB, table, changeTable string) *CompilerStore {
 	return &store
 }
 
-func (s *CompilerStore) All() []Compiler {
+func (s *CompilerStore) All() ([]Compiler, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var compilers []Compiler
 	for _, compiler := range s.compilers {
 		compilers = append(compilers, compiler)
 	}
-	return compilers
+	return compilers, nil
 }
 
-func (s *CompilerStore) Get(id int64) (Compiler, bool) {
+func (s *CompilerStore) Get(id int64) (Compiler, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	compiler, ok := s.compilers[id]
-	return compiler, ok
+	if compiler, ok := s.compilers[id]; ok {
+		return compiler, nil
+	}
+	return Compiler{}, sql.ErrNoRows
 }
 
 func (s *CompilerStore) Create(m *Compiler) error {

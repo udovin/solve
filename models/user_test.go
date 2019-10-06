@@ -26,8 +26,8 @@ func TestUserStore_Modify(t *testing.T) {
 	if user.ID <= 0 {
 		t.Fatal("ID should be greater that zero")
 	}
-	found, ok := store.Get(user.ID)
-	if !ok {
+	found, err := store.Get(user.ID)
+	if err != nil {
 		t.Fatal("Unable to found user")
 	}
 	if found.CreateTime != user.CreateTime {
@@ -37,8 +37,8 @@ func TestUserStore_Modify(t *testing.T) {
 	if err := store.Update(&user); err != nil {
 		t.Fatal(err)
 	}
-	found, ok = store.Get(user.ID)
-	if !ok {
+	found, err = store.Get(user.ID)
+	if err != nil {
 		t.Fatal("Unable to found user")
 	}
 	if found.CreateTime != user.CreateTime {
@@ -47,7 +47,7 @@ func TestUserStore_Modify(t *testing.T) {
 	if err := store.Delete(user.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := store.Get(user.ID); ok {
+	if _, err := store.Get(user.ID); err == nil {
 		t.Fatal("User should be deleted")
 	}
 }

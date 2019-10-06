@@ -26,8 +26,8 @@ func TestSessionStore_Modify(t *testing.T) {
 	if session.ID <= 0 {
 		t.Fatal("ID should be greater that zero")
 	}
-	found, ok := store.Get(session.ID)
-	if !ok {
+	found, err := store.Get(session.ID)
+	if err != nil {
 		t.Fatal("Unable to found session")
 	}
 	if found.CreateTime != session.CreateTime {
@@ -37,8 +37,8 @@ func TestSessionStore_Modify(t *testing.T) {
 	if err := store.Update(&session); err != nil {
 		t.Fatal(err)
 	}
-	found, ok = store.Get(session.ID)
-	if !ok {
+	found, err = store.Get(session.ID)
+	if err != nil {
 		t.Fatal("Unable to found session")
 	}
 	if found.CreateTime != session.CreateTime {
@@ -47,7 +47,7 @@ func TestSessionStore_Modify(t *testing.T) {
 	if err := store.Delete(session.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := store.Get(session.ID); ok {
+	if _, err := store.Get(session.ID); err == nil {
 		t.Fatal("Session should be deleted")
 	}
 }

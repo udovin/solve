@@ -103,14 +103,16 @@ func NewReportStore(db *sql.DB, table, changeTable string) *ReportStore {
 	return &store
 }
 
-func (s *ReportStore) Get(id int64) (Report, bool) {
+func (s *ReportStore) Get(id int64) (Report, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	report, ok := s.reports[id]
-	return report, ok
+	if report, ok := s.reports[id]; ok {
+		return report, nil
+	}
+	return Report{}, sql.ErrNoRows
 }
 
-func (s *ReportStore) GetLatest(solutionID int64) (Report, bool) {
+func (s *ReportStore) GetLatest(solutionID int64) (Report, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if ids, ok := s.solutionReports[solutionID]; ok {
@@ -122,9 +124,9 @@ func (s *ReportStore) GetLatest(solutionID int64) (Report, bool) {
 				}
 			}
 		}
-		return latest, true
+		return latest, nil
 	}
-	return Report{}, false
+	return Report{}, sql.ErrNoRows
 }
 
 func (s *ReportStore) GetQueuedIDs() (ids []int64) {

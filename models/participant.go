@@ -47,32 +47,33 @@ func NewParticipantStore(db *sql.DB, table, changeTable string) *ParticipantStor
 	return &store
 }
 
-func (s *ParticipantStore) Get(id int64) (Participant, bool) {
+func (s *ParticipantStore) Get(id int64) (Participant, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	participant, ok := s.participants[id]
-	return participant, ok
+	if participant, ok := s.participants[id]; ok {
+		return participant, nil
+	}
+	return Participant{}, sql.ErrNoRows
 }
 
 func (s *ParticipantStore) GetByContestUser(
 	contestID, userID int64,
-) []Participant {
+) ([]Participant, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	key := contestUserPair{
 		ContestID: contestID,
 		UserID:    userID,
 	}
+	var participants []Participant
 	if ids, ok := s.contestUser[key]; ok {
-		var participants []Participant
 		for id := range ids {
 			if participant, ok := s.participants[id]; ok {
 				participants = append(participants, participant)
 			}
 		}
-		return participants
 	}
-	return nil
+	return participants, nil
 }
 
 func (s *ParticipantStore) Create(m *Participant) error {

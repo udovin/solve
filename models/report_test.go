@@ -26,8 +26,8 @@ func TestReportStore_Modify(t *testing.T) {
 	if report.ID <= 0 {
 		t.Fatal("ID should be greater that zero")
 	}
-	found, ok := store.Get(report.ID)
-	if !ok {
+	found, err := store.Get(report.ID)
+	if err != nil {
 		t.Fatal("Unable to found report")
 	}
 	if found.CreateTime != report.CreateTime {
@@ -37,8 +37,8 @@ func TestReportStore_Modify(t *testing.T) {
 	if err := store.Update(&report); err != nil {
 		t.Fatal(err)
 	}
-	found, ok = store.Get(report.ID)
-	if !ok {
+	found, err = store.Get(report.ID)
+	if err != nil {
 		t.Fatal("Unable to found report")
 	}
 	if found.CreateTime != report.CreateTime {
@@ -47,7 +47,7 @@ func TestReportStore_Modify(t *testing.T) {
 	if err := store.Delete(report.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := store.Get(report.ID); ok {
+	if _, err := store.Get(report.ID); err == nil {
 		t.Fatal("Report should be deleted")
 	}
 }

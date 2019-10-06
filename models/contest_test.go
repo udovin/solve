@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 )
@@ -22,8 +23,8 @@ func TestContestStore_applyChange(t *testing.T) {
 		BaseChange: BaseChange{ID: 1, Type: CreateChange, Time: 0},
 		Contest:    Contest{ID: 1, UserID: 1},
 	})
-	m, ok := store.Get(1)
-	if !ok {
+	m, err := store.Get(1)
+	if err != nil {
 		t.Fatal("Contest should exists")
 	}
 	if m.UserID != 1 {
@@ -33,8 +34,8 @@ func TestContestStore_applyChange(t *testing.T) {
 		BaseChange: BaseChange{ID: 2, Type: UpdateChange, Time: 1},
 		Contest:    Contest{ID: 1, UserID: 2},
 	})
-	m, ok = store.Get(1)
-	if !ok {
+	m, err = store.Get(1)
+	if err != nil {
 		t.Fatal("Contest should exists")
 	}
 	if m.UserID != 2 {
@@ -44,7 +45,7 @@ func TestContestStore_applyChange(t *testing.T) {
 		BaseChange: BaseChange{ID: 3, Type: DeleteChange, Time: 2},
 		Contest:    Contest{ID: 1},
 	})
-	if _, ok := store.Get(1); ok {
+	if _, err := store.Get(1); err != sql.ErrNoRows {
 		t.Fatal("Contest should be deleted")
 	}
 	func() {
@@ -102,8 +103,8 @@ func TestContestStore_Modify(t *testing.T) {
 	if contest.ID <= 0 {
 		t.Fatal("ID should be greater that zero")
 	}
-	found, ok := store.Get(contest.ID)
-	if !ok {
+	found, err := store.Get(contest.ID)
+	if err != nil {
 		t.Fatal("Unable to found contest")
 	}
 	if found.CreateTime != contest.CreateTime {
@@ -113,8 +114,8 @@ func TestContestStore_Modify(t *testing.T) {
 	if err := store.Update(&contest); err != nil {
 		t.Fatal(err)
 	}
-	found, ok = store.Get(contest.ID)
-	if !ok {
+	found, err = store.Get(contest.ID)
+	if err != nil {
 		t.Fatal("Unable to found contest")
 	}
 	if found.CreateTime != contest.CreateTime {
@@ -123,7 +124,7 @@ func TestContestStore_Modify(t *testing.T) {
 	if err := store.Delete(contest.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := store.Get(contest.ID); ok {
+	if _, err := store.Get(contest.ID); err == nil {
 		t.Fatal("Contest should be deleted")
 	}
 }

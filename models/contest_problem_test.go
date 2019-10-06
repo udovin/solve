@@ -25,7 +25,10 @@ func TestContestProblemStore_Modify(t *testing.T) {
 	if err := store.Create(&contestProblem); err != nil {
 		t.Fatal(err)
 	}
-	found := store.GetByContest(contestProblem.ContestID)
+	found, err := store.GetByContest(contestProblem.ContestID)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 	if len(found) != 1 {
 		t.Fatal("Unable to found contest problem")
 	}
@@ -36,7 +39,10 @@ func TestContestProblemStore_Modify(t *testing.T) {
 	if err := store.Update(&contestProblem); err != nil {
 		t.Fatal(err)
 	}
-	found = store.GetByContest(contestProblem.ContestID)
+	found, err = store.GetByContest(contestProblem.ContestID)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 	if len(found) != 1 {
 		t.Fatal("Unable to found contest problem")
 	}
@@ -48,7 +54,7 @@ func TestContestProblemStore_Modify(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if found := store.GetByContest(contestProblem.ContestID); len(found) != 0 {
+	if found, _ := store.GetByContest(contestProblem.ContestID); len(found) != 0 {
 		t.Fatal("ContestProblem should be deleted")
 	}
 }

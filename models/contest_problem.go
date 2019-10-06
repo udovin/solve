@@ -38,7 +38,9 @@ func NewContestProblemStore(
 	return &store
 }
 
-func (s *ContestProblemStore) GetByContest(id int64) []ContestProblem {
+func (s *ContestProblemStore) GetByContest(
+	id int64,
+) ([]ContestProblem, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var found []ContestProblem
@@ -47,7 +49,7 @@ func (s *ContestProblemStore) GetByContest(id int64) []ContestProblem {
 			found = append(found, problem)
 		}
 	}
-	return found
+	return found, nil
 }
 
 func (s *ContestProblemStore) Create(m *ContestProblem) error {

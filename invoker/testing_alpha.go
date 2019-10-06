@@ -69,8 +69,8 @@ func (s *Invoker) preparePackage(c *context) error {
 	if err := s.app.Problems.Manager.Sync(); err != nil {
 		log.Println("Error:", err)
 	}
-	problem, ok := s.app.Problems.Get(c.ProblemID)
-	if !ok {
+	problem, err := s.app.Problems.Get(c.ProblemID)
+	if err != nil {
 		return fmt.Errorf("unknown problem with id = %d", c.ProblemID)
 	}
 	c.Problem = &problem

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"sort"
 	"strconv"
@@ -23,9 +24,13 @@ func (v *View) GetSolution(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	solution, ok := v.buildSolution(solutionID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	solution, err := v.buildSolution(solutionID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {
@@ -43,9 +48,13 @@ func (v *View) RejudgeSolution(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	solution, ok := v.buildSolution(solutionID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	solution, err := v.buildSolution(solutionID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {
@@ -73,8 +82,13 @@ func (v *View) GetSolutions(c echo.Context) error {
 		return c.NoContent(http.StatusForbidden)
 	}
 	var solutions []Solution
-	for _, m := range v.app.Solutions.All() {
-		if solution, ok := v.buildSolution(m.ID); ok {
+	list, err := v.app.Solutions.All()
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	for _, m := range list {
+		if solution, err := v.buildSolution(m.ID); err == nil {
 			solution.SourceCode = ""
 			if solution.Report != nil {
 				solution.Report.Data.PrecompileLogs = models.ReportDataLogs{}
@@ -104,9 +118,13 @@ func (v *View) createSolutionReport(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	solution, ok := v.buildSolution(solutionID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	solution, err := v.buildSolution(solutionID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {
@@ -115,9 +133,13 @@ func (v *View) createSolutionReport(c echo.Context) error {
 	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
-	report, ok := v.app.Reports.GetLatest(solution.ID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	report, err := v.app.Reports.GetLatest(solution.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if diff.Defense != nil {
 		report.Data.Defense = diff.Defense
@@ -142,33 +164,33 @@ func (v *View) canGetSolution(
 		return true
 	}
 	if solution.ContestID > 0 {
-		contest, ok := v.app.Contests.Get(solution.ContestID)
-		if ok && user.ID == contest.UserID {
+		contest, err := v.app.Contests.Get(solution.ContestID)
+		if err == nil && user.ID == contest.UserID {
 			return true
 		}
 	}
 	return false
 }
 
-func (v *View) buildSolution(id int64) (Solution, bool) {
-	solution, ok := v.app.Solutions.Get(id)
-	if !ok {
-		return Solution{}, false
+func (v *View) buildSolution(id int64) (Solution, error) {
+	solution, err := v.app.Solutions.Get(id)
+	if err != nil {
+		return Solution{}, err
 	}
 	result := Solution{
 		Solution: solution,
 	}
-	if user, ok := v.app.Users.Get(solution.UserID); ok {
+	if user, err := v.app.Users.Get(solution.UserID); err == nil {
 		result.User = &user
 	}
-	if problem, ok := v.buildProblem(solution.ProblemID); ok {
+	if problem, err := v.buildProblem(solution.ProblemID); err == nil {
 		problem.Description = ""
 		result.Problem = &problem
 	}
-	if report, ok := v.app.Reports.GetLatest(solution.ID); ok {
+	if report, err := v.app.Reports.GetLatest(solution.ID); err == nil {
 		result.Report = &report
 	}
-	return result, true
+	return result, nil
 }
 
 type solutionSorter []Solution

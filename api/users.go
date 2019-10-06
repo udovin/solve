@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
 
@@ -98,20 +99,26 @@ func (v *View) CreateUser(c echo.Context) error {
 
 func (v *View) GetUser(c echo.Context) error {
 	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 64)
-	var (
-		okUser bool
-		user   models.User
-	)
+	var user models.User
 	if err != nil {
-		user, okUser = v.app.Users.GetByLogin(c.Param("UserID"))
+		user, err = v.app.Users.GetByLogin(c.Param("UserID"))
 	} else {
-		user, okUser = v.app.Users.Get(userID)
+		user, err = v.app.Users.Get(userID)
 	}
-	if !okUser {
-		return c.NoContent(http.StatusNotFound)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	result := User{User: user}
-	for _, field := range v.app.UserFields.GetByUser(user.ID) {
+	fields, err := v.app.UserFields.GetByUser(user.ID)
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	for _, field := range fields {
 		switch field.Type {
 		case models.FirstNameField:
 			result.FirstName = field.Data
@@ -126,17 +133,18 @@ func (v *View) GetUser(c echo.Context) error {
 
 func (v *View) UpdateUser(c echo.Context) error {
 	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 64)
-	var (
-		okUser bool
-		user   models.User
-	)
+	var user models.User
 	if err != nil {
-		user, okUser = v.app.Users.GetByLogin(c.Param("UserID"))
+		user, err = v.app.Users.GetByLogin(c.Param("UserID"))
 	} else {
-		user, okUser = v.app.Users.Get(userID)
+		user, err = v.app.Users.Get(userID)
 	}
-	if !okUser {
-		return c.NoContent(http.StatusNotFound)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	performer, ok := c.Get(userKey).(models.User)
 	if !ok {

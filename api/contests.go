@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"sort"
 	"strconv"
@@ -22,7 +23,11 @@ type ContestProblem struct {
 }
 
 func (v *View) GetContests(c echo.Context) error {
-	contests := v.app.Contests.All()
+	contests, err := v.app.Contests.All()
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
 	if contests == nil {
 		contests = make([]models.Contest, 0)
 	}
@@ -69,9 +74,13 @@ func (v *View) GetContest(c echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
-	contest, ok := v.buildContest(contestID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	contest, err := v.buildContest(contestID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if !v.canGetContest(user, contest.Contest) {
 		return c.NoContent(http.StatusForbidden)
@@ -85,9 +94,13 @@ func (v *View) GetContestSolutions(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	contest, ok := v.app.Contests.Get(contestID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	contest, err := v.app.Contests.Get(contestID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {
@@ -96,22 +109,26 @@ func (v *View) GetContestSolutions(c echo.Context) error {
 	if !v.canGetContest(user, contest) {
 		return c.NoContent(http.StatusForbidden)
 	}
-	var solutions []Solution
-	for _, model := range v.app.Solutions.GetByContest(contest.ID) {
+	var result []Solution
+	solutions, err := v.app.Solutions.GetByContest(contest.ID)
+	if err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	for _, model := range solutions {
 		if v.canGetSolution(user, model) {
-			if solution, ok := v.buildSolution(model.ID); ok {
+			if solution, err := v.buildSolution(model.ID); err == nil {
 				solution.SourceCode = ""
 				if solution.Report != nil {
 					solution.Report.Data.PrecompileLogs = models.ReportDataLogs{}
 					solution.Report.Data.CompileLogs = models.ReportDataLogs{}
 					solution.Report.Data.Tests = nil
 				}
-				solutions = append(solutions, solution)
+				result = append(result, solution)
 			}
 		}
 	}
-	sort.Sort(solutionSorter(solutions))
-	return c.JSON(http.StatusOK, solutions)
+	sort.Sort(solutionSorter(result))
+	return c.JSON(http.StatusOK, result)
 }
 
 func (v *View) GetContestProblem(c echo.Context) error {
@@ -122,7 +139,12 @@ func (v *View) GetContestProblem(c echo.Context) error {
 	}
 	problemCode := c.Param("ProblemCode")
 	var contestProblem models.ContestProblem
-	for _, problem := range v.app.ContestProblems.GetByContest(contestID) {
+	problems, err := v.app.ContestProblems.GetByContest(contestID)
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	for _, problem := range problems {
 		if problem.Code == problemCode {
 			contestProblem = problem
 			break
@@ -131,17 +153,25 @@ func (v *View) GetContestProblem(c echo.Context) error {
 	if contestProblem.Code != problemCode {
 		return c.NoContent(http.StatusNotFound)
 	}
-	problem, ok := v.buildProblem(contestProblem.ProblemID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	problem, err := v.buildProblem(contestProblem.ProblemID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
-	for _, sol := range v.app.Solutions.GetByProblemUser(problem.ID, user.ID) {
-		solution, ok := v.buildSolution(sol.ID)
-		if ok && solution.ContestID == contestID {
+	solutions, err := v.app.Solutions.GetByProblemUser(problem.ID, user.ID)
+	if err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	for _, model := range solutions {
+		solution, err := v.buildSolution(model.ID)
+		if err == nil && solution.ContestID == contestID {
 			solution.SourceCode = ""
 			if solution.Report != nil {
 				solution.Report.Data.PrecompileLogs = models.ReportDataLogs{}
@@ -174,11 +204,19 @@ func (v *View) CreateContestProblem(c echo.Context) error {
 	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
-	if _, ok := v.app.Contests.Get(contestProblem.ContestID); !ok {
-		return c.NoContent(http.StatusNotFound)
+	if _, err := v.app.Contests.Get(contestProblem.ContestID); err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
-	if _, ok := v.app.Problems.Get(contestProblem.ProblemID); !ok {
-		return c.NoContent(http.StatusNotFound)
+	if _, err := v.app.Problems.Get(contestProblem.ProblemID); err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if err := v.app.ContestProblems.Create(&contestProblem); err != nil {
 		c.Logger().Error(err)
@@ -193,9 +231,13 @@ func (v *View) CreateContestSolution(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	contest, ok := v.app.Contests.Get(contestID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	contest, err := v.app.Contests.Get(contestID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {
@@ -206,7 +248,12 @@ func (v *View) CreateContestSolution(c echo.Context) error {
 	}
 	problemCode := c.Param("ProblemCode")
 	var contestProblem models.ContestProblem
-	for _, problem := range v.app.ContestProblems.GetByContest(contestID) {
+	problems, err := v.app.ContestProblems.GetByContest(contestID)
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	for _, problem := range problems {
 		if problem.Code == problemCode {
 			contestProblem = problem
 			break
@@ -220,8 +267,12 @@ func (v *View) CreateContestSolution(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	if _, ok := v.app.Compilers.Get(solution.CompilerID); !ok {
-		return c.NoContent(http.StatusNotFound)
+	if _, err := v.app.Compilers.Get(solution.CompilerID); err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	solution.UserID = user.ID
 	solution.ContestID = contestProblem.ContestID
@@ -263,18 +314,22 @@ func (v *View) DeleteContest(c echo.Context) error {
 	return c.NoContent(http.StatusNotImplemented)
 }
 
-func (v *View) buildContest(id int64) (Contest, bool) {
-	contest, ok := v.app.Contests.Get(id)
-	if !ok {
-		return Contest{}, false
+func (v *View) buildContest(id int64) (Contest, error) {
+	contest, err := v.app.Contests.Get(id)
+	if err != nil {
+		return Contest{}, err
 	}
 	result := Contest{
 		Contest:  contest,
 		Problems: make([]ContestProblem, 0),
 	}
-	for _, contestProblem := range v.app.ContestProblems.GetByContest(id) {
-		problem, ok := v.buildProblem(contestProblem.ProblemID)
-		if !ok {
+	problems, err := v.app.ContestProblems.GetByContest(id)
+	if err != nil {
+		return Contest{}, err
+	}
+	for _, contestProblem := range problems {
+		problem, err := v.buildProblem(contestProblem.ProblemID)
+		if err != nil {
 			continue
 		}
 		problem.Description = ""
@@ -285,7 +340,7 @@ func (v *View) buildContest(id int64) (Contest, bool) {
 		})
 	}
 	sort.Sort(contestProblemSorter(result.Problems))
-	return result, true
+	return result, nil
 }
 
 func (v *View) canGetContest(
@@ -297,10 +352,10 @@ func (v *View) canGetContest(
 	if user.ID == contest.UserID {
 		return true
 	}
-	participants := v.app.Participants.GetByContestUser(
+	participants, err := v.app.Participants.GetByContestUser(
 		contest.ID, user.ID,
 	)
-	return len(participants) > 0
+	return err == nil && len(participants) > 0
 }
 
 type contestModelSorter []models.Contest

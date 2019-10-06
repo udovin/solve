@@ -49,24 +49,26 @@ func NewSolutionStore(db *sql.DB, table, changeTable string) *SolutionStore {
 	return &store
 }
 
-func (s *SolutionStore) Get(id int64) (Solution, bool) {
+func (s *SolutionStore) Get(id int64) (Solution, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	solution, ok := s.solutions[id]
-	return solution, ok
+	if solution, ok := s.solutions[id]; ok {
+		return solution, nil
+	}
+	return Solution{}, sql.ErrNoRows
 }
 
-func (s *SolutionStore) All() []Solution {
+func (s *SolutionStore) All() ([]Solution, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var solutions []Solution
 	for _, solution := range s.solutions {
 		solutions = append(solutions, solution)
 	}
-	return solutions
+	return solutions, nil
 }
 
-func (s *SolutionStore) GetByContest(contestID int64) []Solution {
+func (s *SolutionStore) GetByContest(contestID int64) ([]Solution, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var solutions []Solution
@@ -77,28 +79,27 @@ func (s *SolutionStore) GetByContest(contestID int64) []Solution {
 			}
 		}
 	}
-	return solutions
+	return solutions, nil
 }
 
 func (s *SolutionStore) GetByProblemUser(
 	problemID, userID int64,
-) []Solution {
+) ([]Solution, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	key := problemUserPair{
 		ProblemID: problemID,
 		UserID:    userID,
 	}
+	var solutions []Solution
 	if ids, ok := s.problemUser[key]; ok {
-		var solutions []Solution
 		for id := range ids {
 			if solution, ok := s.solutions[id]; ok {
 				solutions = append(solutions, solution)
 			}
 		}
-		return solutions
 	}
-	return nil
+	return solutions, nil
 }
 
 func (s *SolutionStore) Create(m *Solution) error {

@@ -64,8 +64,8 @@ func (s *Invoker) loop() {
 			if err := s.app.Compilers.Manager.Sync(); err != nil {
 				log.Println("Error:", err)
 			}
-			solution, ok := s.app.Solutions.Get(report.SolutionID)
-			if !ok {
+			solution, err := s.app.Solutions.Get(report.SolutionID)
+			if err != nil {
 				log.Printf(
 					"Unable to find solution for report = %d",
 					report.SolutionID,
@@ -101,8 +101,8 @@ func (s *Invoker) popQueuedReport() (report models.Report, err error) {
 		err = errEmptyQueue
 		return
 	}
-	report, ok := s.app.Reports.Get(queuedIDs[0])
-	if !ok {
+	report, err = s.app.Reports.Get(queuedIDs[0])
+	if err != nil {
 		err = errEmptyQueue
 		return
 	}

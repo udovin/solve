@@ -70,22 +70,25 @@ func NewUserStore(db *sql.DB, table, changeTable string) *UserStore {
 }
 
 // Get returns user by ID
-func (s *UserStore) Get(id int64) (User, bool) {
+func (s *UserStore) Get(id int64) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	user, ok := s.users[id]
-	return user, ok
+	if user, ok := s.users[id]; ok {
+		return user, nil
+	}
+	return User{}, sql.ErrNoRows
 }
 
 // GetByLogin returns user by login
-func (s *UserStore) GetByLogin(login string) (User, bool) {
+func (s *UserStore) GetByLogin(login string) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	id, ok := s.loginUsers[login]
-	if !ok {
-		return User{}, ok
+	if id, ok := s.loginUsers[login]; ok {
+		if user, ok := s.users[id]; ok {
+			return user, nil
+		}
 	}
-	return s.Get(id)
+	return User{}, sql.ErrNoRows
 }
 
 // Create creates new user

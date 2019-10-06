@@ -2,6 +2,7 @@ package api
 
 import (
 	"archive/zip"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -152,27 +153,31 @@ func (v *View) GetProblem(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	problem, ok := v.buildProblem(problemID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	problem, err := v.buildProblem(problemID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.JSON(http.StatusOK, problem)
 }
 
-func (v *View) buildProblem(id int64) (Problem, bool) {
-	problem, ok := v.app.Problems.Get(id)
-	if !ok {
-		return Problem{}, false
+func (v *View) buildProblem(id int64) (Problem, error) {
+	problem, err := v.app.Problems.Get(id)
+	if err != nil {
+		return Problem{}, err
 	}
-	statement, ok := v.app.Statements.GetByProblem(problem.ID)
-	if !ok {
-		return Problem{}, false
+	statement, err := v.app.Statements.GetByProblem(problem.ID)
+	if err != nil {
+		return Problem{}, err
 	}
 	return Problem{
 		Problem:     problem,
 		Title:       statement.Title,
 		Description: statement.Description,
-	}, true
+	}, nil
 }
 
 func (v *View) UpdateProblem(c echo.Context) error {

@@ -27,11 +27,13 @@ func (s *FakeStore) GetLocker() sync.Locker {
 	return &s.mutex
 }
 
-func (s *FakeStore) Get(id int) (Fake, bool) {
+func (s *FakeStore) Get(id int) (Fake, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	mock, ok := s.fakes[id]
-	return mock, ok
+	if mock, ok := s.fakes[id]; ok {
+		return mock, nil
+	}
+	return Fake{}, sql.ErrNoRows
 }
 
 func (s *FakeStore) InitChanges(tx *sql.Tx) (int64, error) {
@@ -122,20 +124,54 @@ func TestChangeManager(t *testing.T) {
 			BaseChange: BaseChange{Type: CreateChange},
 			Fake:       fake,
 		}); err != nil {
-			t.Error("Error: ", err)
+			t.Fatal("Error: ", err)
 		}
 	}
 	for _, fake := range fakes {
-		m, ok := store.Get(fake.ID)
-		if !ok {
-			t.Errorf("Fake with ID = %d does not exist", fake.ID)
+		m, err := store.Get(fake.ID)
+		if err != nil {
+			t.Fatalf("Fake with ID = %d does not exist", fake.ID)
 		}
 		if m.Value != fake.Value {
-			t.Errorf(
+			t.Fatalf(
 				"Expected '%s' but found '%s'",
 				fake.Value, m.Value,
 			)
 		}
+	}
+}
+
+func TestChangeManager_SyncChanges(t *testing.T) {
+	setup(t)
+	defer teardown(t)
+	store := FakeStore{fakes: make(map[int]Fake)}
+	manager := NewChangeManager(&store, db)
+	if _, err := db.Exec(
+		`INSERT INTO test_fake_change` +
+			` (change_id, change_type, change_time, id, value)` +
+			` VALUES (1, 1, 0, 1, '')`,
+	); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO test_fake_change` +
+			` (change_id, change_type, change_time, id, value)` +
+			` VALUES (3, 1, 0, 3, '')`,
+	); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := manager.Sync(); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO test_fake_change` +
+			` (change_id, change_type, change_time, id, value)` +
+			` VALUES (2, 1, 0, 2, '')`,
+	); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := manager.Sync(); err != nil {
+		t.Fatal("Error:", err)
 	}
 }
 
@@ -239,12 +275,12 @@ func TestChangeManager_Sync(t *testing.T) {
 		}
 	}
 	for _, fake := range fakes {
-		if f, ok := store1.Get(fake.ID); !ok || f != fake {
+		if f, err := store1.Get(fake.ID); err != nil || f != fake {
 			t.Fatal("Invalid value")
 		}
 	}
 	for _, fake := range fakes {
-		if _, ok := store2.Get(fake.ID); ok {
+		if _, err := store2.Get(fake.ID); err == nil {
 			t.Fatal("Store does not have items")
 		}
 	}
@@ -252,7 +288,7 @@ func TestChangeManager_Sync(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, fake := range fakes {
-		if f, ok := store2.Get(fake.ID); !ok || f != fake {
+		if f, err := store2.Get(fake.ID); err != nil || f != fake {
 			t.Fatal("Invalid value")
 		}
 	}
@@ -347,7 +383,7 @@ func TestChangeManager_ChangeCommit(t *testing.T) {
 		}
 	}
 	for _, fake := range fakes {
-		if _, ok := store1.Get(fake.ID); ok {
+		if _, err := store1.Get(fake.ID); err == nil {
 			t.Error("Store should not have items")
 		}
 	}
@@ -355,12 +391,12 @@ func TestChangeManager_ChangeCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, fake := range fakes {
-		if f, ok := store1.Get(fake.ID); !ok || f != fake {
+		if f, err := store1.Get(fake.ID); err != nil || f != fake {
 			t.Fatal("Invalid value")
 		}
 	}
 	for _, fake := range fakes {
-		if _, ok := store2.Get(fake.ID); ok {
+		if _, err := store2.Get(fake.ID); err == nil {
 			t.Fatal("Store does not have items")
 		}
 	}
@@ -368,7 +404,7 @@ func TestChangeManager_ChangeCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, fake := range fakes {
-		if f, ok := store2.Get(fake.ID); !ok || f != fake {
+		if f, err := store2.Get(fake.ID); err != nil || f != fake {
 			t.Fatal("Invalid value")
 		}
 	}
@@ -394,7 +430,7 @@ func TestChangeManager_ChangeRollback(t *testing.T) {
 		}
 	}
 	for _, fake := range fakes {
-		if _, ok := store1.Get(fake.ID); ok {
+		if _, err := store1.Get(fake.ID); err == nil {
 			t.Error("Store should not have items")
 		}
 	}
@@ -402,12 +438,12 @@ func TestChangeManager_ChangeRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, fake := range fakes {
-		if _, ok := store1.Get(fake.ID); ok {
+		if _, err := store1.Get(fake.ID); err == nil {
 			t.Fatal("Invalid value")
 		}
 	}
 	for _, fake := range fakes {
-		if _, ok := store2.Get(fake.ID); ok {
+		if _, err := store2.Get(fake.ID); err == nil {
 			t.Fatal("Store does not have items")
 		}
 	}
@@ -415,7 +451,7 @@ func TestChangeManager_ChangeRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, fake := range fakes {
-		if _, ok := store2.Get(fake.ID); ok {
+		if _, err := store2.Get(fake.ID); err == nil {
 			t.Fatal("Invalid value")
 		}
 	}

@@ -26,8 +26,8 @@ func TestSolutionStore_Modify(t *testing.T) {
 	if solution.ID <= 0 {
 		t.Fatal("ID should be greater that zero")
 	}
-	found, ok := store.Get(solution.ID)
-	if !ok {
+	found, err := store.Get(solution.ID)
+	if err != nil {
 		t.Fatal("Unable to found solution")
 	}
 	if found.CreateTime != solution.CreateTime {
@@ -37,8 +37,8 @@ func TestSolutionStore_Modify(t *testing.T) {
 	if err := store.Update(&solution); err != nil {
 		t.Fatal(err)
 	}
-	found, ok = store.Get(solution.ID)
-	if !ok {
+	found, err = store.Get(solution.ID)
+	if err != nil {
 		t.Fatal("Unable to found solution")
 	}
 	if found.CreateTime != solution.CreateTime {
@@ -47,7 +47,7 @@ func TestSolutionStore_Modify(t *testing.T) {
 	if err := store.Delete(solution.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := store.Get(solution.ID); ok {
+	if _, err := store.Get(solution.ID); err == nil {
 		t.Fatal("Solution should be deleted")
 	}
 }

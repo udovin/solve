@@ -62,11 +62,13 @@ func NewSessionStore(db *sql.DB, table, changeTable string) *SessionStore {
 	return &store
 }
 
-func (s *SessionStore) Get(id int64) (Session, bool) {
+func (s *SessionStore) Get(id int64) (Session, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	session, ok := s.sessions[id]
-	return session, ok
+	if session, ok := s.sessions[id]; ok {
+		return session, nil
+	}
+	return Session{}, sql.ErrNoRows
 }
 
 func (s *SessionStore) GetByUser(userID int64) []Session {
@@ -84,19 +86,19 @@ func (s *SessionStore) GetByUser(userID int64) []Session {
 	return nil
 }
 
-func (s *SessionStore) GetByCookie(cookie string) (Session, bool) {
+func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	parts := strings.SplitN(cookie, "_", 2)
 	id, err := strconv.ParseInt(parts[0], 10, 60)
 	if err != nil {
-		return Session{}, false
+		return Session{}, err
 	}
 	session, ok := s.sessions[id]
 	if !ok || session.Secret != parts[1] {
-		return Session{}, false
+		return Session{}, sql.ErrNoRows
 	}
-	return session, true
+	return session, nil
 }
 
 func (s *SessionStore) Create(m *Session) error {

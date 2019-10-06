@@ -26,8 +26,8 @@ func TestProblemStore_Modify(t *testing.T) {
 	if problem.ID <= 0 {
 		t.Fatal("ID should be greater that zero")
 	}
-	found, ok := store.Get(problem.ID)
-	if !ok {
+	found, err := store.Get(problem.ID)
+	if err != nil {
 		t.Fatal("Unable to found problem")
 	}
 	if found.CreateTime != problem.CreateTime {
@@ -37,8 +37,8 @@ func TestProblemStore_Modify(t *testing.T) {
 	if err := store.Update(&problem); err != nil {
 		t.Fatal(err)
 	}
-	found, ok = store.Get(problem.ID)
-	if !ok {
+	found, err = store.Get(problem.ID)
+	if err != nil {
 		t.Fatal("Unable to found problem")
 	}
 	if found.CreateTime != problem.CreateTime {
@@ -47,7 +47,7 @@ func TestProblemStore_Modify(t *testing.T) {
 	if err := store.Delete(problem.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := store.Get(problem.ID); ok {
+	if _, err := store.Get(problem.ID); err == nil {
 		t.Fatal("Problem should be deleted")
 	}
 }

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
 
@@ -10,7 +11,11 @@ import (
 )
 
 func (v *View) GetCompilers(c echo.Context) error {
-	compilers := v.app.Compilers.All()
+	compilers, err := v.app.Compilers.All()
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
 	if compilers == nil {
 		compilers = make([]models.Compiler, 0)
 	}
@@ -41,9 +46,13 @@ func (v *View) GetCompiler(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	compiler, ok := v.app.Compilers.Get(compilerID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	compiler, err := v.app.Compilers.Get(compilerID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.JSON(http.StatusOK, compiler)
 }

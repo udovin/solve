@@ -40,15 +40,15 @@ func NewStatementStore(db *sql.DB, table, changeTable string) *StatementStore {
 	return &store
 }
 
-func (s *StatementStore) GetByProblem(id int64) (Statement, bool) {
+func (s *StatementStore) GetByProblem(id int64) (Statement, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if statementID, ok := s.problemStatements[id]; ok {
 		if statement, ok := s.statements[statementID]; ok {
-			return statement, true
+			return statement, nil
 		}
 	}
-	return Statement{}, false
+	return Statement{}, sql.ErrNoRows
 }
 
 func (s *StatementStore) Create(m *Statement) error {

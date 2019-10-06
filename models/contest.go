@@ -37,21 +37,23 @@ func NewContestStore(db *sql.DB, table, changeTable string) *ContestStore {
 	return &store
 }
 
-func (s *ContestStore) All() []Contest {
+func (s *ContestStore) All() ([]Contest, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var result []Contest
 	for _, contest := range s.contests {
 		result = append(result, contest)
 	}
-	return result
+	return result, nil
 }
 
-func (s *ContestStore) Get(id int64) (Contest, bool) {
+func (s *ContestStore) Get(id int64) (Contest, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	contest, ok := s.contests[id]
-	return contest, ok
+	if contest, ok := s.contests[id]; ok {
+		return contest, nil
+	}
+	return Contest{}, sql.ErrNoRows
 }
 
 func (s *ContestStore) Create(m *Contest) error {

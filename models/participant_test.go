@@ -26,8 +26,8 @@ func TestParticipantStore_Modify(t *testing.T) {
 	if participant.ID <= 0 {
 		t.Fatal("ID should be greater that zero")
 	}
-	found, ok := store.Get(participant.ID)
-	if !ok {
+	found, err := store.Get(participant.ID)
+	if err != nil {
 		t.Fatal("Unable to found participant")
 	}
 	if found.CreateTime != participant.CreateTime {
@@ -37,8 +37,8 @@ func TestParticipantStore_Modify(t *testing.T) {
 	if err := store.Update(&participant); err != nil {
 		t.Fatal(err)
 	}
-	found, ok = store.Get(participant.ID)
-	if !ok {
+	found, err = store.Get(participant.ID)
+	if err != nil {
 		t.Fatal("Unable to found participant")
 	}
 	if found.CreateTime != participant.CreateTime {
@@ -47,7 +47,7 @@ func TestParticipantStore_Modify(t *testing.T) {
 	if err := store.Delete(participant.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := store.Get(participant.ID); ok {
+	if _, err := store.Get(participant.ID); err == nil {
 		t.Fatal("Participant should be deleted")
 	}
 }

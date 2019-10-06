@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
 	"time"
@@ -58,9 +59,13 @@ func (v *View) DeleteSession(c echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
-	session, ok := v.app.Sessions.Get(sessionID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	session, err := v.app.Sessions.Get(sessionID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if session.UserID != user.ID {
 		return c.NoContent(http.StatusForbidden)
@@ -77,9 +82,13 @@ func (v *View) GetCurrentSession(c echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	user, ok := v.app.Users.Get(session.UserID)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
+	user, err := v.app.Users.Get(session.UserID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.JSON(http.StatusOK, Session{
 		Session: session,

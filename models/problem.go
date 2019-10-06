@@ -36,11 +36,13 @@ func NewProblemStore(db *sql.DB, table, changeTable string) *ProblemStore {
 	return &store
 }
 
-func (s *ProblemStore) Get(id int64) (Problem, bool) {
+func (s *ProblemStore) Get(id int64) (Problem, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	problem, ok := s.problems[id]
-	return problem, ok
+	if problem, ok := s.problems[id]; ok {
+		return problem, nil
+	}
+	return Problem{}, sql.ErrNoRows
 }
 
 func (s *ProblemStore) Create(m *Problem) error {

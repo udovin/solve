@@ -91,7 +91,6 @@ type ChangeGap struct {
 type ChangeTx struct {
 	*sql.Tx
 	changes map[*ChangeManager][]Change
-	updated map[*ChangeManager]bool
 }
 
 // ChangeManager supports store consistency using change table
@@ -194,7 +193,6 @@ func (m *ChangeManager) Begin() (*ChangeTx, error) {
 	return &ChangeTx{
 		Tx:      tx,
 		changes: make(map[*ChangeManager][]Change),
-		updated: make(map[*ChangeManager]bool),
 	}, nil
 }
 
@@ -223,7 +221,6 @@ func (m *ChangeManager) ChangeTx(tx *ChangeTx, change Change) error {
 		return err
 	}
 	tx.changes[m] = append(tx.changes[m], change)
-	tx.updated[m] = true
 	return nil
 }
 
@@ -246,7 +243,7 @@ const changeGapSkipTimeout = 2 * time.Minute
 
 // SyncTx syncs store with change table in transaction
 func (m *ChangeManager) SyncTx(tx *ChangeTx) error {
-	if tx.updated[m] {
+	if len(tx.changes[m]) > 0 {
 		return nil
 	}
 	m.mutex.Lock()
@@ -320,7 +317,9 @@ func (m *ChangeManager) loadChangeGaps(tx *ChangeTx) error {
 			}
 		}
 		_ = rows.Close()
-		e = e.Next()
+		if e != nil {
+			e = e.Next()
+		}
 	}
 	return nil
 }

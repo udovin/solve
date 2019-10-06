@@ -30,8 +30,8 @@ func TestUserFieldStore_Modify(t *testing.T) {
 	if field.ID <= 0 {
 		t.Fatal("ID should be greater that zero")
 	}
-	found, ok := store.Get(field.ID)
-	if !ok {
+	found, err := store.Get(field.ID)
+	if err != nil {
 		t.Fatal("Unable to found field")
 	}
 	if found.Data != field.Data {
@@ -41,8 +41,8 @@ func TestUserFieldStore_Modify(t *testing.T) {
 	if err := store.Update(&field); err != nil {
 		t.Fatal(err)
 	}
-	found, ok = store.Get(field.ID)
-	if !ok {
+	found, err = store.Get(field.ID)
+	if err != nil {
 		t.Fatal("Unable to found field field")
 	}
 	if found.Data != field.Data {
@@ -51,7 +51,7 @@ func TestUserFieldStore_Modify(t *testing.T) {
 	if err := store.Delete(field.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := store.Get(field.ID); ok {
+	if _, err := store.Get(field.ID); err == nil {
 		t.Fatal("User field should be deleted")
 	}
 }

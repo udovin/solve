@@ -53,26 +53,27 @@ func NewUserFieldStore(
 }
 
 // Get user field by field's ID
-func (s *UserFieldStore) Get(id int64) (UserField, bool) {
+func (s *UserFieldStore) Get(id int64) (UserField, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	field, ok := s.fields[id]
-	return field, ok
+	if field, ok := s.fields[id]; ok {
+		return field, nil
+	}
+	return UserField{}, sql.ErrNoRows
 }
 
-func (s *UserFieldStore) GetByUser(userID int64) []UserField {
+func (s *UserFieldStore) GetByUser(userID int64) ([]UserField, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
+	var fields []UserField
 	if ids, ok := s.userFields[userID]; ok {
-		var fields []UserField
 		for id := range ids {
 			if field, ok := s.fields[id]; ok {
 				fields = append(fields, field)
 			}
 		}
-		return fields
 	}
-	return nil
+	return fields, nil
 }
 
 // Create creates user field with specified data

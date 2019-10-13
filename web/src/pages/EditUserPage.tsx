@@ -1,11 +1,12 @@
-import React, {useEffect, useState} from "react";
+import React, {useContext, useEffect, useState} from "react";
 import {Redirect, RouteComponentProps} from "react-router";
 import Page from "../components/Page";
-import {User} from "../api";
+import {Session, User} from "../api";
 import FormBlock from "../components/FormBlock";
-import "./ContestPage.scss"
 import Input from "../components/Input";
 import Button from "../components/Button";
+import SessionsBlock from "../components/SessionsBlock";
+import {AuthContext} from "../AuthContext";
 
 type UserPageParams = {
 	UserID: string;
@@ -14,11 +15,18 @@ type UserPageParams = {
 const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 	const {UserID} = match.params;
 	const [user, setUser] = useState<User>();
+	const [sessions, setSessions] = useState<Session[]>();
+	const {session} = useContext(AuthContext);
 	const [success, setSuccess] = useState<boolean>();
 	useEffect(() => {
-		fetch("/api/v0/users/" + UserID)
+		fetch(`/api/v0/users/${UserID}`)
 			.then(result => result.json())
 			.then(result => setUser(result));
+	}, [UserID]);
+	useEffect(() => {
+		fetch(`/api/v0/users/${UserID}/sessions`)
+			.then(result => result.json())
+			.then(result => setSessions(result));
 	}, [UserID]);
 	if (!user) {
 		return <>Loading...</>;
@@ -63,6 +71,9 @@ const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 				</label>
 			</div>
 		</FormBlock>
+		{sessions ?
+			<SessionsBlock sessions={sessions} currentSession={session}/> :
+			<>Loading...</>}
 	</Page>;
 };
 

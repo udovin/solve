@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/labstack/echo"
@@ -129,6 +130,37 @@ func (v *View) GetUser(c echo.Context) error {
 		}
 	}
 	return c.JSON(http.StatusOK, result)
+}
+
+func (v *View) GetUserSessions(c echo.Context) error {
+	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 64)
+	var user models.User
+	if err != nil {
+		user, err = v.app.Users.GetByLogin(c.Param("UserID"))
+	} else {
+		user, err = v.app.Users.Get(userID)
+	}
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	thisUser, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if user.ID != thisUser.ID && !thisUser.IsSuper {
+		return c.NoContent(http.StatusForbidden)
+	}
+	sessions, err := v.app.Sessions.GetByUser(user.ID)
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	sort.Sort(sessionModelSorter(sessions))
+	return c.JSON(http.StatusOK, sessions)
 }
 
 func (v *View) UpdateUser(c echo.Context) error {

@@ -85,6 +85,10 @@ func Register(app *core.App, api *echo.Group) {
 		"/users/:UserID", v.GetUser,
 		v.authMiddleware(v.sessionAuth),
 	)
+	api.GET(
+		"/users/:UserID/sessions", v.GetUserSessions,
+		v.authMiddleware(v.sessionAuth),
+	)
 	api.PATCH(
 		"/users/:UserID", v.UpdateUser,
 		v.authMiddleware(v.sessionAuth),

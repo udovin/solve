@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -17,7 +18,17 @@ type Session struct {
 }
 
 func (v *View) GetSessions(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	sessions, err := v.app.Sessions.GetByUser(user.ID)
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	sort.Sort(sessionModelSorter(sessions))
+	return c.JSON(http.StatusOK, sessions)
 }
 
 func (v *View) CreateSession(c echo.Context) error {
@@ -67,7 +78,7 @@ func (v *View) DeleteSession(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	if session.UserID != user.ID {
+	if session.UserID != user.ID && !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
 	if err := v.app.Sessions.Delete(session.ID); err != nil {
@@ -94,4 +105,18 @@ func (v *View) GetCurrentSession(c echo.Context) error {
 		Session: session,
 		User:    user,
 	})
+}
+
+type sessionModelSorter []models.Session
+
+func (c sessionModelSorter) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+
+func (c sessionModelSorter) Len() int {
+	return len(c)
+}
+
+func (c sessionModelSorter) Less(i, j int) bool {
+	return c[i].ID > c[j].ID
 }

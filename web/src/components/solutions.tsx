@@ -6,6 +6,7 @@ import Input from "./Input";
 import {Link} from "react-router-dom";
 import "./solutions.scss";
 import FormBlock from "./FormBlock";
+import SolutionRow from "./SolutionRow";
 
 export type SubmitSolutionSideBlockProps = {
 	onSubmit: FormEventHandler;
@@ -41,13 +42,6 @@ export type SolutionsBlockProps = BlockProps & {
 export const SolutionsBlock: FC<SolutionsBlockProps> = props => {
 	let {solutions, className, ...rest} = props;
 	className = className ? "b-solutions " + className : "b-solutions";
-	const format = (n: number) => {
-		return ("0" + n).slice(-Math.max(2, String(n).length));
-	};
-	const formatDate = (d: Date) =>
-		[d.getFullYear(), d.getMonth() + 1, d.getDate()].map(format).join("-");
-	const formatTime = (d: Date) =>
-		[d.getHours(), d.getMinutes(), d.getSeconds()].map(format).join(":");
 	return <Block className={className} {...rest}>
 		<table className="ui-table">
 			<thead>
@@ -60,32 +54,9 @@ export const SolutionsBlock: FC<SolutionsBlockProps> = props => {
 			</tr>
 			</thead>
 			<tbody>
-			{solutions && solutions.map((solution, index) => {
-				const {ID, CreateTime, User, Problem, Report} = solution;
-				let createDate = new Date(CreateTime * 1000);
-				return <tr key={index} className="solution">
-					<td className="id">
-						<Link to={"/solutions/" + ID}>{ID}</Link>
-					</td>
-					<td className="created">
-						<div className="time">{formatTime(createDate)}</div>
-						<div className="date">{formatDate(createDate)}</div>
-					</td>
-					<td className="participant">{User ?
-						<Link to={"/users/" + User.Login}>{User.Login}</Link> :
-						<>&mdash;</>
-					}</td>
-					<td className="problem">{Problem ?
-						<Link to={"/problems/" + Problem.ID}>{Problem.Title}</Link> :
-						<span>&mdash;</span>
-					}</td>
-					<td className="verdict">
-						<div className="type">{Report && getShortVerdict(Report.Verdict)}</div>
-						<div className="value">{Report && Report.Data.Points}</div>
-						<div className="defense">{Report && getDefense(Report.Data.Defense)}</div>
-					</td>
-				</tr>;
-			})}
+			{solutions && solutions.map((solution, key) =>
+				<SolutionRow showID={true} solution={solution} key={key}/>
+			)}
 			</tbody>
 		</table>
 	</Block>;

@@ -16,10 +16,10 @@ const ContestTabs: FC<ContestTabsProps> = props => {
 	return <Block className="b-contest-tabs">
 		<ul className="ui-tabs">
 			<li className={getActiveClass("problems")}>
-				<Link to={"/contests/" + contestID}>Problems</Link>
+				<Link to={`/contests/${contestID}`}>Problems</Link>
 			</li>
 			<li className={getActiveClass("solutions")}>
-				<Link to={"/contests/" + contestID + "/solutions"}>Solutions</Link>
+				<Link to={`/contests/${contestID}/solutions`}>Solutions</Link>
 			</li>
 		</ul>
 	</Block>;

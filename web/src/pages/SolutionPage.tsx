@@ -1,12 +1,12 @@
 import React, {useContext, useEffect, useState} from "react";
 import {RouteComponentProps} from "react-router";
-import {Link} from "react-router-dom";
 import {AuthContext} from "../AuthContext";
 import {getDefense, getShortVerdict, Solution} from "../api";
 import Page from "../components/Page";
 import Block from "../components/Block";
 import Button from "../components/Button";
 import Input from "../components/Input";
+import SolutionRow from "../components/SolutionRow";
 import "./ContestPage.scss"
 
 type SolutionPageParams = {
@@ -22,13 +22,6 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 			.then(result => result.json())
 			.then(result => setSolution(result));
 	}, [SolutionID]);
-	const format = (n: number) => {
-		return ("0" + n).slice(-Math.max(2, String(n).length));
-	};
-	const formatDate = (d: Date) =>
-		[d.getFullYear(), d.getMonth() + 1, d.getDate()].map(format).join("-");
-	const formatTime = (d: Date) =>
-		[d.getHours(), d.getMinutes(), d.getSeconds()].map(format).join(":");
 	const updateVerdict = (event: any) => {
 		event.preventDefault();
 		const {verdict} = event.target;
@@ -67,8 +60,7 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 		return <>Loading...</>;
 	}
 	let isSuper = Boolean(session && session.User.IsSuper);
-	const {CreateTime, User, Problem, Report} = solution;
-	let createDate = new Date(CreateTime * 1000);
+	const {Report} = solution;
 	return <Page title={"Solution #" + solution.ID}>
 		<Block title={"Solution #" + solution.ID} className="b-solutions">
 			<table className="ui-table">
@@ -81,25 +73,7 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 				</tr>
 				</thead>
 				<tbody>
-				<tr>
-					<td className="created">
-						<div className="time">{formatTime(createDate)}</div>
-						<div className="date">{formatDate(createDate)}</div>
-					</td>
-					<td className="participant">{User ?
-						<Link to={"/users/" + User.Login}>{User.Login}</Link> :
-						<span>&mdash;</span>
-					}</td>
-					<td className="problem">{Problem ?
-						<Link to={"/problems/" + Problem.ID}>{Problem.Title}</Link> :
-						<span>&mdash;</span>
-					}</td>
-					<td className="verdict">
-						<div className="type">{Report && getShortVerdict(Report.Verdict)}</div>
-						<div className="value">{Report && Report.Data.Points}</div>
-						<div className="defense">{Report && getDefense(Report.Data.Defense)}</div>
-					</td>
-				</tr>
+				<SolutionRow showID={false} solution={solution}/>
 				</tbody>
 			</table>
 		</Block>

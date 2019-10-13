@@ -17,11 +17,10 @@ const SolutionsPage = () => {
 	if (notFound) {
 		return <NotFoundPage/>;
 	}
-	if (!solutions) {
-		return <>Loading...</>;
-	}
 	return <Page title="Solutions">
-		<SolutionsBlock title="Solutions" solutions={solutions}/>
+		{solutions ?
+			<SolutionsBlock title="Solutions" solutions={solutions}/> :
+			<>Loading...</>}
 	</Page>;
 };
 

@@ -22,10 +22,10 @@ const Header: FC<RouteComponentProps> = props => {
 		</li>
 	</>;
 	if (session) {
-		let login = session.User.Login;
+		const {Login} = session.User;
 		accountLinks = <>
 			<li>
-				Hello, <Link to={"/users/"+login}>{login}</Link>!
+				Hello, <Link to={`/users/${Login}`}>{Login}</Link>!
 			</li>
 			<li>
 				<Link to="/logout">Logout</Link>

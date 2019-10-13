@@ -1,6 +1,6 @@
 import React from "react";
-import Page from "../layout/Page";
-import {Block} from "../layout/blocks";
+import Page from "../components/Page";
+import Block from "../components/Block";
 
 const LanguagePage = () => {
 	return <Page title="Change language">

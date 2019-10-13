@@ -1,10 +1,10 @@
 import React, {useEffect, useState} from "react";
 import {RouteComponentProps} from "react-router";
-import Page from "../layout/Page";
+import Page from "../components/Page";
 import {Solution} from "../api";
 import "./ContestPage.scss"
-import {SolutionsBlock} from "../layout/solutions";
-import ContestTabs from "../layout/ContestTabs";
+import {SolutionsBlock} from "../components/solutions";
+import ContestTabs from "../components/ContestTabs";
 
 type ContestPageParams = {
 	ContestID: string;

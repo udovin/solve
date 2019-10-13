@@ -1,8 +1,8 @@
 import React from "react";
 import {BrowserRouter, Switch, Route} from "react-router-dom";
 import "./App.scss";
-import Header from "./layout/Header";
-import Footer from "./layout/Footer";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import IndexPage from "./pages/IndexPage";

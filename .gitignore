@@ -3,3 +3,6 @@
 /database.sqlite*
 /config.json
 /config-test.json
+
+/web/build/
+/web/node_modules/

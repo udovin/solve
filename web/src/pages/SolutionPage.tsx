@@ -1,13 +1,13 @@
 import React, {useContext, useEffect, useState} from "react";
 import {RouteComponentProps} from "react-router";
-import Page from "../layout/Page";
-import {getDefense, getShortVerdict, Solution} from "../api";
-import {Block} from "../layout/blocks";
-import "./ContestPage.scss"
-import {AuthContext} from "../AuthContext";
 import {Link} from "react-router-dom";
-import Button from "../layout/Button";
-import Input from "../layout/Input";
+import {AuthContext} from "../AuthContext";
+import {getDefense, getShortVerdict, Solution} from "../api";
+import Page from "../components/Page";
+import Block from "../components/Block";
+import Button from "../components/Button";
+import Input from "../components/Input";
+import "./ContestPage.scss"
 
 type SolutionPageParams = {
 	SolutionID: string;

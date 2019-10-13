@@ -1,8 +1,8 @@
 import React, {useState} from "react";
-import Page from "../layout/Page";
-import Input from "../layout/Input";
-import Button from "../layout/Button";
-import {FormBlock} from "../layout/blocks";
+import Page from "../components/Page";
+import Input from "../components/Input";
+import Button from "../components/Button";
+import FormBlock from "../components/FormBlock";
 import {Problem} from "../api";
 import {Redirect} from "react-router";
 
@@ -11,7 +11,7 @@ const CreateProblemPage = () => {
 	const onSubmit = (event: any) => {
 		event.preventDefault();
 		const {title, file} = event.target;
-		let form = new FormData();
+		const form = new FormData();
 		form.append("Title", title.value);
 		form.append("File", file.files[0]);
 		fetch("/api/v0/problems", {

@@ -1,9 +1,9 @@
 import React, {useEffect, useState} from "react";
 import {Redirect, RouteComponentProps} from "react-router";
-import Page from "../layout/Page";
+import Page from "../components/Page";
 import {Compiler, ContestProblem, Solution} from "../api";
-import {Block} from "../layout/blocks";
-import {SolutionsSideBlock, SubmitSolutionSideBlock} from "../layout/solutions";
+import Block from "../components/Block";
+import {SolutionsSideBlock, SubmitSolutionSideBlock} from "../components/solutions";
 
 type ContestProblemPageParams = {
 	ContestID: string;

@@ -1,15 +1,15 @@
 import React, {useContext} from "react";
-import Page from "../layout/Page";
-import Input from "../layout/Input";
-import Button from "../layout/Button";
-import {FormBlock} from "../layout/blocks";
+import Page from "../components/Page";
+import Input from "../components/Input";
+import Button from "../components/Button";
+import FormBlock from "../components/FormBlock";
 import {Redirect} from "react-router";
 import {AuthContext} from "../AuthContext";
-import Field from "../layout/Field";
+import Field from "../components/Field";
 
 const LoginPage = () => {
 	const {session, setSession} = useContext(AuthContext);
-	let onSubmit = (event: any) => {
+	const onSubmit = (event: any) => {
 		event.preventDefault();
 		const {login, password} = event.target;
 		fetch("/api/v0/sessions", {

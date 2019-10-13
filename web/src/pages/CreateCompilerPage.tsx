@@ -1,8 +1,8 @@
 import React from "react";
-import Page from "../layout/Page";
-import Input from "../layout/Input";
-import Button from "../layout/Button";
-import {FormBlock} from "../layout/blocks";
+import Page from "../components/Page";
+import Input from "../components/Input";
+import Button from "../components/Button";
+import FormBlock from "../components/FormBlock";
 
 const CreateCompilerPage = () => {
 	const onSubmit = (event: any) => {

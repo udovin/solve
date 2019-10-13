@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from "react";
 import {Link} from "react-router-dom";
-import Page from "../layout/Page";
-import {Block} from "../layout/blocks";
+import Page from "../components/Page";
+import Block from "../components/Block";
 
 type Contest = {
 	ID: number;

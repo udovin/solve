@@ -1,11 +1,11 @@
 import React, {useState} from "react";
-import Page from "../layout/Page";
-import Input from "../layout/Input";
-import Button from "../layout/Button";
-import {FormBlock} from "../layout/blocks";
+import Page from "../components/Page";
+import Input from "../components/Input";
+import Button from "../components/Button";
+import FormBlock from "../components/FormBlock";
 import {Problem} from "../api";
 import {Redirect, RouteComponentProps} from "react-router";
-import Field from "../layout/Field";
+import Field from "../components/Field";
 
 type UpdateProblemPageParams = {
 	ProblemID: string;
@@ -17,7 +17,7 @@ const UpdateProblemPage = ({match}: RouteComponentProps<UpdateProblemPageParams>
 	const onSubmit = (event: any) => {
 		event.preventDefault();
 		const {title, file} = event.target;
-		let form = new FormData();
+		const form = new FormData();
 		form.append("ID", ProblemID);
 		form.append("Title", title.value);
 		form.append("File", file.files[0]);

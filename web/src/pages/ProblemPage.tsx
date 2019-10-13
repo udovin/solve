@@ -1,8 +1,8 @@
 import React, {useEffect, useState} from "react";
-import Page from "../layout/Page";
+import Page from "../components/Page";
 import {RouteComponentProps} from "react-router";
 import {Problem} from "../api";
-import {Block} from "../layout/blocks";
+import Block from "../components/Block";
 
 type ProblemPageParams = {
 	ProblemID: string;

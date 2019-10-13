@@ -1,10 +1,11 @@
 import React, {FC, FormEventHandler} from "react";
-import {Block, BlockProps, FormBlock} from "./blocks";
+import Block, {BlockProps} from "./Block";
 import Button from "./Button";
 import {Compiler, getDefense, getShortVerdict, Solution} from "../api";
 import Input from "./Input";
 import {Link} from "react-router-dom";
 import "./solutions.scss";
+import FormBlock from "./FormBlock";
 
 export type SubmitSolutionSideBlockProps = {
 	onSubmit: FormEventHandler;

@@ -1,8 +1,8 @@
 import React, {useEffect, useState} from "react";
-import Page from "../layout/Page";
+import Page from "../components/Page";
 import {Solution} from "../api";
 import "./ContestPage.scss"
-import {SolutionsBlock} from "../layout/solutions";
+import {SolutionsBlock} from "../components/solutions";
 import NotFoundPage from "./NotFoundPage";
 
 const SolutionsPage = () => {

@@ -1,11 +1,11 @@
 import React, {useEffect, useState} from "react";
 import {Redirect, RouteComponentProps} from "react-router";
-import Page from "../layout/Page";
+import Page from "../components/Page";
 import {User} from "../api";
-import {FormBlock} from "../layout/blocks";
+import FormBlock from "../components/FormBlock";
 import "./ContestPage.scss"
-import Input from "../layout/Input";
-import Button from "../layout/Button";
+import Input from "../components/Input";
+import Button from "../components/Button";
 
 type UserPageParams = {
 	UserID: string;

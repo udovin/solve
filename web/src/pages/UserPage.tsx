@@ -1,11 +1,11 @@
 import React, {useEffect, useState} from "react";
 import {RouteComponentProps} from "react-router";
-import Page from "../layout/Page";
+import Page from "../components/Page";
 import {User} from "../api";
-import {Block} from "../layout/blocks";
+import Block from "../components/Block";
 import "./ContestPage.scss"
-import Sidebar from "../layout/Sidebar";
-import Field from "../layout/Field";
+import Sidebar from "../components/Sidebar";
+import Field from "../components/Field";
 
 type UserPageParams = {
 	UserID: string;

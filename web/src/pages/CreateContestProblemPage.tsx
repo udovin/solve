@@ -1,9 +1,9 @@
 import React, {useState} from "react";
-import Page from "../layout/Page";
-import Input from "../layout/Input";
-import Button from "../layout/Button";
-import Field from "../layout/Field";
-import {FormBlock} from "../layout/blocks";
+import Page from "../components/Page";
+import Input from "../components/Input";
+import Button from "../components/Button";
+import Field from "../components/Field";
+import FormBlock from "../components/FormBlock";
 import {Redirect, RouteComponentProps} from "react-router";
 
 type ContestPageParams = {

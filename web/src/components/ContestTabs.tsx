@@ -1,6 +1,6 @@
 import React, {FC} from "react";
 import {Link} from "react-router-dom";
-import {Block, BlockProps} from "./blocks";
+import Block, {BlockProps} from "./Block";
 import "./ContestTabs.scss"
 
 export type ContestTabsProps = BlockProps & {

@@ -1,14 +1,12 @@
 import React from "react";
-import Page from "../layout/Page";
-import {Block} from "../layout/blocks";
+import Page from "../components/Page";
+import Block from "../components/Block";
 
 const NotFoundPage = () => {
-	return (
-		<Page title="Page not found">
-			<Block title="Page not found">
-			</Block>
-		</Page>
-	);
+	return <Page title="Page not found">
+		<Block title="Page not found">
+		</Block>
+	</Page>;
 };
 
 export default NotFoundPage;

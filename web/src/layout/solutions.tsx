@@ -1,6 +1,6 @@
 import React, {FC, FormEventHandler} from "react";
 import {Block, BlockProps, FormBlock} from "./blocks";
-import {Button} from "./buttons";
+import Button from "./Button";
 import {Compiler, getDefense, getShortVerdict, Solution} from "../api";
 import Input from "./Input";
 import {Link} from "react-router-dom";

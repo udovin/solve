@@ -1,6 +1,6 @@
 import React, {FC, InputHTMLAttributes} from "react";
 
-export type InputProps = InputHTMLAttributes<HTMLInputElement>
+export type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
 const Input: FC<InputProps> = props => {
 	const {...rest} = props;

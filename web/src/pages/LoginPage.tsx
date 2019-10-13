@@ -1,10 +1,11 @@
 import React, {useContext} from "react";
 import Page from "../layout/Page";
 import Input from "../layout/Input";
-import {Button} from "../layout/buttons";
+import Button from "../layout/Button";
 import {FormBlock} from "../layout/blocks";
 import {Redirect} from "react-router";
 import {AuthContext} from "../AuthContext";
+import Field from "../layout/Field";
 
 const LoginPage = () => {
 	const {session, setSession} = useContext(AuthContext);
@@ -34,18 +35,12 @@ const LoginPage = () => {
 		<FormBlock onSubmit={onSubmit} title="Login" footer={
 			<Button type="submit" color="primary">Login</Button>
 		}>
-			<div className="ui-field">
-				<label>
-					<span className="label">Username:</span>
-					<Input type="text" name="login" placeholder="Username" required autoFocus/>
-				</label>
-			</div>
-			<div className="ui-field">
-				<label>
-					<span className="label">Password:</span>
-					<Input type="password" name="password" placeholder="Password" required/>
-				</label>
-			</div>
+			<Field title="Username:">
+				<Input type="text" name="login" placeholder="Username" required autoFocus/>
+			</Field>
+			<Field title="Password:">
+				<Input type="password" name="password" placeholder="Password" required/>
+			</Field>
 		</FormBlock>
 	</Page>;
 };

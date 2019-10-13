@@ -6,7 +6,7 @@ import {Block} from "../layout/blocks";
 import "./ContestPage.scss"
 import {AuthContext} from "../AuthContext";
 import {Link} from "react-router-dom";
-import {Button} from "../layout/buttons";
+import Button from "../layout/Button";
 import Input from "../layout/Input";
 
 type SolutionPageParams = {

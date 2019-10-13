@@ -1,7 +1,8 @@
 import React, {useState} from "react";
 import Page from "../layout/Page";
 import Input from "../layout/Input";
-import {Button} from "../layout/buttons";
+import Button from "../layout/Button";
+import Field from "../layout/Field";
 import {FormBlock} from "../layout/blocks";
 import {Redirect, RouteComponentProps} from "react-router";
 
@@ -34,18 +35,12 @@ const CreateContestProblemPage = ({match}: RouteComponentProps<ContestPageParams
 		<FormBlock onSubmit={onSubmit} title="Add contest problem" footer={
 			<Button type="submit" color="primary">Create</Button>
 		}>
-			<div className="ui-field">
-				<label>
-					<span className="label">Problem ID:</span>
-					<Input type="number" name="problemID" placeholder="ID" required autoFocus/>
-				</label>
-			</div>
-			<div className="ui-field">
-				<label>
-					<span className="label">Code:</span>
-					<Input type="text" name="code" placeholder="Code" required/>
-				</label>
-			</div>
+			<Field title="Problem ID:">
+				<Input type="number" name="problemID" placeholder="ID" required autoFocus/>
+			</Field>
+			<Field title="Code:">
+				<Input type="text" name="code" placeholder="Code" required/>
+			</Field>
 		</FormBlock>
 	</Page>;
 };

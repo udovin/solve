@@ -16,6 +16,7 @@ const AuthProvider: FC = props => {
 		fetch("/api/v0/sessions/current")
 			.then(result => result.json())
 			.then(result => setSession(result))
+			.catch(error => setSession(undefined))
 	}, []);
 	return <AuthContext.Provider value={{session, setSession}}>
 		{props.children}

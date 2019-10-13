@@ -5,6 +5,7 @@ import {User} from "../api";
 import {Block} from "../layout/blocks";
 import "./ContestPage.scss"
 import Sidebar from "../layout/Sidebar";
+import Field from "../layout/Field";
 
 type UserPageParams = {
 	UserID: string;
@@ -24,24 +25,9 @@ const UserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 	const {Login, FirstName, LastName, MiddleName} = user;
 	return <Page title={Login} sidebar={<Sidebar/>}>
 		<Block title={Login} id="block-user">
-			{FirstName && <div className="ui-field">
-				<label>
-					<span className="label">First name:</span>
-					<span>{FirstName}</span>
-				</label>
-			</div>}
-			{LastName && <div className="ui-field">
-				<label>
-					<span className="label">Last name:</span>
-					<span>{LastName}</span>
-				</label>
-			</div>}
-			{MiddleName && <div className="ui-field">
-				<label>
-					<span className="label">Middle name:</span>
-					<span>{MiddleName}</span>
-				</label>
-			</div>}
+			{FirstName && <Field title="First name:"><span>{FirstName}</span></Field>}
+			{LastName && <Field title="Last name:"><span>{LastName}</span></Field>}
+			{MiddleName && <Field title="Middle name:"><span>{MiddleName}</span></Field>}
 		</Block>
 	</Page>;
 };

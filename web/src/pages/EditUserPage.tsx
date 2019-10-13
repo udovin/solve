@@ -5,7 +5,7 @@ import {User} from "../api";
 import {FormBlock} from "../layout/blocks";
 import "./ContestPage.scss"
 import Input from "../layout/Input";
-import {Button} from "../layout/buttons";
+import Button from "../layout/Button";
 
 type UserPageParams = {
 	UserID: string;

@@ -4,8 +4,8 @@ import {Link} from "react-router-dom";
 import Page from "../layout/Page";
 import {Contest} from "../api";
 import {Block} from "../layout/blocks";
-import "./ContestPage.scss"
 import ContestTabs from "../layout/ContestTabs";
+import "./ContestPage.scss"
 
 type ContestPageParams = {
 	ContestID: string;

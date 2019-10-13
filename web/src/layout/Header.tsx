@@ -52,6 +52,9 @@ const Header: FC<RouteComponentProps> = props => {
 				<li className={getActiveClass("/contests")}>
 					<Link to="/contests">Contests</Link>
 				</li>
+				<li className={getActiveClass("/solutions")}>
+					<Link to="/solutions">Solutions</Link>
+				</li>
 			</ul>
 		</nav>
 		<div id="header-version" title="Version">0.0.1</div>

@@ -1,7 +1,7 @@
 import React, {useState} from "react";
 import Page from "../layout/Page";
 import Input from "../layout/Input";
-import {Button} from "../layout/buttons";
+import Button from "../layout/Button";
 import {FormBlock} from "../layout/blocks";
 import {Contest} from "../api";
 import {Redirect} from "react-router";

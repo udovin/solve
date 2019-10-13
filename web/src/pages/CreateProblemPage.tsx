@@ -1,14 +1,14 @@
 import React, {useState} from "react";
 import Page from "../layout/Page";
 import Input from "../layout/Input";
-import {Button} from "../layout/buttons";
+import Button from "../layout/Button";
 import {FormBlock} from "../layout/blocks";
 import {Problem} from "../api";
 import {Redirect} from "react-router";
 
 const CreateProblemPage = () => {
-	let [problem, setProblem] = useState<Problem>();
-	let onSubmit = (event: any) => {
+	const [problem, setProblem] = useState<Problem>();
+	const onSubmit = (event: any) => {
 		event.preventDefault();
 		const {title, file} = event.target;
 		let form = new FormData();

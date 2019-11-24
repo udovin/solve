@@ -21,7 +21,7 @@ type User struct {
 	IsSuper      bool   `json:""  db:"is_super"`
 }
 
-type userChange struct {
+type UserChange struct {
 	BaseChange
 	User
 }
@@ -93,7 +93,7 @@ func (s *UserStore) GetByLogin(login string) (User, error) {
 
 // Create creates new user
 func (s *UserStore) Create(m *User) error {
-	change := userChange{
+	change := UserChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		User:       *m,
 	}
@@ -107,7 +107,7 @@ func (s *UserStore) Create(m *User) error {
 
 // CreateTx creates new user
 func (s *UserStore) CreateTx(tx *ChangeTx, m *User) error {
-	change := userChange{
+	change := UserChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		User:       *m,
 	}
@@ -121,7 +121,7 @@ func (s *UserStore) CreateTx(tx *ChangeTx, m *User) error {
 
 // Update modifies user data
 func (s *UserStore) Update(m *User) error {
-	change := userChange{
+	change := UserChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		User:       *m,
 	}
@@ -135,7 +135,7 @@ func (s *UserStore) Update(m *User) error {
 
 // Delete deletes user with specified id
 func (s *UserStore) Delete(id int64) error {
-	change := userChange{
+	change := UserChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		User:       User{ID: id},
 	}
@@ -159,7 +159,7 @@ func (s *UserStore) LoadChanges(
 				` "change_id", "change_type", "change_time", "id",`+
 				` "login", "password_hash", "password_salt", "create_time",`+
 				` "is_super"`+
-				` FROM "%s"`+
+				` FROM %q`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
 			s.changeTable,
@@ -169,7 +169,7 @@ func (s *UserStore) LoadChanges(
 }
 
 func (s *UserStore) ScanChange(scan Scanner) (Change, error) {
-	user := userChange{}
+	user := UserChange{}
 	err := scan.Scan(
 		&user.BaseChange.ID, &user.Type, &user.Time,
 		&user.User.ID, &user.Login, &user.PasswordHash,
@@ -179,7 +179,7 @@ func (s *UserStore) ScanChange(scan Scanner) (Change, error) {
 }
 
 func (s *UserStore) SaveChange(tx *sql.Tx, change Change) error {
-	user := change.(*userChange)
+	user := change.(*UserChange)
 	user.Time = time.Now().Unix()
 	switch user.Type {
 	case CreateChange:
@@ -188,7 +188,7 @@ func (s *UserStore) SaveChange(tx *sql.Tx, change Change) error {
 		user.User.ID, err = execTxReturningID(
 			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
-				`INSERT INTO "%s"`+
+				`INSERT INTO %q`+
 					` ("login", "password_hash", "password_salt",`+
 					` "create_time", "is_super")`+
 					` VALUES ($1, $2, $3, $4, $5)`,
@@ -210,7 +210,7 @@ func (s *UserStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET`+
+				`UPDATE %q SET`+
 					` "login" = $1, "password_hash" = $2,`+
 					` "password_salt" = $3, "create_time" = $4,`+
 					` "is_super" = $5`+
@@ -232,7 +232,7 @@ func (s *UserStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1`,
+				`DELETE FROM %q WHERE "id" = $1`,
 				s.table,
 			),
 			user.User.ID,
@@ -250,7 +250,7 @@ func (s *UserStore) SaveChange(tx *sql.Tx, change Change) error {
 	user.BaseChange.ID, err = execTxReturningID(
 		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
-			`INSERT INTO "%s"`+
+			`INSERT INTO %q`+
 				` ("change_type", "change_time",`+
 				` "id", "login", "password_hash", "password_salt",`+
 				` "create_time", "is_super")`+
@@ -265,7 +265,7 @@ func (s *UserStore) SaveChange(tx *sql.Tx, change Change) error {
 }
 
 func (s *UserStore) ApplyChange(change Change) {
-	user := change.(*userChange)
+	user := change.(*UserChange)
 	switch user.Type {
 	case UpdateChange:
 		if old, ok := s.users[user.User.ID]; ok {

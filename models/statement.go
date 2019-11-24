@@ -15,7 +15,7 @@ type Statement struct {
 	CreateTime  int64  `json:"" db:"create_time"`
 }
 
-type statementChange struct {
+type StatementChange struct {
 	BaseChange
 	Statement
 }
@@ -52,7 +52,7 @@ func (s *StatementStore) GetByProblem(id int64) (Statement, error) {
 }
 
 func (s *StatementStore) Create(m *Statement) error {
-	change := statementChange{
+	change := StatementChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Statement:  *m,
 	}
@@ -65,7 +65,7 @@ func (s *StatementStore) Create(m *Statement) error {
 }
 
 func (s *StatementStore) CreateTx(tx *ChangeTx, m *Statement) error {
-	change := statementChange{
+	change := StatementChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Statement:  *m,
 	}
@@ -78,7 +78,7 @@ func (s *StatementStore) CreateTx(tx *ChangeTx, m *Statement) error {
 }
 
 func (s *StatementStore) Update(m *Statement) error {
-	change := statementChange{
+	change := StatementChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		Statement:  *m,
 	}
@@ -91,7 +91,7 @@ func (s *StatementStore) Update(m *Statement) error {
 }
 
 func (s *StatementStore) Delete(id int64) error {
-	change := statementChange{
+	change := StatementChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		Statement:  Statement{ID: id},
 	}
@@ -115,7 +115,7 @@ func (s *StatementStore) LoadChanges(
 				` "change_id", "change_type", "change_time",`+
 				` "id", "problem_id", "title", "description",`+
 				` "create_time"`+
-				` FROM "%s"`+
+				` FROM %q`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
 			s.changeTable,
@@ -125,7 +125,7 @@ func (s *StatementStore) LoadChanges(
 }
 
 func (s *StatementStore) ScanChange(scan Scanner) (Change, error) {
-	statement := statementChange{}
+	statement := StatementChange{}
 	err := scan.Scan(
 		&statement.BaseChange.ID, &statement.Type, &statement.Time,
 		&statement.Statement.ID, &statement.ProblemID, &statement.Title,
@@ -135,7 +135,7 @@ func (s *StatementStore) ScanChange(scan Scanner) (Change, error) {
 }
 
 func (s *StatementStore) SaveChange(tx *sql.Tx, change Change) error {
-	statement := change.(*statementChange)
+	statement := change.(*StatementChange)
 	statement.Time = time.Now().Unix()
 	switch statement.Type {
 	case CreateChange:
@@ -144,7 +144,7 @@ func (s *StatementStore) SaveChange(tx *sql.Tx, change Change) error {
 		statement.Statement.ID, err = execTxReturningID(
 			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
-				`INSERT INTO "%s"`+
+				`INSERT INTO %q`+
 					` ("problem_id", "title", "description",`+
 					` "create_time")`+
 					` VALUES ($1, $2, $3, $4)`,
@@ -166,7 +166,7 @@ func (s *StatementStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s"`+
+				`UPDATE %q`+
 					` SET "problem_id" = $1, "title" = $2,`+
 					` "description" = $3`+
 					` WHERE "id" = $4`,
@@ -187,7 +187,7 @@ func (s *StatementStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1`,
+				`DELETE FROM %q WHERE "id" = $1`,
 				s.table,
 			),
 			statement.Statement.ID,
@@ -205,7 +205,7 @@ func (s *StatementStore) SaveChange(tx *sql.Tx, change Change) error {
 	statement.BaseChange.ID, err = execTxReturningID(
 		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
-			`INSERT INTO "%s"`+
+			`INSERT INTO %q`+
 				` ("change_type", "change_time",`+
 				` "id", "problem_id", "title", "description",`+
 				` "create_time")`+
@@ -221,7 +221,7 @@ func (s *StatementStore) SaveChange(tx *sql.Tx, change Change) error {
 }
 
 func (s *StatementStore) ApplyChange(change Change) {
-	statement := change.(*statementChange)
+	statement := change.(*StatementChange)
 	switch statement.Type {
 	case UpdateChange:
 		fallthrough

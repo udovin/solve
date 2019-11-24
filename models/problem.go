@@ -13,7 +13,7 @@ type Problem struct {
 	CreateTime int64 `json:"" db:"create_time"`
 }
 
-type problemChange struct {
+type ProblemChange struct {
 	BaseChange
 	Problem
 }
@@ -46,7 +46,7 @@ func (s *ProblemStore) Get(id int64) (Problem, error) {
 }
 
 func (s *ProblemStore) Create(m *Problem) error {
-	change := problemChange{
+	change := ProblemChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Problem:    *m,
 	}
@@ -59,7 +59,7 @@ func (s *ProblemStore) Create(m *Problem) error {
 }
 
 func (s *ProblemStore) CreateTx(tx *ChangeTx, m *Problem) error {
-	change := problemChange{
+	change := ProblemChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Problem:    *m,
 	}
@@ -72,7 +72,7 @@ func (s *ProblemStore) CreateTx(tx *ChangeTx, m *Problem) error {
 }
 
 func (s *ProblemStore) Update(m *Problem) error {
-	change := problemChange{
+	change := ProblemChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		Problem:    *m,
 	}
@@ -85,7 +85,7 @@ func (s *ProblemStore) Update(m *Problem) error {
 }
 
 func (s *ProblemStore) Delete(id int64) error {
-	change := problemChange{
+	change := ProblemChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		Problem:    Problem{ID: id},
 	}
@@ -108,7 +108,7 @@ func (s *ProblemStore) LoadChanges(
 			`SELECT`+
 				` "change_id", "change_type", "change_time",`+
 				` "id", "user_id", "create_time"`+
-				` FROM "%s"`+
+				` FROM %q`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
 			s.changeTable,
@@ -118,7 +118,7 @@ func (s *ProblemStore) LoadChanges(
 }
 
 func (s *ProblemStore) ScanChange(scan Scanner) (Change, error) {
-	problem := problemChange{}
+	problem := ProblemChange{}
 	err := scan.Scan(
 		&problem.BaseChange.ID, &problem.Type, &problem.Time,
 		&problem.Problem.ID, &problem.UserID, &problem.CreateTime,
@@ -127,7 +127,7 @@ func (s *ProblemStore) ScanChange(scan Scanner) (Change, error) {
 }
 
 func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
-	problem := change.(*problemChange)
+	problem := change.(*ProblemChange)
 	problem.Time = time.Now().Unix()
 	switch problem.Type {
 	case CreateChange:
@@ -136,7 +136,7 @@ func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 		problem.Problem.ID, err = execTxReturningID(
 			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
-				`INSERT INTO "%s"`+
+				`INSERT INTO %q`+
 					` ("user_id", "create_time")`+
 					` VALUES ($1, $2)`,
 				s.table,
@@ -156,7 +156,7 @@ func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET "user_id" = $1 WHERE "id" = $2`,
+				`UPDATE %q SET "user_id" = $1 WHERE "id" = $2`,
 				s.table,
 			),
 			problem.UserID, problem.Problem.ID,
@@ -173,7 +173,7 @@ func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1`,
+				`DELETE FROM %q WHERE "id" = $1`,
 				s.table,
 			),
 			problem.Problem.ID,
@@ -191,7 +191,7 @@ func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 	problem.BaseChange.ID, err = execTxReturningID(
 		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
-			`INSERT INTO "%s"`+
+			`INSERT INTO %q`+
 				` ("change_type", "change_time",`+
 				` "id", "user_id", "create_time")`+
 				` VALUES ($1, $2, $3, $4, $5)`,
@@ -205,7 +205,7 @@ func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 }
 
 func (s *ProblemStore) ApplyChange(change Change) {
-	problem := change.(*problemChange)
+	problem := change.(*ProblemChange)
 	switch problem.Type {
 	case UpdateChange:
 		fallthrough

@@ -317,6 +317,9 @@ func (m *ChangeManager) loadChangeGaps(tx *ChangeTx) error {
 			}
 		}
 		_ = rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
 		if e != nil {
 			e = e.Next()
 		}

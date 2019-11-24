@@ -13,7 +13,7 @@ type ContestProblem struct {
 	Code      string `json:"" db:"code"`
 }
 
-type contestProblemChange struct {
+type ContestProblemChange struct {
 	BaseChange
 	ContestProblem
 }
@@ -53,7 +53,7 @@ func (s *ContestProblemStore) GetByContest(
 }
 
 func (s *ContestProblemStore) Create(m *ContestProblem) error {
-	change := contestProblemChange{
+	change := ContestProblemChange{
 		BaseChange:     BaseChange{Type: CreateChange},
 		ContestProblem: *m,
 	}
@@ -66,7 +66,7 @@ func (s *ContestProblemStore) Create(m *ContestProblem) error {
 }
 
 func (s *ContestProblemStore) Update(m *ContestProblem) error {
-	change := contestProblemChange{
+	change := ContestProblemChange{
 		BaseChange:     BaseChange{Type: UpdateChange},
 		ContestProblem: *m,
 	}
@@ -79,7 +79,7 @@ func (s *ContestProblemStore) Update(m *ContestProblem) error {
 }
 
 func (s *ContestProblemStore) Delete(contestID int64, problemID int64) error {
-	change := contestProblemChange{
+	change := ContestProblemChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		ContestProblem: ContestProblem{
 			ContestID: contestID,
@@ -105,7 +105,7 @@ func (s *ContestProblemStore) LoadChanges(
 			`SELECT`+
 				` "change_id", "change_type", "change_time",`+
 				` "contest_id", "problem_id", "code"`+
-				` FROM "%s"`+
+				` FROM %q`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
 			s.changeTable,
@@ -115,7 +115,7 @@ func (s *ContestProblemStore) LoadChanges(
 }
 
 func (s *ContestProblemStore) ScanChange(scan Scanner) (Change, error) {
-	problem := contestProblemChange{}
+	problem := ContestProblemChange{}
 	err := scan.Scan(
 		&problem.BaseChange.ID, &problem.Type, &problem.Time,
 		&problem.ContestID, &problem.ProblemID, &problem.Code,
@@ -124,13 +124,13 @@ func (s *ContestProblemStore) ScanChange(scan Scanner) (Change, error) {
 }
 
 func (s *ContestProblemStore) SaveChange(tx *sql.Tx, change Change) error {
-	problem := change.(*contestProblemChange)
+	problem := change.(*ContestProblemChange)
 	problem.Time = time.Now().Unix()
 	switch problem.Type {
 	case CreateChange:
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`INSERT INTO "%s"`+
+				`INSERT INTO %q`+
 					` ("contest_id", "problem_id", "code")`+
 					` VALUES ($1, $2, $3)`,
 				s.table,
@@ -156,7 +156,7 @@ func (s *ContestProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET "code" = $1`+
+				`UPDATE %q SET "code" = $1`+
 					` WHERE "contest_id" = $2 AND "problem_id" = $3`,
 				s.table,
 			),
@@ -181,7 +181,7 @@ func (s *ContestProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s"`+
+				`DELETE FROM %q`+
 					` WHERE "contest_id" = $1 AND "problem_id" = $2`,
 				s.table,
 			),
@@ -200,7 +200,7 @@ func (s *ContestProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 	problem.BaseChange.ID, err = execTxReturningID(
 		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
-			`INSERT INTO "%s"`+
+			`INSERT INTO %q`+
 				` ("change_type", "change_time",`+
 				` "contest_id", "problem_id", "code")`+
 				` VALUES ($1, $2, $3, $4, $5)`,
@@ -214,7 +214,7 @@ func (s *ContestProblemStore) SaveChange(tx *sql.Tx, change Change) error {
 }
 
 func (s *ContestProblemStore) ApplyChange(change Change) {
-	problem := change.(*contestProblemChange)
+	problem := change.(*ContestProblemChange)
 	switch problem.Type {
 	case UpdateChange:
 		fallthrough

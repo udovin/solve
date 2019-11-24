@@ -15,7 +15,7 @@ type Participant struct {
 	CreateTime int64 `json:"" db:"create_time"`
 }
 
-type participantChange struct {
+type ParticipantChange struct {
 	BaseChange
 	Participant
 }
@@ -77,7 +77,7 @@ func (s *ParticipantStore) GetByContestUser(
 }
 
 func (s *ParticipantStore) Create(m *Participant) error {
-	change := participantChange{
+	change := ParticipantChange{
 		BaseChange:  BaseChange{Type: CreateChange},
 		Participant: *m,
 	}
@@ -90,7 +90,7 @@ func (s *ParticipantStore) Create(m *Participant) error {
 }
 
 func (s *ParticipantStore) CreateTx(tx *ChangeTx, m *Participant) error {
-	change := participantChange{
+	change := ParticipantChange{
 		BaseChange:  BaseChange{Type: CreateChange},
 		Participant: *m,
 	}
@@ -103,7 +103,7 @@ func (s *ParticipantStore) CreateTx(tx *ChangeTx, m *Participant) error {
 }
 
 func (s *ParticipantStore) Update(m *Participant) error {
-	change := participantChange{
+	change := ParticipantChange{
 		BaseChange:  BaseChange{Type: UpdateChange},
 		Participant: *m,
 	}
@@ -116,7 +116,7 @@ func (s *ParticipantStore) Update(m *Participant) error {
 }
 
 func (s *ParticipantStore) Delete(id int64) error {
-	change := participantChange{
+	change := ParticipantChange{
 		BaseChange:  BaseChange{Type: DeleteChange},
 		Participant: Participant{ID: id},
 	}
@@ -139,7 +139,7 @@ func (s *ParticipantStore) LoadChanges(
 			`SELECT`+
 				` "change_id", "change_type", "change_time",`+
 				` "id", "type", "contest_id", "user_id", "create_time"`+
-				` FROM "%s"`+
+				` FROM %q`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
 			s.changeTable,
@@ -149,7 +149,7 @@ func (s *ParticipantStore) LoadChanges(
 }
 
 func (s *ParticipantStore) ScanChange(scan Scanner) (Change, error) {
-	participant := participantChange{}
+	participant := ParticipantChange{}
 	err := scan.Scan(
 		&participant.BaseChange.ID, &participant.BaseChange.Type,
 		&participant.Time, &participant.Participant.ID,
@@ -160,7 +160,7 @@ func (s *ParticipantStore) ScanChange(scan Scanner) (Change, error) {
 }
 
 func (s *ParticipantStore) SaveChange(tx *sql.Tx, change Change) error {
-	participant := change.(*participantChange)
+	participant := change.(*ParticipantChange)
 	participant.Time = time.Now().Unix()
 	switch participant.BaseChange.Type {
 	case CreateChange:
@@ -169,7 +169,7 @@ func (s *ParticipantStore) SaveChange(tx *sql.Tx, change Change) error {
 		participant.Participant.ID, err = execTxReturningID(
 			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
-				`INSERT INTO "%s"`+
+				`INSERT INTO %q`+
 					` ("type", "contest_id", "user_id", "create_time")`+
 					` VALUES ($1, $2, $3, $4)`,
 				s.table,
@@ -190,7 +190,7 @@ func (s *ParticipantStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET`+
+				`UPDATE %q SET`+
 					` "type" = $1, "contest_id" = $2, "user_id" = $3,`+
 					` "create_time" = $4`+
 					` WHERE "id" = $5`,
@@ -212,7 +212,7 @@ func (s *ParticipantStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1`,
+				`DELETE FROM %q WHERE "id" = $1`,
 				s.table,
 			),
 			participant.Participant.ID,
@@ -230,7 +230,7 @@ func (s *ParticipantStore) SaveChange(tx *sql.Tx, change Change) error {
 	participant.BaseChange.ID, err = execTxReturningID(
 		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
-			`INSERT INTO "%s"`+
+			`INSERT INTO %q`+
 				` ("change_type", "change_time",`+
 				` "id", "type", "contest_id", "user_id", "create_time")`+
 				` VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -245,7 +245,7 @@ func (s *ParticipantStore) SaveChange(tx *sql.Tx, change Change) error {
 }
 
 func (s *ParticipantStore) ApplyChange(change Change) {
-	participant := change.(*participantChange)
+	participant := change.(*ParticipantChange)
 	contestUser := contestUserPair{
 		ContestID: participant.ContestID,
 		UserID:    participant.UserID,

@@ -19,7 +19,7 @@ func TestContestStore_applyChange(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store := NewContestStore(db, "test_contest", "test_contest_change")
-	store.ApplyChange(&contestChange{
+	store.ApplyChange(&ContestChange{
 		BaseChange: BaseChange{ID: 1, Type: CreateChange, Time: 0},
 		Contest:    Contest{ID: 1, UserID: 1},
 	})
@@ -30,7 +30,7 @@ func TestContestStore_applyChange(t *testing.T) {
 	if m.UserID != 1 {
 		t.Fatal("Wrong owner ID")
 	}
-	store.ApplyChange(&contestChange{
+	store.ApplyChange(&ContestChange{
 		BaseChange: BaseChange{ID: 2, Type: UpdateChange, Time: 1},
 		Contest:    Contest{ID: 1, UserID: 2},
 	})
@@ -41,7 +41,7 @@ func TestContestStore_applyChange(t *testing.T) {
 	if m.UserID != 2 {
 		t.Fatal("Wrong owner ID")
 	}
-	store.ApplyChange(&contestChange{
+	store.ApplyChange(&ContestChange{
 		BaseChange: BaseChange{ID: 3, Type: DeleteChange, Time: 2},
 		Contest:    Contest{ID: 1},
 	})
@@ -54,7 +54,7 @@ func TestContestStore_applyChange(t *testing.T) {
 				t.Fatal("Panic expected")
 			}
 		}()
-		store.ApplyChange(&contestChange{
+		store.ApplyChange(&ContestChange{
 			BaseChange: BaseChange{ID: 4, Type: ChangeType(126), Time: 0},
 			Contest:    Contest{ID: 2, UserID: 1},
 		})

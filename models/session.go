@@ -19,7 +19,7 @@ type Session struct {
 	ExpireTime int64  `json:""  db:"expire_time"`
 }
 
-type sessionChange struct {
+type SessionChange struct {
 	BaseChange
 	Session
 }
@@ -34,7 +34,7 @@ type SessionStore struct {
 	mutex        sync.RWMutex
 }
 
-func (c *sessionChange) ChangeData() interface{} {
+func (c *SessionChange) ChangeData() interface{} {
 	return c.Session
 }
 
@@ -102,7 +102,7 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 }
 
 func (s *SessionStore) Create(m *Session) error {
-	change := sessionChange{
+	change := SessionChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Session:    *m,
 	}
@@ -115,7 +115,7 @@ func (s *SessionStore) Create(m *Session) error {
 }
 
 func (s *SessionStore) Update(m *Session) error {
-	change := sessionChange{
+	change := SessionChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		Session:    *m,
 	}
@@ -128,7 +128,7 @@ func (s *SessionStore) Update(m *Session) error {
 }
 
 func (s *SessionStore) Delete(id int64) error {
-	change := sessionChange{
+	change := SessionChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		Session:    Session{ID: id},
 	}
@@ -151,7 +151,7 @@ func (s *SessionStore) LoadChanges(
 			`SELECT`+
 				` "change_id", "change_type", "change_time", "id",`+
 				` "user_id", "secret", "create_time", "expire_time"`+
-				` FROM "%s"`+
+				` FROM %q`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
 			s.changeTable,
@@ -161,7 +161,7 @@ func (s *SessionStore) LoadChanges(
 }
 
 func (s *SessionStore) ScanChange(scan Scanner) (Change, error) {
-	session := sessionChange{}
+	session := SessionChange{}
 	err := scan.Scan(
 		&session.BaseChange.ID, &session.Type, &session.Time,
 		&session.Session.ID, &session.UserID, &session.Secret,
@@ -171,7 +171,7 @@ func (s *SessionStore) ScanChange(scan Scanner) (Change, error) {
 }
 
 func (s *SessionStore) SaveChange(tx *sql.Tx, change Change) error {
-	session := change.(*sessionChange)
+	session := change.(*SessionChange)
 	session.Time = time.Now().Unix()
 	switch session.Type {
 	case CreateChange:
@@ -180,7 +180,7 @@ func (s *SessionStore) SaveChange(tx *sql.Tx, change Change) error {
 		session.Session.ID, err = execTxReturningID(
 			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
-				`INSERT INTO "%s"`+
+				`INSERT INTO %q`+
 					` ("user_id", "secret", "create_time", "expire_time")`+
 					` VALUES ($1, $2, $3, $4)`,
 				s.table,
@@ -201,7 +201,7 @@ func (s *SessionStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET`+
+				`UPDATE %q SET`+
 					` "user_id" = $1, "secret" = $2, "expire_time" = $3`+
 					` WHERE "id" = $4`,
 				s.table,
@@ -221,7 +221,7 @@ func (s *SessionStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1`,
+				`DELETE FROM %q WHERE "id" = $1`,
 				s.table,
 			),
 			session.Session.ID,
@@ -239,7 +239,7 @@ func (s *SessionStore) SaveChange(tx *sql.Tx, change Change) error {
 	session.BaseChange.ID, err = execTxReturningID(
 		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
-			`INSERT INTO "%s"`+
+			`INSERT INTO %q`+
 				` ("change_type", "change_time", "id", "user_id",`+
 				` "secret", "create_time", "expire_time")`+
 				` VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -253,7 +253,7 @@ func (s *SessionStore) SaveChange(tx *sql.Tx, change Change) error {
 }
 
 func (s *SessionStore) ApplyChange(change Change) {
-	session := change.(*sessionChange)
+	session := change.(*SessionChange)
 	switch session.Type {
 	case UpdateChange:
 		if old, ok := s.sessions[session.Session.ID]; ok {

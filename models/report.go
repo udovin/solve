@@ -76,7 +76,7 @@ type Report struct {
 	CreateTime int64      `json:"" db:"create_time"`
 }
 
-type reportChange struct {
+type ReportChange struct {
 	BaseChange
 	Report
 }
@@ -137,7 +137,7 @@ func (s *ReportStore) GetQueuedIDs() (ids []int64) {
 }
 
 func (s *ReportStore) Create(m *Report) error {
-	change := reportChange{
+	change := ReportChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Report:     *m,
 	}
@@ -150,7 +150,7 @@ func (s *ReportStore) Create(m *Report) error {
 }
 
 func (s *ReportStore) CreateTx(tx *ChangeTx, m *Report) error {
-	change := reportChange{
+	change := ReportChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Report:     *m,
 	}
@@ -163,7 +163,7 @@ func (s *ReportStore) CreateTx(tx *ChangeTx, m *Report) error {
 }
 
 func (s *ReportStore) Update(m *Report) error {
-	change := reportChange{
+	change := ReportChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		Report:     *m,
 	}
@@ -176,7 +176,7 @@ func (s *ReportStore) Update(m *Report) error {
 }
 
 func (s *ReportStore) UpdateTx(tx *ChangeTx, m *Report) error {
-	change := reportChange{
+	change := ReportChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		Report:     *m,
 	}
@@ -189,7 +189,7 @@ func (s *ReportStore) UpdateTx(tx *ChangeTx, m *Report) error {
 }
 
 func (s *ReportStore) Delete(id int64) error {
-	change := reportChange{
+	change := ReportChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		Report:     Report{ID: id},
 	}
@@ -212,7 +212,7 @@ func (s *ReportStore) LoadChanges(
 			`SELECT`+
 				` "change_id", "change_type", "change_time",`+
 				` "id", "solution_id", "verdict", "data", "create_time"`+
-				` FROM "%s"`+
+				` FROM %q`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
 			s.changeTable,
@@ -222,7 +222,7 @@ func (s *ReportStore) LoadChanges(
 }
 
 func (s *ReportStore) ScanChange(scan Scanner) (Change, error) {
-	report := reportChange{}
+	report := ReportChange{}
 	err := scan.Scan(
 		&report.BaseChange.ID, &report.Type, &report.Time,
 		&report.Report.ID, &report.SolutionID, &report.Verdict,
@@ -232,7 +232,7 @@ func (s *ReportStore) ScanChange(scan Scanner) (Change, error) {
 }
 
 func (s *ReportStore) SaveChange(tx *sql.Tx, change Change) error {
-	report := change.(*reportChange)
+	report := change.(*ReportChange)
 	report.Time = time.Now().Unix()
 	switch report.Type {
 	case CreateChange:
@@ -241,7 +241,7 @@ func (s *ReportStore) SaveChange(tx *sql.Tx, change Change) error {
 		report.Report.ID, err = execTxReturningID(
 			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
-				`INSERT INTO "%s"`+
+				`INSERT INTO %q`+
 					` ("solution_id", "verdict", "data", "create_time")`+
 					` VALUES ($1, $2, $3, $4)`,
 				s.table,
@@ -262,7 +262,7 @@ func (s *ReportStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s"`+
+				`UPDATE %q`+
 					` SET "solution_id" = $1, "verdict" = $2, "data" = $3`+
 					` WHERE "id" = $4`,
 				s.table,
@@ -282,7 +282,7 @@ func (s *ReportStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1`,
+				`DELETE FROM %q WHERE "id" = $1`,
 				s.table,
 			),
 			report.Report.ID,
@@ -300,7 +300,7 @@ func (s *ReportStore) SaveChange(tx *sql.Tx, change Change) error {
 	report.BaseChange.ID, err = execTxReturningID(
 		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
-			`INSERT INTO "%s"`+
+			`INSERT INTO %q`+
 				` ("change_type", "change_time",`+
 				` "id", "solution_id", "verdict",`+
 				` "data", "create_time")`+
@@ -316,7 +316,7 @@ func (s *ReportStore) SaveChange(tx *sql.Tx, change Change) error {
 }
 
 func (s *ReportStore) ApplyChange(change Change) {
-	report := change.(*reportChange)
+	report := change.(*ReportChange)
 	switch report.Type {
 	case UpdateChange:
 		if old, ok := s.reports[report.Report.ID]; ok {

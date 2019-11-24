@@ -17,7 +17,7 @@ type Solution struct {
 	CreateTime int64  `json:"" db:"create_time"`
 }
 
-type solutionChange struct {
+type SolutionChange struct {
 	BaseChange
 	Solution
 }
@@ -103,7 +103,7 @@ func (s *SolutionStore) GetByProblemUser(
 }
 
 func (s *SolutionStore) Create(m *Solution) error {
-	change := solutionChange{
+	change := SolutionChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Solution:   *m,
 	}
@@ -116,7 +116,7 @@ func (s *SolutionStore) Create(m *Solution) error {
 }
 
 func (s *SolutionStore) CreateTx(tx *ChangeTx, m *Solution) error {
-	change := solutionChange{
+	change := SolutionChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		Solution:   *m,
 	}
@@ -129,7 +129,7 @@ func (s *SolutionStore) CreateTx(tx *ChangeTx, m *Solution) error {
 }
 
 func (s *SolutionStore) Update(m *Solution) error {
-	change := solutionChange{
+	change := SolutionChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		Solution:   *m,
 	}
@@ -142,7 +142,7 @@ func (s *SolutionStore) Update(m *Solution) error {
 }
 
 func (s *SolutionStore) Delete(id int64) error {
-	change := solutionChange{
+	change := SolutionChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		Solution:   Solution{ID: id},
 	}
@@ -166,7 +166,7 @@ func (s *SolutionStore) LoadChanges(
 				` "change_id", "change_type", "change_time",`+
 				` "id", "user_id", "problem_id", "contest_id",`+
 				` "compiler_id", "source_code", "create_time"`+
-				` FROM "%s"`+
+				` FROM %q`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
 			s.changeTable,
@@ -176,7 +176,7 @@ func (s *SolutionStore) LoadChanges(
 }
 
 func (s *SolutionStore) ScanChange(scan Scanner) (Change, error) {
-	solution := solutionChange{}
+	solution := SolutionChange{}
 	var contestID *int64
 	err := scan.Scan(
 		&solution.BaseChange.ID, &solution.Type, &solution.Time,
@@ -198,7 +198,7 @@ func int64OrNil(i int64) *int64 {
 }
 
 func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
-	solution := change.(*solutionChange)
+	solution := change.(*SolutionChange)
 	solution.Time = time.Now().Unix()
 	switch solution.Type {
 	case CreateChange:
@@ -207,7 +207,7 @@ func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
 		solution.Solution.ID, err = execTxReturningID(
 			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
-				`INSERT INTO "%s"`+
+				`INSERT INTO %q`+
 					` ("user_id", "problem_id", "contest_id", "compiler_id",`+
 					` "source_code", "create_time")`+
 					` VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -230,7 +230,7 @@ func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s"`+
+				`UPDATE %q`+
 					` SET "user_id" = $1, "problem_id" = $2,`+
 					` "contest_id" = $3, "compiler_id" = $4,`+
 					` "source_code" = $5`+
@@ -253,7 +253,7 @@ func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1`,
+				`DELETE FROM %q WHERE "id" = $1`,
 				s.table,
 			),
 			solution.Solution.ID,
@@ -271,7 +271,7 @@ func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
 	solution.BaseChange.ID, err = execTxReturningID(
 		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
-			`INSERT INTO "%s"`+
+			`INSERT INTO %q`+
 				` ("change_type", "change_time",`+
 				` "id", "user_id", "problem_id", "contest_id",`+
 				` "compiler_id", "source_code", "create_time")`+
@@ -288,7 +288,7 @@ func (s *SolutionStore) SaveChange(tx *sql.Tx, change Change) error {
 }
 
 func (s *SolutionStore) ApplyChange(change Change) {
-	solution := change.(*solutionChange)
+	solution := change.(*SolutionChange)
 	problemUser := problemUserPair{
 		ProblemID: solution.ProblemID,
 		UserID:    solution.UserID,

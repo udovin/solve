@@ -23,7 +23,7 @@ const (
 	MiddleNameField = "middle_name"
 )
 
-type userFieldChange struct {
+type UserFieldChange struct {
 	BaseChange
 	UserField
 }
@@ -78,7 +78,7 @@ func (s *UserFieldStore) GetByUser(userID int64) ([]UserField, error) {
 
 // Create creates user field with specified data
 func (s *UserFieldStore) Create(m *UserField) error {
-	change := userFieldChange{
+	change := UserFieldChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		UserField:  *m,
 	}
@@ -92,7 +92,7 @@ func (s *UserFieldStore) Create(m *UserField) error {
 
 // CreateTx creates user field with specified data
 func (s *UserFieldStore) CreateTx(tx *ChangeTx, m *UserField) error {
-	change := userFieldChange{
+	change := UserFieldChange{
 		BaseChange: BaseChange{Type: CreateChange},
 		UserField:  *m,
 	}
@@ -107,7 +107,7 @@ func (s *UserFieldStore) CreateTx(tx *ChangeTx, m *UserField) error {
 // Modify user field
 // Modification will be applied to field with ID = m.ID
 func (s *UserFieldStore) Update(m *UserField) error {
-	change := userFieldChange{
+	change := UserFieldChange{
 		BaseChange: BaseChange{Type: UpdateChange},
 		UserField:  *m,
 	}
@@ -121,7 +121,7 @@ func (s *UserFieldStore) Update(m *UserField) error {
 
 // Delete user field with specified ID
 func (s *UserFieldStore) Delete(id int64) error {
-	change := userFieldChange{
+	change := UserFieldChange{
 		BaseChange: BaseChange{Type: DeleteChange},
 		UserField:  UserField{ID: id},
 	}
@@ -144,7 +144,7 @@ func (s *UserFieldStore) LoadChanges(
 			`SELECT`+
 				` "change_id", "change_type", "change_time",`+
 				` "id", "user_id", "name", "data"`+
-				` FROM "%s"`+
+				` FROM %q`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
 			s.changeTable,
@@ -154,7 +154,7 @@ func (s *UserFieldStore) LoadChanges(
 }
 
 func (s *UserFieldStore) ScanChange(scan Scanner) (Change, error) {
-	field := userFieldChange{}
+	field := UserFieldChange{}
 	err := scan.Scan(
 		&field.BaseChange.ID, &field.BaseChange.Type, &field.Time,
 		&field.UserField.ID, &field.UserID, &field.UserField.Type,
@@ -164,7 +164,7 @@ func (s *UserFieldStore) ScanChange(scan Scanner) (Change, error) {
 }
 
 func (s *UserFieldStore) SaveChange(tx *sql.Tx, change Change) error {
-	field := change.(*userFieldChange)
+	field := change.(*UserFieldChange)
 	field.Time = time.Now().Unix()
 	switch field.BaseChange.Type {
 	case CreateChange:
@@ -172,7 +172,7 @@ func (s *UserFieldStore) SaveChange(tx *sql.Tx, change Change) error {
 		field.UserField.ID, err = execTxReturningID(
 			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
-				`INSERT INTO "%s"`+
+				`INSERT INTO %q`+
 					` ("user_id", "name", "data")`+
 					` VALUES ($1, $2, $3)`,
 				s.table,
@@ -192,7 +192,7 @@ func (s *UserFieldStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE "%s" SET`+
+				`UPDATE %q SET`+
 					` "user_id" = $1, "name" = $2, "data" = $3`+
 					` WHERE "id" = $4`,
 				s.table,
@@ -212,7 +212,7 @@ func (s *UserFieldStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`DELETE FROM "%s" WHERE "id" = $1`,
+				`DELETE FROM %q WHERE "id" = $1`,
 				s.table,
 			),
 			field.UserField.ID,
@@ -230,7 +230,7 @@ func (s *UserFieldStore) SaveChange(tx *sql.Tx, change Change) error {
 	field.BaseChange.ID, err = execTxReturningID(
 		s.Manager.db.Driver(), tx,
 		fmt.Sprintf(
-			`INSERT INTO "%s"`+
+			`INSERT INTO %q`+
 				` ("change_type", "change_time",`+
 				` "id", "user_id", "name", "data")`+
 				` VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -244,7 +244,7 @@ func (s *UserFieldStore) SaveChange(tx *sql.Tx, change Change) error {
 }
 
 func (s *UserFieldStore) ApplyChange(change Change) {
-	field := change.(*userFieldChange)
+	field := change.(*UserFieldChange)
 	switch field.BaseChange.Type {
 	case UpdateChange:
 		if old, ok := s.fields[field.UserField.ID]; ok {

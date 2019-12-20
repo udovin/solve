@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo"
 
@@ -246,6 +247,9 @@ func (v *View) CreateContestSolution(c echo.Context) error {
 	if !v.canGetContest(user, contest) {
 		return c.NoContent(http.StatusForbidden)
 	}
+	if !v.canCreateSolution(user, contest) {
+		return c.NoContent(http.StatusForbidden)
+	}
 	problemCode := c.Param("ProblemCode")
 	var contestProblem models.ContestProblem
 	problems, err := v.app.ContestProblems.GetByContest(contestID)
@@ -349,6 +353,11 @@ func (v *View) canGetContest(
 	if user.IsSuper {
 		return true
 	}
+	if contest.Config.BeginTime != nil {
+		if time.Now().Unix() < *contest.Config.BeginTime {
+			return false
+		}
+	}
 	if user.ID == contest.UserID {
 		return true
 	}
@@ -356,6 +365,20 @@ func (v *View) canGetContest(
 		contest.ID, user.ID,
 	)
 	return err == nil && len(participants) > 0
+}
+
+func (v *View) canCreateSolution(
+	user models.User, contest models.Contest,
+) bool {
+	if user.IsSuper {
+		return true
+	}
+	if contest.Config.EndTime != nil {
+		if time.Now().Unix() >= *contest.Config.EndTime {
+			return false
+		}
+	}
+	return true
 }
 
 type contestModelSorter []models.Contest

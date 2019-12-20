@@ -2,6 +2,8 @@ package models
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -12,6 +14,29 @@ type Contest struct {
 	UserID     int64  `json:"" db:"user_id"`
 	CreateTime int64  `json:"" db:"create_time"`
 	Title      string `json:"" db:"title"`
+	// Config contains configuration for contest
+	Config ContestConfig `json:"" db:"config"`
+}
+
+type ContestConfig struct {
+	// BeginTime contains start of contest
+	BeginTime *int64 `json:",omitempty"`
+	EndTime   *int64 `json:",omitempty"`
+}
+
+func (c ContestConfig) Value() (driver.Value, error) {
+	return json.Marshal(c)
+}
+
+func (c *ContestConfig) Scan(value interface{}) error {
+	switch data := value.(type) {
+	case []byte:
+		return json.Unmarshal(data, c)
+	case string:
+		return json.Unmarshal([]byte(data), c)
+	default:
+		return fmt.Errorf("unsupported type: %T", data)
+	}
 }
 
 type ContestChange struct {
@@ -105,7 +130,7 @@ func (s *ContestStore) LoadChanges(
 		fmt.Sprintf(
 			`SELECT`+
 				` "change_id", "change_type", "change_time",`+
-				` "id", "user_id", "create_time", "title"`+
+				` "id", "user_id", "create_time", "title", "config"`+
 				` FROM %q`+
 				` WHERE "change_id" >= $1 AND "change_id" < $2`+
 				` ORDER BY "change_id"`,
@@ -120,7 +145,7 @@ func (s *ContestStore) ScanChange(scan Scanner) (Change, error) {
 	err := scan.Scan(
 		&contest.BaseChange.ID, &contest.Type, &contest.Time,
 		&contest.Contest.ID, &contest.UserID, &contest.CreateTime,
-		&contest.Title,
+		&contest.Title, &contest.Config,
 	)
 	return &contest, err
 }
@@ -136,12 +161,12 @@ func (s *ContestStore) SaveChange(tx *sql.Tx, change Change) error {
 			s.Manager.db.Driver(), tx,
 			fmt.Sprintf(
 				`INSERT INTO %q`+
-					` ("user_id", "create_time", "title")`+
-					` VALUES ($1, $2, $3)`,
+					` ("user_id", "create_time", "title", "config")`+
+					` VALUES ($1, $2, $3, $4)`,
 				s.table,
 			),
 			"id",
-			contest.UserID, contest.CreateTime, contest.Title,
+			contest.UserID, contest.CreateTime, contest.Title, contest.Config,
 		)
 		if err != nil {
 			return err
@@ -155,11 +180,12 @@ func (s *ContestStore) SaveChange(tx *sql.Tx, change Change) error {
 		}
 		_, err := tx.Exec(
 			fmt.Sprintf(
-				`UPDATE %q SET "user_id" = $1, "title" = $2`+
-					` WHERE "id" = $3`,
+				`UPDATE %q SET`+
+					` "user_id" = $1, "title" = $2, "config" = $3`+
+					` WHERE "id" = $4`,
 				s.table,
 			),
-			contest.UserID, contest.Title, contest.Contest.ID,
+			contest.UserID, contest.Title, contest.Config, contest.Contest.ID,
 		)
 		if err != nil {
 			return err
@@ -193,14 +219,14 @@ func (s *ContestStore) SaveChange(tx *sql.Tx, change Change) error {
 		fmt.Sprintf(
 			`INSERT INTO %q`+
 				` ("change_type", "change_time",`+
-				` "id", "user_id", "create_time", "title")`+
-				` VALUES ($1, $2, $3, $4, $5, $6)`,
+				` "id", "user_id", "create_time", "title", "config")`+
+				` VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			s.changeTable,
 		),
 		"change_id",
 		contest.Type, contest.Time,
 		contest.Contest.ID, contest.UserID, contest.CreateTime,
-		contest.Title,
+		contest.Title, contest.Config,
 	)
 	return err
 }

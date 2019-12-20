@@ -7,6 +7,7 @@ import {Link} from "react-router-dom";
 import "./solutions.scss";
 import FormBlock from "./FormBlock";
 import SolutionRow from "./SolutionRow";
+import Textarea from "./Textarea";
 
 export type SubmitSolutionSideBlockProps = {
 	onSubmit: FormEventHandler;
@@ -30,6 +31,10 @@ export const SubmitSolutionSideBlock: FC<SubmitSolutionSideBlockProps> = props =
 			<label>
 				<span className="label">Source file:</span>
 				<Input type="file" name="sourceFile" placeholder="Source code"/>
+			</label>
+			<label>
+				<span className="label">Source text:</span>
+				<Textarea name="sourceText" placeholder="Source text"/>
 			</label>
 		</div>
 	</FormBlock>;

@@ -17,10 +17,8 @@ const ContestProblemPage = ({match}: RouteComponentProps<ContestProblemPageParam
 	const [solution, setSolution] = useState<Solution>();
 	const onSubmit = (event: any) => {
 		event.preventDefault();
-		const {sourceFile, compilerID} = event.target;
-		let reader = new FileReader();
-		reader.onload = (event: any) => {
-			const sourceCode = event.target.result;
+		const {sourceFile, sourceText, compilerID} = event.target;
+		let create = (code: string) => {
 			fetch("/api/v0/contests/" + ContestID + "/problems/" + ProblemCode, {
 				method: "POST",
 				headers: {
@@ -28,13 +26,19 @@ const ContestProblemPage = ({match}: RouteComponentProps<ContestProblemPageParam
 				},
 				body: JSON.stringify({
 					CompilerID: Number(compilerID.value),
-					SourceCode: sourceCode,
+					SourceCode: code,
 				})
 			})
 				.then(result => result.json())
 				.then(result => setSolution(result));
 		};
-		reader.readAsText(sourceFile.files[0]);
+		if (sourceFile.files.length > 0) {
+			let reader = new FileReader();
+			reader.onload = (event: any) => create(event.target.result);
+			reader.readAsText(sourceFile.files[0]);
+		} else {
+			create(sourceText.value);
+		}
 	};
 	useEffect(() => {
 		fetch("/api/v0/compilers")

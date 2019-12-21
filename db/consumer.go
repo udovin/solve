@@ -9,24 +9,32 @@ import (
 	"time"
 )
 
-// ChangeConsumer represents consumer for changes
-type ChangeConsumer interface {
-	Consume(tx *sql.Tx, fn func(Change) error) error
+// EventConsumer represents consumer for events
+type EventConsumer interface {
+	BeginID() int64
+	Consume(tx *sql.Tx, fn func(Event) error) error
 }
 
-type changeGap struct {
+type eventGap struct {
 	Begin, End int64
 	Time       time.Time
 }
 
-type changeConsumer struct {
-	store ChangeStore
+type eventConsumer struct {
+	store EventROStore
 	endID int64
 	gaps  *list.List
 	mutex sync.Mutex
 }
 
-func (c *changeConsumer) Consume(tx *sql.Tx, fn func(Change) error) error {
+func (c *eventConsumer) BeginID() int64 {
+	if it := c.gaps.Front(); it != nil {
+		return it.Value.(eventGap).Begin
+	}
+	return c.endID
+}
+
+func (c *eventConsumer) Consume(tx *sql.Tx, fn func(Event) error) error {
 	c.skipOldGaps()
 	if err := c.loadGapsChanges(tx, fn); err != nil {
 		return err
@@ -36,19 +44,19 @@ func (c *changeConsumer) Consume(tx *sql.Tx, fn func(Change) error) error {
 
 // Some transactions may failure and such gaps will never been removed
 // so we should skip this gaps after some other changes
-const changeGapSkipWindow = 5000
+const eventGapSkipWindow = 5000
 
 // If there are no many changes we will do many useless requests to change
 // store, so we should remove gaps by timeout
-const changeGapSkipTimeout = 2 * time.Minute
+const eventGapSkipTimeout = 2 * time.Minute
 
-func (c *changeConsumer) skipOldGaps() {
+func (c *eventConsumer) skipOldGaps() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	window := c.endID - changeGapSkipWindow
-	timeout := time.Now().Add(-changeGapSkipTimeout)
+	window := c.endID - eventGapSkipWindow
+	timeout := time.Now().Add(-eventGapSkipTimeout)
 	for c.gaps.Front() != nil {
-		curr := c.gaps.Front().Value.(changeGap)
+		curr := c.gaps.Front().Value.(eventGap)
 		if curr.End > window && curr.Time.After(timeout) {
 			break
 		}
@@ -56,8 +64,8 @@ func (c *changeConsumer) skipOldGaps() {
 	}
 }
 
-func (c *changeConsumer) loadGapsChanges(
-	tx *sql.Tx, fn func(Change) error,
+func (c *eventConsumer) loadGapsChanges(
+	tx *sql.Tx, fn func(Event) error,
 ) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -70,37 +78,37 @@ func (c *changeConsumer) loadGapsChanges(
 	return nil
 }
 
-func (c *changeConsumer) loadGapChanges(
-	tx *sql.Tx, it *list.Element, fn func(Change) error,
+func (c *eventConsumer) loadGapChanges(
+	tx *sql.Tx, it *list.Element, fn func(Event) error,
 ) (*list.Element, error) {
 	jt := it.Next()
-	gap := it.Value.(changeGap)
-	rows, err := c.store.LoadChanges(tx, gap.Begin, gap.End)
+	gap := it.Value.(eventGap)
+	rows, err := c.store.LoadEvents(tx, gap.Begin, gap.End)
 	if err != nil {
 		return nil, err
 	}
 	prevID := gap.Begin - 1
 	for rows.Next() {
-		change := rows.Change()
-		if change.ChangeID() <= prevID {
+		event := rows.Event()
+		if event.EventID() <= prevID {
 			_ = rows.Close()
 			panic(fmt.Errorf(
-				"change %v should have ID greater than %d",
-				change, prevID,
+				"event %d should have ID greater than %d",
+				event.EventID(), prevID,
 			))
 		}
-		if change.ChangeID() >= gap.End {
+		if event.EventID() >= gap.End {
 			_ = rows.Close()
 			panic(fmt.Errorf(
-				"change %v should have ID less than %d",
-				change, gap.End,
+				"event %d should have ID less than %d",
+				event.EventID(), gap.End,
 			))
 		}
-		if err := fn(change); err != nil {
+		if err := fn(event); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
-		prevID = change.ChangeID()
+		prevID = event.EventID()
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -108,36 +116,36 @@ func (c *changeConsumer) loadGapChanges(
 	return jt, rows.Err()
 }
 
-func (c *changeConsumer) loadNewChanges(
-	tx *sql.Tx, fn func(Change) error,
+func (c *eventConsumer) loadNewChanges(
+	tx *sql.Tx, fn func(Event) error,
 ) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	rows, err := c.store.LoadChanges(tx, c.endID, math.MaxInt64)
+	rows, err := c.store.LoadEvents(tx, c.endID, math.MaxInt64)
 	if err != nil {
 		return err
 	}
 	for rows.Next() {
-		change := rows.Change()
-		if change.ChangeID() < c.endID {
+		event := rows.Event()
+		if event.EventID() < c.endID {
 			_ = rows.Close()
 			panic(fmt.Errorf(
-				"change %v should have ID not less than %v",
-				change, c.endID,
+				"event %d should have ID not less than %d",
+				event.EventID(), c.endID,
 			))
 		}
-		if err := fn(change); err != nil {
+		if err := fn(event); err != nil {
 			_ = rows.Close()
 			return err
 		}
-		if c.endID < change.ChangeID() {
-			c.gaps.PushBack(changeGap{
+		if c.endID < event.EventID() {
+			c.gaps.PushBack(eventGap{
 				Begin: c.endID,
-				End:   change.ChangeID(),
-				Time:  change.ChangeTime(),
+				End:   event.EventID(),
+				Time:  event.EventTime(),
 			})
 		}
-		c.endID = change.ChangeID() + 1
+		c.endID = event.EventID() + 1
 	}
 	if err := rows.Close(); err != nil {
 		return err
@@ -145,10 +153,6 @@ func (c *changeConsumer) loadNewChanges(
 	return rows.Err()
 }
 
-func NewChangeConsumer(store ChangeStore, beginID int64) ChangeConsumer {
-	return &changeConsumer{
-		store: store,
-		endID: beginID,
-		gaps:  list.New(),
-	}
+func NewEventConsumer(store EventROStore, beginID int64) EventConsumer {
+	return &eventConsumer{store: store, endID: beginID, gaps: list.New()}
 }

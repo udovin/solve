@@ -10,8 +10,8 @@ import (
 )
 
 type mockEvent struct {
-	ID   int64
-	Time time.Time
+	ID   int64     `db:"id"`
+	Time time.Time `db:"time"`
 }
 
 func (e mockEvent) String() string {

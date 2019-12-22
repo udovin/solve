@@ -169,6 +169,7 @@ func (c *eventConsumer) loadNewChanges(
 	return rows.Err()
 }
 
+// NewEventConsumer creates consumer for event store
 func NewEventConsumer(store EventROStore, beginID int64) EventConsumer {
 	return &eventConsumer{
 		store: store,

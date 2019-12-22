@@ -36,9 +36,11 @@ type ObjectStore interface {
 	DeleteObject(tx *sql.Tx, id int64) (Object, error)
 }
 
-// Event represents a change
+// Event represents an event from store
 type Event interface {
+	// EventID should return sequential ID of event
 	EventID() int64
+	// EventTime should return time when event occurred
 	EventTime() time.Time
 }
 
@@ -56,10 +58,12 @@ type EventReader interface {
 
 // EventROStore represents persistent store for event
 type EventROStore interface {
+	// LoadEvents should load events from store in specified range
 	LoadEvents(tx *sql.Tx, begin, end int64) (EventReader, error)
 }
 
 type EventStore interface {
 	EventROStore
+	// CreateEvent should create a new event
 	CreateEvent(tx *sql.Tx, event Event) (Event, error)
 }

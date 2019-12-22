@@ -115,7 +115,8 @@ var createTables = []string{
 	user_id integer not null
 		references test_user,
 	create_time bigint not null,
-	title varchar(255) not null
+	title varchar(255) not null,
+	config text not null
 )`,
 	`CREATE TABLE test_contest_change
 (
@@ -127,7 +128,8 @@ var createTables = []string{
 	id integer not null,
 	user_id integer not null,
 	create_time bigint not null,
-	title varchar(255) not null
+	title varchar(255) not null,
+	config text not null
 )`,
 	// Solution store
 	`CREATE TABLE test_solution

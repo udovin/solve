@@ -4,7 +4,40 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"time"
 )
+
+// Event represents an event from store
+type Event interface {
+	// EventID should return sequential ID of event
+	EventID() int64
+	// EventTime should return time when event occurred
+	EventTime() time.Time
+}
+
+// EventReader represents reader for events
+type EventReader interface {
+	// Next should read next change and return true if change exists
+	Next() bool
+	// Event should return current change
+	Event() Event
+	// Close should close reader
+	Close() error
+	// Err should return error that occurred during reading
+	Err() error
+}
+
+// EventROStore represents persistent store for event
+type EventROStore interface {
+	// LoadEvents should load events from store in specified range
+	LoadEvents(tx *sql.Tx, begin, end int64) (EventReader, error)
+}
+
+type EventStore interface {
+	EventROStore
+	// CreateEvent should create a new event
+	CreateEvent(tx *sql.Tx, event Event) (Event, error)
+}
 
 type eventStore struct {
 	typ   reflect.Type
@@ -82,6 +115,7 @@ func (s *eventStore) CreateEvent(
 	return nil, nil
 }
 
+// NewEventStore creates a new store for events of specified type
 func NewEventStore(event Event, table string, id string) EventStore {
 	return &eventStore{
 		typ:   reflect.TypeOf(event),

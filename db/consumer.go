@@ -47,7 +47,12 @@ func (c *eventConsumer) ConsumeEvents(tx *sql.Tx, fn func(Event) error) error {
 	if err := c.loadGapsChanges(tx, fn); err != nil {
 		return err
 	}
-	return c.loadNewChanges(tx, fn)
+	if err := c.loadNewChanges(tx, fn); err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+	}
+	return nil
 }
 
 // Some transactions may failure and such gaps will never been removed
@@ -66,7 +71,9 @@ func (c *eventConsumer) loadGapsChanges(
 	for it := c.gaps.Front(); it != nil; {
 		jt := it.Next()
 		if err := c.loadGapChanges(tx, it, fn, window, timeout); err != nil {
-			return err
+			if err != sql.ErrNoRows {
+				return err
+			}
 		}
 		it = jt
 	}
@@ -84,30 +91,25 @@ func (c *eventConsumer) loadGapChanges(
 	}
 	rows, err := c.store.LoadEvents(tx, gap.beginID, gap.endID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil
-		}
 		return err
 	}
+	defer func() { _ = rows.Close() }()
 	prevID := gap.beginID - 1
 	for rows.Next() {
 		event := rows.Event()
 		if event.EventID() <= prevID {
-			_ = rows.Close()
-			panic(fmt.Errorf(
+			return fmt.Errorf(
 				"event %d should have ID greater than %d",
 				event.EventID(), prevID,
-			))
+			)
 		}
 		if event.EventID() >= gap.endID {
-			_ = rows.Close()
-			panic(fmt.Errorf(
+			return fmt.Errorf(
 				"event %d should have ID less than %d",
 				event.EventID(), gap.endID,
-			))
+			)
 		}
 		if err := fn(event); err != nil {
-			_ = rows.Close()
 			return err
 		}
 		prevID = event.EventID()
@@ -133,9 +135,6 @@ func (c *eventConsumer) loadGapChanges(
 			it.Value = gap
 		}
 	}
-	if err := rows.Close(); err != nil {
-		return err
-	}
 	return rows.Err()
 }
 
@@ -144,22 +143,18 @@ func (c *eventConsumer) loadNewChanges(
 ) error {
 	rows, err := c.store.LoadEvents(tx, c.endID, math.MaxInt64)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil
-		}
 		return err
 	}
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		event := rows.Event()
 		if event.EventID() < c.endID {
-			_ = rows.Close()
-			panic(fmt.Errorf(
+			return fmt.Errorf(
 				"event %d should have ID not less than %d",
 				event.EventID(), c.endID,
-			))
+			)
 		}
 		if err := fn(event); err != nil {
-			_ = rows.Close()
 			return err
 		}
 		if c.endID < event.EventID() {
@@ -170,9 +165,6 @@ func (c *eventConsumer) loadNewChanges(
 			})
 		}
 		c.endID = event.EventID() + 1
-	}
-	if err := rows.Close(); err != nil {
-		return err
 	}
 	return rows.Err()
 }

@@ -5,13 +5,13 @@ import "./ContestTabs.scss"
 
 export type ContestTabsProps = BlockProps & {
 	contestID: number;
-	pageType: string;
+	currentTab?: string;
 };
 
 const ContestTabs: FC<ContestTabsProps> = props => {
-	const {contestID, pageType} = props;
+	const {contestID, currentTab} = props;
 	const getActiveClass = (name: string): string => {
-		return name === pageType ? "active" : "";
+		return name === currentTab ? "active" : "";
 	};
 	return <Block className="b-contest-tabs">
 		<ul className="ui-tabs">

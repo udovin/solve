@@ -13,16 +13,13 @@ import ProblemPage from "./pages/ProblemPage";
 import ContestsPage from "./pages/ContestsPage";
 import CreateContestPage from "./pages/CreateContestPage";
 import ContestPage from "./pages/ContestPage";
-import ContestProblemPage from "./pages/ContestProblemPage";
 import CreateCompilerPage from "./pages/CreateCompilerPage";
 import LogoutPage from "./pages/LogoutPage";
-import CreateContestProblemPage from "./pages/CreateContestProblemPage";
 import SolutionPage from "./pages/SolutionPage";
 import UpdateProblemPage from "./pages/UpdateProblemPage";
 import SolutionsPage from "./pages/SolutionsPage";
 import UserPage from "./pages/UserPage";
 import EditUserPage from "./pages/EditUserPage";
-import ContestSolutionsPage from "./pages/ContestSolutionsPage";
 
 const App: React.FC = () => {
 	return (
@@ -37,10 +34,7 @@ const App: React.FC = () => {
 						<Route exact path="/problems/:ProblemID/update" component={UpdateProblemPage}/>
 						<Route exact path="/contests" component={ContestsPage}/>
 						<Route exact path="/contests/create" component={CreateContestPage}/>
-						<Route exact path="/contests/:ContestID" component={ContestPage}/>
-						<Route exact path="/contests/:ContestID/solutions" component={ContestSolutionsPage}/>
-						<Route exact path="/contests/:ContestID/problems/create" component={CreateContestProblemPage}/>
-						<Route exact path="/contests/:ContestID/problems/:ProblemCode" component={ContestProblemPage}/>
+						<Route path="/contests/:ContestID" component={ContestPage}/>
 						<Route exact path="/compilers/create" component={CreateCompilerPage}/>
 						<Route exact path="/solutions" component={SolutionsPage}/>
 						<Route exact path="/solutions/:SolutionID" component={SolutionPage}/>

@@ -18,9 +18,9 @@ type Event interface {
 
 // EventReader represents reader for events
 type EventReader interface {
-	// Next should read next change and return true if change exists
+	// Next should read next event and return true if event exists
 	Next() bool
-	// Event should return current change
+	// Event should return current event
 	Event() Event
 	// Close should close reader
 	Close() error
@@ -28,21 +28,17 @@ type EventReader interface {
 	Err() error
 }
 
-// EventROStore represents persistent store for event
+// EventROStore represents read-only store for events
 type EventROStore interface {
 	// LoadEvents should load events from store in specified range
 	LoadEvents(tx *sql.Tx, begin, end int64) (EventReader, error)
 }
 
+// EventStore represents persistent store for events
 type EventStore interface {
 	EventROStore
-	// CreateEvent should create a new event and return event copy
+	// CreateEvent should create a new event and return copy
 	// that has correct EventID
-	//
-	// There is no guarantee that returned event has the same type
-	// but should be guaranteed that EventID() is correct. So if you
-	// do not know anything about store, you should assume that only
-	// EventID() has correct value.
 	CreateEvent(tx *sql.Tx, event Event) (Event, error)
 }
 
@@ -58,8 +54,8 @@ func (s *eventStore) LoadEvents(
 ) (EventReader, error) {
 	rows, err := tx.Query(
 		fmt.Sprintf(
-			"SELECT %s FROM %q WHERE %q >= $1 AND %q < $2",
-			selectStruct(s.typ), s.table, s.id, s.id,
+			"SELECT %s FROM %q WHERE %q >= $1 AND %q < $2 ORDER BY %q",
+			selectValue(s.typ), s.table, s.id, s.id, s.id,
 		),
 		begin, end,
 	)
@@ -69,19 +65,9 @@ func (s *eventStore) LoadEvents(
 	return &eventReader{typ: s.typ, rows: rows}, nil
 }
 
-type stubEvent int64
-
-func (e stubEvent) EventID() int64 {
-	return int64(e)
-}
-
-func (e stubEvent) EventTime() time.Time {
-	return time.Time{}
-}
-
 func (s *eventStore) CreateEvent(tx *sql.Tx, event Event) (Event, error) {
-	cols, keys, vals := insertObject(event, s.id)
-	var id int64
+	value := cloneValue(event)
+	cols, keys, vals, idPtr := insertValue(value, s.id)
 	switch s.dbms {
 	case Postgres:
 		rows := tx.QueryRow(
@@ -91,7 +77,7 @@ func (s *eventStore) CreateEvent(tx *sql.Tx, event Event) (Event, error) {
 			),
 			vals...,
 		)
-		if err := rows.Scan(&id); err != nil {
+		if err := rows.Scan(idPtr); err != nil {
 			return nil, err
 		}
 	default:
@@ -105,11 +91,11 @@ func (s *eventStore) CreateEvent(tx *sql.Tx, event Event) (Event, error) {
 		if err != nil {
 			return nil, err
 		}
-		if id, err = res.LastInsertId(); err != nil {
+		if *idPtr, err = res.LastInsertId(); err != nil {
 			return nil, err
 		}
 	}
-	return stubEvent(id), nil
+	return value.Interface().(Event), nil
 }
 
 // NewEventStore creates a new store for events of specified type
@@ -124,78 +110,6 @@ func NewEventStore(
 	}
 }
 
-func selectStruct(typ reflect.Type) string {
-	var cols strings.Builder
-	var recursive func(reflect.Type)
-	recursive = func(t reflect.Type) {
-		for i := 0; i < t.NumField(); i++ {
-			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
-				name := strings.Split(db, ",")[0]
-				if cols.Len() > 0 {
-					cols.WriteRune(',')
-				}
-				cols.WriteString(fmt.Sprintf("%q", name))
-			} else if t.Field(i).Anonymous {
-				recursive(t.Field(i).Type)
-			}
-		}
-	}
-	recursive(typ)
-	return cols.String()
-}
-
-func insertObject(
-	value interface{}, id string,
-) (string, string, []interface{}) {
-	var cols strings.Builder
-	var keys strings.Builder
-	var vals []interface{}
-	var it int
-	var recursive func(reflect.Value)
-	recursive = func(v reflect.Value) {
-		t := v.Type()
-		for i := 0; i < t.NumField(); i++ {
-			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
-				name := strings.Split(db, ",")[0]
-				if name == id {
-					continue
-				}
-				if it > 0 {
-					cols.WriteRune(',')
-					keys.WriteRune(',')
-				}
-				it++
-				cols.WriteString(fmt.Sprintf("%q", name))
-				keys.WriteString(fmt.Sprintf("$%d", it))
-				vals = append(vals, v.Field(i).Interface())
-			} else if t.Field(i).Anonymous {
-				recursive(v.Field(i))
-			}
-		}
-	}
-	recursive(reflect.ValueOf(value))
-	return cols.String(), keys.String(), vals
-}
-
-func scanObject(typ reflect.Type, rows *sql.Rows) (interface{}, error) {
-	value := reflect.New(typ).Elem()
-	var fields []interface{}
-	var recursive func(reflect.Value)
-	recursive = func(v reflect.Value) {
-		t := v.Type()
-		for i := 0; i < t.NumField(); i++ {
-			if _, ok := t.Field(i).Tag.Lookup("db"); ok {
-				fields = append(fields, v.Field(i).Addr().Interface())
-			} else if t.Field(i).Anonymous {
-				recursive(v.Field(i))
-			}
-		}
-	}
-	recursive(value)
-	err := rows.Scan(fields...)
-	return value.Interface(), err
-}
-
 type eventReader struct {
 	typ   reflect.Type
 	rows  *sql.Rows
@@ -208,7 +122,7 @@ func (r *eventReader) Next() bool {
 		return false
 	}
 	var v interface{}
-	v, r.err = scanObject(r.typ, r.rows)
+	v, r.err = scanValue(r.typ, r.rows)
 	if r.err == nil {
 		r.event = v.(Event)
 	}
@@ -228,4 +142,95 @@ func (r *eventReader) Err() error {
 		return err
 	}
 	return r.err
+}
+
+func selectValue(typ reflect.Type) string {
+	var cols strings.Builder
+	var recursive func(reflect.Type)
+	recursive = func(t reflect.Type) {
+		for i := 0; i < t.NumField(); i++ {
+			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
+				name := strings.Split(db, ",")[0]
+				if cols.Len() > 0 {
+					cols.WriteRune(',')
+				}
+				cols.WriteString(fmt.Sprintf("%q", name))
+			} else if t.Field(i).Anonymous {
+				recursive(t.Field(i).Type)
+			}
+		}
+	}
+	recursive(typ)
+	return cols.String()
+}
+
+func cloneValue(value interface{}) reflect.Value {
+	clone := reflect.New(reflect.TypeOf(value)).Elem()
+	var recursive func(value, clone reflect.Value)
+	recursive = func(value, clone reflect.Value) {
+		t := value.Type()
+		for i := 0; i < t.NumField(); i++ {
+			if _, ok := t.Field(i).Tag.Lookup("db"); ok {
+				clone.Field(i).Set(value.Field(i))
+			} else if t.Field(i).Anonymous {
+				recursive(value.Field(i), clone.Field(i))
+			}
+		}
+	}
+	recursive(reflect.ValueOf(value), clone)
+	return clone
+}
+
+func insertValue(
+	value reflect.Value, id string,
+) (string, string, []interface{}, *int64) {
+	var cols strings.Builder
+	var keys strings.Builder
+	var vals []interface{}
+	var idPtr *int64
+	var it int
+	var recursive func(reflect.Value)
+	recursive = func(v reflect.Value) {
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
+				name := strings.Split(db, ",")[0]
+				if name == id {
+					idPtr = v.Field(i).Addr().Interface().(*int64)
+					continue
+				}
+				if it > 0 {
+					cols.WriteRune(',')
+					keys.WriteRune(',')
+				}
+				it++
+				cols.WriteString(fmt.Sprintf("%q", name))
+				keys.WriteString(fmt.Sprintf("$%d", it))
+				vals = append(vals, v.Field(i).Interface())
+			} else if t.Field(i).Anonymous {
+				recursive(v.Field(i))
+			}
+		}
+	}
+	recursive(value)
+	return cols.String(), keys.String(), vals, idPtr
+}
+
+func scanValue(typ reflect.Type, rows *sql.Rows) (interface{}, error) {
+	value := reflect.New(typ).Elem()
+	var fields []interface{}
+	var recursive func(reflect.Value)
+	recursive = func(v reflect.Value) {
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			if _, ok := t.Field(i).Tag.Lookup("db"); ok {
+				fields = append(fields, v.Field(i).Addr().Interface())
+			} else if t.Field(i).Anonymous {
+				recursive(v.Field(i))
+			}
+		}
+	}
+	recursive(value)
+	err := rows.Scan(fields...)
+	return value.Interface(), err
 }

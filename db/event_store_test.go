@@ -23,6 +23,13 @@ type testEvent struct {
 var db *sql.DB
 
 var createTables = []string{
+	`CREATE TABLE "test_object"
+(
+	"id" INTEGER PRIMARY KEY,
+	"a" VARCHAR(255),
+	"b" INTEGER,
+	"c" INTEGER
+)`,
 	`CREATE TABLE "test_event"
 (
 	"id" INTEGER PRIMARY KEY,
@@ -36,6 +43,7 @@ var createTables = []string{
 
 var dropTables = []string{
 	`DROP TABLE "test_event"`,
+	`DROP TABLE "test_object"`,
 }
 
 func setup(tb testing.TB) {
@@ -84,6 +92,9 @@ func TestEventStore(t *testing.T) {
 		}
 		events[i].ID = created.EventID()
 		if events[i].ID != int64(i+1) {
+			t.Fatal()
+		}
+		if events[i] != created.(testEvent) {
 			t.Fatal()
 		}
 	}

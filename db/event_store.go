@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -35,7 +36,13 @@ type EventROStore interface {
 
 type EventStore interface {
 	EventROStore
-	// CreateEvent should create a new event
+	// CreateEvent should create a new event and return event copy
+	// that has correct EventID
+	//
+	// There is no guarantee that returned event has the same type
+	// but should be guaranteed that EventID() is correct. So if you
+	// do not know anything about store, you should assume that only
+	// EventID() has correct value.
 	CreateEvent(tx *sql.Tx, event Event) (Event, error)
 }
 
@@ -43,6 +50,150 @@ type eventStore struct {
 	typ   reflect.Type
 	table string
 	id    string
+	dbms  DBMS
+}
+
+func (s *eventStore) LoadEvents(
+	tx *sql.Tx, begin, end int64,
+) (EventReader, error) {
+	rows, err := tx.Query(
+		fmt.Sprintf(
+			"SELECT %s FROM %q WHERE %q >= $1 AND %q < $2",
+			selectStruct(s.typ), s.table, s.id, s.id,
+		),
+		begin, end,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &eventReader{typ: s.typ, rows: rows}, nil
+}
+
+type stubEvent int64
+
+func (e stubEvent) EventID() int64 {
+	return int64(e)
+}
+
+func (e stubEvent) EventTime() time.Time {
+	return time.Time{}
+}
+
+func (s *eventStore) CreateEvent(tx *sql.Tx, event Event) (Event, error) {
+	cols, keys, vals := insertObject(event, s.id)
+	var id int64
+	switch s.dbms {
+	case Postgres:
+		rows := tx.QueryRow(
+			fmt.Sprintf(
+				"INSERT INTO %q (%s) VALUES (%s) RETURNING %q",
+				s.table, cols, keys, s.id,
+			),
+			vals...,
+		)
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+	default:
+		res, err := tx.Exec(
+			fmt.Sprintf(
+				"INSERT INTO %q (%s) VALUES (%s)",
+				s.table, cols, keys,
+			),
+			vals...,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if id, err = res.LastInsertId(); err != nil {
+			return nil, err
+		}
+	}
+	return stubEvent(id), nil
+}
+
+// NewEventStore creates a new store for events of specified type
+func NewEventStore(
+	event Event, table string, id string, dbms DBMS,
+) EventStore {
+	return &eventStore{
+		typ:   reflect.TypeOf(event),
+		table: table,
+		id:    id,
+		dbms:  dbms,
+	}
+}
+
+func selectStruct(typ reflect.Type) string {
+	var cols strings.Builder
+	var recursive func(reflect.Type)
+	recursive = func(t reflect.Type) {
+		for i := 0; i < t.NumField(); i++ {
+			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
+				name := strings.Split(db, ",")[0]
+				if cols.Len() > 0 {
+					cols.WriteRune(',')
+				}
+				cols.WriteString(fmt.Sprintf("%q", name))
+			} else if t.Field(i).Anonymous {
+				recursive(t.Field(i).Type)
+			}
+		}
+	}
+	recursive(typ)
+	return cols.String()
+}
+
+func insertObject(
+	value interface{}, id string,
+) (string, string, []interface{}) {
+	var cols strings.Builder
+	var keys strings.Builder
+	var vals []interface{}
+	var it int
+	var recursive func(reflect.Value)
+	recursive = func(v reflect.Value) {
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
+				name := strings.Split(db, ",")[0]
+				if name == id {
+					continue
+				}
+				if it > 0 {
+					cols.WriteRune(',')
+					keys.WriteRune(',')
+				}
+				it++
+				cols.WriteString(fmt.Sprintf("%q", name))
+				keys.WriteString(fmt.Sprintf("$%d", it))
+				vals = append(vals, v.Field(i).Interface())
+			} else if t.Field(i).Anonymous {
+				recursive(v.Field(i))
+			}
+		}
+	}
+	recursive(reflect.ValueOf(value))
+	return cols.String(), keys.String(), vals
+}
+
+func scanObject(typ reflect.Type, rows *sql.Rows) (interface{}, error) {
+	value := reflect.New(typ).Elem()
+	var fields []interface{}
+	var recursive func(reflect.Value)
+	recursive = func(v reflect.Value) {
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			if _, ok := t.Field(i).Tag.Lookup("db"); ok {
+				fields = append(fields, v.Field(i).Addr().Interface())
+			} else if t.Field(i).Anonymous {
+				recursive(v.Field(i))
+			}
+		}
+	}
+	recursive(value)
+	err := rows.Scan(fields...)
+	return value.Interface(), err
 }
 
 type eventReader struct {
@@ -52,29 +203,15 @@ type eventReader struct {
 	event Event
 }
 
-func wrapStructScan(v interface{}) (fields []interface{}) {
-	var wrap func(reflect.Value)
-	wrap = func(v reflect.Value) {
-		t := v.Type()
-		for i := 0; i < t.NumField(); i++ {
-			if _, ok := t.Field(i).Tag.Lookup("db"); ok {
-				fields = append(fields, v.Field(i).Addr().Interface())
-			}
-			if t.Field(i).Anonymous {
-				wrap(v.Field(i))
-			}
-		}
-	}
-	wrap(reflect.ValueOf(v).Elem())
-	return fields
-}
-
 func (r *eventReader) Next() bool {
 	if !r.rows.Next() {
 		return false
 	}
-	r.event = reflect.New(r.typ).Interface().(Event)
-	r.err = r.rows.Scan(wrapStructScan(&r.event)...)
+	var v interface{}
+	v, r.err = scanObject(r.typ, r.rows)
+	if r.err == nil {
+		r.event = v.(Event)
+	}
 	return r.err == nil
 }
 
@@ -91,35 +228,4 @@ func (r *eventReader) Err() error {
 		return err
 	}
 	return r.err
-}
-
-func (s *eventStore) LoadEvents(
-	tx *sql.Tx, begin, end int64,
-) (EventReader, error) {
-	rows, err := tx.Query(
-		fmt.Sprintf(
-			"SELECT %s FROM %q WHERE %q >= $1 AND %q < $2",
-			"", s.table, s.id, s.id,
-		),
-		begin, end,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &eventReader{typ: s.typ, rows: rows}, nil
-}
-
-func (s *eventStore) CreateEvent(
-	tx *sql.Tx, event Event,
-) (Event, error) {
-	return nil, nil
-}
-
-// NewEventStore creates a new store for events of specified type
-func NewEventStore(event Event, table string, id string) EventStore {
-	return &eventStore{
-		typ:   reflect.TypeOf(event),
-		table: table,
-		id:    id,
-	}
 }

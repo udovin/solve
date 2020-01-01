@@ -13,8 +13,12 @@ import (
 // App manages all available resources
 type App struct {
 	Config config.Config
-	// Managers
+	// Actions contains actions manager
 	Actions *models.ActionManager
+	// Roles contains roles manager
+	Roles *models.RoleManager
+	// UserRoles contains user roles manager
+	UserRoles *models.UserRoleManager
 	// Stores
 	Users           *models.UserStore
 	UserFields      *models.UserFieldStore
@@ -49,12 +53,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	dialect := getDialect(cfg.DB.Driver)
 	app := App{
 		Config: *cfg,
-		Actions: models.NewActionManager(
-			"solve_action", "solve_action_event", dialect,
-		),
 		Users: models.NewUserStore(
 			db, "solve_user", "solve_user_change",
 		),
@@ -96,6 +96,25 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, err
 	}
 	return &app, nil
+}
+
+// SetupInvokerManagers prepares managers for running invoker
+func (a *App) SetupInvokerManagers() {
+
+}
+
+// SetupAllManagers prepares all managers
+func (a *App) SetupAllManagers() {
+	dialect := getDialect(a.Config.DB.Driver)
+	a.Actions = models.NewActionManager(
+		"solve_action", "solve_action_event", dialect,
+	)
+	a.Roles = models.NewRoleManager(
+		"solve_role", "solve_role_event", dialect,
+	)
+	a.UserRoles = models.NewUserRoleManager(
+		"solve_user_role", "solve_user_role_event", dialect,
+	)
 }
 
 // Start starts application and data synchronization

@@ -38,6 +38,7 @@ func serverMain(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
+	app.SetupAllManagers()
 	if err := app.Start(); err != nil {
 		panic(err)
 	}
@@ -62,6 +63,7 @@ func invokerMain(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
+	app.SetupInvokerManagers()
 	if err := app.Start(); err != nil {
 		panic(err)
 	}

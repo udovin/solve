@@ -23,7 +23,7 @@ func (o testObject) ObjectID() int64 {
 func TestObjectStore(t *testing.T) {
 	setup(t)
 	defer teardown(t)
-	store := NewObjectStore(testObject{}, "test_object", "id", SQLite)
+	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
 	tx, err := db.Begin()
 	if err != nil {
 		t.Fatal(err)

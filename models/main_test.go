@@ -8,7 +8,7 @@ import (
 	"github.com/udovin/solve/config"
 )
 
-var db *sql.DB
+var testDB *sql.DB
 
 var createTables = []string{
 	// User store
@@ -283,12 +283,12 @@ func setup(tb testing.TB) {
 		Options: config.SQLiteOptions{Path: "?mode=memory"},
 	}
 	var err error
-	db, err = cfg.Create()
+	testDB, err = cfg.Create()
 	if err != nil {
 		os.Exit(1)
 	}
 	for _, query := range createTables {
-		if _, err := db.Exec(query); err != nil {
+		if _, err := testDB.Exec(query); err != nil {
 			tb.Fatal(err)
 		}
 	}
@@ -296,9 +296,9 @@ func setup(tb testing.TB) {
 
 func teardown(tb testing.TB) {
 	for _, query := range dropTables {
-		if _, err := db.Exec(query); err != nil {
+		if _, err := testDB.Exec(query); err != nil {
 			tb.Fatal(err)
 		}
 	}
-	_ = db.Close()
+	_ = testDB.Close()
 }

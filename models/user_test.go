@@ -7,7 +7,7 @@ import (
 func TestUserStore_getLocker(t *testing.T) {
 	setup(t)
 	defer teardown(t)
-	store := NewUserStore(db, "test_user", "test_user_change")
+	store := NewUserStore(testDB, "test_user", "test_user_change")
 	if store.GetLocker() == nil {
 		t.Fatal("Locker should not be nil")
 	}
@@ -16,7 +16,7 @@ func TestUserStore_getLocker(t *testing.T) {
 func TestUserStore_Modify(t *testing.T) {
 	setup(t)
 	defer teardown(t)
-	store := NewUserStore(db, "test_user", "test_user_change")
+	store := NewUserStore(testDB, "test_user", "test_user_change")
 	user := User{
 		CreateTime: 1,
 	}

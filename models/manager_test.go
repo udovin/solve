@@ -118,7 +118,7 @@ func TestChangeManager(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store := FakeStore{fakes: make(map[int]Fake)}
-	manager := NewChangeManager(&store, db)
+	manager := NewChangeManager(&store, testDB)
 	for _, fake := range fakes {
 		if err := manager.Change(&fakeChange{
 			BaseChange: BaseChange{Type: CreateChange},
@@ -145,15 +145,15 @@ func TestChangeManager_SyncChanges(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store := FakeStore{fakes: make(map[int]Fake)}
-	manager := NewChangeManager(&store, db)
-	if _, err := db.Exec(
+	manager := NewChangeManager(&store, testDB)
+	if _, err := testDB.Exec(
 		`INSERT INTO test_fake_change` +
 			` (change_id, change_type, change_time, id, value)` +
 			` VALUES (1, 1, 0, 1, '')`,
 	); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if _, err := db.Exec(
+	if _, err := testDB.Exec(
 		`INSERT INTO test_fake_change` +
 			` (change_id, change_type, change_time, id, value)` +
 			` VALUES (3, 1, 0, 3, '')`,
@@ -163,7 +163,7 @@ func TestChangeManager_SyncChanges(t *testing.T) {
 	if err := manager.Sync(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if _, err := db.Exec(
+	if _, err := testDB.Exec(
 		`INSERT INTO test_fake_change` +
 			` (change_id, change_type, change_time, id, value)` +
 			` VALUES (2, 1, 0, 2, '')`,
@@ -177,7 +177,7 @@ func TestChangeManager_SyncChanges(t *testing.T) {
 
 func TestChangeManager_applyChange(t *testing.T) {
 	store := FakeStore{fakes: make(map[int]Fake)}
-	manager := NewChangeManager(&store, db)
+	manager := NewChangeManager(&store, testDB)
 	applyChange := func(id int64) {
 		manager.applyChange(&fakeChange{
 			BaseChange{id, CreateChange, 0},
@@ -263,9 +263,9 @@ func TestChangeManager_Sync(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store1 := FakeStore{fakes: make(map[int]Fake)}
-	manager1 := NewChangeManager(&store1, db)
+	manager1 := NewChangeManager(&store1, testDB)
 	store2 := FakeStore{fakes: make(map[int]Fake)}
-	manager2 := NewChangeManager(&store2, db)
+	manager2 := NewChangeManager(&store2, testDB)
 	for i, fake := range fakes {
 		if err := manager1.Change(&fakeChange{
 			BaseChange: BaseChange{ID: int64(i), Type: CreateChange},
@@ -298,7 +298,7 @@ func TestChangeManager_SyncClosed(t *testing.T) {
 	setup(t)
 	teardown(t)
 	store := FakeStore{fakes: make(map[int]Fake)}
-	manager := NewChangeManager(&store, db)
+	manager := NewChangeManager(&store, testDB)
 	if err := manager.Sync(); err == nil {
 		t.Fatal("Expected sync error")
 	}
@@ -308,7 +308,7 @@ func TestChangeManager_ChangeClosed(t *testing.T) {
 	setup(t)
 	teardown(t)
 	store := FakeStore{fakes: make(map[int]Fake)}
-	manager := NewChangeManager(&store, db)
+	manager := NewChangeManager(&store, testDB)
 	if err := manager.Change(&fakeChange{
 		BaseChange: BaseChange{ID: 1, Type: CreateChange},
 		Fake:       Fake{ID: 1, Value: "Fake item"},
@@ -320,7 +320,7 @@ func TestChangeManager_ChangeClosed(t *testing.T) {
 func TestChangeManager_ChangeTxClosed(t *testing.T) {
 	setup(t)
 	store := FakeStore{fakes: make(map[int]Fake)}
-	manager := NewChangeManager(&store, db)
+	manager := NewChangeManager(&store, testDB)
 	tx, err := manager.Begin()
 	if err == nil {
 		err = tx.Rollback()
@@ -340,7 +340,7 @@ func TestChangeManager_ChangeTxClosed(t *testing.T) {
 func TestChangeManager_CommitRollbackClosed(t *testing.T) {
 	setup(t)
 	store := FakeStore{fakes: make(map[int]Fake)}
-	manager := NewChangeManager(&store, db)
+	manager := NewChangeManager(&store, testDB)
 	tx, err := manager.Begin()
 	if err != nil {
 		teardown(t)
@@ -367,9 +367,9 @@ func TestChangeManager_ChangeCommit(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store1 := FakeStore{fakes: make(map[int]Fake)}
-	manager1 := NewChangeManager(&store1, db)
+	manager1 := NewChangeManager(&store1, testDB)
 	store2 := FakeStore{fakes: make(map[int]Fake)}
-	manager2 := NewChangeManager(&store2, db)
+	manager2 := NewChangeManager(&store2, testDB)
 	tx, err := manager1.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -414,9 +414,9 @@ func TestChangeManager_ChangeRollback(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store1 := FakeStore{fakes: make(map[int]Fake)}
-	manager1 := NewChangeManager(&store1, db)
+	manager1 := NewChangeManager(&store1, testDB)
 	store2 := FakeStore{fakes: make(map[int]Fake)}
-	manager2 := NewChangeManager(&store2, db)
+	manager2 := NewChangeManager(&store2, testDB)
 	tx, err := manager1.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -461,9 +461,9 @@ func TestChangeManager_ChangeGaps(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store := FakeStore{fakes: make(map[int]Fake)}
-	manager := NewChangeManager(&store, db)
+	manager := NewChangeManager(&store, testDB)
 	for _, change := range fakeChangesWithGaps {
-		_, err := db.Exec(
+		_, err := testDB.Exec(
 			`INSERT INTO "test_fake_change"`+
 				` ("change_id", "change_type", "change_time", "id", "value")`+
 				` VALUES ($1, $2, $3, $4, $5)`,
@@ -483,7 +483,7 @@ func BenchmarkChangeManager_Change(b *testing.B) {
 	setup(b)
 	defer teardown(b)
 	store := FakeStore{fakes: make(map[int]Fake)}
-	manager := NewChangeManager(&store, db)
+	manager := NewChangeManager(&store, testDB)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if err := manager.Change(&fakeChange{

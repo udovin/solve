@@ -7,7 +7,7 @@ import (
 func TestContestProblemStore_getLocker(t *testing.T) {
 	setup(t)
 	defer teardown(t)
-	store := NewContestProblemStore(db, "test_contest_problem", "test_contest_problem_change")
+	store := NewContestProblemStore(testDB, "test_contest_problem", "test_contest_problem_change")
 	if store.GetLocker() == nil {
 		t.Fatal("Locker should not be nil")
 	}
@@ -16,7 +16,7 @@ func TestContestProblemStore_getLocker(t *testing.T) {
 func TestContestProblemStore_Modify(t *testing.T) {
 	setup(t)
 	defer teardown(t)
-	store := NewContestProblemStore(db, "test_contest_problem", "test_contest_problem_change")
+	store := NewContestProblemStore(testDB, "test_contest_problem", "test_contest_problem_change")
 	contestProblem := ContestProblem{
 		ContestID: 1,
 		ProblemID: 2,

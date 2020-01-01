@@ -8,7 +8,7 @@ func TestUserFieldStore_getLocker(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store := NewUserFieldStore(
-		db, "test_user_field", "test_user_field_change",
+		testDB, "test_user_field", "test_user_field_change",
 	)
 	if store.GetLocker() == nil {
 		t.Fatal("Locker should not be nil")
@@ -19,7 +19,7 @@ func TestUserFieldStore_Modify(t *testing.T) {
 	setup(t)
 	defer teardown(t)
 	store := NewUserFieldStore(
-		db, "test_user_field", "test_user_field_change",
+		testDB, "test_user_field", "test_user_field_change",
 	)
 	field := UserField{
 		Data: "value1",

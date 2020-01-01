@@ -6,12 +6,15 @@ import (
 	"time"
 
 	"github.com/udovin/solve/config"
+	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/models"
 )
 
 // App manages all available resources
 type App struct {
 	Config config.Config
+	// Managers
+	Actions *models.ActionManager
 	// Stores
 	Users           *models.UserStore
 	UserFields      *models.UserFieldStore
@@ -30,6 +33,15 @@ type App struct {
 	PasswordSalt string
 }
 
+func getDialect(driver config.DatabaseDriver) db.Dialect {
+	switch driver {
+	case config.PostgresDriver:
+		return db.Postgres
+	default:
+		return db.SQLite
+	}
+}
+
 // NewApp creates app instance from config
 func NewApp(cfg *config.Config) (*App, error) {
 	// Try to create database connection pool
@@ -37,8 +49,12 @@ func NewApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	dialect := getDialect(cfg.DB.Driver)
 	app := App{
 		Config: *cfg,
+		Actions: models.NewActionManager(
+			"solve_action", "solve_action_event", dialect,
+		),
 		Users: models.NewUserStore(
 			db, "solve_user", "solve_user_change",
 		),

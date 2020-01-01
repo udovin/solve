@@ -39,17 +39,17 @@ type ObjectStore interface {
 }
 
 type objectStore struct {
-	typ   reflect.Type
-	table string
-	id    string
-	dbms  DBMS
+	typ     reflect.Type
+	id      string
+	table   string
+	dialect Dialect
 }
 
 func (s *objectStore) LoadObjects(tx *sql.Tx) (ObjectReader, error) {
 	rows, err := tx.Query(
 		fmt.Sprintf(
 			"SELECT %s FROM %q ORDER BY %q",
-			selectValue(s.typ), s.table, s.id,
+			prepareSelect(s.typ), s.table, s.id,
 		),
 	)
 	if err != nil {
@@ -59,47 +59,22 @@ func (s *objectStore) LoadObjects(tx *sql.Tx) (ObjectReader, error) {
 }
 
 func (s *objectStore) CreateObject(tx *sql.Tx, object Object) (Object, error) {
-	value := cloneValue(object)
-	cols, keys, vals, idPtr := insertValue(value, s.id)
-	switch s.dbms {
-	case Postgres:
-		rows := tx.QueryRow(
-			fmt.Sprintf(
-				"INSERT INTO %q (%s) VALUES (%s) RETURNING %q",
-				s.table, cols, keys, s.id,
-			),
-			vals...,
-		)
-		if err := rows.Scan(idPtr); err != nil {
-			return nil, err
-		}
-	default:
-		res, err := tx.Exec(
-			fmt.Sprintf(
-				"INSERT INTO %q (%s) VALUES (%s)",
-				s.table, cols, keys,
-			),
-			vals...,
-		)
-		if err != nil {
-			return nil, err
-		}
-		if *idPtr, err = res.LastInsertId(); err != nil {
-			return nil, err
-		}
+	row, err := insertRow(tx, object, s.id, s.table, s.dialect)
+	if err != nil {
+		return nil, err
 	}
-	return value.Interface().(Object), nil
+	return row.(Object), nil
 }
 
 // NewObjectStore creates a new store for objects of specified type
 func NewObjectStore(
-	object Object, table string, id string, dbms DBMS,
+	object Object, id, table string, dialect Dialect,
 ) ObjectStore {
 	return &objectStore{
-		typ:   reflect.TypeOf(object),
-		table: table,
-		id:    id,
-		dbms:  dbms,
+		typ:     reflect.TypeOf(object),
+		id:      id,
+		table:   table,
+		dialect: dialect,
 	}
 }
 
@@ -115,7 +90,7 @@ func (r *objectReader) Next() bool {
 		return false
 	}
 	var v interface{}
-	v, r.err = scanValue(r.typ, r.rows)
+	v, r.err = scanRow(r.typ, r.rows)
 	if r.err == nil {
 		r.object = v.(Object)
 	}

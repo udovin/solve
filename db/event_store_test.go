@@ -75,7 +75,7 @@ func teardown(tb testing.TB) {
 func TestEventStore(t *testing.T) {
 	setup(t)
 	defer teardown(t)
-	store := NewEventStore(testEvent{}, "test_event", "id", SQLite)
+	store := NewEventStore(testEvent{}, "id", "test_event", SQLite)
 	tx, err := db.Begin()
 	if err != nil {
 		t.Fatal(err)

@@ -9,8 +9,8 @@ import (
 
 // Event represents an event from store
 type Event interface {
-	// EventID should return sequential ID of event
-	EventID() int64
+	// EventId should return sequential id of event
+	EventId() int64
 	// EventTime should return time when event occurred
 	EventTime() time.Time
 }
@@ -37,7 +37,7 @@ type EventROStore interface {
 type EventStore interface {
 	EventROStore
 	// CreateEvent should create a new event and return copy
-	// that has correct EventID
+	// that has correct EventId
 	CreateEvent(tx *sql.Tx, event Event) (Event, error)
 }
 

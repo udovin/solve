@@ -7,13 +7,13 @@ import (
 )
 
 type UserRole struct {
-	ID     int64 `db:"id" json:""`
-	RoleID int64 `db:"role_id" json:""`
-	UserID int64 `db:"user_id" json:""`
+	Id     int64 `db:"id" json:""`
+	RoleId int64 `db:"role_id" json:""`
+	UserId int64 `db:"user_id" json:""`
 }
 
-func (o UserRole) ObjectID() int64 {
-	return o.ID
+func (o UserRole) ObjectId() int64 {
+	return o.Id
 }
 
 type UserRoleEvent struct {

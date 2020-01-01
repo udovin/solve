@@ -10,16 +10,16 @@ import (
 )
 
 type mockEvent struct {
-	ID   int64 `db:"id"`
+	Id   int64 `db:"id"`
 	Time int64 `db:"time"`
 }
 
 func (e mockEvent) String() string {
-	return fmt.Sprintf("%d", e.ID)
+	return fmt.Sprintf("%d", e.Id)
 }
 
-func (e mockEvent) EventID() int64 {
-	return e.ID
+func (e mockEvent) EventId() int64 {
+	return e.Id
 }
 
 func (e mockEvent) EventTime() time.Time {
@@ -45,7 +45,7 @@ func (s *mockEventStore) LoadEvents(
 	for it := l.Front(); it != nil; {
 		jt := it.Next()
 		event := it.Value.(Event)
-		if event.EventID() >= begin && event.EventID() < end {
+		if event.EventId() >= begin && event.EventId() < end {
 			events.PushBack(event)
 			l.Remove(it)
 		}
@@ -100,56 +100,56 @@ func (r *mockEventReader) Err() error {
 func TestEventConsumer(t *testing.T) {
 	groups := [][]Event{
 		{
-			mockEvent{ID: 1}, mockEvent{ID: 2}, mockEvent{ID: 3},
+			mockEvent{Id: 1}, mockEvent{Id: 2}, mockEvent{Id: 3},
 		},
 		{
-			mockEvent{ID: 5}, mockEvent{ID: 6}, mockEvent{ID: 8},
+			mockEvent{Id: 5}, mockEvent{Id: 6}, mockEvent{Id: 8},
 		},
 		{
-			mockEvent{ID: 4}, mockEvent{ID: 7}, mockEvent{ID: 100},
+			mockEvent{Id: 4}, mockEvent{Id: 7}, mockEvent{Id: 100},
 		},
 		{
-			mockEvent{ID: 50}, mockEvent{ID: 75}, mockEvent{ID: 101},
+			mockEvent{Id: 50}, mockEvent{Id: 75}, mockEvent{Id: 101},
 		},
 		{
-			mockEvent{ID: 51}, mockEvent{ID: 74}, mockEvent{ID: 102},
+			mockEvent{Id: 51}, mockEvent{Id: 74}, mockEvent{Id: 102},
 		},
 		{
-			mockEvent{ID: 25}, mockEvent{ID: 97}, mockEvent{ID: 98},
-			mockEvent{ID: 99}, mockEvent{ID: 103},
+			mockEvent{Id: 25}, mockEvent{Id: 97}, mockEvent{Id: 98},
+			mockEvent{Id: 99}, mockEvent{Id: 103},
 		},
 		{
-			mockEvent{ID: 27}, mockEvent{ID: 28}, mockEvent{ID: 29},
-			mockEvent{ID: 104},
+			mockEvent{Id: 27}, mockEvent{Id: 28}, mockEvent{Id: 29},
+			mockEvent{Id: 104},
 		},
 		{
-			mockEvent{ID: 26},
+			mockEvent{Id: 26},
 		},
 	}
 	store := newMockEventStore(groups)
 	consumer := NewEventConsumer(store, 1)
 	var result, answer []mockEvent
-	usedIDs := map[int64]struct{}{}
-	currID := int64(1)
+	usedIds := map[int64]struct{}{}
+	currId := int64(1)
 	for _, group := range groups {
 		for _, event := range group {
 			answer = append(answer, event.(mockEvent))
 		}
 		if err := consumer.ConsumeEvents(nil, func(event Event) error {
 			result = append(result, event.(mockEvent))
-			usedIDs[event.EventID()] = struct{}{}
+			usedIds[event.EventId()] = struct{}{}
 			return nil
 		}); err != nil {
 			t.Fatal(err)
 		}
 		for {
-			if _, ok := usedIDs[currID]; !ok {
+			if _, ok := usedIds[currId]; !ok {
 				break
 			}
-			currID++
+			currId++
 		}
-		if consumer.BeginEventID() != currID {
-			t.Fatalf("Expected %d, got %d", currID, consumer.BeginEventID())
+		if consumer.BeginEventId() != currId {
+			t.Fatalf("Expected %d, got %d", currId, consumer.BeginEventId())
 		}
 	}
 	if !reflect.DeepEqual(answer, result) {

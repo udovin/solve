@@ -34,17 +34,17 @@ type ObjectEvent interface {
 
 // baseEvent represents base for all events
 type baseEvent struct {
-	// BaseEventID contains event ID
-	BaseEventID int64 `db:"event_id" json:"EventID"`
+	// BaseEventId contains event id
+	BaseEventId int64 `db:"event_id" json:"EventId"`
 	// BaseEventType contains type of event
 	BaseEventType EventType `db:"event_type" json:"EventType"`
 	// BaseEventTime contains event type
 	BaseEventTime int64 `db:"event_time" json:"EventTime"`
 }
 
-// EventID returns ID of this event
-func (e baseEvent) EventID() int64 {
-	return e.BaseEventID
+// EventId returns id of this event
+func (e baseEvent) EventId() int64 {
+	return e.BaseEventId
 }
 
 // EventTime returns time of this event
@@ -57,7 +57,7 @@ func (e baseEvent) EventType() EventType {
 	return e.BaseEventType
 }
 
-// makeBaseEvent creates baseEvent with specified ID
+// makeBaseEvent creates baseEvent with specified type
 func makeBaseEvent(t EventType) baseEvent {
 	return baseEvent{BaseEventType: t, BaseEventTime: time.Now().Unix()}
 }
@@ -125,7 +125,7 @@ func (m *baseManager) createObjectEvent(
 		}
 		event = event.WithObject(object)
 	case DeleteEvent:
-		if err := m.objects.DeleteObject(tx, object.ObjectID()); err != nil {
+		if err := m.objects.DeleteObject(tx, object.ObjectId()); err != nil {
 			return nil, err
 		}
 	}

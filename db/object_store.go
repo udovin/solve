@@ -8,8 +8,8 @@ import (
 
 // Object represents an object from store
 type Object interface {
-	// ObjectID should return sequential ID of object
-	ObjectID() int64
+	// ObjectId should return sequential id of object
+	ObjectId() int64
 }
 
 // ObjectReader represents reader for objects
@@ -34,9 +34,9 @@ type ObjectROStore interface {
 type ObjectStore interface {
 	ObjectROStore
 	// CreateObject should create a new object and return copy
-	// that has correct ObjectID
+	// that has correct ObjectId
 	CreateObject(tx *sql.Tx, object Object) (Object, error)
-	// UpdateObject should update object with specified ObjectID and
+	// UpdateObject should update object with specified ObjectId and
 	// return copy with updated fields
 	UpdateObject(tx *sql.Tx, object Object) (Object, error)
 	// DeleteObject should delete existing object from the store

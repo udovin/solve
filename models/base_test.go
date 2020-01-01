@@ -44,12 +44,12 @@ func (s *testJSON) Scan(value interface{}) error {
 
 type testObject struct {
 	testObjectBase
-	ID   int64    `db:"id"`
+	Id   int64    `db:"id"`
 	JSON testJSON `db:"json"`
 }
 
-func (o testObject) ObjectID() int64 {
-	return o.ID
+func (o testObject) ObjectId() int64 {
+	return o.Id
 }
 
 type testObjectEvent struct {
@@ -79,36 +79,30 @@ func (m *testManager) Get(id int64) (testObject, error) {
 	return testObject{}, sql.ErrNoRows
 }
 
-func (m *testManager) Create(
-	tx *sql.Tx, object testObject,
-) (testObject, error) {
+func (m *testManager) CreateTx(tx *sql.Tx, object *testObject) error {
 	event, err := m.createObjectEvent(tx, testObjectEvent{
 		makeBaseEvent(CreateEvent),
-		object,
+		*object,
 	})
 	if err != nil {
-		return testObject{}, err
+		return err
 	}
-	return event.Object().(testObject), nil
+	*object = event.Object().(testObject)
+	return nil
 }
 
-func (m *testManager) Update(
-	tx *sql.Tx, object testObject,
-) (testObject, error) {
-	event, err := m.createObjectEvent(tx, testObjectEvent{
+func (m *testManager) UpdateTx(tx *sql.Tx, object testObject) error {
+	_, err := m.createObjectEvent(tx, testObjectEvent{
 		makeBaseEvent(UpdateEvent),
 		object,
 	})
-	if err != nil {
-		return testObject{}, err
-	}
-	return event.Object().(testObject), nil
+	return err
 }
 
-func (m *testManager) Delete(tx *sql.Tx, id int64) error {
+func (m *testManager) DeleteTx(tx *sql.Tx, id int64) error {
 	_, err := m.createObjectEvent(tx, testObjectEvent{
 		makeBaseEvent(DeleteEvent),
-		testObject{ID: id},
+		testObject{Id: id},
 	})
 	return err
 }
@@ -118,28 +112,28 @@ func (m *testManager) reset() {
 }
 
 func (m *testManager) addObject(o db.Object) {
-	m.objects[o.ObjectID()] = o.(testObject)
+	m.objects[o.ObjectId()] = o.(testObject)
 }
 
 func (m *testManager) onCreateObject(o db.Object) {
-	if _, ok := m.objects[o.ObjectID()]; ok {
+	if _, ok := m.objects[o.ObjectId()]; ok {
 		panic("object already exists")
 	}
-	m.objects[o.ObjectID()] = o.(testObject)
+	m.objects[o.ObjectId()] = o.(testObject)
 }
 
 func (m *testManager) onUpdateObject(o db.Object) {
-	if _, ok := m.objects[o.ObjectID()]; !ok {
+	if _, ok := m.objects[o.ObjectId()]; !ok {
 		panic("object not found")
 	}
-	m.objects[o.ObjectID()] = o.(testObject)
+	m.objects[o.ObjectId()] = o.(testObject)
 }
 
 func (m *testManager) onDeleteObject(o db.Object) {
-	if _, ok := m.objects[o.ObjectID()]; !ok {
+	if _, ok := m.objects[o.ObjectId()]; !ok {
 		panic("object not found")
 	}
-	delete(m.objects, o.ObjectID())
+	delete(m.objects, o.ObjectId())
 }
 
 func (m *testManager) updateSchema(tx *sql.Tx, version int) (int, error) {
@@ -249,19 +243,18 @@ func createTestObject(t testing.TB, m *testManager, o testObject) testObject {
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	object, err := m.Create(tx, o)
-	if err != nil {
+	if err := m.CreateTx(tx, &o); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := tx.Commit(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	return object
+	return o
 }
 
 func updateTestObject(
 	t testing.TB, m *testManager, o testObject, expErr error,
-) testObject {
+) {
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -269,8 +262,7 @@ func updateTestObject(
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	object, err := m.Update(tx, o)
-	if err != expErr {
+	if err = m.UpdateTx(tx, o); err != expErr {
 		t.Fatalf("Expected %v, got %v", expErr, err)
 	}
 	if err == nil {
@@ -278,7 +270,6 @@ func updateTestObject(
 			t.Fatal("Error:", err)
 		}
 	}
-	return object
 }
 
 func deleteTestObject(
@@ -291,7 +282,7 @@ func deleteTestObject(
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	err = m.Delete(tx, id)
+	err = m.DeleteTx(tx, id)
 	if err != expErr {
 		t.Fatal(err)
 	}
@@ -321,20 +312,20 @@ func TestMakeBaseManager(t *testing.T) {
 		JSON: testJSON{Text: "Test message"},
 	}
 	savedObject := createTestObject(t, master, object)
-	if object.ID == savedObject.ID {
-		t.Fatalf("IDs should be different: %v", object.ID)
+	if object.Id == savedObject.Id {
+		t.Fatalf("Ids should be different: %v", object.Id)
 	}
-	if _, err := replica.Get(savedObject.ID); err != sql.ErrNoRows {
+	if _, err := replica.Get(savedObject.Id); err != sql.ErrNoRows {
 		t.Fatalf(
-			"Replica already contains object: %v", savedObject.ID,
+			"Replica already contains object: %v", savedObject.Id,
 		)
 	}
 	checkReplicaObject := func(object testObject, expErr error) {
 		testSyncManager(t, replica)
-		loaded, err := replica.Get(object.ID)
+		loaded, err := replica.Get(object.Id)
 		if err != expErr {
 			t.Fatalf(
-				"Replica does not contain object: %v", object.ID,
+				"Replica does not contain object: %v", object.Id,
 			)
 		}
 		if err == nil {
@@ -350,9 +341,9 @@ func TestMakeBaseManager(t *testing.T) {
 	savedObject.JSON = testJSON{Text: "Updated message"}
 	updateTestObject(t, master, savedObject, nil)
 	checkReplicaObject(savedObject, nil)
-	updateTestObject(t, master, testObject{ID: 100}, sql.ErrNoRows)
-	deleteTestObject(t, master, savedObject.ID, nil)
-	deleteTestObject(t, master, savedObject.ID, sql.ErrNoRows)
+	updateTestObject(t, master, testObject{Id: 100}, sql.ErrNoRows)
+	deleteTestObject(t, master, savedObject.Id, nil)
+	deleteTestObject(t, master, savedObject.Id, sql.ErrNoRows)
 	checkReplicaObject(savedObject, sql.ErrNoRows)
 }
 

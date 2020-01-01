@@ -79,16 +79,17 @@ func (m *testManager) Get(id int64) (testObject, error) {
 	return testObject{}, sql.ErrNoRows
 }
 
-func (m *testManager) CreateTx(tx *sql.Tx, object *testObject) error {
+func (m *testManager) CreateTx(
+	tx *sql.Tx, object testObject,
+) (testObject, error) {
 	event, err := m.createObjectEvent(tx, testObjectEvent{
 		makeBaseEvent(CreateEvent),
-		*object,
+		object,
 	})
 	if err != nil {
-		return err
+		return testObject{}, err
 	}
-	*object = event.Object().(testObject)
-	return nil
+	return event.Object().(testObject), nil
 }
 
 func (m *testManager) UpdateTx(tx *sql.Tx, object testObject) error {
@@ -243,7 +244,7 @@ func createTestObject(t testing.TB, m *testManager, o testObject) testObject {
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	if err := m.CreateTx(tx, &o); err != nil {
+	if o, err = m.CreateTx(tx, o); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := tx.Commit(); err != nil {

@@ -2,12 +2,37 @@ package models
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/udovin/solve/db"
 )
+
+// NInt64 represents nullable int64 with zero value means null value
+type NInt64 int64
+
+// Value returns value
+func (n NInt64) Value() (driver.Value, error) {
+	if n == 0 {
+		return nil, nil
+	}
+	return int64(n), nil
+}
+
+// Scan scans value
+func (n *NInt64) Scan(value interface{}) error {
+	switch v := value.(type) {
+	case int64:
+		*n = NInt64(v)
+	case nil:
+		*n = 0
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
+	return nil
+}
 
 // EventType represents type of object event
 type EventType int8

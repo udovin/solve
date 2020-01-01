@@ -1,6 +1,7 @@
 package core
 
 import (
+	"database/sql"
 	"log"
 	"sync"
 	"time"
@@ -12,13 +13,17 @@ import (
 
 // App manages all available resources
 type App struct {
+	db *sql.DB
+	// Config contains config
 	Config config.Config
-	// Actions contains actions manager
+	// Actions contains action manager
 	Actions *models.ActionManager
-	// Roles contains roles manager
+	// Roles contains role manager
 	Roles *models.RoleManager
-	// UserRoles contains user roles manager
+	// UserRoles contains user role manager
 	UserRoles *models.UserRoleManager
+	// Visits contains visit manager
+	Visits *models.VisitManager
 	// Stores
 	Users           *models.UserStore
 	UserFields      *models.UserFieldStore
@@ -54,6 +59,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, err
 	}
 	app := App{
+		db:     db,
 		Config: *cfg,
 		Users: models.NewUserStore(
 			db, "solve_user", "solve_user_change",
@@ -115,6 +121,7 @@ func (a *App) SetupAllManagers() {
 	a.UserRoles = models.NewUserRoleManager(
 		"solve_user_role", "solve_user_role_event", dialect,
 	)
+	a.Visits = models.NewVisitManager(a.db, "solve_visits", dialect)
 }
 
 // Start starts application and data synchronization

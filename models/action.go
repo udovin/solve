@@ -69,16 +69,15 @@ func (m *ActionManager) Get(id int64) (Action, error) {
 	return Action{}, sql.ErrNoRows
 }
 
-func (m *ActionManager) CreateTx(tx *sql.Tx, action *Action) error {
+func (m *ActionManager) CreateTx(tx *sql.Tx, action Action) (Action, error) {
 	event, err := m.createObjectEvent(tx, ActionEvent{
 		makeBaseEvent(CreateEvent),
-		*action,
+		action,
 	})
 	if err != nil {
-		return err
+		return Action{}, err
 	}
-	*action = event.Object().(Action)
-	return nil
+	return event.Object().(Action), nil
 }
 
 func (m *ActionManager) UpdateTx(tx *sql.Tx, action Action) error {

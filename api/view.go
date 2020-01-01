@@ -3,10 +3,12 @@ package api
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo"
 
 	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/models"
 )
 
 type View struct {
@@ -75,8 +77,25 @@ func (v *View) passwordAuth(c echo.Context) error {
 	return nil
 }
 
+const visitContext = "Visit"
+
+func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		visit := models.Visit{
+			Time: time.Now().Unix(),
+		}
+		c.Set(visitContext, visit)
+		defer func() {
+			visit := c.Get(visitContext).(models.Visit)
+			_, _ = v.app.Visits.Create(visit)
+		}()
+		return next(c)
+	}
+}
+
 func Register(app *core.App, api *echo.Group) {
 	v := View{app: app}
+	api.Use(v.logVisit)
 	// Service handlers
 	api.GET("/ping", v.Ping)
 	// Users management

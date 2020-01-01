@@ -5,8 +5,8 @@ import (
 )
 
 func TestUserFieldStore_getLocker(t *testing.T) {
-	setup(t)
-	defer teardown(t)
+	testSetup(t)
+	defer testTeardown(t)
 	store := NewUserFieldStore(
 		testDB, "test_user_field", "test_user_field_change",
 	)
@@ -16,8 +16,8 @@ func TestUserFieldStore_getLocker(t *testing.T) {
 }
 
 func TestUserFieldStore_Modify(t *testing.T) {
-	setup(t)
-	defer teardown(t)
+	testSetup(t)
+	defer testTeardown(t)
 	store := NewUserFieldStore(
 		testDB, "test_user_field", "test_user_field_change",
 	)

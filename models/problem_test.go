@@ -5,8 +5,8 @@ import (
 )
 
 func TestProblemStore_getLocker(t *testing.T) {
-	setup(t)
-	defer teardown(t)
+	testSetup(t)
+	defer testTeardown(t)
 	store := NewProblemStore(testDB, "test_problem", "test_problem_change")
 	if store.GetLocker() == nil {
 		t.Fatal("Locker should not be nil")
@@ -14,8 +14,8 @@ func TestProblemStore_getLocker(t *testing.T) {
 }
 
 func TestProblemStore_Modify(t *testing.T) {
-	setup(t)
-	defer teardown(t)
+	testSetup(t)
+	defer testTeardown(t)
 	store := NewProblemStore(testDB, "test_problem", "test_problem_change")
 	problem := Problem{
 		CreateTime: 1,

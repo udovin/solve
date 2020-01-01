@@ -7,8 +7,8 @@ import (
 )
 
 func TestContestStore_getLocker(t *testing.T) {
-	setup(t)
-	defer teardown(t)
+	testSetup(t)
+	defer testTeardown(t)
 	store := NewContestStore(testDB, "test_contest", "test_contest_change")
 	if store.GetLocker() == nil {
 		t.Fatal("locker should not be nil")
@@ -16,8 +16,8 @@ func TestContestStore_getLocker(t *testing.T) {
 }
 
 func TestContestStore_applyChange(t *testing.T) {
-	setup(t)
-	defer teardown(t)
+	testSetup(t)
+	defer testTeardown(t)
 	store := NewContestStore(testDB, "test_contest", "test_contest_change")
 	store.ApplyChange(&ContestChange{
 		BaseChange: BaseChange{ID: 1, Type: CreateChange, Time: 0},
@@ -78,8 +78,8 @@ func TestContestStore_applyChange(t *testing.T) {
 }
 
 func TestContestStore_Create(t *testing.T) {
-	setup(t)
-	defer teardown(t)
+	testSetup(t)
+	defer testTeardown(t)
 	store := NewContestStore(testDB, "test_contest", "test_contest_change")
 	for i := 0; i < 10; i++ {
 		if err := store.Create(
@@ -94,8 +94,8 @@ func TestContestStore_Create(t *testing.T) {
 }
 
 func TestContestStore_Modify(t *testing.T) {
-	setup(t)
-	defer teardown(t)
+	testSetup(t)
+	defer testTeardown(t)
 	store := NewContestStore(testDB, "test_contest", "test_contest_change")
 	contest := Contest{
 		CreateTime: 1,

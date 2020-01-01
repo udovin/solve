@@ -20,7 +20,7 @@ type testEvent struct {
 	C int `db:"c"`
 }
 
-var db *sql.DB
+var testDB *sql.DB
 
 var createTables = []string{
 	`CREATE TABLE "test_object"
@@ -46,37 +46,37 @@ var dropTables = []string{
 	`DROP TABLE "test_object"`,
 }
 
-func setup(tb testing.TB) {
+func testSetup(tb testing.TB) {
 	cfg := config.DB{
 		Driver:  config.SQLiteDriver,
 		Options: config.SQLiteOptions{Path: "?mode=memory"},
 	}
 	var err error
-	db, err = cfg.Create()
+	testDB, err = cfg.Create()
 	if err != nil {
 		os.Exit(1)
 	}
 	for _, query := range createTables {
-		if _, err := db.Exec(query); err != nil {
+		if _, err := testDB.Exec(query); err != nil {
 			tb.Fatal(err)
 		}
 	}
 }
 
-func teardown(tb testing.TB) {
+func testTeardown(tb testing.TB) {
 	for _, query := range dropTables {
-		if _, err := db.Exec(query); err != nil {
+		if _, err := testDB.Exec(query); err != nil {
 			tb.Fatal(err)
 		}
 	}
-	_ = db.Close()
+	_ = testDB.Close()
 }
 
 func TestEventStore(t *testing.T) {
-	setup(t)
-	defer teardown(t)
+	testSetup(t)
+	defer testTeardown(t)
 	store := NewEventStore(testEvent{}, "id", "test_event", SQLite)
-	tx, err := db.Begin()
+	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,5 +112,24 @@ func TestEventStore(t *testing.T) {
 	}
 	if !reflect.DeepEqual(createdEvents, events) {
 		t.Fatal()
+	}
+}
+
+func TestEventStoreClosed(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	store := NewEventStore(testEvent{}, "id", "test_event", SQLite)
+	tx, err := testDB.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if _, err := store.LoadEvents(tx, 1, 100); err != sql.ErrTxDone {
+		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
+	}
+	if _, err := store.CreateEvent(tx, testEvent{}); err != sql.ErrTxDone {
+		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
 }

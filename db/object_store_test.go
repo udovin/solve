@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"reflect"
 	"testing"
 )
@@ -20,11 +21,8 @@ func (o testObject) ObjectID() int64 {
 	return o.ID
 }
 
-func TestObjectStore(t *testing.T) {
-	setup(t)
-	defer teardown(t)
-	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
-	tx, err := db.Begin()
+func testSetupObjectStore(t testing.TB, store ObjectStore) []testObject {
+	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,6 +44,19 @@ func TestObjectStore(t *testing.T) {
 			t.Fatal()
 		}
 	}
+	return objects
+}
+
+func TestObjectStore(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
+	objects := testSetupObjectStore(t, store)
+	tx, err := testDB.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Commit() }()
 	rows, err := store.LoadObjects(tx)
 	if err != nil {
 		t.Fatal(err)
@@ -56,9 +67,84 @@ func TestObjectStore(t *testing.T) {
 		createdObjects = append(createdObjects, rows.Object().(testObject))
 	}
 	if err := rows.Err(); err != nil {
-		t.Fatal(err)
+		t.Fatal("Error:", err)
 	}
 	if !reflect.DeepEqual(createdObjects, objects) {
-		t.Fatal()
+		t.Fatalf("Expected %v, got %v", objects, createdObjects)
+	}
+	objects[0].A = "Updated text"
+	updatedObject, err := store.UpdateObject(tx, objects[0])
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if updatedObject != objects[0] {
+		t.Fatalf("Expected %v, got %v", objects[0], updatedObject)
+	}
+	if _, err := store.UpdateObject(
+		tx, testObject{ID: 10000},
+	); err != sql.ErrNoRows {
+		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
+	}
+	if err := store.DeleteObject(tx, 10000); err != sql.ErrNoRows {
+		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
+	}
+	if err := store.DeleteObject(tx, objects[0].ID); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := store.DeleteObject(tx, objects[0].ID); err != sql.ErrNoRows {
+		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
+	}
+}
+
+func TestObjectStoreClosed(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
+	tx, err := testDB.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if _, err := store.LoadObjects(tx); err != sql.ErrTxDone {
+		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
+	}
+	if _, err := store.CreateObject(tx, testObject{}); err != sql.ErrTxDone {
+		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
+	}
+	if _, err := store.UpdateObject(tx, testObject{}); err != sql.ErrTxDone {
+		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
+	}
+	if err := store.DeleteObject(tx, 1); err != sql.ErrTxDone {
+		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
+	}
+}
+
+func TestObjectStoreLoadObjectsFail(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
+	objects := testSetupObjectStore(t, store)
+	tx, err := testDB.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Commit() }()
+	rows, err := store.LoadObjects(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	for i := 1; i < len(objects); i++ {
+		if !rows.Next() {
+			t.Fatal("Expected next object")
+		}
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if rows.Next() {
+		t.Fatal("Expected end of rows")
 	}
 }

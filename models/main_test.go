@@ -277,7 +277,7 @@ var dropTables = []string{
 	`DROP TABLE "test_fake_change"`,
 }
 
-func setup(tb testing.TB) {
+func testSetup(tb testing.TB) {
 	cfg := config.DB{
 		Driver:  config.SQLiteDriver,
 		Options: config.SQLiteOptions{Path: "?mode=memory"},
@@ -294,7 +294,7 @@ func setup(tb testing.TB) {
 	}
 }
 
-func teardown(tb testing.TB) {
+func testTeardown(tb testing.TB) {
 	for _, query := range dropTables {
 		if _, err := testDB.Exec(query); err != nil {
 			tb.Fatal(err)

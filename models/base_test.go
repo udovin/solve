@@ -303,8 +303,8 @@ func deleteTestObject(
 }
 
 func TestMakeBaseManager(t *testing.T) {
-	setup(t)
-	defer teardown(t)
+	testSetup(t)
+	defer testTeardown(t)
 	master := newTestManager()
 	replica := newTestManager()
 	testUpdateSchema(t, master, 1)

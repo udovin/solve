@@ -36,6 +36,11 @@ type ObjectStore interface {
 	// CreateObject should create a new object and return copy
 	// that has correct ObjectID
 	CreateObject(tx *sql.Tx, object Object) (Object, error)
+	// UpdateObject should update object with specified ObjectID and
+	// return copy with updated fields
+	UpdateObject(tx *sql.Tx, object Object) (Object, error)
+	// DeleteObject should delete existing object from the store
+	DeleteObject(tx *sql.Tx, id int64) error
 }
 
 type objectStore struct {
@@ -64,6 +69,18 @@ func (s *objectStore) CreateObject(tx *sql.Tx, object Object) (Object, error) {
 		return nil, err
 	}
 	return row.(Object), nil
+}
+
+func (s *objectStore) UpdateObject(tx *sql.Tx, object Object) (Object, error) {
+	row, err := updateRow(tx, object, s.id, s.table)
+	if err != nil {
+		return nil, err
+	}
+	return row.(Object), nil
+}
+
+func (s *objectStore) DeleteObject(tx *sql.Tx, id int64) error {
+	return deleteRow(tx, id, s.id, s.table)
 }
 
 // NewObjectStore creates a new store for objects of specified type

@@ -142,3 +142,82 @@ func insertRow(
 	}
 	return clone.Interface(), nil
 }
+
+func prepareUpdate(value reflect.Value, id string) (string, []interface{}) {
+	var sets strings.Builder
+	var vals []interface{}
+	var idValue interface{}
+	var it int
+	var recursive func(reflect.Value)
+	recursive = func(v reflect.Value) {
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
+				name := strings.Split(db, ",")[0]
+				if name == id {
+					idValue = v.Field(i).Interface()
+					continue
+				}
+				if it > 0 {
+					sets.WriteRune(',')
+				}
+				it++
+				sets.WriteString(fmt.Sprintf("%q = $%d", name, it))
+				vals = append(vals, v.Field(i).Interface())
+			} else if t.Field(i).Anonymous {
+				recursive(v.Field(i))
+			}
+		}
+	}
+	recursive(value)
+	vals = append(vals, idValue)
+	return sets.String(), vals
+}
+
+func updateRow(
+	tx *sql.Tx, row interface{}, id, table string,
+) (interface{}, error) {
+	clone := cloneRow(row)
+	sets, vals := prepareUpdate(clone, id)
+	res, err := tx.Exec(
+		fmt.Sprintf(
+			"UPDATE %q SET %s WHERE %q = $%d",
+			table, sets, id, len(vals),
+		),
+		vals...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	k, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if k != 1 {
+		return nil, sql.ErrNoRows
+	}
+	return clone.Interface(), nil
+}
+
+func deleteRow(
+	tx *sql.Tx, idValue int64, id, table string,
+) error {
+	res, err := tx.Exec(
+		fmt.Sprintf(
+			"DELETE FROM %q WHERE %q = $1",
+			table, id,
+		),
+		idValue,
+	)
+	if err != nil {
+		return err
+	}
+	k, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if k != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
+}

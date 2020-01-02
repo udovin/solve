@@ -75,13 +75,17 @@ func (c *DB) UnmarshalJSON(bytes []byte) error {
 }
 
 func createSQLiteDB(opts SQLiteOptions) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s", opts.Path))
+	return fixCreateSQLiteDB(
+		sql.Open("sqlite3", fmt.Sprintf("file:%s", opts.Path)),
+	)
+}
+
+func fixCreateSQLiteDB(db *sql.DB, err error) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
 	// This can increase writes performance
-	_, err = db.Exec(`PRAGMA journal_mode=WAL`)
-	if err != nil {
+	if _, err = db.Exec("PRAGMA journal_mode=WAL"); err != nil {
 		// Dont forget to close connection on failure
 		_ = db.Close()
 		return nil, err
@@ -91,7 +95,7 @@ func createSQLiteDB(opts SQLiteOptions) (*sql.DB, error) {
 }
 
 func createPostgresDB(opts PostgresOptions) (*sql.DB, error) {
-	password, err := opts.Password.GetValue()
+	password, err := opts.Password.Secret()
 	if err != nil {
 		return nil, err
 	}

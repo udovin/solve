@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 type SecretType string
@@ -15,8 +16,6 @@ const (
 	FileSecret SecretType = "File"
 	EnvSecret  SecretType = "Env"
 )
-
-var mutex sync.Mutex
 
 // Secret stores configuration for secret data
 //
@@ -28,37 +27,51 @@ var mutex sync.Mutex
 // For passing environment variable to secret you should use EnvSecret:
 //   Secret{Type: EnvSecret, Data: "DB_PASSWORD"}
 type Secret struct {
+	// Type contains secret type
 	Type SecretType `json:""`
-	Data string     `json:""`
+	// Data contains secret data
+	Data string `json:""`
+	//
+	cache atomic.Value
+	mutex sync.Mutex
 }
 
-// GetValue returns secret value
-func (s *Secret) GetValue() (string, error) {
-	mutex.Lock()
+// Secret returns secret value
+func (s *Secret) Secret() (string, error) {
+	if data := s.cache.Load(); data != nil {
+		return data.(string), nil
+	}
+	return s.secretLocked()
+}
+
+// secretLocked returns secret value with locking mutex
+func (s *Secret) secretLocked() (string, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// Recheck that cache is empty. This action is
+	// required due to race conditions.
+	if data := s.cache.Load(); data != nil {
+		return data.(string), nil
+	}
 	switch s.Type {
 	case FileSecret:
 		bytes, err := ioutil.ReadFile(s.Data)
 		if err != nil {
-			mutex.Unlock()
 			return "", err
 		}
-		s.Data = strings.TrimRight(string(bytes), "\r\n")
-		s.Type = DataSecret
+		s.cache.Store(strings.TrimRight(string(bytes), "\r\n"))
 	case EnvSecret:
 		value, ok := os.LookupEnv(s.Data)
 		if !ok {
-			mutex.Unlock()
 			return "", fmt.Errorf(
-				"environment variable '%s' does not exists", s.Data,
+				"environment variable %q does not exists", s.Data,
 			)
 		}
-		s.Data, s.Type = value, DataSecret
+		s.cache.Store(value)
+	case DataSecret:
+		s.cache.Store(s.Data)
+	default:
+		return "", fmt.Errorf("unsupported secret type %q", s.Type)
 	}
-	mutex.Unlock()
-	if s.Type == DataSecret {
-		return s.Data, nil
-	}
-	return "", fmt.Errorf(
-		"unsupported secret type '%s'", s.Type,
-	)
+	return s.cache.Load().(string), nil
 }

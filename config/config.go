@@ -17,15 +17,18 @@ type Config struct {
 	Security Security `json:""`
 }
 
+// Server contains server config
 type Server struct {
 	Host string `json:""`
 	Port int    `json:""`
 }
 
+// Security contains security config
 type Security struct {
 	PasswordSalt Secret `json:""`
 }
 
+// Invoker contains invoker config
 type Invoker struct {
 	ProblemsDir string `json:""`
 	Threads     int    `json:""`

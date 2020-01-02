@@ -1,6 +1,7 @@
 package config
 
 import (
+	"database/sql"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -64,7 +65,7 @@ func TestDatabaseConfig_UnmarshalJSON_Unsupported(t *testing.T) {
 
 func TestDatabaseConfig_UnmarshalJSON_Invalid(t *testing.T) {
 	var config DB
-	if err := json.Unmarshal([]byte("Invalid"), &config); err == nil {
+	if err := json.Unmarshal([]byte("[]"), &config); err == nil {
 		t.Fatal("Expected error")
 	}
 }
@@ -138,6 +139,22 @@ func TestDatabaseConfig_CreateDB_Unsupported(t *testing.T) {
 		Options: nil,
 	}
 	if _, err := config.Create(); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestCreateSQLiteDB(t *testing.T) {
+	if _, err := fixCreateSQLiteDB(nil, sql.ErrConnDone); err == nil {
+		t.Fatal("Expected error")
+	}
+	db, err := sql.Open("sqlite3", "")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Error("Error:", err)
+	}
+	if _, err := fixCreateSQLiteDB(db, nil); err == nil {
 		t.Fatal("Expected error")
 	}
 }

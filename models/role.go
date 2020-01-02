@@ -54,7 +54,7 @@ func (m *RoleManager) onDeleteObject(o db.Object) {
 	panic("implement me")
 }
 
-func (m *RoleManager) updateSchema(tx *sql.Tx, version int) (int, error) {
+func (m *RoleManager) migrate(tx *sql.Tx, version int) (int, error) {
 	panic("implement me")
 }
 

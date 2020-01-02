@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/udovin/solve/db"
 )
@@ -10,18 +11,59 @@ import (
 type ActionStatus int
 
 const (
-	Queued    ActionStatus = 0
-	Running   ActionStatus = 1
+	// Queued means that action in queue and should be processed
+	Queued ActionStatus = 0
+	// Running means that action already in processing
+	Running ActionStatus = 1
+	// Succeeded means that action is processed with success
 	Succeeded ActionStatus = 2
-	Failed    ActionStatus = 3
+	// Failed means that action is processed with failure
+	Failed ActionStatus = 3
 )
+
+// String returns string representation
+func (t ActionStatus) String() string {
+	switch t {
+	case Queued:
+		return "Queued"
+	case Running:
+		return "Running"
+	case Succeeded:
+		return "Succeeded"
+	case Failed:
+		return "Failed"
+	default:
+		return fmt.Sprintf("ActionStatus(%d)", t)
+	}
+}
+
+// MarshalText marshals status to text
+func (t ActionStatus) MarshalText() ([]byte, error) {
+	return []byte(t.String()), nil
+}
 
 // ActionType represents type of action
 type ActionType int
 
 const (
+	// JudgeSolution represents judge solution action
 	JudgeSolution ActionType = 1
 )
+
+// String returns string representation
+func (t ActionType) String() string {
+	switch t {
+	case JudgeSolution:
+		return "JudgeSolution"
+	default:
+		return fmt.Sprintf("ActionType(%d)", t)
+	}
+}
+
+// MarshalText marshals type to text
+func (t ActionType) MarshalText() ([]byte, error) {
+	return []byte(t.String()), nil
+}
 
 // Action represents action
 type Action struct {
@@ -62,13 +104,30 @@ type ActionManager struct {
 	byStatus map[ActionStatus]map[int64]struct{}
 }
 
+// Get returns action by id or returns sql.ErrNoRows if action does not exist
 func (m *ActionManager) Get(id int64) (Action, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 	if action, ok := m.actions[id]; ok {
 		return action, nil
 	}
 	return Action{}, sql.ErrNoRows
 }
 
+// FindByStatus returns a list of actions with specified status
+func (m *ActionManager) FindByStatus(status ActionStatus) ([]Action, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	var actions []Action
+	for id := range m.byStatus[status] {
+		if action, ok := m.actions[id]; ok {
+			actions = append(actions, action)
+		}
+	}
+	return actions, nil
+}
+
+// CreateTx creates action
 func (m *ActionManager) CreateTx(tx *sql.Tx, action Action) (Action, error) {
 	event, err := m.createObjectEvent(tx, ActionEvent{
 		makeBaseEvent(CreateEvent),
@@ -80,6 +139,7 @@ func (m *ActionManager) CreateTx(tx *sql.Tx, action Action) (Action, error) {
 	return event.Object().(Action), nil
 }
 
+// UpdateTx updates action
 func (m *ActionManager) UpdateTx(tx *sql.Tx, action Action) error {
 	_, err := m.createObjectEvent(tx, ActionEvent{
 		makeBaseEvent(UpdateEvent),
@@ -88,6 +148,7 @@ func (m *ActionManager) UpdateTx(tx *sql.Tx, action Action) error {
 	return err
 }
 
+// DeleteTx deletes action
 func (m *ActionManager) DeleteTx(tx *sql.Tx, id int64) error {
 	_, err := m.createObjectEvent(tx, ActionEvent{
 		makeBaseEvent(DeleteEvent),
@@ -96,10 +157,16 @@ func (m *ActionManager) DeleteTx(tx *sql.Tx, id int64) error {
 	return err
 }
 
+// PopQueuedTx pops queued action from the store and sets running status
 func (m *ActionManager) PopQueuedTx(tx *sql.Tx) (Action, error) {
-	if err := m.Sync(tx); err != nil {
+	if err := m.lockStore(tx); err != nil {
 		return Action{}, err
 	}
+	if err := m.SyncTx(tx); err != nil {
+		return Action{}, err
+	}
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 	for id := range m.byStatus[Queued] {
 		if action, ok := m.actions[id]; ok {
 			action.Status = Running
@@ -152,7 +219,7 @@ func (m *ActionManager) onUpdateObject(o db.Object) {
 	m.onCreateObject(o)
 }
 
-func (m *ActionManager) updateSchema(tx *sql.Tx, version int) (int, error) {
+func (m *ActionManager) migrate(tx *sql.Tx, version int) (int, error) {
 	panic("implement me")
 }
 

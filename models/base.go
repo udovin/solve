@@ -93,23 +93,27 @@ type baseManagerImpl interface {
 	onCreateObject(o db.Object)
 	onUpdateObject(o db.Object)
 	onDeleteObject(o db.Object)
-	updateSchema(tx *sql.Tx, version int) (int, error)
+	migrate(tx *sql.Tx, version int) (int, error)
 }
 
+// Manager represents store manager
 type Manager interface {
-	Init(tx *sql.Tx) error
-	Sync(tx *sql.Tx) error
+	InitTx(tx *sql.Tx) error
+	SyncTx(tx *sql.Tx) error
+	MigrateTx(tx *sql.Tx, version int) (int, error)
 }
 
 type baseManager struct {
+	table    string
 	objects  db.ObjectStore
 	events   db.EventStore
 	consumer db.EventConsumer
 	impl     baseManagerImpl
+	dialect  db.Dialect
 	mutex    sync.RWMutex
 }
 
-func (m *baseManager) Init(tx *sql.Tx) error {
+func (m *baseManager) InitTx(tx *sql.Tx) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	rows, err := m.objects.LoadObjects(tx)
@@ -127,10 +131,14 @@ func (m *baseManager) Init(tx *sql.Tx) error {
 	return rows.Err()
 }
 
-func (m *baseManager) Sync(tx *sql.Tx) error {
+func (m *baseManager) SyncTx(tx *sql.Tx) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	return m.consumer.ConsumeEvents(tx, m.consumeEvent)
+}
+
+func (m *baseManager) MigrateTx(tx *sql.Tx, version int) (int, error) {
+	return m.impl.migrate(tx, version)
 }
 
 func (m *baseManager) createObjectEvent(
@@ -161,6 +169,16 @@ func (m *baseManager) createObjectEvent(
 	return result.(ObjectEvent), err
 }
 
+func (m *baseManager) lockStore(tx *sql.Tx) error {
+	switch m.dialect {
+	case db.SQLite:
+		return nil
+	default:
+		_, err := tx.Exec(fmt.Sprintf("LOCK TABLE %q", m.table))
+		return err
+	}
+}
+
 func (m *baseManager) consumeEvent(e db.Event) error {
 	switch v := e.(ObjectEvent); v.EventType() {
 	case CreateEvent:
@@ -181,8 +199,10 @@ func makeBaseManager(
 	impl baseManagerImpl, dialect db.Dialect,
 ) baseManager {
 	return baseManager{
+		table:   table,
 		objects: db.NewObjectStore(object, "id", table, dialect),
 		events:  db.NewEventStore(event, "event_id", eventTable, dialect),
 		impl:    impl,
+		dialect: dialect,
 	}
 }

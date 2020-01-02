@@ -22,6 +22,7 @@ var errBadAuth = errors.New("bad auth")
 const (
 	userKey    = "User"
 	sessionKey = "Session"
+	visitKey   = "Visit"
 )
 
 func (v *View) authMiddleware(methods ...authMethod) echo.MiddlewareFunc {
@@ -77,17 +78,23 @@ func (v *View) passwordAuth(c echo.Context) error {
 	return nil
 }
 
-const visitContext = "Visit"
-
 func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		visit := models.Visit{
 			Time: time.Now().Unix(),
 		}
-		c.Set(visitContext, visit)
+		c.Set(visitKey, visit)
 		defer func() {
-			visit := c.Get(visitContext).(models.Visit)
-			_, _ = v.app.Visits.Create(visit)
+			visit := c.Get(visitKey).(models.Visit)
+			if user, ok := c.Get(userKey).(models.User); ok {
+				visit.UserId = models.NInt64(user.ID)
+			}
+			if session, ok := c.Get(sessionKey).(models.Session); ok {
+				visit.SessionId = models.NInt64(session.ID)
+			}
+			if _, err := v.app.Visits.Create(visit); err != nil {
+				c.Logger().Error(err)
+			}
 		}()
 		return next(c)
 	}

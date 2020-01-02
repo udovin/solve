@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/udovin/solve/db"
@@ -56,6 +57,28 @@ func (m *VisitManager) CreateTx(tx *sql.Tx, visit Visit) (Visit, error) {
 		return Visit{}, err
 	}
 	return event.(Visit), nil
+}
+
+// InitTx does nothing
+func (m *VisitManager) InitTx(tx *sql.Tx) error {
+	return nil
+}
+
+// SyncTx does nothing
+func (m *VisitManager) SyncTx(tx *sql.Tx) error {
+	return nil
+}
+
+// MigrateTx upgrades database from current version
+func (m *VisitManager) MigrateTx(tx *sql.Tx, version int) (int, error) {
+	switch version {
+	case 1:
+		return 1, nil
+	case 0:
+		panic("implement me")
+	default:
+		return 0, fmt.Errorf("invalid version: %v", version)
+	}
 }
 
 // NewVisitManager creates a new instance of ViewManager

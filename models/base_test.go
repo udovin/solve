@@ -137,7 +137,7 @@ func (m *testManager) onDeleteObject(o db.Object) {
 	delete(m.objects, o.ObjectId())
 }
 
-func (m *testManager) updateSchema(tx *sql.Tx, version int) (int, error) {
+func (m *testManager) migrate(tx *sql.Tx, version int) (int, error) {
 	switch version {
 	case 1:
 		return 1, nil
@@ -198,7 +198,7 @@ func testUpdateSchema(t testing.TB, impl baseManagerImpl, ver int) {
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	outVer, err := impl.updateSchema(tx, 0)
+	outVer, err := impl.migrate(tx, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func testInitManager(t testing.TB, m Manager) {
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	if err := m.Init(tx); err != nil {
+	if err := m.InitTx(tx); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -231,7 +231,7 @@ func testSyncManager(t testing.TB, m Manager) {
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	if err := m.Sync(tx); err != nil {
+	if err := m.SyncTx(tx); err != nil {
 		t.Fatal(err)
 	}
 }

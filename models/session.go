@@ -74,16 +74,13 @@ func (s *SessionStore) Get(id int64) (Session, error) {
 func (s *SessionStore) GetByUser(userID int64) ([]Session, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if ids, ok := s.userSessions[userID]; ok {
-		var sessions []Session
-		for id := range ids {
-			if session, ok := s.sessions[id]; ok {
-				sessions = append(sessions, session)
-			}
+	var sessions []Session
+	for id := range s.userSessions[userID] {
+		if session, ok := s.sessions[id]; ok {
+			sessions = append(sessions, session)
 		}
-		return sessions, nil
 	}
-	return nil, nil
+	return sessions, nil
 }
 
 func (s *SessionStore) GetByCookie(cookie string) (Session, error) {

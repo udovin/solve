@@ -17,12 +17,12 @@ type Session struct {
 	User models.User `json:""`
 }
 
-func (v *View) GetSessions(c echo.Context) error {
+func (s *Server) GetSessions(c echo.Context) error {
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
-	sessions, err := v.app.Sessions.GetByUser(user.ID)
+	sessions, err := s.app.Sessions.GetByUser(user.ID)
 	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -31,7 +31,7 @@ func (v *View) GetSessions(c echo.Context) error {
 	return c.JSON(http.StatusOK, sessions)
 }
 
-func (v *View) CreateSession(c echo.Context) error {
+func (s *Server) CreateSession(c echo.Context) error {
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
@@ -45,7 +45,7 @@ func (v *View) CreateSession(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	if err := v.app.Sessions.Create(&session); err != nil {
+	if err := s.app.Sessions.Create(&session); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -57,11 +57,11 @@ func (v *View) CreateSession(c echo.Context) error {
 	return c.JSON(http.StatusCreated, session)
 }
 
-func (v *View) UpdateSession(c echo.Context) error {
+func (s *Server) UpdateSession(c echo.Context) error {
 	return c.NoContent(http.StatusNotImplemented)
 }
 
-func (v *View) DeleteSession(c echo.Context) error {
+func (s *Server) DeleteSession(c echo.Context) error {
 	sessionID, err := strconv.ParseInt(c.Param("SessionID"), 10, 64)
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func (v *View) DeleteSession(c echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
-	session, err := v.app.Sessions.Get(sessionID)
+	session, err := s.app.Sessions.Get(sessionID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.NoContent(http.StatusNotFound)
@@ -81,19 +81,19 @@ func (v *View) DeleteSession(c echo.Context) error {
 	if session.UserID != user.ID && !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
-	if err := v.app.Sessions.Delete(session.ID); err != nil {
+	if err := s.app.Sessions.Delete(session.ID); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.NoContent(http.StatusOK)
 }
 
-func (v *View) GetCurrentSession(c echo.Context) error {
+func (s *Server) GetCurrentSession(c echo.Context) error {
 	session, ok := c.Get(sessionKey).(models.Session)
 	if !ok {
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	user, err := v.app.Users.Get(session.UserID)
+	user, err := s.app.Users.Get(session.UserID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.NoContent(http.StatusNotFound)

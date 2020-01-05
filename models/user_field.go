@@ -2,13 +2,12 @@ package models
 
 import (
 	"database/sql"
-	"fmt"
-	"sync"
-	"time"
+
+	"github.com/udovin/solve/db"
 )
 
 // UserField contains additional information about user
-// like E-mail, first name, last name and etc
+// like E-mail, first name, last name and etc.
 type UserField struct {
 	ID     int64  `json:"" db:"id"`
 	UserID int64  `json:"" db:"user_id"`
@@ -16,266 +15,135 @@ type UserField struct {
 	Data   string `json:"" db:"data"`
 }
 
+// ObjectID returns ID of user field.
+func (o UserField) ObjectID() int64 {
+	return o.ID
+}
+
 const (
-	EmailField      = "email"
-	FirstNameField  = "first_name"
-	LastNameField   = "last_name"
-	MiddleNameField = "middle_name"
+	EmailField      = "Email"
+	FirstNameField  = "FirstName"
+	LastNameField   = "LastName"
+	MiddleNameField = "MiddleName"
 )
 
-type UserFieldChange struct {
-	BaseChange
+// UserFieldEvent represents user field event.
+type UserFieldEvent struct {
+	baseEvent
 	UserField
 }
 
-// Store that caches database records about user fields
-type UserFieldStore struct {
-	Manager     *ChangeManager
-	table       string
-	changeTable string
-	fields      map[int64]UserField
-	userFields  map[int64]map[int64]struct{}
-	mutex       sync.RWMutex
+// Object returns user field.
+func (e UserFieldEvent) Object() db.Object {
+	return e.UserField
 }
 
-// Create new instance of UserFieldStore
-func NewUserFieldStore(
-	db *sql.DB, table, changeTable string,
-) *UserFieldStore {
-	store := UserFieldStore{
-		table:       table,
-		changeTable: changeTable,
-		fields:      make(map[int64]UserField),
-		userFields:  make(map[int64]map[int64]struct{}),
-	}
-	store.Manager = NewChangeManager(&store, db)
-	return &store
+// WithObject returns copy of event with replaced user field data.
+func (e UserFieldEvent) WithObject(o db.Object) ObjectEvent {
+	e.UserField = o.(UserField)
+	return e
 }
 
-// Get user field by field's ID
-func (s *UserFieldStore) Get(id int64) (UserField, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if field, ok := s.fields[id]; ok {
+// Manager that caches database records about user fields.
+type UserFieldManager struct {
+	baseManager
+	fields map[int64]UserField
+	byUser indexInt64
+}
+
+// Get returns user field by ID.
+func (m *UserFieldManager) Get(id int64) (UserField, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	if field, ok := m.fields[id]; ok {
 		return field, nil
 	}
 	return UserField{}, sql.ErrNoRows
 }
 
-func (s *UserFieldStore) GetByUser(userID int64) ([]UserField, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+// GetByUser returns user field by user ID.
+func (m *UserFieldManager) GetByUser(userID int64) ([]UserField, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 	var fields []UserField
-	if ids, ok := s.userFields[userID]; ok {
-		for id := range ids {
-			if field, ok := s.fields[id]; ok {
-				fields = append(fields, field)
-			}
+	for id := range m.byUser[userID] {
+		if field, ok := m.fields[id]; ok {
+			fields = append(fields, field)
 		}
 	}
 	return fields, nil
 }
 
-// Create creates user field with specified data
-func (s *UserFieldStore) Create(m *UserField) error {
-	change := UserFieldChange{
-		BaseChange: BaseChange{Type: CreateChange},
-		UserField:  *m,
-	}
-	err := s.Manager.Change(&change)
+// CreateTx creates user field and returns copy with valid ID.
+func (m *UserFieldManager) CreateTx(
+	tx *sql.Tx, field UserField,
+) (UserField, error) {
+	event, err := m.createObjectEvent(tx, UserFieldEvent{
+		makeBaseEvent(CreateEvent),
+		field,
+	})
 	if err != nil {
-		return err
+		return UserField{}, err
 	}
-	*m = change.UserField
-	return nil
+	return event.Object().(UserField), nil
 }
 
-// CreateTx creates user field with specified data
-func (s *UserFieldStore) CreateTx(tx *ChangeTx, m *UserField) error {
-	change := UserFieldChange{
-		BaseChange: BaseChange{Type: CreateChange},
-		UserField:  *m,
-	}
-	err := s.Manager.ChangeTx(tx, &change)
-	if err != nil {
-		return err
-	}
-	*m = change.UserField
-	return nil
-}
-
-// Modify user field
-// Modification will be applied to field with ID = m.ID
-func (s *UserFieldStore) Update(m *UserField) error {
-	change := UserFieldChange{
-		BaseChange: BaseChange{Type: UpdateChange},
-		UserField:  *m,
-	}
-	err := s.Manager.Change(&change)
-	if err != nil {
-		return err
-	}
-	*m = change.UserField
-	return nil
-}
-
-// Delete user field with specified ID
-func (s *UserFieldStore) Delete(id int64) error {
-	change := UserFieldChange{
-		BaseChange: BaseChange{Type: DeleteChange},
-		UserField:  UserField{ID: id},
-	}
-	return s.Manager.Change(&change)
-}
-
-func (s *UserFieldStore) GetLocker() sync.Locker {
-	return &s.mutex
-}
-
-func (s *UserFieldStore) InitChanges(tx *sql.Tx) (int64, error) {
-	return 0, nil
-}
-
-func (s *UserFieldStore) LoadChanges(
-	tx *sql.Tx, gap ChangeGap,
-) (*sql.Rows, error) {
-	return tx.Query(
-		fmt.Sprintf(
-			`SELECT`+
-				` "change_id", "change_type", "change_time",`+
-				` "id", "user_id", "name", "data"`+
-				` FROM %q`+
-				` WHERE "change_id" >= $1 AND "change_id" < $2`+
-				` ORDER BY "change_id"`,
-			s.changeTable,
-		),
-		gap.BeginID, gap.EndID,
-	)
-}
-
-func (s *UserFieldStore) ScanChange(scan Scanner) (Change, error) {
-	field := UserFieldChange{}
-	err := scan.Scan(
-		&field.BaseChange.ID, &field.BaseChange.Type, &field.Time,
-		&field.UserField.ID, &field.UserID, &field.UserField.Type,
-		&field.Data,
-	)
-	return &field, err
-}
-
-func (s *UserFieldStore) SaveChange(tx *sql.Tx, change Change) error {
-	field := change.(*UserFieldChange)
-	field.Time = time.Now().Unix()
-	switch field.BaseChange.Type {
-	case CreateChange:
-		var err error
-		field.UserField.ID, err = execTxReturningID(
-			s.Manager.db.Driver(), tx,
-			fmt.Sprintf(
-				`INSERT INTO %q`+
-					` ("user_id", "name", "data")`+
-					` VALUES ($1, $2, $3)`,
-				s.table,
-			),
-			"id",
-			field.UserID, field.UserField.Type, field.Data,
-		)
-		if err != nil {
-			return err
-		}
-	case UpdateChange:
-		if _, ok := s.fields[field.UserField.ID]; !ok {
-			return fmt.Errorf(
-				"user field with id = %d does not exists",
-				field.UserField.ID,
-			)
-		}
-		_, err := tx.Exec(
-			fmt.Sprintf(
-				`UPDATE %q SET`+
-					` "user_id" = $1, "name" = $2, "data" = $3`+
-					` WHERE "id" = $4`,
-				s.table,
-			),
-			field.UserID, field.UserField.Type, field.Data,
-			field.UserField.ID,
-		)
-		if err != nil {
-			return err
-		}
-	case DeleteChange:
-		if _, ok := s.fields[field.UserField.ID]; !ok {
-			return fmt.Errorf(
-				"user field with id = %d does not exists",
-				field.UserField.ID,
-			)
-		}
-		_, err := tx.Exec(
-			fmt.Sprintf(
-				`DELETE FROM %q WHERE "id" = $1`,
-				s.table,
-			),
-			field.UserField.ID,
-		)
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf(
-			"unsupported change type = %s",
-			field.UserField.Type,
-		)
-	}
-	var err error
-	field.BaseChange.ID, err = execTxReturningID(
-		s.Manager.db.Driver(), tx,
-		fmt.Sprintf(
-			`INSERT INTO %q`+
-				` ("change_type", "change_time",`+
-				` "id", "user_id", "name", "data")`+
-				` VALUES ($1, $2, $3, $4, $5, $6)`,
-			s.changeTable,
-		),
-		"change_id",
-		field.BaseChange.Type, field.Time, field.UserField.ID,
-		field.UserID, field.UserField.Type, field.Data,
-	)
+// UpdateTx updates user field with specified ID.
+func (m *UserFieldManager) UpdateTx(tx *sql.Tx, field UserField) error {
+	_, err := m.createObjectEvent(tx, UserFieldEvent{
+		makeBaseEvent(UpdateEvent),
+		field,
+	})
 	return err
 }
 
-func (s *UserFieldStore) ApplyChange(change Change) {
-	field := change.(*UserFieldChange)
-	switch field.BaseChange.Type {
-	case UpdateChange:
-		if old, ok := s.fields[field.UserField.ID]; ok {
-			if old.UserID != field.UserID {
-				if fields, ok := s.userFields[old.UserID]; ok {
-					delete(fields, old.ID)
-					if len(fields) == 0 {
-						delete(s.userFields, old.UserID)
-					}
-				}
-			}
+// DeleteTx deletes user field with specified ID.
+func (m *UserFieldManager) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := m.createObjectEvent(tx, UserFieldEvent{
+		makeBaseEvent(DeleteEvent),
+		UserField{ID: id},
+	})
+	return err
+}
+
+func (m *UserFieldManager) reset() {
+	m.fields = map[int64]UserField{}
+	m.byUser = indexInt64{}
+}
+
+func (m *UserFieldManager) addObject(o db.Object) {
+	m.onCreateObject(o)
+}
+
+func (m *UserFieldManager) onCreateObject(o db.Object) {
+	field := o.(UserField)
+	m.fields[field.ID] = field
+	m.byUser.Create(field.UserID, field.ID)
+}
+
+func (m *UserFieldManager) onDeleteObject(o db.Object) {
+	field := o.(UserField)
+	m.byUser.Delete(field.UserID, field.ID)
+	delete(m.fields, field.ID)
+}
+
+func (m *UserFieldManager) onUpdateObject(o db.Object) {
+	field := o.(UserField)
+	if old, ok := m.fields[field.ID]; ok {
+		if old.UserID != field.UserID {
+			m.byUser.Delete(old.UserID, old.ID)
 		}
-		fallthrough
-	case CreateChange:
-		if _, ok := s.userFields[field.UserID]; !ok {
-			s.userFields[field.UserID] = make(map[int64]struct{})
-		}
-		s.userFields[field.UserID][field.UserField.ID] = struct{}{}
-		s.fields[field.UserField.ID] = field.UserField
-	case DeleteChange:
-		if fields, ok := s.userFields[field.UserID]; ok {
-			delete(fields, field.UserField.ID)
-			if len(fields) == 0 {
-				delete(s.userFields, field.UserID)
-			}
-		}
-		delete(s.fields, field.UserField.ID)
-	default:
-		panic(fmt.Errorf(
-			"unsupported change type = %s",
-			field.BaseChange.Type,
-		))
 	}
+	m.onCreateObject(o)
+}
+
+// NewUserFieldManager creates new instance of user field manager.
+func NewUserFieldManager(
+	db *sql.DB, table, eventTable string, dialect db.Dialect,
+) *UserFieldManager {
+	impl := &UserFieldManager{}
+	impl.baseManager = makeBaseManager(
+		UserField{}, table, UserFieldEvent{}, eventTable, impl, dialect,
+	)
+	return impl
 }

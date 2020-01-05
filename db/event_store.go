@@ -7,37 +7,37 @@ import (
 	"time"
 )
 
-// Event represents an event from store
+// Event represents an event from store.
 type Event interface {
-	// EventId should return sequential id of event
-	EventId() int64
-	// EventTime should return time when event occurred
+	// EventID should return sequential ID of event.
+	EventID() int64
+	// EventTime should return time when event occurred.
 	EventTime() time.Time
 }
 
-// EventReader represents reader for events
+// EventReader represents reader for events.
 type EventReader interface {
-	// Next should read next event and return true if event exists
+	// Next should read next event and return true if event exists.
 	Next() bool
-	// Event should return current event
+	// Event should return current event.
 	Event() Event
-	// Close should close reader
+	// Close should close reader.
 	Close() error
-	// Err should return error that occurred during reading
+	// Err should return error that occurred during reading.
 	Err() error
 }
 
-// EventROStore represents read-only store for events
+// EventROStore represents read-only store for events.
 type EventROStore interface {
-	// LoadEvents should load events from store in specified range
+	// LoadEvents should load events from store in specified range.
 	LoadEvents(tx *sql.Tx, begin, end int64) (EventReader, error)
 }
 
-// EventStore represents persistent store for events
+// EventStore represents persistent store for events.
 type EventStore interface {
 	EventROStore
 	// CreateEvent should create a new event and return copy
-	// that has correct EventId
+	// that has correct EventID.
 	CreateEvent(tx *sql.Tx, event Event) (Event, error)
 }
 
@@ -72,7 +72,7 @@ func (s *eventStore) CreateEvent(tx *sql.Tx, event Event) (Event, error) {
 	return row.(Event), nil
 }
 
-// NewEventStore creates a new store for events of specified type
+// NewEventStore creates a new store for events of specified type.
 func NewEventStore(event Event, id, table string, dialect Dialect) EventStore {
 	return &eventStore{
 		typ:     reflect.TypeOf(event),

@@ -10,8 +10,8 @@ import (
 	"github.com/udovin/solve/models"
 )
 
-func (v *View) GetCompilers(c echo.Context) error {
-	compilers, err := v.app.Compilers.All()
+func (s *Server) GetCompilers(c echo.Context) error {
+	compilers, err := s.app.Compilers.All()
 	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -22,7 +22,7 @@ func (v *View) GetCompilers(c echo.Context) error {
 	return c.JSON(http.StatusOK, compilers)
 }
 
-func (v *View) CreateCompiler(c echo.Context) error {
+func (s *Server) CreateCompiler(c echo.Context) error {
 	var compiler models.Compiler
 	if err := c.Bind(&compiler); err != nil {
 		return c.NoContent(http.StatusBadRequest)
@@ -34,19 +34,19 @@ func (v *View) CreateCompiler(c echo.Context) error {
 	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
-	if err := v.app.Compilers.Create(&compiler); err != nil {
+	if err := s.app.Compilers.Create(&compiler); err != nil {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.JSON(http.StatusCreated, compiler)
 }
 
-func (v *View) GetCompiler(c echo.Context) error {
+func (s *Server) GetCompiler(c echo.Context) error {
 	compilerID, err := strconv.ParseInt(c.Param("ContestID"), 10, 64)
 	if err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	compiler, err := v.app.Compilers.Get(compilerID)
+	compiler, err := s.app.Compilers.Get(compilerID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.NoContent(http.StatusNotFound)

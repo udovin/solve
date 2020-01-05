@@ -25,7 +25,7 @@ type Problem struct {
 	Solutions   []Solution `json:",omitempty"`
 }
 
-func (v *View) CreateProblem(c echo.Context) error {
+func (s *Server) CreateProblem(c echo.Context) error {
 	var problem Problem
 	if err := c.Bind(&problem); err != nil {
 		c.Logger().Warn(err)
@@ -54,12 +54,12 @@ func (v *View) CreateProblem(c echo.Context) error {
 			c.Logger().Error(err)
 		}
 	}()
-	tx, err := v.app.Problems.Manager.Begin()
+	tx, err := s.app.Problems.Manager.Begin()
 	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	if err := v.app.Problems.CreateTx(tx, &problem.Problem); err != nil {
+	if err := s.app.Problems.CreateTx(tx, &problem.Problem); err != nil {
 		if err := tx.Rollback(); err != nil {
 			c.Logger().Error(err)
 		}
@@ -67,7 +67,7 @@ func (v *View) CreateProblem(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	pkg, err := os.Create(path.Join(
-		v.app.Config.Invoker.ProblemsDir,
+		s.app.Config.Invoker.ProblemsDir,
 		fmt.Sprintf("%d.zip", problem.ID),
 	))
 	if err != nil {
@@ -89,7 +89,7 @@ func (v *View) CreateProblem(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	description, err := v.extractPackageStatement(pkg.Name())
+	description, err := s.extractPackageStatement(pkg.Name())
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			c.Logger().Error(err)
@@ -102,7 +102,7 @@ func (v *View) CreateProblem(c echo.Context) error {
 		Title:       problem.Title,
 		Description: description,
 	}
-	if err := v.app.Statements.CreateTx(tx, &statement); err != nil {
+	if err := s.app.Statements.CreateTx(tx, &statement); err != nil {
 		if err := tx.Rollback(); err != nil {
 			c.Logger().Error(err)
 		}
@@ -118,7 +118,7 @@ func (v *View) CreateProblem(c echo.Context) error {
 	return c.JSON(http.StatusCreated, problem)
 }
 
-func (v *View) extractPackageStatement(path string) (string, error) {
+func (s *Server) extractPackageStatement(path string) (string, error) {
 	archive, err := zip.OpenReader(path)
 	if err != nil {
 		return "", err
@@ -147,13 +147,13 @@ func (v *View) extractPackageStatement(path string) (string, error) {
 	return "", errors.New("unable to find problem statement")
 }
 
-func (v *View) GetProblem(c echo.Context) error {
+func (s *Server) GetProblem(c echo.Context) error {
 	problemID, err := strconv.ParseInt(c.Param("ProblemID"), 10, 64)
 	if err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	problem, err := v.buildProblem(problemID)
+	problem, err := s.buildProblem(problemID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.NoContent(http.StatusNotFound)
@@ -164,12 +164,12 @@ func (v *View) GetProblem(c echo.Context) error {
 	return c.JSON(http.StatusOK, problem)
 }
 
-func (v *View) buildProblem(id int64) (Problem, error) {
-	problem, err := v.app.Problems.Get(id)
+func (s *Server) buildProblem(id int64) (Problem, error) {
+	problem, err := s.app.Problems.Get(id)
 	if err != nil {
 		return Problem{}, err
 	}
-	statement, err := v.app.Statements.GetByProblem(problem.ID)
+	statement, err := s.app.Statements.GetByProblem(problem.ID)
 	if err != nil {
 		return Problem{}, err
 	}
@@ -180,7 +180,7 @@ func (v *View) buildProblem(id int64) (Problem, error) {
 	}, nil
 }
 
-func (v *View) UpdateProblem(c echo.Context) error {
+func (s *Server) UpdateProblem(c echo.Context) error {
 	var problem Problem
 	if err := c.Bind(&problem); err != nil {
 		c.Logger().Warn(err)
@@ -210,7 +210,7 @@ func (v *View) UpdateProblem(c echo.Context) error {
 	}()
 	_ = os.Remove(fmt.Sprintf("%d.zip", problem.ID))
 	pkg, err := os.Create(path.Join(
-		v.app.Config.Invoker.ProblemsDir,
+		s.app.Config.Invoker.ProblemsDir,
 		fmt.Sprintf("%d.zip", problem.ID),
 	))
 	if err != nil {
@@ -226,7 +226,7 @@ func (v *View) UpdateProblem(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	description, err := v.extractPackageStatement(pkg.Name())
+	description, err := s.extractPackageStatement(pkg.Name())
 	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -236,13 +236,13 @@ func (v *View) UpdateProblem(c echo.Context) error {
 		Title:       problem.Title,
 		Description: description,
 	}
-	if err := v.app.Statements.Create(&statement); err != nil {
+	if err := s.app.Statements.Create(&statement); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.JSON(http.StatusOK, problem)
 }
 
-func (v *View) DeleteProblem(c echo.Context) error {
+func (s *Server) DeleteProblem(c echo.Context) error {
 	return c.NoContent(http.StatusNotImplemented)
 }

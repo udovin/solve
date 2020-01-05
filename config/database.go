@@ -11,25 +11,33 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type DatabaseDriver string
+// DBDriver represents database driver name.
+type DBDriver string
 
 const (
-	SQLiteDriver   DatabaseDriver = "SQLite"
-	PostgresDriver DatabaseDriver = "Postgres"
+	// SQLiteDriver represents SQLite driver.
+	SQLiteDriver DBDriver = "SQLite"
+	// PostgresDriver represents Postgres driver.
+	PostgresDriver DBDriver = "Postgres"
 )
 
-// DB stores configuration for database connection
+// DB stores configuration for database connection.
 type DB struct {
-	Driver  DatabaseDriver `json:""`
-	Options interface{}    `json:""`
+	// Driver contains database driver name.
+	Driver DBDriver `json:""`
+	// Options contains options for database driver.
+	//
+	// For SQLiteDriver field should contains SQLiteOptions.
+	// For PostgresDriver field should contains PostgresOptions.
+	Options interface{} `json:""`
 }
 
-// SQLiteOptions stores SQLite connection options
+// SQLiteOptions stores SQLite connection options.
 type SQLiteOptions struct {
 	Path string `json:""`
 }
 
-// PostgresOptions stores Postgres connection options
+// PostgresOptions stores Postgres connection options.
 type PostgresOptions struct {
 	Host     string `json:""`
 	Port     int    `json:""`
@@ -38,18 +46,12 @@ type PostgresOptions struct {
 	Name     string `json:""`
 }
 
-type genericOptions []byte
-
-func (g *genericOptions) UnmarshalJSON(bytes []byte) error {
-	*g = bytes
-	return nil
-}
-
-// Parse JSON to create appropriate connection configuration
+// UnmarshalJSON parses JSON to create appropriate connection configuration.
 func (c *DB) UnmarshalJSON(bytes []byte) error {
 	var g struct {
-		Driver  DatabaseDriver `json:""`
-		Options genericOptions `json:""`
+		Driver DBDriver `json:""`
+		// Options will be parsed after detecting driver name.
+		Options json.RawMessage `json:""`
 	}
 	if err := json.Unmarshal(bytes, &g); err != nil {
 		return err
@@ -84,9 +86,9 @@ func fixCreateSQLiteDB(db *sql.DB, err error) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	// This can increase writes performance
+	// This can increase writes performance.
 	if _, err = db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		// Dont forget to close connection on failure
+		// Dont forget to close connection on failure.
 		_ = db.Close()
 		return nil, err
 	}
@@ -106,7 +108,7 @@ func createPostgresDB(opts PostgresOptions) (*sql.DB, error) {
 	return db, err
 }
 
-// Create creates database connection using current configuration
+// Create creates database connection using current configuration.
 func (c *DB) Create() (*sql.DB, error) {
 	switch t := c.Options.(type) {
 	case SQLiteOptions:

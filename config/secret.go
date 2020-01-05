@@ -9,15 +9,20 @@ import (
 	"sync/atomic"
 )
 
+// SecretType represents the type of secret.
 type SecretType string
 
 const (
+	// DataSecret represents secret that contains value in Data field.
 	DataSecret SecretType = "Data"
+	// FileSecret represents secret that contains value in file.
 	FileSecret SecretType = "File"
-	EnvSecret  SecretType = "Env"
+	// EnvSecret represents secret that contains
+	// value in environment variable.
+	EnvSecret SecretType = "Env"
 )
 
-// Secret stores configuration for secret data
+// Secret stores configuration for secret data.
 //
 // Used for inserting secret values to configs like passwords and tokens.
 // If you want to pass secret as plain text, use type DataSecret:
@@ -27,16 +32,15 @@ const (
 // For passing environment variable to secret you should use EnvSecret:
 //   Secret{Type: EnvSecret, Data: "DB_PASSWORD"}
 type Secret struct {
-	// Type contains secret type
+	// Type contains secret type.
 	Type SecretType `json:""`
-	// Data contains secret data
+	// Data contains secret data.
 	Data string `json:""`
-	//
+	// cache contains cached secret value.
 	cache atomic.Value
-	mutex sync.Mutex
 }
 
-// Secret returns secret value
+// Secret returns secret value.
 func (s *Secret) Secret() (string, error) {
 	if data := s.cache.Load(); data != nil {
 		return data.(string), nil
@@ -44,10 +48,12 @@ func (s *Secret) Secret() (string, error) {
 	return s.secretLocked()
 }
 
-// secretLocked returns secret value with locking mutex
+var mutex sync.Mutex
+
+// secretLocked returns secret value with locking mutex.
 func (s *Secret) secretLocked() (string, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	// Recheck that cache is empty. This action is
 	// required due to race conditions.
 	if data := s.cache.Load(); data != nil {

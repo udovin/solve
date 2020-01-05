@@ -5,36 +5,36 @@ import (
 	"io/ioutil"
 )
 
-// Config stores configuration for Solve API and Invoker
+// Config stores configuration for Solve API and Invoker.
 type Config struct {
-	// DB contains database connection config
+	// DB contains database connection config.
 	DB DB `json:""`
-	// Server contains API server config
+	// Server contains API server config.
 	Server Server `json:""`
-	// Invoker contains invoker config
+	// Invoker contains invoker config.
 	Invoker Invoker `json:""`
-	// Security contains security config
+	// Security contains security config.
 	Security Security `json:""`
 }
 
-// Server contains server config
+// Server contains server config.
 type Server struct {
 	Host string `json:""`
 	Port int    `json:""`
 }
 
-// Security contains security config
+// Security contains security config.
 type Security struct {
 	PasswordSalt Secret `json:""`
 }
 
-// Invoker contains invoker config
+// Invoker contains invoker config.
 type Invoker struct {
 	ProblemsDir string `json:""`
 	Threads     int    `json:""`
 }
 
-// LoadFromFile loads configuration from json file
+// LoadFromFile loads configuration from json file.
 func LoadFromFile(file string) (cfg Config, err error) {
 	bytes, err := ioutil.ReadFile(file)
 	if err == nil {

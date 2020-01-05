@@ -2,7 +2,9 @@ package core
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
+	"reflect"
 	"sync"
 	"time"
 
@@ -11,22 +13,23 @@ import (
 	"github.com/udovin/solve/models"
 )
 
-// App manages all available resources
+// App manages all available resources.
 type App struct {
-	db *sql.DB
-	// Config contains config
+	// Config contains config.
 	Config config.Config
-	// Actions contains action manager
+	// Actions contains action manager.
 	Actions *models.ActionManager
-	// Roles contains role manager
+	// Roles contains role manager.
 	Roles *models.RoleManager
-	// UserRoles contains user role manager
+	// Users contains user manager.
+	Users *models.UserManager
+	// UserFields contains user field manager.
+	UserFields *models.UserFieldManager
+	// UserRoles contains user role manager.
 	UserRoles *models.UserRoleManager
-	// Visits contains visit manager
+	// Visits contains visit manager.
 	Visits *models.VisitManager
-	// Stores
-	Users           *models.UserStore
-	UserFields      *models.UserFieldStore
+	// Stores.
 	Sessions        *models.SessionStore
 	Compilers       *models.CompilerStore
 	Problems        *models.ProblemStore
@@ -38,80 +41,44 @@ type App struct {
 	Participants    *models.ParticipantStore
 	closer          chan struct{}
 	waiter          sync.WaitGroup
-	// Password salt
+	// Password salt.
 	PasswordSalt string
+	// db store database connection.
+	db *sql.DB
 }
 
-func getDialect(driver config.DatabaseDriver) db.Dialect {
-	switch driver {
-	case config.PostgresDriver:
-		return db.Postgres
-	default:
-		return db.SQLite
-	}
-}
-
-// NewApp creates app instance from config
-func NewApp(cfg *config.Config) (*App, error) {
-	// Try to create database connection pool
-	db, err := cfg.DB.Create()
+// NewApp creates app instance from config.
+func NewApp(config *config.Config) (*App, error) {
+	conn, err := config.DB.Create()
 	if err != nil {
 		return nil, err
 	}
-	app := App{
-		db:     db,
-		Config: *cfg,
-		Users: models.NewUserStore(
-			db, "solve_user", "solve_user_change",
-		),
-		UserFields: models.NewUserFieldStore(
-			db, "solve_user_field", "solve_user_field_change",
-		),
-		Sessions: models.NewSessionStore(
-			db, "solve_session", "solve_session_change",
-		),
-		Compilers: models.NewCompilerStore(
-			db, "solve_compiler", "solve_compiler_change",
-		),
-		Problems: models.NewProblemStore(
-			db, "solve_problem", "solve_problem_change",
-		),
-		Statements: models.NewStatementStore(
-			db, "solve_statement", "solve_statement_change",
-		),
-		Solutions: models.NewSolutionStore(
-			db, "solve_solution", "solve_solution_change",
-		),
-		Reports: models.NewReportStore(
-			db, "solve_report", "solve_report_change",
-		),
-		Contests: models.NewContestStore(
-			db, "solve_contest", "solve_contest_change",
-		),
-		ContestProblems: models.NewContestProblemStore(
-			db, "solve_contest_problem", "solve_contest_problem_change",
-		),
-		Participants: models.NewParticipantStore(
-			db, "solve_participant", "solve_participant_change",
-		),
-	}
-	// We do not want to load value every time
-	// in case of FileSecret or EnvSecret
-	app.PasswordSalt, err = cfg.Security.PasswordSalt.Secret()
-	if err != nil {
-		return nil, err
-	}
-	return &app, nil
+	return &App{db: conn, Config: *config}, nil
 }
 
-// SetupInvokerManagers prepares managers for running invoker
+func (a *App) startManagers(start func(models.Manager, time.Duration)) {
+	start(a.Actions, time.Second)
+	start(a.Roles, time.Second)
+	start(a.Users, time.Second)
+	start(a.UserFields, time.Second)
+	start(a.UserRoles, time.Second)
+}
+
+// SetupInvokerManagers prepares managers for running invoker.
 func (a *App) SetupInvokerManagers() {
 
 }
 
-// SetupAllManagers prepares all managers
-func (a *App) SetupAllManagers() {
-	dialect := getDialect(a.Config.DB.Driver)
+// SetupAllManagers prepares all managers.
+func (a *App) SetupAllManagers() error {
+	salt, err := a.Config.Security.PasswordSalt.Secret()
+	if err != nil {
+		return err
+	}
+	dialect := GetDialect(a.Config.DB.Driver)
+	a.Users = models.NewUserManager(
+		"solve_user", "solve_user_event", salt, dialect,
+	)
 	a.Actions = models.NewActionManager(
 		"solve_action", "solve_action_event", dialect,
 	)
@@ -122,91 +89,146 @@ func (a *App) SetupAllManagers() {
 		"solve_user_role", "solve_user_role_event", dialect,
 	)
 	a.Visits = models.NewVisitManager(a.db, "solve_visits", dialect)
+	return nil
 }
 
-// Start starts application and data synchronization
+// WithTx runs function with transaction.
+func (a *App) WithTx(fn func(*sql.Tx) error) (err error) {
+	var tx *sql.Tx
+	if tx, err = a.db.Begin(); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
+	err = fn(tx)
+	return
+}
+
+// Roles contains roles.
+type Roles map[int64]struct{}
+
+// GetGuestRoles returns roles for guest account.
+func (a *App) GetGuestRoles() (Roles, error) {
+	guestRoles := []string{
+		"register",
+	}
+	roles := Roles{}
+	for _, code := range guestRoles {
+		role, err := a.Roles.GetByCode(code)
+		if err != nil {
+			return nil, err
+		}
+		roles[role.ID] = struct{}{}
+	}
+	return roles, nil
+}
+
+// GetUserRoles returns roles for user.
+func (a *App) GetUserRoles(id int64) (Roles, error) {
+	userRoles, err := a.UserRoles.FindByUser(id)
+	if err != nil {
+		return nil, err
+	}
+	roles := Roles{}
+	for _, role := range userRoles {
+		roles[role.RoleID] = struct{}{}
+	}
+	return roles, nil
+}
+
+// HasRole return true if role set has this role or parent role.
+func (a *App) HasRole(roles Roles, code string) (bool, error) {
+	role, err := a.Roles.GetByCode(code)
+	if err != nil {
+		return false, err
+	}
+	for i := 0; i < 8; i++ {
+		if code == role.Code {
+			return true, nil
+		}
+		if role.ParentID == 0 {
+			return false, nil
+		}
+		role, err = a.Roles.Get(int64(role.ParentID))
+		if err != nil {
+			return false, err
+		}
+	}
+	return false, fmt.Errorf("too large roles depth (or recursion)")
+}
+
+// Start starts application and data synchronization.
 func (a *App) Start() error {
+	if a.closer != nil {
+		return fmt.Errorf("app already started")
+	}
 	a.closer = make(chan struct{})
 	errs := make(chan error)
-	defer close(errs)
-	stores := 0
-	runManager := func(m *models.ChangeManager) {
-		stores++
-		go a.runManagerSync(m, errs)
-	}
-	a.runManagers(runManager)
+	count := 0
+	a.startManagers(func(m models.Manager, d time.Duration) {
+		v := reflect.ValueOf(m)
+		if m == nil || (v.Kind() == reflect.Ptr && v.IsNil()) {
+			return
+		}
+		count++
+		a.waiter.Add(1)
+		go a.startManager(m, d, errs)
+	})
 	var err error
-	for i := 0; i < stores; i++ {
+	for i := 0; i < count; i++ {
 		lastErr := <-errs
 		if lastErr != nil {
 			log.Println("Error:", lastErr)
 			err = lastErr
 		}
 	}
-	if err != nil {
-		a.Stop()
-	}
 	return err
 }
 
-func (a *App) runManagers(runManager func(m *models.ChangeManager)) {
-	if a.Users != nil {
-		runManager(a.Users.Manager)
-	}
-	if a.UserFields != nil {
-		runManager(a.UserFields.Manager)
-	}
-	if a.Sessions != nil {
-		runManager(a.Sessions.Manager)
-	}
-	if a.Compilers != nil {
-		runManager(a.Compilers.Manager)
-	}
-	if a.Problems != nil {
-		runManager(a.Problems.Manager)
-	}
-	if a.Statements != nil {
-		runManager(a.Statements.Manager)
-	}
-	if a.Solutions != nil {
-		runManager(a.Solutions.Manager)
-	}
-	if a.Reports != nil {
-		runManager(a.Reports.Manager)
-	}
-	if a.Contests != nil {
-		runManager(a.Contests.Manager)
-	}
-	if a.ContestProblems != nil {
-		runManager(a.ContestProblems.Manager)
-	}
-	if a.Participants != nil {
-		runManager(a.Participants.Manager)
-	}
-}
-
-// Stop stops syncing stores
+// Stop stops syncing stores.
 func (a *App) Stop() {
+	if a.closer == nil {
+		return
+	}
 	close(a.closer)
-	// Wait for all manager syncs to finish
 	a.waiter.Wait()
+	a.closer = nil
 }
 
-// runManagerSync syncs store with database
-func (a *App) runManagerSync(m *models.ChangeManager, errs chan<- error) {
-	a.waiter.Add(1)
+func (a *App) startManager(
+	m models.Manager, d time.Duration, errs chan<- error,
+) {
 	defer a.waiter.Done()
-	errs <- m.Init()
-	ticker := time.NewTicker(time.Second)
+	err := a.WithTx(m.InitTx)
+	errs <- err
+	if err != nil {
+		return
+	}
+	ticker := time.NewTicker(d)
 	for {
 		select {
+		case <-ticker.C:
+			if err := a.WithTx(m.SyncTx); err != nil {
+				log.Println("Error:", err)
+			}
 		case <-a.closer:
 			ticker.Stop()
 			return
-		case <-ticker.C:
-			if err := m.Sync(); err != nil {
-				log.Println("Error:", err)
-			}
 		}
+	}
+}
+
+// GetDialect returns SQL dialect from database driver.
+func GetDialect(driver config.DBDriver) db.Dialect {
+	switch driver {
+	case config.PostgresDriver:
+		return db.Postgres
+	default:
+		return db.SQLite
 	}
 }

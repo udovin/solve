@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -38,7 +39,9 @@ func serverMain(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
-	app.SetupAllManagers()
+	if err := app.SetupAllManagers(); err != nil {
+		panic(err)
+	}
 	if err := app.Start(); err != nil {
 		panic(err)
 	}
@@ -76,6 +79,27 @@ func invokerMain(cmd *cobra.Command, args []string) {
 	<-wait
 }
 
+func upgradeDbMain(cmd *cobra.Command, args []string) {
+	cfg, err := getConfig(cmd)
+	if err != nil {
+		panic(err)
+	}
+	db, err := cfg.DB.Create()
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = db.Close()
+	}()
+	files, err := ioutil.ReadDir("migrations")
+	if err != nil {
+		panic(err)
+	}
+	for _, file := range files {
+		fmt.Println(file.Name())
+	}
+}
+
 func main() {
 	// Setup good logs
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -89,6 +113,14 @@ func main() {
 		Use: "invoker",
 		Run: invokerMain,
 	})
+	dbCmd := cobra.Command{
+		Use: "db",
+	}
+	dbCmd.AddCommand(&cobra.Command{
+		Use: "upgrade",
+		Run: upgradeDbMain,
+	})
+	rootCmd.AddCommand(&dbCmd)
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

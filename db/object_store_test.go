@@ -13,12 +13,12 @@ type testExtraObject struct {
 
 type testObject struct {
 	testExtraObject
-	Id int64 `db:"id"`
+	ID int64 `db:"id"`
 	C  int   `db:"c"`
 }
 
-func (o testObject) ObjectId() int64 {
-	return o.Id
+func (o testObject) ObjectID() int64 {
+	return o.ID
 }
 
 func testSetupObjectStore(t testing.TB, store ObjectStore) []testObject {
@@ -36,8 +36,8 @@ func testSetupObjectStore(t testing.TB, store ObjectStore) []testObject {
 		if err != nil {
 			t.Fatal(err)
 		}
-		objects[i].Id = created.ObjectId()
-		if objects[i].Id != int64(i+1) {
+		objects[i].ID = created.ObjectID()
+		if objects[i].ID != int64(i+1) {
 			t.Fatal()
 		}
 		if objects[i] != created.(testObject) {
@@ -81,17 +81,17 @@ func TestObjectStore(t *testing.T) {
 		t.Fatalf("Expected %v, got %v", objects[0], updatedObject)
 	}
 	if _, err := store.UpdateObject(
-		tx, testObject{Id: 10000},
+		tx, testObject{ID: 10000},
 	); err != sql.ErrNoRows {
 		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
 	}
 	if err := store.DeleteObject(tx, 10000); err != sql.ErrNoRows {
 		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
 	}
-	if err := store.DeleteObject(tx, objects[0].Id); err != nil {
+	if err := store.DeleteObject(tx, objects[0].ID); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := store.DeleteObject(tx, objects[0].Id); err != sql.ErrNoRows {
+	if err := store.DeleteObject(tx, objects[0].ID); err != sql.ErrNoRows {
 		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
 	}
 }

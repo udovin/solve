@@ -44,12 +44,12 @@ func (s *testJSON) Scan(value interface{}) error {
 
 type testObject struct {
 	testObjectBase
-	Id   int64    `db:"id"`
+	ID   int64    `db:"id"`
 	JSON testJSON `db:"json"`
 }
 
-func (o testObject) ObjectId() int64 {
-	return o.Id
+func (o testObject) ObjectID() int64 {
+	return o.ID
 }
 
 type testObjectEvent struct {
@@ -103,7 +103,7 @@ func (m *testManager) UpdateTx(tx *sql.Tx, object testObject) error {
 func (m *testManager) DeleteTx(tx *sql.Tx, id int64) error {
 	_, err := m.createObjectEvent(tx, testObjectEvent{
 		makeBaseEvent(DeleteEvent),
-		testObject{Id: id},
+		testObject{ID: id},
 	})
 	return err
 }
@@ -113,67 +113,69 @@ func (m *testManager) reset() {
 }
 
 func (m *testManager) addObject(o db.Object) {
-	m.objects[o.ObjectId()] = o.(testObject)
+	m.objects[o.ObjectID()] = o.(testObject)
 }
 
 func (m *testManager) onCreateObject(o db.Object) {
-	if _, ok := m.objects[o.ObjectId()]; ok {
+	if _, ok := m.objects[o.ObjectID()]; ok {
 		panic("object already exists")
 	}
-	m.objects[o.ObjectId()] = o.(testObject)
+	m.objects[o.ObjectID()] = o.(testObject)
 }
 
 func (m *testManager) onUpdateObject(o db.Object) {
-	if _, ok := m.objects[o.ObjectId()]; !ok {
+	if _, ok := m.objects[o.ObjectID()]; !ok {
 		panic("object not found")
 	}
-	m.objects[o.ObjectId()] = o.(testObject)
+	m.objects[o.ObjectID()] = o.(testObject)
 }
 
 func (m *testManager) onDeleteObject(o db.Object) {
-	if _, ok := m.objects[o.ObjectId()]; !ok {
+	if _, ok := m.objects[o.ObjectID()]; !ok {
 		panic("object not found")
 	}
-	delete(m.objects, o.ObjectId())
+	delete(m.objects, o.ObjectID())
 }
 
-func (m *testManager) migrate(tx *sql.Tx, version int) (int, error) {
-	switch version {
-	case 1:
-		return 1, nil
-	case 0:
-		if _, err := tx.Exec(fmt.Sprintf(
-			`CREATE TABLE %q (`+
-				`"id" integer PRIMARY KEY,`+
-				`"string" varchar(255) NOT NULL,`+
-				`"int" integer NOT NULL,`+
-				`"uint" integer NOT NULL,`+
-				`"bool" boolean NOT NULL,`+
-				`"bytes" blob,`+
-				`"json" blob NOT NULL)`,
-			m.table,
-		)); err != nil {
-			return 0, err
-		}
-		if _, err := tx.Exec(fmt.Sprintf(
-			`CREATE TABLE %q (`+
-				`"event_id" integer PRIMARY KEY,`+
-				`"event_type" int8 NOT NULL,`+
-				`"event_time" bigint NOT NULL,`+
-				`"id" integer NOT NULL,`+
-				`"string" varchar(255) NOT NULL,`+
-				`"int" integer NOT NULL,`+
-				`"uint" integer NOT NULL,`+
-				`"bool" boolean NOT NULL,`+
-				`"bytes" blob,`+
-				`"json" blob NOT NULL)`,
-			m.eventTable,
-		)); err != nil {
-			return 0, err
-		}
-		return 1, nil
-	default:
-		return 0, fmt.Errorf("invalid version: %v", version)
+func migrateTestManager(t testing.TB, m *testManager) {
+	tx, err := testDB.Begin()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	if _, err := tx.Exec(fmt.Sprintf(
+		`CREATE TABLE %q (`+
+			`"id" integer PRIMARY KEY,`+
+			`"string" varchar(255) NOT NULL,`+
+			`"int" integer NOT NULL,`+
+			`"uint" integer NOT NULL,`+
+			`"bool" boolean NOT NULL,`+
+			`"bytes" blob,`+
+			`"json" blob NOT NULL)`,
+		m.table,
+	)); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if _, err := tx.Exec(fmt.Sprintf(
+		`CREATE TABLE %q (`+
+			`"event_id" integer PRIMARY KEY,`+
+			`"event_type" int8 NOT NULL,`+
+			`"event_time" bigint NOT NULL,`+
+			`"id" integer NOT NULL,`+
+			`"string" varchar(255) NOT NULL,`+
+			`"int" integer NOT NULL,`+
+			`"uint" integer NOT NULL,`+
+			`"bool" boolean NOT NULL,`+
+			`"bytes" blob,`+
+			`"json" blob NOT NULL)`,
+		m.eventTable,
+	)); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal("Error:", err)
 	}
 }
 
@@ -188,26 +190,6 @@ func newTestManager() *testManager {
 		impl, db.SQLite,
 	)
 	return impl
-}
-
-func testUpdateSchema(t testing.TB, impl baseManagerImpl, ver int) {
-	tx, err := testDB.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-	outVer, err := impl.migrate(tx, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if outVer != ver {
-		t.Fatalf("Expected %v version, but got %v", ver, outVer)
-	}
-	if err := tx.Commit(); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func testInitManager(t testing.TB, m Manager) {
@@ -299,7 +281,7 @@ func TestMakeBaseManager(t *testing.T) {
 	defer testTeardown(t)
 	master := newTestManager()
 	replica := newTestManager()
-	testUpdateSchema(t, master, 1)
+	migrateTestManager(t, master)
 	testInitManager(t, master)
 	testInitManager(t, replica)
 	object := testObject{
@@ -313,20 +295,20 @@ func TestMakeBaseManager(t *testing.T) {
 		JSON: testJSON{Text: "Test message"},
 	}
 	savedObject := createTestObject(t, master, object)
-	if object.Id == savedObject.Id {
-		t.Fatalf("Ids should be different: %v", object.Id)
+	if object.ID == savedObject.ID {
+		t.Fatalf("IDs should be different: %v", object.ID)
 	}
-	if _, err := replica.Get(savedObject.Id); err != sql.ErrNoRows {
+	if _, err := replica.Get(savedObject.ID); err != sql.ErrNoRows {
 		t.Fatalf(
-			"Replica already contains object: %v", savedObject.Id,
+			"Replica already contains object: %v", savedObject.ID,
 		)
 	}
 	checkReplicaObject := func(object testObject, expErr error) {
 		testSyncManager(t, replica)
-		loaded, err := replica.Get(object.Id)
+		loaded, err := replica.Get(object.ID)
 		if err != expErr {
 			t.Fatalf(
-				"Replica does not contain object: %v", object.Id,
+				"Replica does not contain object: %v", object.ID,
 			)
 		}
 		if err == nil {
@@ -342,10 +324,27 @@ func TestMakeBaseManager(t *testing.T) {
 	savedObject.JSON = testJSON{Text: "Updated message"}
 	updateTestObject(t, master, savedObject, nil)
 	checkReplicaObject(savedObject, nil)
-	updateTestObject(t, master, testObject{Id: 100}, sql.ErrNoRows)
-	deleteTestObject(t, master, savedObject.Id, nil)
-	deleteTestObject(t, master, savedObject.Id, sql.ErrNoRows)
+	updateTestObject(t, master, testObject{ID: 100}, sql.ErrNoRows)
+	deleteTestObject(t, master, savedObject.ID, nil)
+	deleteTestObject(t, master, savedObject.ID, sql.ErrNoRows)
 	checkReplicaObject(savedObject, sql.ErrNoRows)
+}
+
+func TestBaseManager_lockStore(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	manager := newTestManager()
+	migrateTestManager(t, manager)
+	tx, err := testDB.Begin()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	if err := manager.lockStore(tx); err != nil {
+		t.Fatal("Error:", err)
+	}
 }
 
 func TestBaseEvent(t *testing.T) {
@@ -353,5 +352,45 @@ func TestBaseEvent(t *testing.T) {
 	event := baseEvent{BaseEventTime: ts.Unix()}
 	if v := event.EventTime(); ts.Sub(v) > time.Second {
 		t.Fatalf("Expected %v, got %v", ts, v)
+	}
+}
+
+func TestNInt64_Value(t *testing.T) {
+	var a NInt64 = 0
+	va, err := a.Value()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if va != nil {
+		t.Fatalf("Expected %v, got %v", nil, va)
+	}
+	var b NInt64 = 12345
+	vb, err := b.Value()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if vb.(int64) != 12345 {
+		t.Fatalf("Expected %v, got %v", 12345, vb)
+	}
+}
+
+func TestNInt64_Scan(t *testing.T) {
+	var a NInt64 = 12345
+	if err := a.Scan(nil); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if a != 0 {
+		t.Fatalf("Expected %v, got %v", 0, a)
+	}
+	var b NInt64 = 0
+	if err := b.Scan(int64(12345)); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if b != 12345 {
+		t.Fatalf("Expected %v, got %v", 12345, b)
+	}
+	var c NInt64 = 0
+	if err := c.Scan(false); err == nil {
+		t.Fatal("Expected error")
 	}
 }

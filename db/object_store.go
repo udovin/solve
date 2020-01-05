@@ -6,40 +6,40 @@ import (
 	"reflect"
 )
 
-// Object represents an object from store
+// Object represents an object from store.
 type Object interface {
-	// ObjectId should return sequential id of object
-	ObjectId() int64
+	// ObjectID should return sequential ID of object.
+	ObjectID() int64
 }
 
-// ObjectReader represents reader for objects
+// ObjectReader represents reader for objects.
 type ObjectReader interface {
-	// Next should read next object and return true if object exists
+	// Next should read next object and return true if object exists.
 	Next() bool
-	// Object should return current object
+	// Object should return current object.
 	Object() Object
-	// Close should close reader
+	// Close should close reader.
 	Close() error
-	// Err should return error that occurred during reading
+	// Err should return error that occurred during reading.
 	Err() error
 }
 
-// ObjectROStore represents read-only store for objects
+// ObjectROStore represents read-only store for objects.
 type ObjectROStore interface {
-	// LoadObjects should load objects from store
+	// LoadObjects should load objects from store.
 	LoadObjects(tx *sql.Tx) (ObjectReader, error)
 }
 
-// ObjectStore represents persistent store for objects
+// ObjectStore represents persistent store for objects.
 type ObjectStore interface {
 	ObjectROStore
 	// CreateObject should create a new object and return copy
-	// that has correct ObjectId
+	// that has correct ObjectID.
 	CreateObject(tx *sql.Tx, object Object) (Object, error)
-	// UpdateObject should update object with specified ObjectId and
-	// return copy with updated fields
+	// UpdateObject should update object with specified ObjectID and
+	// return copy with updated fields.
 	UpdateObject(tx *sql.Tx, object Object) (Object, error)
-	// DeleteObject should delete existing object from the store
+	// DeleteObject should delete existing object from the store.
 	DeleteObject(tx *sql.Tx, id int64) error
 }
 
@@ -83,7 +83,7 @@ func (s *objectStore) DeleteObject(tx *sql.Tx, id int64) error {
 	return deleteRow(tx, id, s.id, s.table)
 }
 
-// NewObjectStore creates a new store for objects of specified type
+// NewObjectStore creates a new store for objects of specified type.
 func NewObjectStore(
 	object Object, id, table string, dialect Dialect,
 ) ObjectStore {

@@ -90,8 +90,8 @@ func TestEventStore(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		events[i].Id = created.EventId()
-		if events[i].Id != int64(i+1) {
+		events[i].ID = created.EventID()
+		if events[i].ID != int64(i+1) {
 			t.Fatal()
 		}
 		if events[i] != created.(testEvent) {

@@ -4,93 +4,163 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
-	"fmt"
-	"sync"
-	"time"
 
 	"golang.org/x/crypto/sha3"
+
+	"github.com/udovin/solve/db"
 )
 
-// User contains common information about user
+// User contains common information about user.
 type User struct {
-	ID           int64  `json:""  db:"id"`
-	Login        string `json:""  db:"login"`
-	PasswordHash string `json:"-" db:"password_hash"`
-	PasswordSalt string `json:"-" db:"password_salt"`
-	CreateTime   int64  `json:""  db:"create_time"`
-	IsSuper      bool   `json:""  db:"is_super"`
+	ID           int64  `db:"id" json:""`
+	Login        string `db:"login" json:""`
+	PasswordHash string `db:"password_hash" json:"-"`
+	PasswordSalt string `db:"password_salt" json:"-"`
+	CreateTime   int64  `db:"create_time" json:""`
+	IsSuper      bool   `db:"is_super" json:""`
 }
 
-type UserChange struct {
-	BaseChange
+func (o User) ObjectID() int64 {
+	return o.ID
+}
+
+type UserEvent struct {
+	baseEvent
 	User
 }
 
-// UserStore represents cached store for users
-type UserStore struct {
-	Manager     *ChangeManager
-	table       string
-	changeTable string
-	users       map[int64]User
-	loginUsers  map[string]int64
-	mutex       sync.RWMutex
+func (e UserEvent) Object() db.Object {
+	return e.User
 }
 
-// SetPassword modifies PasswordHash and PasswordSalt fields
-//
-// PasswordSalt will be replaced with random 16 byte string and
-// PasswordHash will be calculated using password, salt and PasswordSalt.
-func (m *User) SetPassword(password, salt string) error {
-	saltBytes := make([]byte, 16)
-	_, err := rand.Read(saltBytes)
-	if err != nil {
-		return err
-	}
-	m.PasswordSalt = encodeBase64(saltBytes)
-	m.PasswordHash = m.hashPassword(password, salt)
-	return nil
+func (e UserEvent) WithObject(o db.Object) ObjectEvent {
+	e.User = o.(User)
+	return e
 }
 
-// CheckPassword checks that passwords are the same
-func (m *User) CheckPassword(password, salt string) bool {
-	passwordHash := m.hashPassword(password, salt)
-	return passwordHash == m.PasswordHash
+// UserManager represents users manager.
+type UserManager struct {
+	baseManager
+	users   map[int64]User
+	byLogin map[string]int64
+	salt    string
 }
 
-// NewUserStore creates new instance of user store
-func NewUserStore(db *sql.DB, table, changeTable string) *UserStore {
-	store := UserStore{
-		table:       table,
-		changeTable: changeTable,
-		users:       make(map[int64]User),
-		loginUsers:  make(map[string]int64),
-	}
-	store.Manager = NewChangeManager(&store, db)
-	return &store
-}
-
-// Get returns user by ID
-func (s *UserStore) Get(id int64) (User, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if user, ok := s.users[id]; ok {
+// Get returns user by ID.
+func (m *UserManager) Get(id int64) (User, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	if user, ok := m.users[id]; ok {
 		return user, nil
 	}
 	return User{}, sql.ErrNoRows
 }
 
-// GetByLogin returns user by login
-func (s *UserStore) GetByLogin(login string) (User, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if id, ok := s.loginUsers[login]; ok {
-		if user, ok := s.users[id]; ok {
+// GetByLogin returns user by login.
+func (m *UserManager) GetByLogin(login string) (User, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	if id, ok := m.byLogin[login]; ok {
+		if user, ok := m.users[id]; ok {
 			return user, nil
 		}
 	}
 	return User{}, sql.ErrNoRows
 }
 
+// CreateTx creates user and returns copy with valid ID.
+func (m *UserManager) CreateTx(tx *sql.Tx, user User) (User, error) {
+	event, err := m.createObjectEvent(tx, UserEvent{
+		makeBaseEvent(CreateEvent),
+		user,
+	})
+	if err != nil {
+		return User{}, err
+	}
+	return event.Object().(User), nil
+}
+
+// UpdateTx updates user with specified ID.
+func (m *UserManager) UpdateTx(tx *sql.Tx, user User) error {
+	_, err := m.createObjectEvent(tx, UserEvent{
+		makeBaseEvent(UpdateEvent),
+		user,
+	})
+	return err
+}
+
+// DeleteTx deletes user with specified ID.
+func (m *UserManager) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := m.createObjectEvent(tx, UserEvent{
+		makeBaseEvent(DeleteEvent),
+		User{ID: id},
+	})
+	return err
+}
+
+// SetPassword modifies PasswordHash and PasswordSalt fields.
+//
+// PasswordSalt will be replaced with random 16 byte string
+// and PasswordHash will be calculated using password, salt
+// and global salt.
+func (m *UserManager) SetPassword(user *User, password string) error {
+	saltBytes := make([]byte, 16)
+	_, err := rand.Read(saltBytes)
+	if err != nil {
+		return err
+	}
+	user.PasswordSalt = encodeBase64(saltBytes)
+	user.PasswordHash = hashPassword(password, user.PasswordSalt, m.salt)
+	return nil
+}
+
+// CheckPassword checks that passwords are the same.
+func (m *UserManager) CheckPassword(user User, password string) bool {
+	passwordHash := hashPassword(password, user.PasswordSalt, m.salt)
+	return passwordHash == user.PasswordHash
+}
+
+func (m *UserManager) reset() {
+	m.users = map[int64]User{}
+	m.byLogin = map[string]int64{}
+}
+
+func (m *UserManager) addObject(o db.Object) {
+	m.onCreateObject(o)
+}
+
+func (m *UserManager) onCreateObject(o db.Object) {
+	user := o.(User)
+	m.users[user.ID] = user
+	m.byLogin[user.Login] = user.ID
+}
+
+func (m *UserManager) onDeleteObject(o db.Object) {
+	user := o.(User)
+	delete(m.byLogin, user.Login)
+	delete(m.users, user.ID)
+}
+
+func (m *UserManager) onUpdateObject(o db.Object) {
+	user := o.(User)
+	if old, ok := m.users[user.ID]; ok {
+		if old.Login != user.Login {
+			delete(m.byLogin, old.Login)
+		}
+	}
+	m.onCreateObject(o)
+}
+
+// NewUserManager creates new instance of user manager.
+func NewUserManager(table, eventTable, salt string, dialect db.Dialect) *UserManager {
+	impl := &UserManager{salt: salt}
+	impl.baseManager = makeBaseManager(
+		User{}, table, UserEvent{}, eventTable, impl, dialect,
+	)
+	return impl
+}
+
+/*
 // Create creates new user
 func (s *UserStore) Create(m *User) error {
 	change := UserChange{
@@ -287,9 +357,9 @@ func (s *UserStore) ApplyChange(change Change) {
 		))
 	}
 }
-
-func (m *User) hashPassword(password, salt string) string {
-	return hashString(m.PasswordSalt + hashString(password) + salt)
+*/
+func hashPassword(password, salt, globalSalt string) string {
+	return hashString(salt + hashString(password) + globalSalt)
 }
 
 func encodeBase64(bytes []byte) string {

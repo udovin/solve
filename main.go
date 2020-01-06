@@ -35,7 +35,7 @@ func serverMain(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
-	app, err := core.NewApp(&cfg)
+	app, err := core.NewApp(cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -53,7 +53,8 @@ func serverMain(cmd *cobra.Command, args []string) {
 	}))
 	server.Pre(middleware.RemoveTrailingSlash())
 	server.Use(middleware.Gzip())
-	api.Register(app, server.Group("/api/v0"))
+	view := api.NewView(app)
+	view.Register(server.Group("/api/v0"))
 	server.Logger.Fatal(server.Start(getAddress(cfg.Server)))
 }
 
@@ -62,7 +63,7 @@ func invokerMain(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
-	app, err := core.NewApp(&cfg)
+	app, err := core.NewApp(cfg)
 	if err != nil {
 		panic(err)
 	}

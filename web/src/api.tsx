@@ -145,3 +145,37 @@ export const getDefense = (verdict?: number) => {
 	}
 	return "?";
 };
+
+export type LoginUserForm = {
+	Login: string;
+	Password: string;
+};
+
+export const loginUser = (form: LoginUserForm) => {
+	return fetch("/api/v0/login", {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json; charset=UTF-8",
+		},
+		body: JSON.stringify(form)
+	});
+};
+
+export type RegisterUserForm = {
+	Login: string;
+	Password: string;
+	Email: string;
+	FirstName?: string;
+	LastName?: string;
+	MiddleName?: string;
+};
+
+export const registerUser = (form: RegisterUserForm) => {
+	return fetch("/api/v0/register", {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json; charset=UTF-8",
+		},
+		body: JSON.stringify(form)
+	});
+};

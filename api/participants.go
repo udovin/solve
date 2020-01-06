@@ -8,20 +8,20 @@ import (
 	"github.com/udovin/solve/models"
 )
 
-func (s *Server) CreateParticipant(c echo.Context) error {
+func (v *View) CreateParticipant(c echo.Context) error {
 	var participant models.Participant
 	if err := c.Bind(&participant); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	user, ok := c.Get(userKey).(models.User)
+	user, ok := c.Get(authUserKey).(models.User)
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
 	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
-	if err := s.app.Participants.Create(&participant); err != nil {
+	if err := v.core.Participants.Create(&participant); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}

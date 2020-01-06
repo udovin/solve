@@ -8,13 +8,13 @@ import (
 
 func TestNewApp(t *testing.T) {
 	var cfg config.Config
-	if _, err := NewApp(&cfg); err == nil {
+	if _, err := NewApp(cfg); err == nil {
 		t.Fatal("Expected error while creating app")
 	}
 	cfg.DB = config.DB{
 		Driver: config.SQLiteDriver,
 	}
-	if _, err := NewApp(&cfg); err == nil {
+	if _, err := NewApp(cfg); err == nil {
 		t.Fatal("Expected error while creating app")
 	}
 	cfg.DB = config.DB{
@@ -27,7 +27,7 @@ func TestNewApp(t *testing.T) {
 			Data: "qwerty123",
 		},
 	}
-	if _, err := NewApp(&cfg); err != nil {
+	if _, err := NewApp(cfg); err != nil {
 		t.Fatal("Error:", err)
 	}
 }

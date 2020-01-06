@@ -1,26 +1,23 @@
 import React, {useState} from "react";
+import {Redirect} from "react-router";
 import Page from "../components/Page";
 import Input from "../components/Input";
 import Button from "../components/Button";
 import FormBlock from "../components/FormBlock";
-import {Redirect} from "react-router";
 import Field from "../components/Field";
+import {registerUser} from "../api";
 
 const RegisterPage = () => {
 	const [success, setSuccess] = useState<boolean>();
 	const onSubmit = (event: any) => {
 		event.preventDefault();
-		const {login, password, email} = event.target;
-		fetch("/api/v0/users", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json; charset=UTF-8",
-			},
-			body: JSON.stringify({
-				Login: login.value,
-				Password: password.value,
-				Email: email.value,
-			})
+		const {Login, Password, Email, FirstName, LastName} = event.target;
+		registerUser({
+			Login: Login.value,
+			Password: Password.value,
+			Email: Email.value,
+			FirstName: FirstName.value,
+			LastName: LastName.value,
 		})
 			.then(() => setSuccess(true));
 	};
@@ -35,16 +32,22 @@ const RegisterPage = () => {
 				You can use only English letters, digits, symbols &laquo;<code>_</code>&raquo; and &laquo;<code>-</code>&raquo;.
 				Username can starts only with English letter and ends with English letter and digit.
 			</>}>
-				<Input type="text" name="login" placeholder="Username" required autoFocus/>
+				<Input type="text" name="Login" placeholder="Username" required autoFocus/>
 			</Field>
 			<Field title="E-mail:" description="You will receive an email to verify your account.">
-				<Input type="text" name="email" placeholder="E-mail" required/>
+				<Input type="text" name="Email" placeholder="E-mail" required/>
 			</Field>
 			<Field title="Password:">
-				<Input type="password" name="password" placeholder="Password" required/>
+				<Input type="password" name="Password" placeholder="Password" required/>
 			</Field>
 			<Field title="Repeat password:">
-				<Input type="password" name="passwordRepeat" placeholder="Repeat password" required/>
+				<Input type="password" name="PasswordRepeat" placeholder="Repeat password" required/>
+			</Field>
+			<Field title="First name:">
+				<Input type="text" name="FirstName" placeholder="First name"/>
+			</Field>
+			<Field title="Last name:">
+				<Input type="text" name="LastName" placeholder="Last name"/>
 			</Field>
 		</FormBlock>
 	</Page>;

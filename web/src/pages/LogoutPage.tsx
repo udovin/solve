@@ -7,8 +7,8 @@ const LogoutPage = () => {
 	const [success, setSuccess] = useState<boolean>();
 	useEffect(() => {
 		if (session) {
-			fetch("/api/v0/sessions/" + session.ID, {
-				method: "DELETE",
+			fetch("/api/v0/logout", {
+				method: "POST",
 				headers: {
 					"Content-Type": "application/json; charset=UTF-8",
 				},

@@ -37,7 +37,6 @@ func (o Visit) EventTime() time.Time {
 
 // VisitManager represents visit manager.
 type VisitManager struct {
-	db    *sql.DB
 	store db.EventStore
 }
 
@@ -55,24 +54,6 @@ func (m *VisitManager) MakeFromContext(c echo.Context) Visit {
 	}
 }
 
-// Create creates a new visit in the store.
-func (m *VisitManager) Create(visit Visit) (Visit, error) {
-	tx, err := m.db.Begin()
-	if err != nil {
-		return Visit{}, err
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-	if visit, err = m.CreateTx(tx, visit); err != nil {
-		return Visit{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return Visit{}, err
-	}
-	return visit, nil
-}
-
 // CreateTx creates a new visit in the store.
 func (m *VisitManager) CreateTx(tx *sql.Tx, visit Visit) (Visit, error) {
 	event, err := m.store.CreateEvent(tx, visit)
@@ -83,11 +64,8 @@ func (m *VisitManager) CreateTx(tx *sql.Tx, visit Visit) (Visit, error) {
 }
 
 // NewVisitManager creates a new instance of ViewManager.
-func NewVisitManager(
-	conn *sql.DB, table string, dialect db.Dialect,
-) *VisitManager {
+func NewVisitManager(table string, dialect db.Dialect) *VisitManager {
 	return &VisitManager{
-		db:    conn,
 		store: db.NewEventStore(Visit{}, "id", table, dialect),
 	}
 }

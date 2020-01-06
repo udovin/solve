@@ -5,24 +5,20 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
-	"time"
 
 	"github.com/labstack/echo"
 
 	"github.com/udovin/solve/models"
 )
 
-type Session struct {
+type session struct {
 	models.Session
 	User models.User `json:""`
 }
 
-func (s *Server) GetSessions(c echo.Context) error {
-	user, ok := c.Get(userKey).(models.User)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
-	}
-	sessions, err := s.app.Sessions.GetByUser(user.ID)
+func (v *View) listSessions(c echo.Context) error {
+	user := c.Get(authUserKey).(models.User)
+	sessions, err := v.core.Sessions.FindByUser(user.ID)
 	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -31,80 +27,34 @@ func (s *Server) GetSessions(c echo.Context) error {
 	return c.JSON(http.StatusOK, sessions)
 }
 
-func (s *Server) CreateSession(c echo.Context) error {
-	user, ok := c.Get(userKey).(models.User)
-	if !ok {
-		return c.NoContent(http.StatusNotFound)
-	}
-	expires := time.Now().Add(time.Hour * 24 * 90)
-	session := models.Session{
-		UserID:     user.ID,
-		ExpireTime: expires.Unix(),
-	}
-	if err := session.GenerateSecret(); err != nil {
-		c.Logger().Error(err)
-		return err
-	}
-	if err := s.app.Sessions.Create(&session); err != nil {
-		c.Logger().Error(err)
-		return err
-	}
-	c.SetCookie(&http.Cookie{
-		Name:    sessionKey,
-		Value:   session.FormatCookie(),
-		Expires: expires,
-	})
-	return c.JSON(http.StatusCreated, session)
-}
-
-func (s *Server) UpdateSession(c echo.Context) error {
-	return c.NoContent(http.StatusNotImplemented)
-}
-
-func (s *Server) DeleteSession(c echo.Context) error {
-	sessionID, err := strconv.ParseInt(c.Param("SessionID"), 10, 64)
-	if err != nil {
-		return err
-	}
-	user, ok := c.Get(userKey).(models.User)
-	if !ok {
-		return c.NoContent(http.StatusForbidden)
-	}
-	session, err := s.app.Sessions.Get(sessionID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.NoContent(http.StatusNotFound)
-		}
-		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if session.UserID != user.ID && !user.IsSuper {
-		return c.NoContent(http.StatusForbidden)
-	}
-	if err := s.app.Sessions.Delete(session.ID); err != nil {
+func (v *View) deleteSession(c echo.Context) error {
+	session := c.Get(sessionKey).(models.Session)
+	if err := v.core.WithTx(func(tx *sql.Tx) error {
+		return v.core.Sessions.DeleteTx(tx, session.ID)
+	}); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.NoContent(http.StatusOK)
 }
 
-func (s *Server) GetCurrentSession(c echo.Context) error {
-	session, ok := c.Get(sessionKey).(models.Session)
-	if !ok {
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	user, err := s.app.Users.Get(session.UserID)
-	if err != nil {
-		if err == sql.ErrNoRows {
+const sessionKey = "Session"
+
+// extractSession extracts session from ID.
+func (v *View) extractSession(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		id, err := strconv.ParseInt(c.Param("SessionID"), 10, 64)
+		if err != nil {
+			c.Logger().Warn(err)
+			return c.NoContent(http.StatusBadRequest)
+		}
+		session, err := v.core.Sessions.Get(id)
+		if err != nil {
 			return c.NoContent(http.StatusNotFound)
 		}
-		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
+		c.Set(sessionKey, session)
+		return next(c)
 	}
-	return c.JSON(http.StatusOK, Session{
-		Session: session,
-		User:    user,
-	})
 }
 
 type sessionModelSorter []models.Session

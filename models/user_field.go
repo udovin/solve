@@ -139,7 +139,7 @@ func (m *UserFieldManager) onUpdateObject(o db.Object) {
 
 // NewUserFieldManager creates new instance of user field manager.
 func NewUserFieldManager(
-	db *sql.DB, table, eventTable string, dialect db.Dialect,
+	table, eventTable string, dialect db.Dialect,
 ) *UserFieldManager {
 	impl := &UserFieldManager{}
 	impl.baseManager = makeBaseManager(

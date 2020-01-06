@@ -25,13 +25,13 @@ type Problem struct {
 	Solutions   []Solution `json:",omitempty"`
 }
 
-func (s *Server) CreateProblem(c echo.Context) error {
+func (v *View) CreateProblem(c echo.Context) error {
 	var problem Problem
 	if err := c.Bind(&problem); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	user, ok := c.Get(userKey).(models.User)
+	user, ok := c.Get(authUserKey).(models.User)
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
@@ -54,12 +54,12 @@ func (s *Server) CreateProblem(c echo.Context) error {
 			c.Logger().Error(err)
 		}
 	}()
-	tx, err := s.app.Problems.Manager.Begin()
+	tx, err := v.core.Problems.Manager.Begin()
 	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	if err := s.app.Problems.CreateTx(tx, &problem.Problem); err != nil {
+	if err := v.core.Problems.CreateTx(tx, &problem.Problem); err != nil {
 		if err := tx.Rollback(); err != nil {
 			c.Logger().Error(err)
 		}
@@ -67,7 +67,7 @@ func (s *Server) CreateProblem(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	pkg, err := os.Create(path.Join(
-		s.app.Config.Invoker.ProblemsDir,
+		v.core.Config.Invoker.ProblemsDir,
 		fmt.Sprintf("%d.zip", problem.ID),
 	))
 	if err != nil {
@@ -89,7 +89,7 @@ func (s *Server) CreateProblem(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	description, err := s.extractPackageStatement(pkg.Name())
+	description, err := v.extractPackageStatement(pkg.Name())
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			c.Logger().Error(err)
@@ -102,7 +102,7 @@ func (s *Server) CreateProblem(c echo.Context) error {
 		Title:       problem.Title,
 		Description: description,
 	}
-	if err := s.app.Statements.CreateTx(tx, &statement); err != nil {
+	if err := v.core.Statements.CreateTx(tx, &statement); err != nil {
 		if err := tx.Rollback(); err != nil {
 			c.Logger().Error(err)
 		}
@@ -118,7 +118,7 @@ func (s *Server) CreateProblem(c echo.Context) error {
 	return c.JSON(http.StatusCreated, problem)
 }
 
-func (s *Server) extractPackageStatement(path string) (string, error) {
+func (v *View) extractPackageStatement(path string) (string, error) {
 	archive, err := zip.OpenReader(path)
 	if err != nil {
 		return "", err
@@ -147,13 +147,13 @@ func (s *Server) extractPackageStatement(path string) (string, error) {
 	return "", errors.New("unable to find problem statement")
 }
 
-func (s *Server) GetProblem(c echo.Context) error {
+func (v *View) GetProblem(c echo.Context) error {
 	problemID, err := strconv.ParseInt(c.Param("ProblemID"), 10, 64)
 	if err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	problem, err := s.buildProblem(problemID)
+	problem, err := v.buildProblem(problemID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.NoContent(http.StatusNotFound)
@@ -164,12 +164,12 @@ func (s *Server) GetProblem(c echo.Context) error {
 	return c.JSON(http.StatusOK, problem)
 }
 
-func (s *Server) buildProblem(id int64) (Problem, error) {
-	problem, err := s.app.Problems.Get(id)
+func (v *View) buildProblem(id int64) (Problem, error) {
+	problem, err := v.core.Problems.Get(id)
 	if err != nil {
 		return Problem{}, err
 	}
-	statement, err := s.app.Statements.GetByProblem(problem.ID)
+	statement, err := v.core.Statements.GetByProblem(problem.ID)
 	if err != nil {
 		return Problem{}, err
 	}
@@ -180,13 +180,13 @@ func (s *Server) buildProblem(id int64) (Problem, error) {
 	}, nil
 }
 
-func (s *Server) UpdateProblem(c echo.Context) error {
+func (v *View) UpdateProblem(c echo.Context) error {
 	var problem Problem
 	if err := c.Bind(&problem); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	user, ok := c.Get(userKey).(models.User)
+	user, ok := c.Get(authUserKey).(models.User)
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
@@ -210,7 +210,7 @@ func (s *Server) UpdateProblem(c echo.Context) error {
 	}()
 	_ = os.Remove(fmt.Sprintf("%d.zip", problem.ID))
 	pkg, err := os.Create(path.Join(
-		s.app.Config.Invoker.ProblemsDir,
+		v.core.Config.Invoker.ProblemsDir,
 		fmt.Sprintf("%d.zip", problem.ID),
 	))
 	if err != nil {
@@ -226,7 +226,7 @@ func (s *Server) UpdateProblem(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	description, err := s.extractPackageStatement(pkg.Name())
+	description, err := v.extractPackageStatement(pkg.Name())
 	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -236,13 +236,13 @@ func (s *Server) UpdateProblem(c echo.Context) error {
 		Title:       problem.Title,
 		Description: description,
 	}
-	if err := s.app.Statements.Create(&statement); err != nil {
+	if err := v.core.Statements.Create(&statement); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.JSON(http.StatusOK, problem)
 }
 
-func (s *Server) DeleteProblem(c echo.Context) error {
+func (v *View) DeleteProblem(c echo.Context) error {
 	return c.NoContent(http.StatusNotImplemented)
 }

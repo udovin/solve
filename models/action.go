@@ -67,12 +67,12 @@ func (t ActionType) MarshalText() ([]byte, error) {
 
 // Action represents action.
 type Action struct {
-	ID      int64        `db:"id"`
-	Status  ActionStatus `db:"status"`
-	Type    ActionType   `db:"type"`
-	Config  []byte       `db:"config"`
-	State   []byte       `db:"state"`
-	EndTime int64        `db:"end_time"`
+	ID         int64        `db:"id"`
+	Status     ActionStatus `db:"status"`
+	Type       ActionType   `db:"type"`
+	Config     []byte       `db:"config"`
+	State      []byte       `db:"state"`
+	ExpireTime int64        `db:"expire_time"`
 }
 
 // ObjectId returns ID of action.

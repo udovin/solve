@@ -3,8 +3,6 @@ package api
 import (
 	"database/sql"
 	"net/http"
-	"sort"
-	"strconv"
 	"time"
 
 	"github.com/labstack/echo"
@@ -12,8 +10,8 @@ import (
 	"github.com/udovin/solve/models"
 )
 
-// FullUser represents user with additional information.
-type FullUser struct {
+// fullUser represents user with additional information.
+type fullUser struct {
 	models.User
 	// FirstName contains first name.
 	FirstName string `json:",omitempty"`
@@ -24,27 +22,27 @@ type FullUser struct {
 }
 
 // registerUserHandlers registers handlers for user management.
-func (s *Server) registerUserHandlers(g *echo.Group) {
+func (v *View) registerUserHandlers(g *echo.Group) {
 	g.POST(
-		"/login", s.loginUser,
-		s.requireAuth(s.passwordAuth),
-		s.requireRole("login"),
+		"/login", v.loginUser,
+		v.requireAuth(v.passwordAuth),
+		v.requireRole("login"),
 	)
 	g.POST(
-		"/logout", s.logoutUser,
-		s.requireAuth(s.sessionAuth),
-		s.requireRole("logout"),
+		"/logout", v.logoutUser,
+		v.requireAuth(v.sessionAuth),
+		v.requireRole("logout"),
 	)
 	g.POST(
-		"/register", s.registerUser,
-		s.requireAuth(s.guestAuth),
-		s.requireRole("register"),
+		"/register", v.registerUser,
+		v.requireAuth(v.guestAuth),
+		v.requireRole("register"),
 	)
 }
 
 // loginUser creates a new session for user.
-func (s *Server) loginUser(c echo.Context) error {
-	user := c.Get(userKey).(models.User)
+func (v *View) loginUser(c echo.Context) error {
+	user := c.Get(authUserKey).(models.User)
 	expires := time.Now().Add(time.Hour * 24 * 90)
 	session := models.Session{
 		UserID:     user.ID,
@@ -52,24 +50,28 @@ func (s *Server) loginUser(c echo.Context) error {
 	}
 	if err := session.GenerateSecret(); err != nil {
 		c.Logger().Error(err)
-		return err
+		return c.NoContent(http.StatusInternalServerError)
 	}
-	if err := s.app.Sessions.Create(&session); err != nil {
+	if err := v.core.WithTx(func(tx *sql.Tx) error {
+		var err error
+		session, err = v.core.Sessions.CreateTx(tx, session)
+		return err
+	}); err != nil {
 		c.Logger().Error(err)
-		return err
+		return c.NoContent(http.StatusInternalServerError)
 	}
-	c.SetCookie(&http.Cookie{
-		Name:    sessionKey,
-		Value:   session.FormatCookie(),
-		Expires: expires,
-	})
+	cookie := session.Cookie()
+	cookie.Name = authSessionKey
+	c.SetCookie(&cookie)
 	return c.JSON(http.StatusCreated, session)
 }
 
 // logoutUser removes current session.
-func (s *Server) logoutUser(c echo.Context) error {
-	session := c.Get(sessionKey).(models.Session)
-	if err := s.app.Sessions.Delete(session.ID); err != nil {
+func (v *View) logoutUser(c echo.Context) error {
+	session := c.Get(authSessionKey).(models.Session)
+	if err := v.core.WithTx(func(tx *sql.Tx) error {
+		return v.core.Sessions.DeleteTx(tx, session.ID)
+	}); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
@@ -87,31 +89,31 @@ type registerUserForm struct {
 }
 
 // registerUser registers user.
-func (s *Server) registerUser(c echo.Context) error {
+func (v *View) registerUser(c echo.Context) error {
 	var form registerUserForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	user := FullUser{
+	user := fullUser{
 		User:       models.User{Login: form.Login},
 		FirstName:  form.FirstName,
 		LastName:   form.LastName,
 		MiddleName: form.MiddleName,
 	}
-	if err := s.app.Users.SetPassword(
+	if err := v.core.Users.SetPassword(
 		&user.User, form.Password,
 	); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	if err := s.app.WithTx(func(tx *sql.Tx) error {
+	if err := v.core.WithTx(func(tx *sql.Tx) error {
 		var err error
-		user.User, err = s.app.Users.CreateTx(tx, user.User)
+		user.User, err = v.core.Users.CreateTx(tx, user.User)
 		if err != nil {
 			return err
 		}
-		return s.registerUserFields(tx, user.User, form)
+		return v.registerUserFields(tx, user.User, form)
 	}); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -120,7 +122,7 @@ func (s *Server) registerUser(c echo.Context) error {
 }
 
 // registerUserFields creates fields for registered user.
-func (s *Server) registerUserFields(
+func (v *View) registerUserFields(
 	tx *sql.Tx, user models.User, form registerUserForm,
 ) error {
 	email := models.UserField{
@@ -128,7 +130,7 @@ func (s *Server) registerUserFields(
 		Type:   models.EmailField,
 		Data:   form.Email,
 	}
-	if _, err := s.app.UserFields.CreateTx(tx, email); err != nil {
+	if _, err := v.core.UserFields.CreateTx(tx, email); err != nil {
 		return err
 	}
 	if form.FirstName != "" {
@@ -137,7 +139,7 @@ func (s *Server) registerUserFields(
 			Type:   models.FirstNameField,
 			Data:   form.FirstName,
 		}
-		if _, err := s.app.UserFields.CreateTx(tx, field); err != nil {
+		if _, err := v.core.UserFields.CreateTx(tx, field); err != nil {
 			return err
 		}
 	}
@@ -147,7 +149,7 @@ func (s *Server) registerUserFields(
 			Type:   models.LastNameField,
 			Data:   form.LastName,
 		}
-		if _, err := s.app.UserFields.CreateTx(tx, field); err != nil {
+		if _, err := v.core.UserFields.CreateTx(tx, field); err != nil {
 			return err
 		}
 	}
@@ -157,122 +159,9 @@ func (s *Server) registerUserFields(
 			Type:   models.MiddleNameField,
 			Data:   form.MiddleName,
 		}
-		if _, err := s.app.UserFields.CreateTx(tx, field); err != nil {
+		if _, err := v.core.UserFields.CreateTx(tx, field); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-
-func (s *Server) GetUser(c echo.Context) error {
-	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 64)
-	var user models.User
-	if err != nil {
-		user, err = s.app.Users.GetByLogin(c.Param("UserID"))
-	} else {
-		user, err = s.app.Users.Get(userID)
-	}
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.NoContent(http.StatusNotFound)
-		}
-		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	result := FullUser{User: user}
-	fields, err := s.app.UserFields.GetByUser(user.ID)
-	if err != nil {
-		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	for _, field := range fields {
-		switch field.Type {
-		case models.FirstNameField:
-			result.FirstName = field.Data
-		case models.LastNameField:
-			result.LastName = field.Data
-		case models.MiddleNameField:
-			result.MiddleName = field.Data
-		}
-	}
-	return c.JSON(http.StatusOK, result)
-}
-
-func (s *Server) GetUserSessions(c echo.Context) error {
-	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 64)
-	var user models.User
-	if err != nil {
-		user, err = s.app.Users.GetByLogin(c.Param("UserID"))
-	} else {
-		user, err = s.app.Users.Get(userID)
-	}
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.NoContent(http.StatusNotFound)
-		}
-		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	thisUser, ok := c.Get(userKey).(models.User)
-	if !ok {
-		return c.NoContent(http.StatusForbidden)
-	}
-	if user.ID != thisUser.ID && !thisUser.IsSuper {
-		return c.NoContent(http.StatusForbidden)
-	}
-	sessions, err := s.app.Sessions.GetByUser(user.ID)
-	if err != nil {
-		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	sort.Sort(sessionModelSorter(sessions))
-	return c.JSON(http.StatusOK, sessions)
-}
-
-// func (s *Server) UpdateUser(c echo.Context) error {
-// 	userID, err := strconv.ParseInt(c.Param("UserID"), 10, 64)
-// 	var user models.User
-// 	if err != nil {
-// 		user, err = s.app.Users.GetByLogin(c.Param("UserID"))
-// 	} else {
-// 		user, err = s.app.Users.Get(userID)
-// 	}
-// 	if err != nil {
-// 		if err == sql.ErrNoRows {
-// 			return c.NoContent(http.StatusNotFound)
-// 		}
-// 		c.Logger().Error(err)
-// 		return c.NoContent(http.StatusInternalServerError)
-// 	}
-// 	performer, ok := c.Get(userKey).(models.User)
-// 	if !ok {
-// 		return c.NoContent(http.StatusForbidden)
-// 	}
-// 	if user.ID != performer.ID && !performer.IsSuper {
-// 		return c.NoContent(http.StatusForbidden)
-// 	}
-// 	var userData struct {
-// 		Password *string `json:""`
-// 	}
-// 	if err := c.Bind(&userData); err != nil {
-// 		c.Logger().Error(err)
-// 		return c.NoContent(http.StatusBadRequest)
-// 	}
-// 	if userData.Password != nil {
-// 		if err := s.app.Users.SetPassword(
-// 			&user, *userData.Password,
-// 		); err != nil {
-// 			c.Logger().Error(err)
-// 			return c.NoContent(http.StatusInternalServerError)
-// 		}
-// 	}
-// 	if err := s.app.Users.Update(&user); err != nil {
-// 		c.Logger().Error(err)
-// 		return c.NoContent(http.StatusInternalServerError)
-// 	}
-// 	return c.JSON(http.StatusOK, user)
-// }
-//
-// func (s *Server) DeleteUser(c echo.Context) error {
-// 	return c.NoContent(http.StatusNotImplemented)
-// }

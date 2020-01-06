@@ -18,13 +18,13 @@ type Solution struct {
 	Report  *models.Report `json:""`
 }
 
-func (s *Server) GetSolution(c echo.Context) error {
+func (v *View) GetSolution(c echo.Context) error {
 	solutionID, err := strconv.ParseInt(c.Param("SolutionID"), 10, 64)
 	if err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	solution, err := s.buildSolution(solutionID)
+	solution, err := v.buildSolution(solutionID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.NoContent(http.StatusNotFound)
@@ -32,23 +32,23 @@ func (s *Server) GetSolution(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	user, ok := c.Get(userKey).(models.User)
+	user, ok := c.Get(authUserKey).(models.User)
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
-	if !s.canGetSolution(user, solution.Solution) {
+	if !v.canGetSolution(user, solution.Solution) {
 		return c.NoContent(http.StatusForbidden)
 	}
 	return c.JSON(http.StatusOK, solution)
 }
 
-func (s *Server) RejudgeSolution(c echo.Context) error {
+func (v *View) RejudgeSolution(c echo.Context) error {
 	solutionID, err := strconv.ParseInt(c.Param("SolutionID"), 10, 64)
 	if err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	solution, err := s.buildSolution(solutionID)
+	solution, err := v.buildSolution(solutionID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.NoContent(http.StatusNotFound)
@@ -56,7 +56,7 @@ func (s *Server) RejudgeSolution(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	user, ok := c.Get(userKey).(models.User)
+	user, ok := c.Get(authUserKey).(models.User)
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
@@ -66,15 +66,15 @@ func (s *Server) RejudgeSolution(c echo.Context) error {
 	report := models.Report{
 		SolutionID: solution.ID,
 	}
-	if err := s.app.Reports.Create(&report); err != nil {
+	if err := v.core.Reports.Create(&report); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.JSON(http.StatusOK, report)
 }
 
-func (s *Server) GetSolutions(c echo.Context) error {
-	user, ok := c.Get(userKey).(models.User)
+func (v *View) GetSolutions(c echo.Context) error {
+	user, ok := c.Get(authUserKey).(models.User)
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
@@ -82,13 +82,13 @@ func (s *Server) GetSolutions(c echo.Context) error {
 		return c.NoContent(http.StatusForbidden)
 	}
 	var solutions []Solution
-	list, err := s.app.Solutions.All()
+	list, err := v.core.Solutions.All()
 	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	for _, m := range list {
-		if solution, err := s.buildSolution(m.ID); err == nil {
+		if solution, err := v.buildSolution(m.ID); err == nil {
 			solution.SourceCode = ""
 			if solution.Report != nil {
 				solution.Report.Data.PrecompileLogs = models.ReportDataLogs{}
@@ -107,7 +107,7 @@ type reportDiff struct {
 	Defense *int8    `json:""`
 }
 
-func (s *Server) createSolutionReport(c echo.Context) error {
+func (v *View) createSolutionReport(c echo.Context) error {
 	solutionID, err := strconv.ParseInt(c.Param("SolutionID"), 10, 64)
 	if err != nil {
 		c.Logger().Warn(err)
@@ -118,7 +118,7 @@ func (s *Server) createSolutionReport(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	solution, err := s.buildSolution(solutionID)
+	solution, err := v.buildSolution(solutionID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.NoContent(http.StatusNotFound)
@@ -126,14 +126,14 @@ func (s *Server) createSolutionReport(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	user, ok := c.Get(userKey).(models.User)
+	user, ok := c.Get(authUserKey).(models.User)
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
 	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
-	report, err := s.app.Reports.GetLatest(solution.ID)
+	report, err := v.core.Reports.GetLatest(solution.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.NoContent(http.StatusNotFound)
@@ -147,14 +147,14 @@ func (s *Server) createSolutionReport(c echo.Context) error {
 	if diff.Points != nil {
 		report.Data.Points = diff.Points
 	}
-	if err := s.app.Reports.Create(&report); err != nil {
+	if err := v.core.Reports.Create(&report); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.JSON(http.StatusCreated, report)
 }
 
-func (s *Server) canGetSolution(
+func (v *View) canGetSolution(
 	user models.User, solution models.Solution,
 ) bool {
 	if user.IsSuper {
@@ -164,7 +164,7 @@ func (s *Server) canGetSolution(
 		return true
 	}
 	if solution.ContestID > 0 {
-		contest, err := s.app.Contests.Get(solution.ContestID)
+		contest, err := v.core.Contests.Get(solution.ContestID)
 		if err == nil && user.ID == contest.UserID {
 			return true
 		}
@@ -172,22 +172,22 @@ func (s *Server) canGetSolution(
 	return false
 }
 
-func (s *Server) buildSolution(id int64) (Solution, error) {
-	solution, err := s.app.Solutions.Get(id)
+func (v *View) buildSolution(id int64) (Solution, error) {
+	solution, err := v.core.Solutions.Get(id)
 	if err != nil {
 		return Solution{}, err
 	}
 	result := Solution{
 		Solution: solution,
 	}
-	if user, err := s.app.Users.Get(solution.UserID); err == nil {
+	if user, err := v.core.Users.Get(solution.UserID); err == nil {
 		result.User = &user
 	}
-	if problem, err := s.buildProblem(solution.ProblemID); err == nil {
+	if problem, err := v.buildProblem(solution.ProblemID); err == nil {
 		problem.Description = ""
 		result.Problem = &problem
 	}
-	if report, err := s.app.Reports.GetLatest(solution.ID); err == nil {
+	if report, err := v.core.Reports.GetLatest(solution.ID); err == nil {
 		result.Report = &report
 	}
 	return result, nil

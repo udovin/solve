@@ -5,12 +5,15 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/udovin/solve/db"
 )
 
+// Session represents user session.
 type Session struct {
 	ID         int64  `json:""  db:"id"`
 	UserID     int64  `json:""  db:"user_id"`
@@ -19,269 +22,158 @@ type Session struct {
 	ExpireTime int64  `json:""  db:"expire_time"`
 }
 
-type SessionChange struct {
-	BaseChange
-	Session
+// ObjectID returns session ID.
+func (o Session) ObjectID() int64 {
+	return o.ID
 }
 
-type SessionStore struct {
-	Manager      *ChangeManager
-	db           *sql.DB
-	table        string
-	changeTable  string
-	sessions     map[int64]Session
-	userSessions map[int64]map[int64]struct{}
-	mutex        sync.RWMutex
-}
-
-func (c *SessionChange) ChangeData() interface{} {
-	return c.Session
-}
-
-func (m *Session) GenerateSecret() error {
-	secretBytes := make([]byte, 40)
-	if _, err := rand.Read(secretBytes); err != nil {
+// GenerateSecret generates a new value for session secret.
+func (o *Session) GenerateSecret() error {
+	bytes := make([]byte, 40)
+	if _, err := rand.Read(bytes); err != nil {
 		return err
 	}
-	m.Secret = base64.StdEncoding.EncodeToString(secretBytes)
+	o.Secret = base64.StdEncoding.EncodeToString(bytes)
 	return nil
 }
 
-func (m *Session) FormatCookie() string {
-	return fmt.Sprintf("%d_%s", m.ID, m.Secret)
-}
-
-func NewSessionStore(db *sql.DB, table, changeTable string) *SessionStore {
-	store := SessionStore{
-		table:        table,
-		changeTable:  changeTable,
-		sessions:     make(map[int64]Session),
-		userSessions: make(map[int64]map[int64]struct{}),
+// Cookie returns cookie object.
+func (o Session) Cookie() http.Cookie {
+	return http.Cookie{
+		Value:   fmt.Sprintf("%d_%s", o.ID, o.Secret),
+		Expires: time.Unix(o.ExpireTime, 0),
 	}
-	store.Manager = NewChangeManager(&store, db)
-	return &store
 }
 
-func (s *SessionStore) Get(id int64) (Session, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if session, ok := s.sessions[id]; ok {
+// SessionEvent represents session event.
+type SessionEvent struct {
+	baseEvent
+	Session
+}
+
+// Object returns session.
+func (e SessionEvent) Object() db.Object {
+	return e.Session
+}
+
+// WithObject returns copy of event with replaced session.
+func (e SessionEvent) WithObject(o db.Object) ObjectEvent {
+	e.Session = o.(Session)
+	return e
+}
+
+// SessionManager represents manager for sessions.
+type SessionManager struct {
+	baseManager
+	sessions map[int64]Session
+	byUser   indexInt64
+}
+
+// Get returns session by session ID.
+func (m *SessionManager) Get(id int64) (Session, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	if session, ok := m.sessions[id]; ok {
 		return session, nil
 	}
 	return Session{}, sql.ErrNoRows
 }
 
-func (s *SessionStore) GetByUser(userID int64) ([]Session, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+// FindByUser returns sessions by user ID.
+func (m *SessionManager) FindByUser(userID int64) ([]Session, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 	var sessions []Session
-	for id := range s.userSessions[userID] {
-		if session, ok := s.sessions[id]; ok {
+	for id := range m.byUser[userID] {
+		if session, ok := m.sessions[id]; ok {
 			sessions = append(sessions, session)
 		}
 	}
 	return sessions, nil
 }
 
-func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+// GetByCookie returns session for specified cookie value.
+func (m *SessionManager) GetByCookie(cookie string) (Session, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 	parts := strings.SplitN(cookie, "_", 2)
 	id, err := strconv.ParseInt(parts[0], 10, 60)
 	if err != nil {
 		return Session{}, err
 	}
-	session, ok := s.sessions[id]
+	session, ok := m.sessions[id]
 	if !ok || session.Secret != parts[1] {
 		return Session{}, sql.ErrNoRows
 	}
 	return session, nil
 }
 
-func (s *SessionStore) Create(m *Session) error {
-	change := SessionChange{
-		BaseChange: BaseChange{Type: CreateChange},
-		Session:    *m,
-	}
-	err := s.Manager.Change(&change)
+func (m *SessionManager) CreateTx(
+	tx *sql.Tx, session Session,
+) (Session, error) {
+	event, err := m.createObjectEvent(tx, SessionEvent{
+		makeBaseEvent(UpdateEvent),
+		session,
+	})
 	if err != nil {
-		return err
+		return Session{}, err
 	}
-	*m = change.Session
-	return nil
+	return event.Object().(Session), nil
 }
 
-func (s *SessionStore) Update(m *Session) error {
-	change := SessionChange{
-		BaseChange: BaseChange{Type: UpdateChange},
-		Session:    *m,
-	}
-	err := s.Manager.Change(&change)
-	if err != nil {
-		return err
-	}
-	*m = change.Session
-	return nil
-}
-
-func (s *SessionStore) Delete(id int64) error {
-	change := SessionChange{
-		BaseChange: BaseChange{Type: DeleteChange},
-		Session:    Session{ID: id},
-	}
-	return s.Manager.Change(&change)
-}
-
-func (s *SessionStore) GetLocker() sync.Locker {
-	return &s.mutex
-}
-
-func (s *SessionStore) InitChanges(tx *sql.Tx) (int64, error) {
-	return 0, nil
-}
-
-func (s *SessionStore) LoadChanges(
-	tx *sql.Tx, gap ChangeGap,
-) (*sql.Rows, error) {
-	return tx.Query(
-		fmt.Sprintf(
-			`SELECT`+
-				` "change_id", "change_type", "change_time", "id",`+
-				` "user_id", "secret", "create_time", "expire_time"`+
-				` FROM %q`+
-				` WHERE "change_id" >= $1 AND "change_id" < $2`+
-				` ORDER BY "change_id"`,
-			s.changeTable,
-		),
-		gap.BeginID, gap.EndID,
-	)
-}
-
-func (s *SessionStore) ScanChange(scan Scanner) (Change, error) {
-	session := SessionChange{}
-	err := scan.Scan(
-		&session.BaseChange.ID, &session.Type, &session.Time,
-		&session.Session.ID, &session.UserID, &session.Secret,
-		&session.CreateTime, &session.ExpireTime,
-	)
-	return &session, err
-}
-
-func (s *SessionStore) SaveChange(tx *sql.Tx, change Change) error {
-	session := change.(*SessionChange)
-	session.Time = time.Now().Unix()
-	switch session.Type {
-	case CreateChange:
-		session.CreateTime = session.Time
-		var err error
-		session.Session.ID, err = execTxReturningID(
-			s.Manager.db.Driver(), tx,
-			fmt.Sprintf(
-				`INSERT INTO %q`+
-					` ("user_id", "secret", "create_time", "expire_time")`+
-					` VALUES ($1, $2, $3, $4)`,
-				s.table,
-			),
-			"id",
-			session.UserID, session.Secret,
-			session.CreateTime, session.ExpireTime,
-		)
-		if err != nil {
-			return err
-		}
-	case UpdateChange:
-		if _, ok := s.sessions[session.Session.ID]; !ok {
-			return fmt.Errorf(
-				"session with id = %d does not exists",
-				session.Session.ID,
-			)
-		}
-		_, err := tx.Exec(
-			fmt.Sprintf(
-				`UPDATE %q SET`+
-					` "user_id" = $1, "secret" = $2, "expire_time" = $3`+
-					` WHERE "id" = $4`,
-				s.table,
-			),
-			session.UserID, session.Secret,
-			session.ExpireTime, session.Session.ID,
-		)
-		if err != nil {
-			return err
-		}
-	case DeleteChange:
-		if _, ok := s.sessions[session.Session.ID]; !ok {
-			return fmt.Errorf(
-				"session with id = %d does not exists",
-				session.Session.ID,
-			)
-		}
-		_, err := tx.Exec(
-			fmt.Sprintf(
-				`DELETE FROM %q WHERE "id" = $1`,
-				s.table,
-			),
-			session.Session.ID,
-		)
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf(
-			"unsupported change type = %s",
-			session.Type,
-		)
-	}
-	var err error
-	session.BaseChange.ID, err = execTxReturningID(
-		s.Manager.db.Driver(), tx,
-		fmt.Sprintf(
-			`INSERT INTO %q`+
-				` ("change_type", "change_time", "id", "user_id",`+
-				` "secret", "create_time", "expire_time")`+
-				` VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			s.changeTable,
-		),
-		"change_id",
-		session.Type, session.Time, session.Session.ID, session.UserID,
-		session.Secret, session.CreateTime, session.ExpireTime,
-	)
+func (m *SessionManager) UpdateTx(tx *sql.Tx, session Session) error {
+	_, err := m.createObjectEvent(tx, SessionEvent{
+		makeBaseEvent(UpdateEvent),
+		session,
+	})
 	return err
 }
 
-func (s *SessionStore) ApplyChange(change Change) {
-	session := change.(*SessionChange)
-	switch session.Type {
-	case UpdateChange:
-		if old, ok := s.sessions[session.Session.ID]; ok {
-			if old.UserID != session.UserID {
-				if sessions, ok := s.userSessions[old.UserID]; ok {
-					delete(sessions, old.ID)
-					if len(sessions) == 0 {
-						delete(s.userSessions, old.UserID)
-					}
-				}
-			}
+func (m *SessionManager) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := m.createObjectEvent(tx, SessionEvent{
+		makeBaseEvent(DeleteEvent),
+		Session{ID: id},
+	})
+	return err
+}
+
+func (m *SessionManager) reset() {
+	m.sessions = map[int64]Session{}
+	m.byUser = indexInt64{}
+}
+
+func (m *SessionManager) addObject(o db.Object) {
+	m.onCreateObject(o)
+}
+
+func (m *SessionManager) onCreateObject(o db.Object) {
+	session := o.(Session)
+	m.sessions[session.ID] = session
+	m.byUser.Create(session.UserID, session.ID)
+}
+
+func (m *SessionManager) onDeleteObject(o db.Object) {
+	session := o.(Session)
+	m.byUser.Delete(session.UserID, session.ID)
+	delete(m.sessions, session.ID)
+}
+
+func (m *SessionManager) onUpdateObject(o db.Object) {
+	session := o.(Session)
+	if old, ok := m.sessions[session.ID]; ok {
+		if old.UserID != session.UserID {
+			m.byUser.Delete(old.UserID, old.ID)
 		}
-		fallthrough
-	case CreateChange:
-		if _, ok := s.userSessions[session.UserID]; !ok {
-			s.userSessions[session.UserID] = make(map[int64]struct{})
-		}
-		s.userSessions[session.UserID][session.Session.ID] = struct{}{}
-		s.sessions[session.Session.ID] = session.Session
-	case DeleteChange:
-		if sessions, ok := s.userSessions[session.UserID]; ok {
-			delete(sessions, session.Session.ID)
-			if len(sessions) == 0 {
-				delete(s.userSessions, session.UserID)
-			}
-		}
-		delete(s.sessions, session.Session.ID)
-	default:
-		panic(fmt.Errorf(
-			"unsupported change type = %s",
-			session.Type,
-		))
 	}
+	m.onCreateObject(o)
+}
+
+func NewSessionManager(
+	table, eventTable string, dialect db.Dialect,
+) *SessionManager {
+	impl := &SessionManager{}
+	impl.baseManager = makeBaseManager(
+		Session{}, table, SessionEvent{}, eventTable, impl, dialect,
+	)
+	return impl
 }

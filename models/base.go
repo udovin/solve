@@ -62,6 +62,20 @@ const (
 	UpdateEvent EventType = 3
 )
 
+// String returns string representation of event.
+func (t EventType) String() string {
+	switch t {
+	case CreateEvent:
+		return "Create"
+	case DeleteEvent:
+		return "Delete"
+	case UpdateEvent:
+		return "Update"
+	default:
+		return fmt.Sprintf("EventType(%d)", t)
+	}
+}
+
 // ObjectEvent represents event for object.
 type ObjectEvent interface {
 	db.Event
@@ -107,8 +121,8 @@ type baseManagerImpl interface {
 	reset()
 	addObject(o db.Object)
 	onCreateObject(o db.Object)
-	onUpdateObject(o db.Object)
 	onDeleteObject(o db.Object)
+	onUpdateObject(o db.Object)
 }
 
 // Manager represents store manager.

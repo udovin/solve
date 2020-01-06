@@ -27,10 +27,11 @@ type App struct {
 	UserFields *models.UserFieldManager
 	// UserRoles contains user role manager.
 	UserRoles *models.UserRoleManager
+	// Sessions contains session manager.
+	Sessions *models.SessionManager
 	// Visits contains visit manager.
 	Visits *models.VisitManager
 	// Stores.
-	Sessions        *models.SessionStore
 	Compilers       *models.CompilerStore
 	Problems        *models.ProblemStore
 	Statements      *models.StatementStore
@@ -41,19 +42,17 @@ type App struct {
 	Participants    *models.ParticipantStore
 	closer          chan struct{}
 	waiter          sync.WaitGroup
-	// Password salt.
-	PasswordSalt string
 	// db store database connection.
 	db *sql.DB
 }
 
 // NewApp creates app instance from config.
-func NewApp(config *config.Config) (*App, error) {
-	conn, err := config.DB.Create()
+func NewApp(cfg config.Config) (*App, error) {
+	conn, err := cfg.DB.Create()
 	if err != nil {
 		return nil, err
 	}
-	return &App{db: conn, Config: *config}, nil
+	return &App{db: conn, Config: cfg}, nil
 }
 
 func (a *App) startManagers(start func(models.Manager, time.Duration)) {
@@ -62,12 +61,11 @@ func (a *App) startManagers(start func(models.Manager, time.Duration)) {
 	start(a.Users, time.Second)
 	start(a.UserFields, time.Second)
 	start(a.UserRoles, time.Second)
+	start(a.Sessions, time.Second)
 }
 
 // SetupInvokerManagers prepares managers for running invoker.
-func (a *App) SetupInvokerManagers() {
-
-}
+func (a *App) SetupInvokerManagers() {}
 
 // SetupAllManagers prepares all managers.
 func (a *App) SetupAllManagers() error {
@@ -76,19 +74,22 @@ func (a *App) SetupAllManagers() error {
 		return err
 	}
 	dialect := GetDialect(a.Config.DB.Driver)
-	a.Users = models.NewUserManager(
-		"solve_user", "solve_user_event", salt, dialect,
-	)
 	a.Actions = models.NewActionManager(
 		"solve_action", "solve_action_event", dialect,
 	)
 	a.Roles = models.NewRoleManager(
 		"solve_role", "solve_role_event", dialect,
 	)
+	a.Users = models.NewUserManager(
+		"solve_user", "solve_user_event", salt, dialect,
+	)
+	a.UserFields = models.NewUserFieldManager(
+		"solve_user_field", "solve_user_field_event", dialect,
+	)
 	a.UserRoles = models.NewUserRoleManager(
 		"solve_user_role", "solve_user_role_event", dialect,
 	)
-	a.Visits = models.NewVisitManager(a.db, "solve_visits", dialect)
+	a.Visits = models.NewVisitManager("solve_visits", dialect)
 	return nil
 }
 
@@ -112,11 +113,12 @@ func (a *App) WithTx(fn func(*sql.Tx) error) (err error) {
 // Roles contains roles.
 type Roles map[int64]struct{}
 
+var guestRoles = []string{
+	"register",
+}
+
 // GetGuestRoles returns roles for guest account.
 func (a *App) GetGuestRoles() (Roles, error) {
-	guestRoles := []string{
-		"register",
-	}
 	roles := Roles{}
 	for _, code := range guestRoles {
 		role, err := a.Roles.GetByCode(code)
@@ -128,13 +130,25 @@ func (a *App) GetGuestRoles() (Roles, error) {
 	return roles, nil
 }
 
+var userRoles = []string{
+	"login",
+	"logout",
+}
+
 // GetUserRoles returns roles for user.
 func (a *App) GetUserRoles(id int64) (Roles, error) {
+	roles := Roles{}
+	for _, code := range userRoles {
+		role, err := a.Roles.GetByCode(code)
+		if err != nil {
+			return nil, err
+		}
+		roles[role.ID] = struct{}{}
+	}
 	userRoles, err := a.UserRoles.FindByUser(id)
 	if err != nil {
 		return nil, err
 	}
-	roles := Roles{}
 	for _, role := range userRoles {
 		roles[role.RoleID] = struct{}{}
 	}

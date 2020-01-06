@@ -23,21 +23,45 @@ type fullUser struct {
 
 // registerUserHandlers registers handlers for user management.
 func (v *View) registerUserHandlers(g *echo.Group) {
+	g.GET(
+		"/auth-status", v.authStatus,
+		v.requireAuth(v.sessionAuth, v.guestAuth),
+		v.requireRole(models.AuthStatusRole),
+	)
 	g.POST(
 		"/login", v.loginUser,
 		v.requireAuth(v.passwordAuth),
-		v.requireRole("login"),
+		v.requireRole(models.LoginRole),
 	)
 	g.POST(
 		"/logout", v.logoutUser,
 		v.requireAuth(v.sessionAuth),
-		v.requireRole("logout"),
+		v.requireRole(models.LogoutRole),
 	)
 	g.POST(
 		"/register", v.registerUser,
 		v.requireAuth(v.guestAuth),
-		v.requireRole("register"),
+		v.requireRole(models.RegisterRole),
 	)
+}
+
+// authStatus represents current authorization status.
+type authStatus struct {
+	User    *models.User    `json:",omitempty"`
+	Session *models.Session `json:",omitempty"`
+}
+
+// authStatus returns current authorization status.
+func (v *View) authStatus(c echo.Context) error {
+	status := authStatus{}
+	if session, ok := c.Get(authSessionKey).(models.Session); ok {
+		status.Session = &session
+		// Currently there can be no situation when user does not exist
+		// with existing session, so panic should not happen.
+		user := c.Get(authUserKey).(models.User)
+		status.User = &user
+	}
+	return c.JSON(http.StatusOK, status)
 }
 
 // loginUser creates a new session for user.
@@ -61,7 +85,7 @@ func (v *View) loginUser(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	cookie := session.Cookie()
-	cookie.Name = authSessionKey
+	cookie.Name = sessionCookie
 	c.SetCookie(&cookie)
 	return c.JSON(http.StatusCreated, session)
 }

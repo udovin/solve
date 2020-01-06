@@ -16,7 +16,7 @@ type SolutionPageParams = {
 const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 	const {SolutionID} = match.params;
 	const [solution, setSolution] = useState<Solution>();
-	const {session} = useContext(AuthContext);
+	const {status} = useContext(AuthContext);
 	useEffect(() => {
 		fetch("/api/v0/solutions/" + SolutionID)
 			.then(result => result.json())
@@ -59,7 +59,7 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 	if (!solution) {
 		return <>Loading...</>;
 	}
-	let isSuper = Boolean(session && session.User.IsSuper);
+	let isSuper = Boolean(status && status.User.IsSuper);
 	const {Report} = solution;
 	return <Page title={"Solution #" + solution.ID}>
 		<Block title={"Solution #" + solution.ID} className="b-solutions">

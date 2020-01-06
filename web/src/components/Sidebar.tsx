@@ -4,9 +4,9 @@ import Block from "./Block";
 import {AuthContext} from "../AuthContext";
 
 const Sidebar: FC = () => {
-	const {session} = useContext(AuthContext);
-	if (session) {
-		const {Login} = session.User;
+	const {status} = useContext(AuthContext);
+	if (status && status.User) {
+		const {Login} = status.User;
 		return <Block><ul>
 			<li><Link to={`/users/${Login}`}>Profile</Link></li>
 			<li><Link to={`/users/${Login}/edit`}>Edit</Link></li>

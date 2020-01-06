@@ -18,6 +18,13 @@ type Role struct {
 	Code string `db:"code" json:""`
 }
 
+const (
+	LoginRole      = "Login"
+	LogoutRole     = "Logout"
+	RegisterRole   = "Register"
+	AuthStatusRole = "AuthStatus"
+)
+
 // ObjectID return ID of role.
 func (o Role) ObjectID() int64 {
 	return o.ID

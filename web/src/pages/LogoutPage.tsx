@@ -3,10 +3,10 @@ import {Redirect} from "react-router";
 import {AuthContext} from "../AuthContext";
 
 const LogoutPage = () => {
-	const {session, setSession} = useContext(AuthContext);
+	const {status, setStatus} = useContext(AuthContext);
 	const [success, setSuccess] = useState<boolean>();
 	useEffect(() => {
-		if (session) {
+		if (status) {
 			fetch("/api/v0/logout", {
 				method: "POST",
 				headers: {
@@ -15,11 +15,11 @@ const LogoutPage = () => {
 			})
 				.then(() => {
 					setSuccess(true);
-					setSession();
+					setStatus();
 				});
 		}
-	}, [session, setSession]);
-	if (!session || success) {
+	}, [status, setStatus]);
+	if (!(status && status.User) || success) {
 		return <Redirect to={"/"}/>;
 	}
 	return <>Loading...</>;

@@ -12,7 +12,7 @@ const Header: FC<RouteComponentProps> = props => {
 		}
 		return "";
 	};
-	const {session} = useContext(AuthContext);
+	const {status} = useContext(AuthContext);
 	let accountLinks = <>
 		<li>
 			<Link to="/login">Login</Link>
@@ -21,8 +21,8 @@ const Header: FC<RouteComponentProps> = props => {
 			<Link to="/register">Register</Link>
 		</li>
 	</>;
-	if (session) {
-		const {Login} = session.User;
+	if (status && status.User) {
+		const {Login} = status.User;
 		accountLinks = <>
 			<li>
 				Hello, <Link to={`/users/${Login}`}>{Login}</Link>!

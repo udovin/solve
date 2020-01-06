@@ -16,7 +16,7 @@ const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 	const {UserID} = match.params;
 	const [user, setUser] = useState<User>();
 	const [sessions, setSessions] = useState<Session[]>();
-	const {session} = useContext(AuthContext);
+	const {status} = useContext(AuthContext);
 	const [success, setSuccess] = useState<boolean>();
 	useEffect(() => {
 		fetch(`/api/v0/users/${UserID}`)
@@ -28,7 +28,7 @@ const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 			.then(result => result.json())
 			.then(result => setSessions(result));
 	}, [UserID]);
-	if (!user) {
+	if (!status || !user) {
 		return <>Loading...</>;
 	}
 	const onSubmit = (event: any) => {
@@ -72,7 +72,7 @@ const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 			</div>
 		</FormBlock>
 		{sessions ?
-			<SessionsBlock sessions={sessions} currentSession={session}/> :
+			<SessionsBlock sessions={sessions} currentSession={status.Session}/> :
 			<>Loading...</>}
 	</Page>;
 };

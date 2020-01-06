@@ -1,24 +1,24 @@
 import React, {FC, useEffect, useState} from "react";
-import {CurrentSession} from "./api";
+import {authStatus, AuthStatus} from "./api";
 
 type Auth = {
-	session?: CurrentSession;
-	setSession(session?: CurrentSession): void;
+	status?: AuthStatus;
+	setStatus(status?: AuthStatus): void;
 };
 
 const AuthContext = React.createContext<Auth>({
-	setSession(): void {}
+	setStatus(): void {}
 });
 
 const AuthProvider: FC = props => {
-	const [session, setSession] = useState<CurrentSession>();
+	const [status, setStatus] = useState<AuthStatus>();
 	useEffect(() => {
-		fetch("/api/v0/sessions/current")
+		authStatus()
 			.then(result => result.json())
-			.then(result => setSession(result))
-			.catch(error => setSession(undefined))
+			.then(result => setStatus(result))
+			.catch(error => setStatus(undefined))
 	}, []);
-	return <AuthContext.Provider value={{session, setSession}}>
+	return <AuthContext.Provider value={{status, setStatus}}>
 		{props.children}
 	</AuthContext.Provider>;
 };

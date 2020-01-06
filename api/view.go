@@ -23,6 +23,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerUserHandlers(g)
 }
 
+// ping returns pong.
 func (v *View) ping(c echo.Context) error {
 	return c.JSON(http.StatusOK, "pong")
 }
@@ -37,6 +38,7 @@ const (
 	authSessionKey = "AuthSession"
 	authVisitKey   = "AuthVisit"
 	authRolesKey   = "AuthRole"
+	sessionCookie  = "session"
 )
 
 // logVisit saves visit to visit store.
@@ -112,13 +114,28 @@ func (v *View) guestAuth(c echo.Context) error {
 	return nil
 }
 
+// getSessionByCookie returns session.
+func (v *View) getSessionByCookie(value string) (models.Session, error) {
+	session, err := v.core.Sessions.GetByCookie(value)
+	if err == sql.ErrNoRows {
+		if err := v.core.WithTx(v.core.Sessions.SyncTx); err != nil {
+			return models.Session{}, err
+		}
+		session, err = v.core.Sessions.GetByCookie(value)
+	}
+	if err != nil {
+		return models.Session{}, err
+	}
+	return session, nil
+}
+
 // sessionAuth tries to auth using session cookie.
 func (v *View) sessionAuth(c echo.Context) error {
-	cookie, err := c.Cookie(authSessionKey)
+	cookie, err := c.Cookie(sessionCookie)
 	if err != nil {
 		return errNoAuth
 	}
-	session, err := v.core.Sessions.GetByCookie(cookie.Value)
+	session, err := v.getSessionByCookie(cookie.Value)
 	if err != nil {
 		return errNoAuth
 	}

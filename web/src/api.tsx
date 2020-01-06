@@ -15,7 +15,8 @@ export type Session = {
 	ExpireTime: number;
 };
 
-export type CurrentSession = Session & {
+export type AuthStatus = {
+	Session: Session;
 	User: User;
 };
 
@@ -177,5 +178,11 @@ export const registerUser = (form: RegisterUserForm) => {
 			"Content-Type": "application/json; charset=UTF-8",
 		},
 		body: JSON.stringify(form)
+	});
+};
+
+export const authStatus = () => {
+	return fetch("/api/v0/auth-status", {
+		method: "GET",
 	});
 };

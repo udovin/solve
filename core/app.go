@@ -89,7 +89,10 @@ func (a *App) SetupAllManagers() error {
 	a.UserRoles = models.NewUserRoleManager(
 		"solve_user_role", "solve_user_role_event", dialect,
 	)
-	a.Visits = models.NewVisitManager("solve_visits", dialect)
+	a.Sessions = models.NewSessionManager(
+		"solve_session", "solve_session_event", dialect,
+	)
+	a.Visits = models.NewVisitManager("solve_visit", dialect)
 	return nil
 }
 
@@ -114,7 +117,8 @@ func (a *App) WithTx(fn func(*sql.Tx) error) (err error) {
 type Roles map[int64]struct{}
 
 var guestRoles = []string{
-	"register",
+	models.AuthStatusRole,
+	models.RegisterRole,
 }
 
 // GetGuestRoles returns roles for guest account.
@@ -131,8 +135,9 @@ func (a *App) GetGuestRoles() (Roles, error) {
 }
 
 var userRoles = []string{
-	"login",
-	"logout",
+	models.AuthStatusRole,
+	models.LoginRole,
+	models.LogoutRole,
 }
 
 // GetUserRoles returns roles for user.

@@ -6,10 +6,10 @@ import FormBlock from "../components/FormBlock";
 import {Redirect} from "react-router";
 import {AuthContext} from "../AuthContext";
 import Field from "../components/Field";
-import {loginUser} from "../api";
+import {authStatus, loginUser} from "../api";
 
 const LoginPage = () => {
-	const {session, setSession} = useContext(AuthContext);
+	const {status, setStatus} = useContext(AuthContext);
 	const onSubmit = (event: any) => {
 		event.preventDefault();
 		const {Login, Password} = event.target;
@@ -18,12 +18,12 @@ const LoginPage = () => {
 			Password: Password.value,
 		})
 			.then(() => {
-				fetch("/api/v0/sessions/current")
+				authStatus()
 					.then(result => result.json())
-					.then(result => setSession(result));
+					.then(result => setStatus(result));
 			});
 	};
-	if (session) {
+	if (status && status.User) {
 		return <Redirect to={"/"}/>
 	}
 	return <Page title="Login">

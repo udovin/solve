@@ -112,7 +112,7 @@ func (m *SessionManager) CreateTx(
 	tx *sql.Tx, session Session,
 ) (Session, error) {
 	event, err := m.createObjectEvent(tx, SessionEvent{
-		makeBaseEvent(UpdateEvent),
+		makeBaseEvent(CreateEvent),
 		session,
 	})
 	if err != nil {

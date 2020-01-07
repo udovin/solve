@@ -29,6 +29,9 @@ type EventReader interface {
 
 // EventROStore represents read-only store for events.
 type EventROStore interface {
+	// LastEventID should return last event ID or sql.ErrNoRows
+	// if there is no events.
+	LastEventID(tx *sql.Tx) (int64, error)
 	// LoadEvents should load events from store in specified range.
 	LoadEvents(tx *sql.Tx, begin, end int64) (EventReader, error)
 }
@@ -48,6 +51,22 @@ type eventStore struct {
 	dialect Dialect
 }
 
+// LastEventID returns last event ID or sql.ErrNoRows
+// if there is no events.
+func (s *eventStore) LastEventID(tx *sql.Tx) (int64, error) {
+	row := tx.QueryRow(
+		fmt.Sprintf("SELECT max(%q) FROM %q", s.id, s.table),
+	)
+	var id *int64
+	if err := row.Scan(&id); err != nil {
+		return 0, err
+	}
+	if id == nil {
+		return 0, sql.ErrNoRows
+	}
+	return *id, nil
+}
+
 func (s *eventStore) LoadEvents(
 	tx *sql.Tx, begin, end int64,
 ) (EventReader, error) {
@@ -61,10 +80,17 @@ func (s *eventStore) LoadEvents(
 	if err != nil {
 		return nil, err
 	}
+	if err := checkColumns(s.typ, rows); err != nil {
+		return nil, err
+	}
 	return &eventReader{typ: s.typ, rows: rows}, nil
 }
 
 func (s *eventStore) CreateEvent(tx *sql.Tx, event Event) (Event, error) {
+	typ := reflect.TypeOf(event)
+	if typ.Name() != s.typ.Name() || typ.PkgPath() != s.typ.PkgPath() {
+		return nil, fmt.Errorf("expected %v type", s.typ)
+	}
 	row, err := insertRow(tx, event, s.id, s.table, s.dialect)
 	if err != nil {
 		return nil, err

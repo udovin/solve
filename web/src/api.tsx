@@ -152,16 +152,6 @@ export type LoginUserForm = {
 	Password: string;
 };
 
-export const loginUser = (form: LoginUserForm) => {
-	return fetch("/api/v0/login", {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json; charset=UTF-8",
-		},
-		body: JSON.stringify(form)
-	});
-};
-
 export type RegisterUserForm = {
 	Login: string;
 	Password: string;
@@ -171,18 +161,36 @@ export type RegisterUserForm = {
 	MiddleName?: string;
 };
 
+const HEADERS = {
+	"Solve-Web-Version": "0.1.0",
+};
+
+export const loginUser = (form: LoginUserForm) => {
+	return fetch("/api/v0/login", {
+		method: "POST",
+		headers: {...HEADERS, ...{
+			"Content-Type": "application/json; charset=UTF-8",
+		}},
+		body: JSON.stringify(form)
+	})
+		.then(resp => resp.json());
+};
+
 export const registerUser = (form: RegisterUserForm) => {
 	return fetch("/api/v0/register", {
 		method: "POST",
-		headers: {
+		headers: {...HEADERS, ...{
 			"Content-Type": "application/json; charset=UTF-8",
-		},
-		body: JSON.stringify(form)
-	});
+		}},
+		body: JSON.stringify(form),
+	})
+		.then(resp => resp.json());
 };
 
 export const authStatus = () => {
 	return fetch("/api/v0/auth-status", {
 		method: "GET",
-	});
+		headers: HEADERS,
+	})
+		.then(resp => resp.json());
 };

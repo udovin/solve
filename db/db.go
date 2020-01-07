@@ -53,6 +53,30 @@ func scanRow(typ reflect.Type, rows *sql.Rows) (interface{}, error) {
 	return value.Interface(), err
 }
 
+func checkColumns(typ reflect.Type, rows *sql.Rows) error {
+	var cols []string
+	var recursive func(reflect.Type)
+	recursive = func(t reflect.Type) {
+		for i := 0; i < t.NumField(); i++ {
+			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
+				name := strings.Split(db, ",")[0]
+				cols = append(cols, name)
+			} else if t.Field(i).Anonymous {
+				recursive(t.Field(i).Type)
+			}
+		}
+	}
+	recursive(typ)
+	rowCols, err := rows.Columns()
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(cols, rowCols) {
+		return fmt.Errorf("result has invalid column sequence")
+	}
+	return nil
+}
+
 func prepareSelect(typ reflect.Type) string {
 	var cols strings.Builder
 	var recursive func(reflect.Type)

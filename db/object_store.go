@@ -60,10 +60,17 @@ func (s *objectStore) LoadObjects(tx *sql.Tx) (ObjectReader, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := checkColumns(s.typ, rows); err != nil {
+		return nil, err
+	}
 	return &objectReader{typ: s.typ, rows: rows}, nil
 }
 
 func (s *objectStore) CreateObject(tx *sql.Tx, object Object) (Object, error) {
+	typ := reflect.TypeOf(object)
+	if typ.Name() != s.typ.Name() || typ.PkgPath() != s.typ.PkgPath() {
+		return nil, fmt.Errorf("expected %v type", s.typ)
+	}
 	row, err := insertRow(tx, object, s.id, s.table, s.dialect)
 	if err != nil {
 		return nil, err
@@ -72,6 +79,10 @@ func (s *objectStore) CreateObject(tx *sql.Tx, object Object) (Object, error) {
 }
 
 func (s *objectStore) UpdateObject(tx *sql.Tx, object Object) (Object, error) {
+	typ := reflect.TypeOf(object)
+	if typ.Name() != s.typ.Name() || typ.PkgPath() != s.typ.PkgPath() {
+		return nil, fmt.Errorf("expected %v type", s.typ)
+	}
 	row, err := updateRow(tx, object, s.id, s.table)
 	if err != nil {
 		return nil, err

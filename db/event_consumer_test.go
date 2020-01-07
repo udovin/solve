@@ -33,6 +33,10 @@ type mockEventStore struct {
 	events *list.List
 }
 
+func (s *mockEventStore) LastEventID(tx *sql.Tx) (int64, error) {
+	return 0, nil
+}
+
 func (s *mockEventStore) LoadEvents(
 	tx *sql.Tx, begin, end int64,
 ) (EventReader, error) {
@@ -55,6 +59,12 @@ func (s *mockEventStore) LoadEvents(
 		s.events.Remove(lv)
 	}
 	return &mockEventReader{events: events}, nil
+}
+
+func (s *mockEventStore) FindEvents(
+	tx *sql.Tx, where string, args ...interface{},
+) (EventReader, error) {
+	return nil, sql.ErrNoRows
 }
 
 func newMockEventStore(groups [][]Event) *mockEventStore {

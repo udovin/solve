@@ -88,13 +88,20 @@ func TestEventStore(t *testing.T) {
 	for i, event := range events {
 		created, err := store.CreateEvent(tx, event)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("Error:", err)
 		}
 		events[i].ID = created.EventID()
 		if events[i].ID != int64(i+1) {
 			t.Fatal()
 		}
 		if events[i] != created.(testEvent) {
+			t.Fatal()
+		}
+		id, err := store.LastEventID(tx)
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		if id != created.EventID() {
 			t.Fatal()
 		}
 	}
@@ -123,8 +130,14 @@ func TestEventStoreClosed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := store.LastEventID(tx); err != sql.ErrNoRows {
+		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
+	}
 	if err := tx.Rollback(); err != nil {
 		t.Fatal("Error:", err)
+	}
+	if _, err := store.LastEventID(tx); err != sql.ErrTxDone {
+		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
 	if _, err := store.LoadEvents(tx, 1, 100); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)

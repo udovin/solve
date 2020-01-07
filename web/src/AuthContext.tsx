@@ -14,7 +14,6 @@ const AuthProvider: FC = props => {
 	const [status, setStatus] = useState<AuthStatus>();
 	useEffect(() => {
 		authStatus()
-			.then(result => result.json())
 			.then(result => setStatus(result))
 			.catch(error => setStatus(undefined))
 	}, []);

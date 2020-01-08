@@ -111,10 +111,6 @@ func (m *UserFieldManager) reset() {
 	m.byUser = indexInt64{}
 }
 
-func (m *UserFieldManager) addObject(o db.Object) {
-	m.onCreateObject(o)
-}
-
 func (m *UserFieldManager) onCreateObject(o db.Object) {
 	field := o.(UserField)
 	m.fields[field.ID] = field

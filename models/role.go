@@ -87,10 +87,6 @@ func (m *RoleManager) reset() {
 	m.byCode = map[string]int64{}
 }
 
-func (m *RoleManager) addObject(o db.Object) {
-	m.onCreateObject(o)
-}
-
 func (m *RoleManager) onCreateObject(o db.Object) {
 	role := o.(Role)
 	m.roles[role.ID] = role

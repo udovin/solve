@@ -142,10 +142,6 @@ func (m *SessionManager) reset() {
 	m.byUser = indexInt64{}
 }
 
-func (m *SessionManager) addObject(o db.Object) {
-	m.onCreateObject(o)
-}
-
 func (m *SessionManager) onCreateObject(o db.Object) {
 	session := o.(Session)
 	m.sessions[session.ID] = session

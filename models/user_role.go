@@ -76,10 +76,6 @@ func (m *UserRoleManager) reset() {
 	m.byUser = indexInt64{}
 }
 
-func (m *UserRoleManager) addObject(o db.Object) {
-	m.onCreateObject(o)
-}
-
 func (m *UserRoleManager) onCreateObject(o db.Object) {
 	role := o.(UserRole)
 	m.roles[role.ID] = role

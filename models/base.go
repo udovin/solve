@@ -119,7 +119,6 @@ func makeBaseEvent(t EventType) baseEvent {
 
 type baseManagerImpl interface {
 	reset()
-	addObject(o db.Object)
 	onCreateObject(o db.Object)
 	onDeleteObject(o db.Object)
 	onUpdateObject(o db.Object)
@@ -144,17 +143,44 @@ type baseManager struct {
 func (m *baseManager) InitTx(tx *sql.Tx) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	rows, err := m.objects.LoadObjects(tx)
+	if err := m.initEvents(tx); err != nil {
+		return err
+	}
+	return m.initObjects(tx)
+}
+
+const eventGapSkipWindow = 5000
+
+func (m *baseManager) initEvents(tx *sql.Tx) error {
+	beginID, err := m.events.LastEventID(tx)
 	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		beginID = 1
+	}
+	if beginID > eventGapSkipWindow {
+		beginID -= eventGapSkipWindow
+	} else {
+		beginID = 1
+	}
+	m.consumer = db.NewEventConsumer(m.events, beginID)
+	return m.consumer.ConsumeEvents(tx, func(db.Event) error {
+		return nil
+	})
+}
+
+func (m *baseManager) initObjects(tx *sql.Tx) error {
+	rows, err := m.objects.LoadObjects(tx)
+	if err != nil && err != sql.ErrNoRows {
 		return err
 	}
 	defer func() {
 		_ = rows.Close()
 	}()
 	m.impl.reset()
-	m.consumer = db.NewEventConsumer(m.events, 1)
 	for rows.Next() {
-		m.impl.addObject(rows.Object())
+		m.impl.onCreateObject(rows.Object())
 	}
 	return rows.Err()
 }

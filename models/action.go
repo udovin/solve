@@ -186,10 +186,6 @@ func (m *ActionManager) reset() {
 	m.byStatus = indexInt64{}
 }
 
-func (m *ActionManager) addObject(o db.Object) {
-	m.onCreateObject(o)
-}
-
 func (m *ActionManager) onCreateObject(o db.Object) {
 	action := o.(Action)
 	m.actions[action.ID] = action

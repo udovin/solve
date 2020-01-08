@@ -125,10 +125,6 @@ func (m *UserManager) reset() {
 	m.byLogin = map[string]int64{}
 }
 
-func (m *UserManager) addObject(o db.Object) {
-	m.onCreateObject(o)
-}
-
 func (m *UserManager) onCreateObject(o db.Object) {
 	user := o.(User)
 	m.users[user.ID] = user

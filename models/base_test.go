@@ -112,10 +112,6 @@ func (m *testManager) reset() {
 	m.objects = map[int64]testObject{}
 }
 
-func (m *testManager) addObject(o db.Object) {
-	m.objects[o.ObjectID()] = o.(testObject)
-}
-
 func (m *testManager) onCreateObject(o db.Object) {
 	if _, ok := m.objects[o.ObjectID()]; ok {
 		panic("object already exists")

@@ -70,8 +70,8 @@ type Action struct {
 	ID         int64        `db:"id"`
 	Status     ActionStatus `db:"status"`
 	Type       ActionType   `db:"type"`
-	Config     []byte       `db:"config"`
-	State      []byte       `db:"state"`
+	Config     JSON         `db:"config"`
+	State      JSON         `db:"state"`
 	ExpireTime int64        `db:"expire_time"`
 }
 

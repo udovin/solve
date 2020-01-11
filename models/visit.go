@@ -40,6 +40,16 @@ type VisitManager struct {
 	store db.EventStore
 }
 
+// InitTx does nothing.
+func (m *VisitManager) InitTx(tx *sql.Tx) error {
+	return nil
+}
+
+// SyncTx does nothing.
+func (m *VisitManager) SyncTx(tx *sql.Tx) error {
+	return nil
+}
+
 // MakeFromContext creates Visit from context.
 func (m *VisitManager) MakeFromContext(c echo.Context) Visit {
 	return Visit{

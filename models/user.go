@@ -20,19 +20,23 @@ type User struct {
 	IsSuper      bool   `db:"is_super" json:""`
 }
 
+// ObjectID returns ID of user.
 func (o User) ObjectID() int64 {
 	return o.ID
 }
 
+// UserEvent represents an user event.
 type UserEvent struct {
 	baseEvent
 	User
 }
 
+// Object returns user.
 func (e UserEvent) Object() db.Object {
 	return e.User
 }
 
+// WithObject return copy of event with replaced user.
 func (e UserEvent) WithObject(o db.Object) ObjectEvent {
 	e.User = o.(User)
 	return e

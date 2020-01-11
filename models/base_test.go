@@ -2,8 +2,6 @@ package models
 
 import (
 	"database/sql"
-	"database/sql/driver"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -11,6 +9,21 @@ import (
 
 	"github.com/udovin/solve/db"
 )
+
+func TestEventType(t *testing.T) {
+	if s := fmt.Sprintf("%s", CreateEvent); s != "Create" {
+		t.Errorf("Expected %q, got %q", "Create", s)
+	}
+	if s := fmt.Sprintf("%s", UpdateEvent); s != "Update" {
+		t.Errorf("Expected %q, got %q", "Update", s)
+	}
+	if s := fmt.Sprintf("%s", DeleteEvent); s != "Delete" {
+		t.Errorf("Expected %q, got %q", "Delete", s)
+	}
+	if s := fmt.Sprintf("%s", EventType(-1)); s != "EventType(-1)" {
+		t.Errorf("Expected %q, got %q", "EventType(-1)", s)
+	}
+}
 
 type testObjectBase struct {
 	String string `db:"string"`
@@ -20,32 +33,10 @@ type testObjectBase struct {
 	Bytes  []byte `db:"bytes"`
 }
 
-type testJSON struct {
-	Text string `json:""`
-}
-
-func (s testJSON) Value() (driver.Value, error) {
-	return json.Marshal(s)
-}
-
-func (s *testJSON) Scan(value interface{}) error {
-	switch v := value.(type) {
-	case string:
-		return json.Unmarshal([]byte(v), s)
-	case []byte:
-		return json.Unmarshal(v, s)
-	case nil:
-		*s = testJSON{}
-		return nil
-	default:
-		return fmt.Errorf("unsupported type: %T", value)
-	}
-}
-
 type testObject struct {
 	testObjectBase
-	ID   int64    `db:"id"`
-	JSON testJSON `db:"json"`
+	ID   int64 `db:"id"`
+	JSON JSON  `db:"json"`
 }
 
 func (o testObject) ObjectID() int64 {
@@ -288,7 +279,7 @@ func TestMakeBaseManager(t *testing.T) {
 			Bool:   true,
 			Bytes:  []byte{8, 1, 4, 8},
 		},
-		JSON: testJSON{Text: "Test message"},
+		JSON: JSON("\"Test message\""),
 	}
 	savedObject := createTestObject(t, master, object)
 	if object.ID == savedObject.ID {
@@ -317,7 +308,7 @@ func TestMakeBaseManager(t *testing.T) {
 	}
 	checkReplicaObject(savedObject, nil)
 	savedObject.Int = 12345
-	savedObject.JSON = testJSON{Text: "Updated message"}
+	savedObject.JSON = JSON("\"Updated message\"")
 	updateTestObject(t, master, savedObject, nil)
 	checkReplicaObject(savedObject, nil)
 	updateTestObject(t, master, testObject{ID: 100}, sql.ErrNoRows)
@@ -388,5 +379,101 @@ func TestNInt64_Scan(t *testing.T) {
 	var c NInt64 = 0
 	if err := c.Scan(false); err == nil {
 		t.Fatal("Expected error")
+	}
+}
+
+type managerTestHelper interface {
+	prepareDB(tx *sql.Tx) error
+	newManager() Manager
+	newObject() db.Object
+	createObject(m Manager, tx *sql.Tx, o db.Object) (db.Object, error)
+	updateObject(m Manager, tx *sql.Tx, o db.Object) (db.Object, error)
+	deleteObject(m Manager, tx *sql.Tx, id int64) error
+}
+
+func withTestTx(fn func(*sql.Tx) error) (err error) {
+	var tx *sql.Tx
+	if tx, err = testDB.Begin(); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
+	return fn(tx)
+}
+
+type managerTester struct {
+	helper managerTestHelper
+}
+
+func (m *managerTester) Test(t testing.TB) {
+	m.prepareDB(t)
+	master := m.helper.newManager()
+	if err := withTestTx(master.InitTx); err != nil {
+		t.Fatal("Error:", err)
+	}
+	var objects []db.Object
+	for i := 0; i < 100; i++ {
+		object := m.helper.newObject()
+		if err := withTestTx(func(tx *sql.Tx) error {
+			created, err := m.helper.createObject(master, tx, object)
+			if err != nil {
+				return err
+			}
+			if id := created.ObjectID(); id <= 0 {
+				return fmt.Errorf("object has invalid ID: %d", id)
+			}
+			objects = append(objects, created)
+			return nil
+		}); err != nil {
+			t.Fatal("Error:", err)
+		}
+	}
+	if err := withTestTx(master.SyncTx); err != nil {
+		t.Fatal("Error:", err)
+	}
+	for _, object := range objects {
+		if err := withTestTx(func(tx *sql.Tx) error {
+			updated, err := m.helper.updateObject(master, tx, object)
+			if err != nil {
+				return err
+			}
+			if !reflect.DeepEqual(object, updated) {
+				return fmt.Errorf("expected %v, got %v", object, updated)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal("Error:", err)
+		}
+	}
+	if err := withTestTx(master.SyncTx); err != nil {
+		t.Fatal("Error:", err)
+	}
+	for _, object := range objects {
+		if err := withTestTx(func(tx *sql.Tx) error {
+			return m.helper.deleteObject(master, tx, object.ObjectID())
+		}); err != nil {
+			t.Fatal("Error:", err)
+		}
+	}
+	if err := withTestTx(master.SyncTx); err != nil {
+		t.Fatal("Error:", err)
+	}
+}
+
+func (m *managerTester) prepareDB(t testing.TB) {
+	tx, err := testDB.Begin()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := m.helper.prepareDB(tx); err != nil {
+		_ = tx.Rollback()
+		t.Fatal("Error:", err)
+	} else if err := tx.Commit(); err != nil {
+		t.Fatal("Error:", err)
 	}
 }

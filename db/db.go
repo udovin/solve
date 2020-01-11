@@ -160,6 +160,15 @@ func insertRow(
 		if err != nil {
 			return nil, err
 		}
+		count, err := res.RowsAffected()
+		if err != nil {
+			return nil, err
+		}
+		if count != 1 {
+			return nil, fmt.Errorf(
+				"invalid amount of affected rows: %d", count,
+			)
+		}
 		if *idPtr, err = res.LastInsertId(); err != nil {
 			return nil, err
 		}
@@ -213,11 +222,11 @@ func updateRow(
 	if err != nil {
 		return nil, err
 	}
-	k, err := res.RowsAffected()
+	count, err := res.RowsAffected()
 	if err != nil {
 		return nil, err
 	}
-	if k != 1 {
+	if count != 1 {
 		return nil, sql.ErrNoRows
 	}
 	return clone.Interface(), nil
@@ -236,11 +245,11 @@ func deleteRow(
 	if err != nil {
 		return err
 	}
-	k, err := res.RowsAffected()
+	count, err := res.RowsAffected()
 	if err != nil {
 		return err
 	}
-	if k != 1 {
+	if count != 1 {
 		return sql.ErrNoRows
 	}
 	return nil

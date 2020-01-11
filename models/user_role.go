@@ -71,6 +71,38 @@ func (m *UserRoleManager) FindByUser(id int64) ([]UserRole, error) {
 	return roles, nil
 }
 
+// CreateTx creates user role and returns copy with valid ID.
+func (m *UserRoleManager) CreateTx(
+	tx *sql.Tx, role UserRole,
+) (UserRole, error) {
+	event, err := m.createObjectEvent(tx, UserRoleEvent{
+		makeBaseEvent(CreateEvent),
+		role,
+	})
+	if err != nil {
+		return UserRole{}, err
+	}
+	return event.Object().(UserRole), nil
+}
+
+// UpdateTx updates user role with specified ID.
+func (m *UserRoleManager) UpdateTx(tx *sql.Tx, role UserRole) error {
+	_, err := m.createObjectEvent(tx, UserRoleEvent{
+		makeBaseEvent(UpdateEvent),
+		role,
+	})
+	return err
+}
+
+// DeleteTx deletes user role with specified ID.
+func (m *UserRoleManager) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := m.createObjectEvent(tx, UserRoleEvent{
+		makeBaseEvent(DeleteEvent),
+		UserRole{ID: id},
+	})
+	return err
+}
+
 func (m *UserRoleManager) reset() {
 	m.roles = map[int64]UserRole{}
 	m.byUser = indexInt64{}
@@ -98,6 +130,7 @@ func (m *UserRoleManager) onUpdateObject(o db.Object) {
 	m.onCreateObject(o)
 }
 
+// NewUserRoleManager creates a new instance of UserRoleManager.
 func NewUserRoleManager(
 	table, eventTable string, dialect db.Dialect,
 ) *UserRoleManager {

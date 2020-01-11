@@ -57,11 +57,12 @@ func NewApp(cfg config.Config) (*App, error) {
 
 func (a *App) startManagers(start func(models.Manager, time.Duration)) {
 	start(a.Actions, time.Second)
-	start(a.Roles, time.Second)
+	start(a.Roles, time.Minute)
 	start(a.Users, time.Second)
 	start(a.UserFields, time.Second)
-	start(a.UserRoles, time.Second)
+	start(a.UserRoles, time.Minute)
 	start(a.Sessions, time.Second)
+	start(a.Visits, time.Hour)
 }
 
 // SetupInvokerManagers prepares managers for running invoker.
@@ -109,8 +110,7 @@ func (a *App) WithTx(fn func(*sql.Tx) error) (err error) {
 		}
 		err = tx.Commit()
 	}()
-	err = fn(tx)
-	return
+	return fn(tx)
 }
 
 // Roles contains roles.

@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -47,6 +48,54 @@ func (n *NInt64) Scan(value interface{}) error {
 	default:
 		return fmt.Errorf("unsupported type: %T", v)
 	}
+	return nil
+}
+
+// JSON represents json value.
+type JSON []byte
+
+const nullJSON = "null"
+
+// Value returns value.
+func (v JSON) Value() (driver.Value, error) {
+	if len(v) == 0 {
+		return nullJSON, nil
+	}
+	return string(v), nil
+}
+
+// Scan scans value.
+func (v *JSON) Scan(value interface{}) error {
+	switch data := value.(type) {
+	case nil:
+		*v = nil
+	case []byte:
+		if !json.Valid(data) {
+			return fmt.Errorf("invalid JSON value")
+		}
+		*v = data
+	case string:
+		if !json.Valid([]byte(data)) {
+			return fmt.Errorf("invalid JSON value")
+		}
+		*v = []byte(data)
+	default:
+		return fmt.Errorf("unsupported type: %T", data)
+	}
+	return nil
+}
+
+// MarshalJSON marshals JSON.
+func (v JSON) MarshalJSON() ([]byte, error) {
+	return v, nil
+}
+
+// UnmarshalJSON unmarshals JSON.
+func (v *JSON) UnmarshalJSON(bytes []byte) error {
+	if !json.Valid(bytes) {
+		return fmt.Errorf("invalid JSON value")
+	}
+	*v = bytes
 	return nil
 }
 

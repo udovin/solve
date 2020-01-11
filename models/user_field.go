@@ -9,10 +9,10 @@ import (
 // UserField contains additional information about user
 // like E-mail, first name, last name and etc.
 type UserField struct {
-	ID     int64  `json:"" db:"id"`
-	UserID int64  `json:"" db:"user_id"`
-	Type   string `json:"" db:"type"`
-	Data   string `json:"" db:"data"`
+	ID     int64  `db:"id" json:""`
+	UserID int64  `db:"user_id" json:""`
+	Type   string `db:"type" json:""`
+	Data   string `db:"data" json:""`
 }
 
 // ObjectID returns ID of user field.

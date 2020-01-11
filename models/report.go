@@ -10,19 +10,19 @@ import (
 )
 
 const (
-	// Accepted means that report is correct
+	// Accepted means that report is correct.
 	Accepted = 1
-	// CompilationError means that report can not compiled
+	// CompilationError means that report can not compiled.
 	CompilationError = 2
-	// TimeLimitExceeded means that report uses more time than allowed
+	// TimeLimitExceeded means that report uses more time than allowed.
 	TimeLimitExceeded = 3
-	// MemoryLimitExceeded means that report uses more memory than allowed
+	// MemoryLimitExceeded means that report uses more memory than allowed.
 	MemoryLimitExceeded = 4
-	// RuntimeError means that report runs incorrectly
+	// RuntimeError means that report runs incorrectly.
 	RuntimeError = 5
-	// WrongAnswer means that report is incorrect
+	// WrongAnswer means that report is incorrect.
 	WrongAnswer = 6
-	// PresentationError means that report output is incorrect
+	// PresentationError means that report output is incorrect.
 	PresentationError = 7
 )
 

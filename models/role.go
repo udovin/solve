@@ -82,6 +82,36 @@ func (m *RoleManager) GetByCode(code string) (Role, error) {
 	return Role{}, sql.ErrNoRows
 }
 
+// CreateTx creates role and returns copy with valid ID.
+func (m *RoleManager) CreateTx(tx *sql.Tx, role Role) (Role, error) {
+	event, err := m.createObjectEvent(tx, RoleEvent{
+		makeBaseEvent(CreateEvent),
+		role,
+	})
+	if err != nil {
+		return Role{}, err
+	}
+	return event.Object().(Role), nil
+}
+
+// UpdateTx updates role with specified ID.
+func (m *RoleManager) UpdateTx(tx *sql.Tx, role Role) error {
+	_, err := m.createObjectEvent(tx, RoleEvent{
+		makeBaseEvent(UpdateEvent),
+		role,
+	})
+	return err
+}
+
+// DeleteTx deletes role with specified ID.
+func (m *RoleManager) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := m.createObjectEvent(tx, RoleEvent{
+		makeBaseEvent(DeleteEvent),
+		Role{ID: id},
+	})
+	return err
+}
+
 func (m *RoleManager) reset() {
 	m.roles = map[int64]Role{}
 	m.byCode = map[string]int64{}

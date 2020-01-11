@@ -15,11 +15,11 @@ import (
 
 // Session represents user session.
 type Session struct {
-	ID         int64  `json:""  db:"id"`
-	UserID     int64  `json:""  db:"user_id"`
-	Secret     string `json:"-" db:"secret"`
-	CreateTime int64  `json:""  db:"create_time"`
-	ExpireTime int64  `json:""  db:"expire_time"`
+	ID         int64  `db:"id" json:""`
+	UserID     int64  `db:"user_id" json:""`
+	Secret     string `db:"secret" json:"-"`
+	CreateTime int64  `db:"create_time" json:""`
+	ExpireTime int64  `db:"expire_time" json:""`
 }
 
 // ObjectID returns session ID.

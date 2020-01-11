@@ -1,3 +1,4 @@
+// db provides implementation of generic object and event stores.
 package db
 
 import (
@@ -7,13 +8,13 @@ import (
 	"strings"
 )
 
-// Dialect represents SQL dialect
+// Dialect represents SQL dialect.
 type Dialect int
 
 const (
-	// SQLite represents SQLite
+	// SQLite represents SQLite.
 	SQLite Dialect = 1
-	// Postgres represents Postgres
+	// Postgres represents Postgres.
 	Postgres Dialect = 2
 )
 

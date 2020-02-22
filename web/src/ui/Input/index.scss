@@ -1,0 +1,31 @@
+@import "../../mixins.scss";
+
+.ui-input {
+	display: inline-block;
+	@include box-sizing(border-box);
+	padding: 0 10px;
+	height: 32px;
+	line-height: 30px;
+	border: 1px solid $border-color;
+	border-radius: 4px;
+	background-color: $background-color;
+	font-family: inherit;
+	font-size: inherit;
+	color: $text-color;
+	@include transition(border-color 150ms ease-out);
+	&:hover {
+		border-color: $dark-border-color;
+		@include transition(border-color 150ms ease-in);
+	}
+	&:focus {
+		border-color: #0085ba;
+		outline: none;
+		@include transition(border-color 150ms ease-in);
+	}
+	&:disabled {
+		border-color: $border-color;
+		background-color: $dark-background-color;
+		color: #666666;
+		cursor: default;
+	}
+}

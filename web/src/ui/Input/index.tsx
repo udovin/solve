@@ -1,4 +1,5 @@
 import React, {FC, InputHTMLAttributes} from "react";
+import "./index.scss";
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement>;
 

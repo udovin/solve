@@ -3,8 +3,8 @@ import {Redirect, RouteComponentProps} from "react-router";
 import Page from "../components/Page";
 import {Session, User} from "../api";
 import FormBlock from "../components/FormBlock";
-import Input from "../components/Input";
-import Button from "../components/Button";
+import Input from "../ui/Input";
+import Button from "../ui/Button";
 import SessionsBlock from "../components/SessionsBlock";
 import {AuthContext} from "../AuthContext";
 

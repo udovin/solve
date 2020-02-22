@@ -12,9 +12,9 @@ import {
 	SubmitSolutionSideBlock
 } from "../components/solutions";
 import FormBlock from "../components/FormBlock";
-import Button from "../components/Button";
 import Field from "../components/Field";
-import Input from "../components/Input";
+import Input from "../ui/Input";
+import Button from "../ui/Button";
 
 type ContestPageParams = {
 	ContestID: string;

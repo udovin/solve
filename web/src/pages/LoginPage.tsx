@@ -1,7 +1,7 @@
 import React, {useContext} from "react";
 import Page from "../components/Page";
-import Input from "../components/Input";
-import Button from "../components/Button";
+import Input from "../ui/Input";
+import Button from "../ui/Button";
 import FormBlock from "../components/FormBlock";
 import {Redirect} from "react-router";
 import {AuthContext} from "../AuthContext";

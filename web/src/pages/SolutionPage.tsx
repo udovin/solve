@@ -4,8 +4,8 @@ import {AuthContext} from "../AuthContext";
 import {getDefense, getShortVerdict, Solution} from "../api";
 import Page from "../components/Page";
 import Block from "../components/Block";
-import Button from "../components/Button";
-import Input from "../components/Input";
+import Input from "../ui/Input";
+import Button from "../ui/Button";
 import SolutionRow from "../components/SolutionRow";
 import "./ContestPage.scss"
 

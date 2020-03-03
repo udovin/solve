@@ -1,6 +1,6 @@
 import React, {FC, useContext} from "react";
 import {Link} from "react-router-dom";
-import Block from "./Block";
+import Block from "../ui/Block";
 import {AuthContext} from "../AuthContext";
 
 const Sidebar: FC = () => {

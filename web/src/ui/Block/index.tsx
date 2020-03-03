@@ -1,4 +1,5 @@
 import React, {BaseHTMLAttributes, FC, ReactNode} from "react";
+import "./index.scss";
 
 export type BlockProps = BaseHTMLAttributes<HTMLDivElement> & {
 	title?: string;

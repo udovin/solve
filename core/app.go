@@ -21,6 +21,8 @@ type App struct {
 	Actions *models.ActionManager
 	// Roles contains role manager.
 	Roles *models.RoleManager
+	// RoleEdges contains role edge manager.
+	RoleEdges *models.RoleEdgeManager
 	// Users contains user manager.
 	Users *models.UserManager
 	// UserFields contains user field manager.
@@ -58,11 +60,11 @@ func NewApp(cfg config.Config) (*App, error) {
 func (a *App) startManagers(start func(models.Manager, time.Duration)) {
 	start(a.Actions, time.Second)
 	start(a.Roles, time.Minute)
+	start(a.RoleEdges, time.Minute)
 	start(a.Users, time.Second)
 	start(a.UserFields, time.Second)
 	start(a.UserRoles, time.Minute)
 	start(a.Sessions, time.Second)
-	start(a.Visits, time.Hour)
 }
 
 // SetupInvokerManagers prepares managers for running invoker.
@@ -80,6 +82,9 @@ func (a *App) SetupAllManagers() error {
 	)
 	a.Roles = models.NewRoleManager(
 		"solve_role", "solve_role_event", dialect,
+	)
+	a.RoleEdges = models.NewRoleEdgeManager(
+		"solve_role_edge", "solve_role_edge_event", dialect,
 	)
 	a.Users = models.NewUserManager(
 		"solve_user", "solve_user_event", salt, dialect,
@@ -116,48 +121,57 @@ func (a *App) WithTx(fn func(*sql.Tx) error) (err error) {
 // Roles contains roles.
 type Roles map[int64]struct{}
 
-var guestRoles = []string{
-	models.AuthStatusRole,
-	models.RegisterRole,
+// var guestRoles = []string{
+// 	models.AuthStatusRole,
+// 	models.RegisterRole,
+// }
+
+func (a *App) getGroupRoles(id int64) (Roles, error) {
+	stack := []int64{id}
+	roles := Roles{}
+	for len(stack) > 0 {
+		roleID := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		edges, err := a.RoleEdges.FindByRole(roleID)
+		if err != nil {
+			return nil, err
+		}
+		for _, edge := range edges {
+			role, err := a.Roles.Get(edge.ChildID)
+			if err != nil {
+				return nil, err
+			}
+			if _, ok := roles[role.ID]; !ok {
+				roles[role.ID] = struct{}{}
+				stack = append(stack, role.ID)
+			}
+		}
+	}
+	return roles, nil
 }
 
 // GetGuestRoles returns roles for guest account.
 func (a *App) GetGuestRoles() (Roles, error) {
-	roles := Roles{}
-	for _, code := range guestRoles {
-		role, err := a.Roles.GetByCode(code)
-		if err != nil {
-			return nil, err
-		}
-		roles[role.ID] = struct{}{}
+	role, err := a.Roles.GetByCode(models.GuestRoleGroup)
+	if err != nil {
+		return Roles{}, err
 	}
-	return roles, nil
+	return a.getGroupRoles(role.ID)
 }
 
-var userRoles = []string{
-	models.AuthStatusRole,
-	models.LoginRole,
-	models.LogoutRole,
-}
+// var userRoles = []string{
+// 	models.AuthStatusRole,
+// 	models.LoginRole,
+// 	models.LogoutRole,
+// }
 
 // GetUserRoles returns roles for user.
 func (a *App) GetUserRoles(id int64) (Roles, error) {
-	roles := Roles{}
-	for _, code := range userRoles {
-		role, err := a.Roles.GetByCode(code)
-		if err != nil {
-			return nil, err
-		}
-		roles[role.ID] = struct{}{}
-	}
-	userRoles, err := a.UserRoles.FindByUser(id)
+	role, err := a.Roles.GetByCode(models.UserRoleGroup)
 	if err != nil {
-		return nil, err
+		return Roles{}, err
 	}
-	for _, role := range userRoles {
-		roles[role.RoleID] = struct{}{}
-	}
-	return roles, nil
+	return a.getGroupRoles(role.ID)
 }
 
 // HasRole return true if role set has this role or parent role.
@@ -166,19 +180,10 @@ func (a *App) HasRole(roles Roles, code string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	for i := 0; i < 8; i++ {
-		if code == role.Code {
-			return true, nil
-		}
-		if role.ParentID == 0 {
-			return false, nil
-		}
-		role, err = a.Roles.Get(int64(role.ParentID))
-		if err != nil {
-			return false, err
-		}
+	if _, ok := roles[role.ID]; ok {
+		return true, nil
 	}
-	return false, fmt.Errorf("too large roles depth (or recursion)")
+	return false, nil
 }
 
 // Start starts application and data synchronization.

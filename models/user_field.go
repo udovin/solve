@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/udovin/solve/db"
 )
@@ -9,10 +10,10 @@ import (
 // UserField contains additional information about user
 // like E-mail, first name, last name and etc.
 type UserField struct {
-	ID     int64  `db:"id" json:""`
-	UserID int64  `db:"user_id" json:""`
-	Type   string `db:"type" json:""`
-	Data   string `db:"data" json:""`
+	ID     int64         `db:"id" json:""`
+	UserID int64         `db:"user_id" json:""`
+	Type   UserFieldType `db:"type" json:""`
+	Data   string        `db:"data" json:""`
 }
 
 // ObjectID returns ID of user field.
@@ -20,11 +21,32 @@ func (o UserField) ObjectID() int64 {
 	return o.ID
 }
 
+func (o UserField) clone() UserField {
+	return o
+}
+
+type UserFieldType int
+
+func (t UserFieldType) String() string {
+	switch t {
+	case EmailField:
+		return "Email"
+	case FirstNameField:
+		return "FirstName"
+	case LastNameField:
+		return "LastName"
+	case MiddleNameField:
+		return "MiddleName"
+	default:
+		return fmt.Sprintf("UserFieldType(%d)", t)
+	}
+}
+
 const (
-	EmailField      = "Email"
-	FirstNameField  = "FirstName"
-	LastNameField   = "LastName"
-	MiddleNameField = "MiddleName"
+	EmailField      UserFieldType = 1
+	FirstNameField  UserFieldType = 2
+	LastNameField   UserFieldType = 3
+	MiddleNameField UserFieldType = 4
 )
 
 // UserFieldEvent represents user field event.
@@ -56,19 +78,19 @@ func (m *UserFieldManager) Get(id int64) (UserField, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	if field, ok := m.fields[id]; ok {
-		return field, nil
+		return field.clone(), nil
 	}
 	return UserField{}, sql.ErrNoRows
 }
 
-// GetByUser returns user field by user ID.
-func (m *UserFieldManager) GetByUser(userID int64) ([]UserField, error) {
+// FindByUser returns user field by user ID.
+func (m *UserFieldManager) FindByUser(userID int64) ([]UserField, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	var fields []UserField
 	for id := range m.byUser[userID] {
 		if field, ok := m.fields[id]; ok {
-			fields = append(fields, field)
+			fields = append(fields, field.clone())
 		}
 	}
 	return fields, nil

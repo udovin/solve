@@ -1,5 +1,5 @@
 import React, {FC, FormEventHandler} from "react";
-import Block, {BlockProps} from "./Block";
+import Block, {BlockProps} from "../ui/Block";
 import Button from "../ui/Button";
 import {Compiler, getDefense, getShortVerdict, Solution} from "../api";
 import Input from "../ui/Input";
@@ -7,7 +7,7 @@ import {Link} from "react-router-dom";
 import "./solutions.scss";
 import FormBlock from "./FormBlock";
 import SolutionRow from "./SolutionRow";
-import Index from "../ui/Textarea";
+import Textarea from "../ui/Textarea";
 
 export type SubmitSolutionSideBlockProps = {
 	onSubmit: FormEventHandler;
@@ -34,7 +34,7 @@ export const SubmitSolutionSideBlock: FC<SubmitSolutionSideBlockProps> = props =
 			</label>
 			<label>
 				<span className="label">Source text:</span>
-				<Index name="sourceText" placeholder="Source text"/>
+				<Textarea name="sourceText" placeholder="Source text"/>
 			</label>
 		</div>
 	</FormBlock>;

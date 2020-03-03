@@ -14,7 +14,7 @@ func (t *userFieldManagerTest) prepareDB(tx *sql.Tx) error {
 		`CREATE TABLE "user_field" (` +
 			`"id" integer PRIMARY KEY,` +
 			`"user_id" integer NOT NULL,` +
-			`"type" varchar(255) NOT NULL,` +
+			`"type" integer NOT NULL,` +
 			`"data" text NOT NULL)`,
 	); err != nil {
 		return err
@@ -26,7 +26,7 @@ func (t *userFieldManagerTest) prepareDB(tx *sql.Tx) error {
 			`"event_time" bigint NOT NULL,` +
 			`"id" integer NOT NULL,` +
 			`"user_id" integer NOT NULL,` +
-			`"type" varchar(255) NOT NULL,` +
+			`"type" integer NOT NULL,` +
 			`"data" text NOT NULL)`,
 	)
 	return err

@@ -17,12 +17,17 @@ type User struct {
 	PasswordHash string `db:"password_hash" json:"-"`
 	PasswordSalt string `db:"password_salt" json:"-"`
 	CreateTime   int64  `db:"create_time" json:""`
-	IsSuper      bool   `db:"is_super" json:""`
+	// Deprecated.
+	IsSuper bool `db:"is_super" json:""`
 }
 
 // ObjectID returns ID of user.
 func (o User) ObjectID() int64 {
 	return o.ID
+}
+
+func (o User) clone() User {
+	return o
 }
 
 // UserEvent represents an user event.
@@ -55,7 +60,7 @@ func (m *UserManager) Get(id int64) (User, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	if user, ok := m.users[id]; ok {
-		return user, nil
+		return user.clone(), nil
 	}
 	return User{}, sql.ErrNoRows
 }
@@ -66,7 +71,7 @@ func (m *UserManager) GetByLogin(login string) (User, error) {
 	defer m.mutex.RUnlock()
 	if id, ok := m.byLogin[login]; ok {
 		if user, ok := m.users[id]; ok {
-			return user, nil
+			return user.clone(), nil
 		}
 	}
 	return User{}, sql.ErrNoRows

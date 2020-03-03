@@ -3,7 +3,7 @@ import {Redirect, Route, RouteComponentProps, Switch} from "react-router";
 import {Link} from "react-router-dom";
 import Page from "../components/Page";
 import {Compiler, Contest, ContestProblem, Solution} from "../api";
-import Block from "../components/Block";
+import Block from "../ui/Block";
 import ContestTabs from "../components/ContestTabs";
 import "./ContestPage.scss"
 import {
@@ -12,7 +12,7 @@ import {
 	SubmitSolutionSideBlock
 } from "../components/solutions";
 import FormBlock from "../components/FormBlock";
-import Field from "../components/Field";
+import Field from "../ui/Field";
 import Input from "../ui/Input";
 import Button from "../ui/Button";
 

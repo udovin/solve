@@ -5,7 +5,7 @@ import Button from "../ui/Button";
 import FormBlock from "../components/FormBlock";
 import {Redirect} from "react-router";
 import {AuthContext} from "../AuthContext";
-import Field from "../components/Field";
+import Field from "../ui/Field";
 import {authStatus, loginUser} from "../api";
 
 const LoginPage = () => {

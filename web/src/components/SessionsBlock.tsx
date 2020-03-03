@@ -1,5 +1,5 @@
 import React, {FC} from "react";
-import Block, {BlockProps} from "./Block";
+import Block, {BlockProps} from "../ui/Block";
 import {Session} from "../api";
 import "./SessionsBlock.scss";
 

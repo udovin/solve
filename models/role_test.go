@@ -13,7 +13,6 @@ func (t *roleManagerTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "role" (` +
 			`"id" integer PRIMARY KEY,` +
-			`"parent_id" integer,` +
 			`"code" varchar(255) NOT NULL)`,
 	); err != nil {
 		return err
@@ -24,7 +23,6 @@ func (t *roleManagerTest) prepareDB(tx *sql.Tx) error {
 			`"event_type" int8 NOT NULL,` +
 			`"event_time" bigint NOT NULL,` +
 			`"id" integer NOT NULL,` +
-			`"parent_id" integer,` +
 			`"code" varchar(255) NOT NULL)`,
 	)
 	return err

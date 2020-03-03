@@ -1,4 +1,5 @@
 import React, {BaseHTMLAttributes, FC, ReactNode} from "react";
+import "./index.scss";
 
 export type FieldProps = BaseHTMLAttributes<HTMLDivElement> & {
 	title?: string;

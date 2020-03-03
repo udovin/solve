@@ -1,5 +1,5 @@
 import React, {FC, FormHTMLAttributes} from "react";
-import {BlockProps} from "./Block";
+import {BlockProps} from "../ui/Block";
 
 export type FormBlockProps = BlockProps & FormHTMLAttributes<HTMLFormElement>;
 

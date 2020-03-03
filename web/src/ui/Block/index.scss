@@ -1,0 +1,31 @@
+@import "../../mixins.scss";
+
+.ui-block-wrap {
+	margin: 10px 0 0 0;
+}
+
+.ui-block {
+	border: 1px solid $border-color;
+	border-radius: 4px;
+	background-color: $background-color;
+	.ui-block-header {
+		padding: 10px;
+		border-bottom: 1px solid $border-color;
+		> .title {
+			font-size: 15px;
+			color: $light-text-color;
+		}
+	}
+	.ui-block-content {
+		padding: 10px;
+		border-bottom: 1px solid $border-color;
+	}
+	.ui-block-footer {
+		padding: 10px;
+	}
+	.ui-block-header, .ui-block-content {
+		&:last-child {
+			border-bottom: none;
+		}
+	}
+}

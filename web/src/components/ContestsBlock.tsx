@@ -1,6 +1,6 @@
 import React, {FC} from "react";
 import {Link} from "react-router-dom";
-import Block, {BlockProps} from "./Block";
+import Block, {BlockProps} from "../ui/Block";
 import {Contest} from "../api";
 import "./ContestsBlock.scss"
 

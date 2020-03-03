@@ -2,7 +2,7 @@ import React, {useEffect, useState} from "react";
 import Page from "../components/Page";
 import {RouteComponentProps} from "react-router";
 import {Problem} from "../api";
-import Block from "../components/Block";
+import Block from "../ui/Block";
 
 type ProblemPageParams = {
 	ProblemID: string;

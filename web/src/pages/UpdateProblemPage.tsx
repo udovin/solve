@@ -5,7 +5,7 @@ import Button from "../ui/Button";
 import FormBlock from "../components/FormBlock";
 import {Problem} from "../api";
 import {Redirect, RouteComponentProps} from "react-router";
-import Field from "../components/Field";
+import Field from "../ui/Field";
 
 type UpdateProblemPageParams = {
 	ProblemID: string;

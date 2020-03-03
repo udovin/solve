@@ -21,6 +21,10 @@ func (o UserRole) ObjectID() int64 {
 	return o.ID
 }
 
+func (o UserRole) clone() UserRole {
+	return o
+}
+
 // UserRoleEvent represents user role event.
 type UserRoleEvent struct {
 	baseEvent
@@ -53,7 +57,7 @@ func (m *UserRoleManager) Get(id int64) (UserRole, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	if role, ok := m.roles[id]; ok {
-		return role, nil
+		return role.clone(), nil
 	}
 	return UserRole{}, sql.ErrNoRows
 }
@@ -65,7 +69,7 @@ func (m *UserRoleManager) FindByUser(id int64) ([]UserRole, error) {
 	var roles []UserRole
 	for id := range m.byUser[id] {
 		if role, ok := m.roles[id]; ok {
-			roles = append(roles, role)
+			roles = append(roles, role.clone())
 		}
 	}
 	return roles, nil

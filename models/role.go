@@ -10,8 +10,6 @@ import (
 type Role struct {
 	// ID contains ID of role.
 	ID int64 `db:"id" json:""`
-	// ParentID contains ID of parent role.
-	ParentID NInt64 `db:"parent_id" json:",omitempty"`
 	// Code contains role code.
 	//
 	// Code should be unique for all roles in the store.
@@ -19,6 +17,8 @@ type Role struct {
 }
 
 const (
+	GuestRoleGroup = "Guest"
+	UserRoleGroup  = "User"
 	LoginRole      = "Login"
 	LogoutRole     = "Logout"
 	RegisterRole   = "Register"
@@ -28,6 +28,10 @@ const (
 // ObjectID return ID of role.
 func (o Role) ObjectID() int64 {
 	return o.ID
+}
+
+func (o Role) clone() Role {
+	return o
 }
 
 // RoleEvent represents role event.
@@ -62,7 +66,7 @@ func (m *RoleManager) Get(id int64) (Role, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	if role, ok := m.roles[id]; ok {
-		return role, nil
+		return role.clone(), nil
 	}
 	return Role{}, sql.ErrNoRows
 }
@@ -76,7 +80,7 @@ func (m *RoleManager) GetByCode(code string) (Role, error) {
 	defer m.mutex.RUnlock()
 	if id, ok := m.byCode[code]; ok {
 		if role, ok := m.roles[id]; ok {
-			return role, nil
+			return role.clone(), nil
 		}
 	}
 	return Role{}, sql.ErrNoRows

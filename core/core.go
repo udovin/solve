@@ -13,8 +13,8 @@ import (
 	"github.com/udovin/solve/models"
 )
 
-// App manages all available resources.
-type App struct {
+// Core manages all available resources.
+type Core struct {
 	// Config contains config.
 	Config config.Config
 	// Actions contains action manager.
@@ -48,64 +48,64 @@ type App struct {
 	db *sql.DB
 }
 
-// NewApp creates app instance from config.
-func NewApp(cfg config.Config) (*App, error) {
+// NewCore creates core instance from config.
+func NewCore(cfg config.Config) (*Core, error) {
 	conn, err := cfg.DB.Create()
 	if err != nil {
 		return nil, err
 	}
-	return &App{db: conn, Config: cfg}, nil
+	return &Core{db: conn, Config: cfg}, nil
 }
 
-func (a *App) startManagers(start func(models.Manager, time.Duration)) {
-	start(a.Actions, time.Second)
-	start(a.Roles, time.Minute)
-	start(a.RoleEdges, time.Minute)
-	start(a.Users, time.Second)
-	start(a.UserFields, time.Second)
-	start(a.UserRoles, time.Minute)
-	start(a.Sessions, time.Second)
+func (c *Core) startManagers(start func(models.Manager, time.Duration)) {
+	start(c.Actions, time.Second)
+	start(c.Roles, time.Minute)
+	start(c.RoleEdges, time.Minute)
+	start(c.Users, time.Second)
+	start(c.UserFields, time.Second)
+	start(c.UserRoles, time.Minute)
+	start(c.Sessions, time.Second)
 }
 
 // SetupInvokerManagers prepares managers for running invoker.
-func (a *App) SetupInvokerManagers() {}
+func (c *Core) SetupInvokerManagers() {}
 
 // SetupAllManagers prepares all managers.
-func (a *App) SetupAllManagers() error {
-	salt, err := a.Config.Security.PasswordSalt.Secret()
+func (c *Core) SetupAllManagers() error {
+	salt, err := c.Config.Security.PasswordSalt.Secret()
 	if err != nil {
 		return err
 	}
-	dialect := GetDialect(a.Config.DB.Driver)
-	a.Actions = models.NewActionManager(
+	dialect := GetDialect(c.Config.DB.Driver)
+	c.Actions = models.NewActionManager(
 		"solve_action", "solve_action_event", dialect,
 	)
-	a.Roles = models.NewRoleManager(
+	c.Roles = models.NewRoleManager(
 		"solve_role", "solve_role_event", dialect,
 	)
-	a.RoleEdges = models.NewRoleEdgeManager(
+	c.RoleEdges = models.NewRoleEdgeManager(
 		"solve_role_edge", "solve_role_edge_event", dialect,
 	)
-	a.Users = models.NewUserManager(
+	c.Users = models.NewUserManager(
 		"solve_user", "solve_user_event", salt, dialect,
 	)
-	a.UserFields = models.NewUserFieldManager(
+	c.UserFields = models.NewUserFieldManager(
 		"solve_user_field", "solve_user_field_event", dialect,
 	)
-	a.UserRoles = models.NewUserRoleManager(
+	c.UserRoles = models.NewUserRoleManager(
 		"solve_user_role", "solve_user_role_event", dialect,
 	)
-	a.Sessions = models.NewSessionManager(
+	c.Sessions = models.NewSessionManager(
 		"solve_session", "solve_session_event", dialect,
 	)
-	a.Visits = models.NewVisitManager("solve_visit", dialect)
+	c.Visits = models.NewVisitManager("solve_visit", dialect)
 	return nil
 }
 
 // WithTx runs function with transaction.
-func (a *App) WithTx(fn func(*sql.Tx) error) (err error) {
+func (c *Core) WithTx(fn func(*sql.Tx) error) (err error) {
 	var tx *sql.Tx
-	if tx, err = a.db.Begin(); err != nil {
+	if tx, err = c.db.Begin(); err != nil {
 		return err
 	}
 	defer func() {
@@ -121,23 +121,19 @@ func (a *App) WithTx(fn func(*sql.Tx) error) (err error) {
 // Roles contains roles.
 type Roles map[int64]struct{}
 
-// var guestRoles = []string{
-// 	models.AuthStatusRole,
-// 	models.RegisterRole,
-// }
-
-func (a *App) getGroupRoles(id int64) (Roles, error) {
+// getGroupRoles returns roles for group with specified ID.
+func (c *Core) getGroupRoles(id int64) (Roles, error) {
 	stack := []int64{id}
 	roles := Roles{}
 	for len(stack) > 0 {
 		roleID := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		edges, err := a.RoleEdges.FindByRole(roleID)
+		edges, err := c.RoleEdges.FindByRole(roleID)
 		if err != nil {
 			return nil, err
 		}
 		for _, edge := range edges {
-			role, err := a.Roles.Get(edge.ChildID)
+			role, err := c.Roles.Get(edge.ChildID)
 			if err != nil {
 				return nil, err
 			}
@@ -151,57 +147,49 @@ func (a *App) getGroupRoles(id int64) (Roles, error) {
 }
 
 // GetGuestRoles returns roles for guest account.
-func (a *App) GetGuestRoles() (Roles, error) {
-	role, err := a.Roles.GetByCode(models.GuestRoleGroup)
+func (c *Core) GetGuestRoles() (Roles, error) {
+	role, err := c.Roles.GetByCode(models.GuestRoleGroup)
 	if err != nil {
 		return Roles{}, err
 	}
-	return a.getGroupRoles(role.ID)
+	return c.getGroupRoles(role.ID)
 }
 
-// var userRoles = []string{
-// 	models.AuthStatusRole,
-// 	models.LoginRole,
-// 	models.LogoutRole,
-// }
-
 // GetUserRoles returns roles for user.
-func (a *App) GetUserRoles(id int64) (Roles, error) {
-	role, err := a.Roles.GetByCode(models.UserRoleGroup)
+func (c *Core) GetUserRoles(id int64) (Roles, error) {
+	role, err := c.Roles.GetByCode(models.UserRoleGroup)
 	if err != nil {
 		return Roles{}, err
 	}
-	return a.getGroupRoles(role.ID)
+	return c.getGroupRoles(role.ID)
 }
 
 // HasRole return true if role set has this role or parent role.
-func (a *App) HasRole(roles Roles, code string) (bool, error) {
-	role, err := a.Roles.GetByCode(code)
+func (c *Core) HasRole(roles Roles, code string) (bool, error) {
+	role, err := c.Roles.GetByCode(code)
 	if err != nil {
 		return false, err
 	}
-	if _, ok := roles[role.ID]; ok {
-		return true, nil
-	}
-	return false, nil
+	_, ok := roles[role.ID]
+	return ok, nil
 }
 
 // Start starts application and data synchronization.
-func (a *App) Start() error {
-	if a.closer != nil {
+func (c *Core) Start() error {
+	if c.closer != nil {
 		return fmt.Errorf("app already started")
 	}
-	a.closer = make(chan struct{})
+	c.closer = make(chan struct{})
 	errs := make(chan error)
 	count := 0
-	a.startManagers(func(m models.Manager, d time.Duration) {
+	c.startManagers(func(m models.Manager, d time.Duration) {
 		v := reflect.ValueOf(m)
 		if m == nil || (v.Kind() == reflect.Ptr && v.IsNil()) {
 			return
 		}
 		count++
-		a.waiter.Add(1)
-		go a.startManager(m, d, errs)
+		c.waiter.Add(1)
+		go c.startManager(m, d, errs)
 	})
 	var err error
 	for i := 0; i < count; i++ {
@@ -215,20 +203,20 @@ func (a *App) Start() error {
 }
 
 // Stop stops syncing stores.
-func (a *App) Stop() {
-	if a.closer == nil {
+func (c *Core) Stop() {
+	if c.closer == nil {
 		return
 	}
-	close(a.closer)
-	a.waiter.Wait()
-	a.closer = nil
+	close(c.closer)
+	c.waiter.Wait()
+	c.closer = nil
 }
 
-func (a *App) startManager(
+func (c *Core) startManager(
 	m models.Manager, d time.Duration, errs chan<- error,
 ) {
-	defer a.waiter.Done()
-	err := a.WithTx(m.InitTx)
+	defer c.waiter.Done()
+	err := c.WithTx(m.InitTx)
 	errs <- err
 	if err != nil {
 		return
@@ -237,10 +225,10 @@ func (a *App) startManager(
 	for {
 		select {
 		case <-ticker.C:
-			if err := a.WithTx(m.SyncTx); err != nil {
+			if err := c.WithTx(m.SyncTx); err != nil {
 				log.Println("Error:", err)
 			}
-		case <-a.closer:
+		case <-c.closer:
 			ticker.Stop()
 			return
 		}

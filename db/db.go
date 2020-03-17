@@ -18,6 +18,17 @@ const (
 	Postgres Dialect = 2
 )
 
+func (d Dialect) String() string {
+	switch d {
+	case SQLite:
+		return "SQLite"
+	case Postgres:
+		return "Postgres"
+	default:
+		return fmt.Sprintf("Dialect(%d)", d)
+	}
+}
+
 func cloneRow(row interface{}) reflect.Value {
 	clone := reflect.New(reflect.TypeOf(row)).Elem()
 	var recursive func(row, clone reflect.Value)

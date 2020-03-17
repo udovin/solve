@@ -110,6 +110,9 @@ func TestObjectStoreClosed(t *testing.T) {
 	if _, err := store.LoadObjects(tx); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
+	if _, err := store.FindObjects(tx, "1"); err != sql.ErrTxDone {
+		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
+	}
 	if _, err := store.CreateObject(tx, testObject{}); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
@@ -132,6 +135,34 @@ func TestObjectStoreLoadObjectsFail(t *testing.T) {
 	}
 	defer func() { _ = tx.Commit() }()
 	rows, err := store.LoadObjects(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	for i := 1; i < len(objects); i++ {
+		if !rows.Next() {
+			t.Fatal("Expected next object")
+		}
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if rows.Next() {
+		t.Fatal("Expected end of rows")
+	}
+}
+
+func TestObjectStoreFindObjectsFail(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
+	objects := testSetupObjectStore(t, store)
+	tx, err := testDB.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Commit() }()
+	rows, err := store.FindObjects(tx, "1")
 	if err != nil {
 		t.Fatal(err)
 	}

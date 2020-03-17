@@ -11,7 +11,7 @@ import (
 )
 
 type Invoker struct {
-	app    *core.App
+	app    *core.Core
 	closer chan struct{}
 	waiter sync.WaitGroup
 	mutex  sync.Mutex
@@ -19,7 +19,7 @@ type Invoker struct {
 
 var errEmptyQueue = errors.New("empty queue")
 
-func New(app *core.App) *Invoker {
+func New(app *core.Core) *Invoker {
 	return &Invoker{
 		app: app,
 	}

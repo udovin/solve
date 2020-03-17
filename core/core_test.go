@@ -6,16 +6,16 @@ import (
 	"github.com/udovin/solve/config"
 )
 
-func TestNewApp(t *testing.T) {
+func TestNewCore(t *testing.T) {
 	var cfg config.Config
-	if _, err := NewApp(cfg); err == nil {
-		t.Fatal("Expected error while creating app")
+	if _, err := NewCore(cfg); err == nil {
+		t.Fatal("Expected error while creating core")
 	}
 	cfg.DB = config.DB{
 		Driver: config.SQLiteDriver,
 	}
-	if _, err := NewApp(cfg); err == nil {
-		t.Fatal("Expected error while creating app")
+	if _, err := NewCore(cfg); err == nil {
+		t.Fatal("Expected error while creating core")
 	}
 	cfg.DB = config.DB{
 		Driver:  config.SQLiteDriver,
@@ -27,7 +27,7 @@ func TestNewApp(t *testing.T) {
 			Data: "qwerty123",
 		},
 	}
-	if _, err := NewApp(cfg); err != nil {
+	if _, err := NewCore(cfg); err != nil {
 		t.Fatal("Error:", err)
 	}
 }

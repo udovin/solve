@@ -28,6 +28,10 @@ type ObjectReader interface {
 type ObjectROStore interface {
 	// LoadObjects should load objects from store.
 	LoadObjects(tx *sql.Tx) (ObjectReader, error)
+	// FindObjects should bind objects with specified expression.
+	FindObjects(
+		tx *sql.Tx, where string, args ...interface{},
+	) (ObjectReader, error)
 }
 
 // ObjectStore represents persistent store for objects.
@@ -56,6 +60,25 @@ func (s *objectStore) LoadObjects(tx *sql.Tx) (ObjectReader, error) {
 			"SELECT %s FROM %q ORDER BY %q",
 			prepareSelect(s.typ), s.table, s.id,
 		),
+	)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkColumns(s.typ, rows); err != nil {
+		return nil, err
+	}
+	return &objectReader{typ: s.typ, rows: rows}, nil
+}
+
+func (s *objectStore) FindObjects(
+	tx *sql.Tx, where string, args ...interface{},
+) (ObjectReader, error) {
+	rows, err := tx.Query(
+		fmt.Sprintf(
+			"SELECT %s FROM %q WHERE %s",
+			prepareSelect(s.typ), s.table, where,
+		),
+		args...,
 	)
 	if err != nil {
 		return nil, err

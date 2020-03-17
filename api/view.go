@@ -13,7 +13,7 @@ import (
 
 // View represents API view.
 type View struct {
-	core *core.App
+	core *core.Core
 }
 
 // Register registers handlers in specified group.
@@ -29,7 +29,7 @@ func (v *View) ping(c echo.Context) error {
 }
 
 // NewView returns a new instance of view.
-func NewView(core *core.App) *View {
+func NewView(core *core.Core) *View {
 	return &View{core: core}
 }
 

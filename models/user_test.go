@@ -15,9 +15,7 @@ func (t *userManagerTest) prepareDB(tx *sql.Tx) error {
 			`"id" integer PRIMARY KEY,` +
 			`"login" varchar(64) NOT NULL,` +
 			`"password_hash" varchar(255) NOT NULL,` +
-			`"password_salt" varchar(255) NOT NULL,` +
-			`"create_time" bigint NOT NULL,` +
-			`"is_super" boolean NOT NULL)`,
+			`"password_salt" varchar(255) NOT NULL)`,
 	); err != nil {
 		return err
 	}
@@ -29,9 +27,7 @@ func (t *userManagerTest) prepareDB(tx *sql.Tx) error {
 			`"id" integer NOT NULL,` +
 			`"login" varchar(64) NOT NULL,` +
 			`"password_hash" varchar(255) NOT NULL,` +
-			`"password_salt" varchar(255) NOT NULL,` +
-			`"create_time" bigint NOT NULL,` +
-			`"is_super" boolean NOT NULL)`,
+			`"password_salt" varchar(255) NOT NULL)`,
 	)
 	return err
 }

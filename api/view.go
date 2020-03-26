@@ -37,7 +37,7 @@ const (
 	authUserKey    = "AuthUser"
 	authSessionKey = "AuthSession"
 	authVisitKey   = "AuthVisit"
-	authRolesKey   = "AuthRole"
+	authRolesKey   = "AuthRoles"
 	sessionCookie  = "session"
 )
 

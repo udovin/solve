@@ -55,9 +55,6 @@ func (v *View) CreateContest(c echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
-	if !user.IsSuper {
-		return c.NoContent(http.StatusForbidden)
-	}
 	contest.UserID = user.ID
 	if err := v.core.Contests.Create(&contest); err != nil {
 		return c.NoContent(http.StatusInternalServerError)
@@ -198,11 +195,8 @@ func (v *View) CreateContestProblem(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 	contestProblem.ContestID = contestID
-	user, ok := c.Get(authUserKey).(models.User)
+	_, ok := c.Get(authUserKey).(models.User)
 	if !ok {
-		return c.NoContent(http.StatusForbidden)
-	}
-	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
 	if _, err := v.core.Contests.Get(contestProblem.ContestID); err != nil {
@@ -350,9 +344,6 @@ func (v *View) buildContest(id int64) (Contest, error) {
 func (v *View) canGetContest(
 	user models.User, contest models.Contest,
 ) bool {
-	if user.IsSuper {
-		return true
-	}
 	if contest.Config.BeginTime != nil {
 		if time.Now().Unix() < *contest.Config.BeginTime {
 			return false
@@ -370,9 +361,6 @@ func (v *View) canGetContest(
 func (v *View) canCreateSolution(
 	user models.User, contest models.Contest,
 ) bool {
-	if user.IsSuper {
-		return true
-	}
 	if contest.Config.EndTime != nil {
 		if time.Now().Unix() >= *contest.Config.EndTime {
 			return false

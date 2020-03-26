@@ -56,11 +56,8 @@ func (v *View) RejudgeSolution(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	user, ok := c.Get(authUserKey).(models.User)
+	_, ok := c.Get(authUserKey).(models.User)
 	if !ok {
-		return c.NoContent(http.StatusForbidden)
-	}
-	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
 	report := models.Report{
@@ -74,11 +71,8 @@ func (v *View) RejudgeSolution(c echo.Context) error {
 }
 
 func (v *View) GetSolutions(c echo.Context) error {
-	user, ok := c.Get(authUserKey).(models.User)
+	_, ok := c.Get(authUserKey).(models.User)
 	if !ok {
-		return c.NoContent(http.StatusForbidden)
-	}
-	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
 	var solutions []Solution
@@ -126,11 +120,8 @@ func (v *View) createSolutionReport(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	user, ok := c.Get(authUserKey).(models.User)
+	_, ok := c.Get(authUserKey).(models.User)
 	if !ok {
-		return c.NoContent(http.StatusForbidden)
-	}
-	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
 	report, err := v.core.Reports.GetLatest(solution.ID)
@@ -157,9 +148,6 @@ func (v *View) createSolutionReport(c echo.Context) error {
 func (v *View) canGetSolution(
 	user models.User, solution models.Solution,
 ) bool {
-	if user.IsSuper {
-		return true
-	}
 	if user.ID == solution.UserID {
 		return true
 	}

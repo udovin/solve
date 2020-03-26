@@ -27,11 +27,8 @@ func (v *View) CreateCompiler(c echo.Context) error {
 	if err := c.Bind(&compiler); err != nil {
 		return c.NoContent(http.StatusBadRequest)
 	}
-	user, ok := c.Get(authUserKey).(models.User)
+	_, ok := c.Get(authUserKey).(models.User)
 	if !ok {
-		return c.NoContent(http.StatusForbidden)
-	}
-	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
 	if err := v.core.Compilers.Create(&compiler); err != nil {

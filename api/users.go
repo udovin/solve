@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo"
 
+	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 )
 
@@ -49,6 +50,7 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 type authStatus struct {
 	User    *models.User    `json:",omitempty"`
 	Session *models.Session `json:",omitempty"`
+	Roles   []string        `json:""`
 }
 
 // authStatus returns current authorization status.
@@ -60,6 +62,11 @@ func (v *View) authStatus(c echo.Context) error {
 		// with existing session, so panic should not happen.
 		user := c.Get(authUserKey).(models.User)
 		status.User = &user
+	}
+	for id := range c.Get(authRolesKey).(core.Roles) {
+		if role, err := v.core.Roles.Get(id); err == nil {
+			status.Roles = append(status.Roles, role.Code)
+		}
 	}
 	return c.JSON(http.StatusOK, status)
 }

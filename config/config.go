@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 )
 
@@ -19,8 +20,14 @@ type Config struct {
 
 // Server contains server config.
 type Server struct {
-	Host string `json:""`
-	Port int    `json:""`
+	Host   string `json:""`
+	Port   int    `json:""`
+	Static string `json:""`
+}
+
+// Address returns string representation of server address.
+func (s Server) Address() string {
+	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }
 
 // Security contains security config.

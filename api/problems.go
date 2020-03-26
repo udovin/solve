@@ -35,9 +35,6 @@ func (v *View) CreateProblem(c echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusForbidden)
 	}
-	if !user.IsSuper {
-		return c.NoContent(http.StatusForbidden)
-	}
 	problem.UserID = user.ID
 	file, err := c.FormFile("File")
 	if err != nil {
@@ -186,11 +183,8 @@ func (v *View) UpdateProblem(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	user, ok := c.Get(authUserKey).(models.User)
+	_, ok := c.Get(authUserKey).(models.User)
 	if !ok {
-		return c.NoContent(http.StatusForbidden)
-	}
-	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
 	file, err := c.FormFile("File")

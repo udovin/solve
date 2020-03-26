@@ -1,10 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
+	"path"
+	"path/filepath"
 	"syscall"
 
 	"github.com/labstack/echo"
@@ -18,15 +20,11 @@ import (
 )
 
 func getConfig(cmd *cobra.Command) (config.Config, error) {
-	path, err := cmd.Flags().GetString("config")
+	cfgPath, err := cmd.Flags().GetString("config")
 	if err != nil {
 		return config.Config{}, err
 	}
-	return config.LoadFromFile(path)
-}
-
-func getAddress(cfg config.Server) string {
-	return fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	return config.LoadFromFile(cfgPath)
 }
 
 func serverMain(cmd *cobra.Command, _ []string) {
@@ -55,8 +53,21 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	v := api.NewView(c)
 	// Register API view.
 	v.Register(s.Group("/api/v0"))
+	// Register view for static.
+	s.Any("/*", func(c echo.Context) error {
+		p, err := url.PathUnescape(c.Param("*"))
+		if err != nil {
+			return err
+		}
+		name := filepath.Join(cfg.Server.Static, path.Clean("/"+p))
+		if _, err := os.Stat(name); os.IsNotExist(err) {
+			return c.File(filepath.Join(cfg.Server.Static, "index.html"))
+		} else {
+			return c.File(name)
+		}
+	})
 	// Start echo server.
-	if err := s.Start(getAddress(cfg.Server)); err != nil {
+	if err := s.Start(cfg.Server.Address()); err != nil {
 		s.Logger.Fatal(err)
 	}
 }

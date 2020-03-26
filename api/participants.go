@@ -14,11 +14,8 @@ func (v *View) CreateParticipant(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	user, ok := c.Get(authUserKey).(models.User)
+	_, ok := c.Get(authUserKey).(models.User)
 	if !ok {
-		return c.NoContent(http.StatusForbidden)
-	}
-	if !user.IsSuper {
 		return c.NoContent(http.StatusForbidden)
 	}
 	if err := v.core.Participants.Create(&participant); err != nil {

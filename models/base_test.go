@@ -335,6 +335,39 @@ func TestBaseManager_lockStore(t *testing.T) {
 	}
 }
 
+func TestBaseManager_consumeEvent(t *testing.T) {
+	manager := baseManager{}
+	if err := manager.consumeEvent(testObjectEvent{
+		baseEvent: makeBaseEvent(-1),
+	}); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestBaseManager_InitTx(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	manager := &testManager{
+		table:      "invalid_object",
+		eventTable: "invalid_object_event",
+	}
+	manager.baseManager = makeBaseManager(
+		testObject{}, manager.table,
+		testObjectEvent{}, manager.eventTable,
+		manager, db.SQLite,
+	)
+	tx, err := testDB.Begin()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	if err := manager.InitTx(tx); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
 func TestBaseEvent(t *testing.T) {
 	ts := time.Now()
 	event := baseEvent{BaseEventTime: ts.Unix()}

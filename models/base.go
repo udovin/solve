@@ -69,24 +69,21 @@ func (v *JSON) Scan(value interface{}) error {
 	switch data := value.(type) {
 	case nil:
 		*v = nil
+		return nil
 	case []byte:
-		if !json.Valid(data) {
-			return fmt.Errorf("invalid JSON value")
-		}
-		*v = data
+		return v.UnmarshalJSON(data)
 	case string:
-		if !json.Valid([]byte(data)) {
-			return fmt.Errorf("invalid JSON value")
-		}
-		*v = []byte(data)
+		return v.UnmarshalJSON([]byte(data))
 	default:
 		return fmt.Errorf("unsupported type: %T", data)
 	}
-	return nil
 }
 
 // MarshalJSON marshals JSON.
 func (v JSON) MarshalJSON() ([]byte, error) {
+	if len(v) == 0 {
+		return []byte(nullJSON), nil
+	}
 	return v, nil
 }
 
@@ -94,6 +91,10 @@ func (v JSON) MarshalJSON() ([]byte, error) {
 func (v *JSON) UnmarshalJSON(bytes []byte) error {
 	if !json.Valid(bytes) {
 		return fmt.Errorf("invalid JSON value")
+	}
+	if string(bytes) == nullJSON {
+		*v = nil
+		return nil
 	}
 	*v = bytes
 	return nil

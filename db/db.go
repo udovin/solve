@@ -18,6 +18,7 @@ const (
 	Postgres Dialect = 2
 )
 
+// String returns string representation of dialect.
 func (d Dialect) String() string {
 	switch d {
 	case SQLite:

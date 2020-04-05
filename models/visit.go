@@ -49,7 +49,7 @@ func (m *VisitManager) MakeFromContext(c echo.Context) Visit {
 		Method:     c.Request().Method,
 		RemoteAddr: c.Request().RemoteAddr,
 		UserAgent:  c.Request().UserAgent(),
-		Path:       c.Path(),
+		Path:       c.Request().URL.RequestURI(),
 		RealIP:     c.RealIP(),
 	}
 }

@@ -20,8 +20,11 @@ type Config struct {
 
 // Server contains server config.
 type Server struct {
-	Host   string `json:""`
-	Port   int    `json:""`
+	// Host contains server host.
+	Host string `json:""`
+	// Port contains server port.
+	Port int `json:""`
+	// Static contains path to static files.
 	Static string `json:""`
 }
 
@@ -32,6 +35,7 @@ func (s Server) Address() string {
 
 // Security contains security config.
 type Security struct {
+	// PasswordSalt contains salt for password hashing.
 	PasswordSalt Secret `json:""`
 }
 

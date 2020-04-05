@@ -148,7 +148,7 @@ func (c *Core) getGroupRoles(id int64) (Roles, error) {
 
 // GetGuestRoles returns roles for guest account.
 func (c *Core) GetGuestRoles() (Roles, error) {
-	role, err := c.Roles.GetByCode(models.GuestRoleGroup)
+	role, err := c.Roles.GetByCode(models.GuestGroupRole)
 	if err != nil {
 		return Roles{}, err
 	}
@@ -157,7 +157,7 @@ func (c *Core) GetGuestRoles() (Roles, error) {
 
 // GetUserRoles returns roles for user.
 func (c *Core) GetUserRoles(id int64) (Roles, error) {
-	role, err := c.Roles.GetByCode(models.UserRoleGroup)
+	role, err := c.Roles.GetByCode(models.UserGroupRole)
 	if err != nil {
 		return Roles{}, err
 	}

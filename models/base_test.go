@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -369,16 +370,79 @@ func TestNInt64_Scan(t *testing.T) {
 	if a != 0 {
 		t.Fatalf("Expected %v, got %v", 0, a)
 	}
-	var b NInt64 = 0
+	var b NInt64
 	if err := b.Scan(int64(12345)); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if b != 12345 {
 		t.Fatalf("Expected %v, got %v", 12345, b)
 	}
-	var c NInt64 = 0
+	var c NInt64
 	if err := c.Scan(false); err == nil {
 		t.Fatal("Expected error")
+	}
+}
+
+//noinspection GoNilness
+func TestJSON_Scan(t *testing.T) {
+	var a JSON
+	if err := a.Scan(nil); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if a != nil {
+		t.Fatalf("Expected nil, but got: %v", a)
+	}
+	if err := a.Scan("null"); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if a != nil {
+		t.Fatalf("Expected nil, but got: %v", a)
+	}
+	if err := a.Scan("{}"); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if a == nil {
+		t.Fatalf("Unexpected nil")
+	}
+	if err := a.Scan("{"); err == nil {
+		t.Fatal("Expected error")
+	}
+	if err := a.Scan([]byte("{}")); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if a == nil {
+		t.Fatalf("Unexpected nil")
+	}
+	if err := a.Scan([]byte("{")); err == nil {
+		t.Fatal("Expected error")
+	}
+	if err := a.Scan(baseManager{}); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestJSON_MarshalJSON(t *testing.T) {
+	var a JSON
+	if b, err := json.Marshal(a); err != nil {
+		t.Fatal("Error:", err)
+	} else if v := string(b); v != "null" {
+		t.Fatalf("Expected %q, got: %q", "null", v)
+	}
+	a = JSON("{}")
+	if b, err := json.Marshal(a); err != nil {
+		t.Fatal("Error:", err)
+	} else if v := string(b); v != "{}" {
+		t.Fatalf("Expected %q, got: %q", "null", v)
+	}
+}
+
+func TestJSON_UnmarshalJSON(t *testing.T) {
+	var a JSON
+	if err := json.Unmarshal([]byte("null"), &a); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if a != nil {
+		t.Fatalf("Expected nil, got: %q", a)
 	}
 }
 

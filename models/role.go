@@ -17,8 +17,8 @@ type Role struct {
 }
 
 const (
-	GuestRoleGroup = "Guest"
-	UserRoleGroup  = "User"
+	GuestGroupRole = "GuestGroup"
+	UserGroupRole  = "UserGroup"
 	LoginRole      = "Login"
 	LogoutRole     = "Logout"
 	RegisterRole   = "Register"
@@ -143,6 +143,7 @@ func (m *RoleManager) onUpdateObject(o db.Object) {
 	m.onCreateObject(o)
 }
 
+// NewRoleManager creates a new instance of RoleManager.
 func NewRoleManager(
 	table, eventTable string, dialect db.Dialect,
 ) *RoleManager {

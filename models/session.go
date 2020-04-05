@@ -15,11 +15,16 @@ import (
 
 // Session represents user session.
 type Session struct {
-	ID         int64  `db:"id" json:""`
-	UserID     int64  `db:"user_id" json:""`
-	Secret     string `db:"secret" json:"-"`
-	CreateTime int64  `db:"create_time" json:""`
-	ExpireTime int64  `db:"expire_time" json:""`
+	// ID contains ID of session.
+	ID int64 `db:"id" json:""`
+	// UserID contains ID of user.
+	UserID int64 `db:"user_id" json:""`
+	// Secret contains secret string of session.
+	Secret string `db:"secret" json:"-"`
+	// CreateTime contains time when session was created.
+	CreateTime int64 `db:"create_time" json:""`
+	// ExpireTime contains time when session should be expired.
+	ExpireTime int64 `db:"expire_time" json:""`
 }
 
 // ObjectID returns session ID.
@@ -108,6 +113,7 @@ func (m *SessionManager) GetByCookie(cookie string) (Session, error) {
 	return session, nil
 }
 
+// CreateTx creates session and returns new session with valid ID.
 func (m *SessionManager) CreateTx(
 	tx *sql.Tx, session Session,
 ) (Session, error) {
@@ -121,6 +127,7 @@ func (m *SessionManager) CreateTx(
 	return event.Object().(Session), nil
 }
 
+// UpdateTx updates session with specified ID.
 func (m *SessionManager) UpdateTx(tx *sql.Tx, session Session) error {
 	_, err := m.createObjectEvent(tx, SessionEvent{
 		makeBaseEvent(UpdateEvent),
@@ -129,6 +136,7 @@ func (m *SessionManager) UpdateTx(tx *sql.Tx, session Session) error {
 	return err
 }
 
+// DeleteTx deletes session with specified ID.
 func (m *SessionManager) DeleteTx(tx *sql.Tx, id int64) error {
 	_, err := m.createObjectEvent(tx, SessionEvent{
 		makeBaseEvent(DeleteEvent),
@@ -164,6 +172,7 @@ func (m *SessionManager) onUpdateObject(o db.Object) {
 	m.onCreateObject(o)
 }
 
+// NewSessionManager creates a new instance of SessionManager.
 func NewSessionManager(
 	table, eventTable string, dialect db.Dialect,
 ) *SessionManager {

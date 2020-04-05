@@ -134,6 +134,7 @@ func (m *RoleEdgeManager) onUpdateObject(o db.Object) {
 	m.onCreateObject(o)
 }
 
+// NewRoleEdgeManager creates a new instance of RoleEdgeManager.
 func NewRoleEdgeManager(
 	table, eventTable string, dialect db.Dialect,
 ) *RoleEdgeManager {

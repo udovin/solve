@@ -25,6 +25,7 @@ func (o UserField) clone() UserField {
 	return o
 }
 
+// UserFieldType represents type of UserField.
 type UserFieldType int
 
 func (t UserFieldType) String() string {

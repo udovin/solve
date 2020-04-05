@@ -34,16 +34,22 @@ type DB struct {
 
 // SQLiteOptions stores SQLite connection options.
 type SQLiteOptions struct {
+	// Path contains path to SQLite database file.
 	Path string `json:""`
 }
 
 // PostgresOptions stores Postgres connection options.
 type PostgresOptions struct {
-	Host     string `json:""`
-	Port     int    `json:""`
-	User     string `json:""`
+	// Host contains host address.
+	Host string `json:""`
+	// Port contains port address.
+	Port int `json:""`
+	// User contains username of user.
+	User string `json:""`
+	// Password contains password of user.
 	Password Secret `json:""`
-	Name     string `json:""`
+	// Name contains name of database.
+	Name string `json:""`
 }
 
 // UnmarshalJSON parses JSON to create appropriate connection configuration.

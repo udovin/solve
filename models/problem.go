@@ -2,221 +2,100 @@ package models
 
 import (
 	"database/sql"
-	"fmt"
-	"sync"
-	"time"
+
+	"github.com/udovin/solve/db"
 )
 
+// Problem represents a problem.
 type Problem struct {
-	ID         int64 `json:"" db:"id"`
-	UserID     int64 `json:"" db:"user_id"`
-	CreateTime int64 `json:"" db:"create_time"`
+	ID     int64 `json:"" db:"id"`
+	Config JSON  `json:"" db:"config"`
 }
 
-type ProblemChange struct {
-	BaseChange
+// ObjectID return ID of problem.
+func (o Problem) ObjectID() int64 {
+	return o.ID
+}
+
+// ProblemEvent represents a problem event.
+type ProblemEvent struct {
+	baseEvent
 	Problem
 }
 
-type ProblemStore struct {
-	Manager     *ChangeManager
-	table       string
-	changeTable string
-	problems    map[int64]Problem
-	mutex       sync.RWMutex
+// Object returns event problem.
+func (e ProblemEvent) Object() db.Object {
+	return e.Problem
 }
 
-func NewProblemStore(db *sql.DB, table, changeTable string) *ProblemStore {
-	store := ProblemStore{
-		table:       table,
-		changeTable: changeTable,
-		problems:    make(map[int64]Problem),
-	}
-	store.Manager = NewChangeManager(&store, db)
-	return &store
+// WithObject returns event with replaced Problem.
+func (e ProblemEvent) WithObject(o db.Object) ObjectEvent {
+	e.Problem = o.(Problem)
+	return e
 }
 
-func (s *ProblemStore) Get(id int64) (Problem, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if problem, ok := s.problems[id]; ok {
-		return problem, nil
-	}
-	return Problem{}, sql.ErrNoRows
+type ProblemManager struct {
+	baseManager
+	problems map[int64]Problem
 }
 
-func (s *ProblemStore) Create(m *Problem) error {
-	change := ProblemChange{
-		BaseChange: BaseChange{Type: CreateChange},
-		Problem:    *m,
-	}
-	err := s.Manager.Change(&change)
+// CreateTx creates problem and returns copy with valid ID.
+func (m *ProblemManager) CreateTx(
+	tx *sql.Tx, problem Problem,
+) (Problem, error) {
+	event, err := m.createObjectEvent(tx, ProblemEvent{
+		makeBaseEvent(CreateEvent),
+		problem,
+	})
 	if err != nil {
-		return err
+		return Problem{}, err
 	}
-	*m = change.Problem
-	return nil
+	return event.Object().(Problem), nil
 }
 
-func (s *ProblemStore) CreateTx(tx *ChangeTx, m *Problem) error {
-	change := ProblemChange{
-		BaseChange: BaseChange{Type: CreateChange},
-		Problem:    *m,
-	}
-	err := s.Manager.ChangeTx(tx, &change)
-	if err != nil {
-		return err
-	}
-	*m = change.Problem
-	return nil
-}
-
-func (s *ProblemStore) Update(m *Problem) error {
-	change := ProblemChange{
-		BaseChange: BaseChange{Type: UpdateChange},
-		Problem:    *m,
-	}
-	err := s.Manager.Change(&change)
-	if err != nil {
-		return err
-	}
-	*m = change.Problem
-	return nil
-}
-
-func (s *ProblemStore) Delete(id int64) error {
-	change := ProblemChange{
-		BaseChange: BaseChange{Type: DeleteChange},
-		Problem:    Problem{ID: id},
-	}
-	return s.Manager.Change(&change)
-}
-
-func (s *ProblemStore) GetLocker() sync.Locker {
-	return &s.mutex
-}
-
-func (s *ProblemStore) InitChanges(tx *sql.Tx) (int64, error) {
-	return 0, nil
-}
-
-func (s *ProblemStore) LoadChanges(
-	tx *sql.Tx, gap ChangeGap,
-) (*sql.Rows, error) {
-	return tx.Query(
-		fmt.Sprintf(
-			`SELECT`+
-				` "change_id", "change_type", "change_time",`+
-				` "id", "user_id", "create_time"`+
-				` FROM %q`+
-				` WHERE "change_id" >= $1 AND "change_id" < $2`+
-				` ORDER BY "change_id"`,
-			s.changeTable,
-		),
-		gap.BeginID, gap.EndID,
-	)
-}
-
-func (s *ProblemStore) ScanChange(scan Scanner) (Change, error) {
-	problem := ProblemChange{}
-	err := scan.Scan(
-		&problem.BaseChange.ID, &problem.Type, &problem.Time,
-		&problem.Problem.ID, &problem.UserID, &problem.CreateTime,
-	)
-	return &problem, err
-}
-
-func (s *ProblemStore) SaveChange(tx *sql.Tx, change Change) error {
-	problem := change.(*ProblemChange)
-	problem.Time = time.Now().Unix()
-	switch problem.Type {
-	case CreateChange:
-		problem.Problem.CreateTime = problem.Time
-		var err error
-		problem.Problem.ID, err = execTxReturningID(
-			s.Manager.db.Driver(), tx,
-			fmt.Sprintf(
-				`INSERT INTO %q`+
-					` ("user_id", "create_time")`+
-					` VALUES ($1, $2)`,
-				s.table,
-			),
-			"id",
-			problem.UserID, problem.CreateTime,
-		)
-		if err != nil {
-			return err
-		}
-	case UpdateChange:
-		if _, ok := s.problems[problem.Problem.ID]; !ok {
-			return fmt.Errorf(
-				"problem with id = %d does not exists",
-				problem.Problem.ID,
-			)
-		}
-		_, err := tx.Exec(
-			fmt.Sprintf(
-				`UPDATE %q SET "user_id" = $1 WHERE "id" = $2`,
-				s.table,
-			),
-			problem.UserID, problem.Problem.ID,
-		)
-		if err != nil {
-			return err
-		}
-	case DeleteChange:
-		if _, ok := s.problems[problem.Problem.ID]; !ok {
-			return fmt.Errorf(
-				"problem with id = %d does not exists",
-				problem.Problem.ID,
-			)
-		}
-		_, err := tx.Exec(
-			fmt.Sprintf(
-				`DELETE FROM %q WHERE "id" = $1`,
-				s.table,
-			),
-			problem.Problem.ID,
-		)
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf(
-			"unsupported change type = %s",
-			problem.Type,
-		)
-	}
-	var err error
-	problem.BaseChange.ID, err = execTxReturningID(
-		s.Manager.db.Driver(), tx,
-		fmt.Sprintf(
-			`INSERT INTO %q`+
-				` ("change_type", "change_time",`+
-				` "id", "user_id", "create_time")`+
-				` VALUES ($1, $2, $3, $4, $5)`,
-			s.changeTable,
-		),
-		"change_id",
-		problem.Type, problem.Time,
-		problem.Problem.ID, problem.UserID, problem.CreateTime,
-	)
+// UpdateTx updates problem with specified ID.
+func (m *ProblemManager) UpdateTx(tx *sql.Tx, problem Problem) error {
+	_, err := m.createObjectEvent(tx, ProblemEvent{
+		makeBaseEvent(UpdateEvent),
+		problem,
+	})
 	return err
 }
 
-func (s *ProblemStore) ApplyChange(change Change) {
-	problem := change.(*ProblemChange)
-	switch problem.Type {
-	case UpdateChange:
-		fallthrough
-	case CreateChange:
-		s.problems[problem.Problem.ID] = problem.Problem
-	case DeleteChange:
-		delete(s.problems, problem.Problem.ID)
-	default:
-		panic(fmt.Errorf(
-			"unsupported change type = %s",
-			problem.Type,
-		))
-	}
+// DeleteTx deletes problem with specified ID.
+func (m *ProblemManager) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := m.createObjectEvent(tx, ProblemEvent{
+		makeBaseEvent(DeleteEvent),
+		Problem{ID: id},
+	})
+	return err
+}
+
+func (m *ProblemManager) reset() {
+	m.problems = map[int64]Problem{}
+}
+
+func (m *ProblemManager) onCreateObject(o db.Object) {
+	problem := o.(Problem)
+	m.problems[problem.ID] = problem
+}
+
+func (m *ProblemManager) onDeleteObject(o db.Object) {
+	problem := o.(Problem)
+	delete(m.problems, problem.ID)
+}
+
+func (m *ProblemManager) onUpdateObject(o db.Object) {
+	m.onCreateObject(o)
+}
+
+// NewProblemManager creates a new instance of ProblemManager.
+func NewProblemManager(
+	table, eventTable string, dialect db.Dialect,
+) *ProblemManager {
+	impl := &ProblemManager{}
+	impl.baseManager = makeBaseManager(
+		Problem{}, table, ProblemEvent{}, eventTable, impl, dialect,
+	)
+	return impl
 }

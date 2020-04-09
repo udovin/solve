@@ -31,19 +31,16 @@ type Core struct {
 	UserRoles *models.UserRoleManager
 	// Sessions contains session manager.
 	Sessions *models.SessionManager
+	// Problems contains problems manager.
+	Problems *models.ProblemManager
+	// Contests contains contest manager.
+	Contests *models.ContestManager
+	// ContestProblems contains contest problems manager.
+	ContestProblems *models.ContestProblemManager
 	// Visits contains visit manager.
 	Visits *models.VisitManager
-	// Stores.
-	Compilers       *models.CompilerStore
-	Problems        *models.ProblemStore
-	Statements      *models.StatementStore
-	Solutions       *models.SolutionStore
-	Reports         *models.ReportStore
-	Contests        *models.ContestStore
-	ContestProblems *models.ContestProblemStore
-	Participants    *models.ParticipantStore
-	closer          chan struct{}
-	waiter          sync.WaitGroup
+	closer chan struct{}
+	waiter sync.WaitGroup
 	// db store database connection.
 	db *sql.DB
 }
@@ -65,6 +62,9 @@ func (c *Core) startManagers(start func(models.Manager, time.Duration)) {
 	start(c.UserFields, time.Second)
 	start(c.UserRoles, time.Minute)
 	start(c.Sessions, time.Second)
+	start(c.Contests, time.Second)
+	start(c.Problems, time.Second)
+	start(c.ContestProblems, time.Second)
 }
 
 // SetupInvokerManagers prepares managers for running invoker.
@@ -97,6 +97,15 @@ func (c *Core) SetupAllManagers() error {
 	)
 	c.Sessions = models.NewSessionManager(
 		"solve_session", "solve_session_event", dialect,
+	)
+	c.Contests = models.NewContestManager(
+		"solve_contest", "solve_contest_event", dialect,
+	)
+	c.Problems = models.NewProblemManager(
+		"solve_problem", "solve_problem_event", dialect,
+	)
+	c.ContestProblems = models.NewContestProblemManager(
+		"solve_contest_problem", "solve_contest_problem_event", dialect,
 	)
 	c.Visits = models.NewVisitManager("solve_visit", dialect)
 	return nil

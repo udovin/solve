@@ -32,6 +32,10 @@ func (o Session) ObjectID() int64 {
 	return o.ID
 }
 
+func (o Session) clone() Session {
+	return o
+}
+
 // GenerateSecret generates a new value for session secret.
 func (o *Session) GenerateSecret() error {
 	bytes := make([]byte, 40)
@@ -79,7 +83,7 @@ func (m *SessionManager) Get(id int64) (Session, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	if session, ok := m.sessions[id]; ok {
-		return session, nil
+		return session.clone(), nil
 	}
 	return Session{}, sql.ErrNoRows
 }
@@ -91,7 +95,7 @@ func (m *SessionManager) FindByUser(userID int64) ([]Session, error) {
 	var sessions []Session
 	for id := range m.byUser[userID] {
 		if session, ok := m.sessions[id]; ok {
-			sessions = append(sessions, session)
+			sessions = append(sessions, session.clone())
 		}
 	}
 	return sessions, nil
@@ -110,7 +114,7 @@ func (m *SessionManager) GetByCookie(cookie string) (Session, error) {
 	if !ok || session.Secret != parts[1] {
 		return Session{}, sql.ErrNoRows
 	}
-	return session, nil
+	return session.clone(), nil
 }
 
 // CreateTx creates session and returns new session with valid ID.

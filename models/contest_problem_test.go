@@ -1,60 +1,66 @@
 package models
 
 import (
+	"database/sql"
 	"testing"
+
+	"github.com/udovin/solve/db"
 )
 
-func TestContestProblemStore_getLocker(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	store := NewContestProblemStore(testDB, "test_contest_problem", "test_contest_problem_change")
-	if store.GetLocker() == nil {
-		t.Fatal("Locker should not be nil")
+type contestProblemManagerTest struct{}
+
+func (t *contestProblemManagerTest) prepareDB(tx *sql.Tx) error {
+	if _, err := tx.Exec(
+		`CREATE TABLE "contest_problem" (` +
+			`"id" integer PRIMARY KEY,` +
+			`"contest_id" integer NOT NULL,` +
+			`"problem_id" integer NOT NULL,` +
+			`"code" varchar(32) NOT NULL)`,
+	); err != nil {
+		return err
 	}
+	_, err := tx.Exec(
+		`CREATE TABLE "contest_problem_event" (` +
+			`"event_id" integer PRIMARY KEY,` +
+			`"event_type" int8 NOT NULL,` +
+			`"event_time" bigint NOT NULL,` +
+			`"id" integer NOT NULL,` +
+			`"contest_id" integer NOT NULL,` +
+			`"problem_id" integer NOT NULL,` +
+			`"code" varchar(32) NOT NULL)`,
+	)
+	return err
 }
 
-func TestContestProblemStore_Modify(t *testing.T) {
+func (t *contestProblemManagerTest) newManager() Manager {
+	return NewContestProblemManager("contest_problem", "contest_problem_event", db.SQLite)
+}
+
+func (t *contestProblemManagerTest) newObject() db.Object {
+	return ContestProblem{}
+}
+
+func (t *contestProblemManagerTest) createObject(
+	m Manager, tx *sql.Tx, o db.Object,
+) (db.Object, error) {
+	return m.(*ContestProblemManager).CreateTx(tx, o.(ContestProblem))
+}
+
+func (t *contestProblemManagerTest) updateObject(
+	m Manager, tx *sql.Tx, o db.Object,
+) (db.Object, error) {
+	return o, m.(*ContestProblemManager).UpdateTx(tx, o.(ContestProblem))
+}
+
+func (t *contestProblemManagerTest) deleteObject(
+	m Manager, tx *sql.Tx, id int64,
+) error {
+	return m.(*ContestProblemManager).DeleteTx(tx, id)
+}
+
+func TestContestProblemManager(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	store := NewContestProblemStore(testDB, "test_contest_problem", "test_contest_problem_change")
-	contestProblem := ContestProblem{
-		ContestID: 1,
-		ProblemID: 2,
-		Code:      "Test",
-	}
-	if err := store.Create(&contestProblem); err != nil {
-		t.Fatal(err)
-	}
-	found, err := store.GetByContest(contestProblem.ContestID)
-	if err != nil {
-		t.Fatalf("Unexpected error: %s", err)
-	}
-	if len(found) != 1 {
-		t.Fatal("Unable to found contest problem")
-	}
-	if found[0].Code != contestProblem.Code {
-		t.Fatal("Contest problem has invalid problem ID")
-	}
-	contestProblem.Code = "Test2"
-	if err := store.Update(&contestProblem); err != nil {
-		t.Fatal(err)
-	}
-	found, err = store.GetByContest(contestProblem.ContestID)
-	if err != nil {
-		t.Fatalf("Unexpected error: %s", err)
-	}
-	if len(found) != 1 {
-		t.Fatal("Unable to found contest problem")
-	}
-	if found[0].Code != contestProblem.Code {
-		t.Fatal("Contest problem has invalid problem ID")
-	}
-	if err := store.Delete(
-		contestProblem.ContestID, contestProblem.ProblemID,
-	); err != nil {
-		t.Fatal(err)
-	}
-	if found, _ := store.GetByContest(contestProblem.ContestID); len(found) != 0 {
-		t.Fatal("ContestProblem should be deleted")
-	}
+	tester := managerTester{&contestProblemManagerTest{}}
+	tester.Test(t)
 }

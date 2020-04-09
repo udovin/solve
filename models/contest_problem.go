@@ -2,239 +2,151 @@ package models
 
 import (
 	"database/sql"
-	"fmt"
-	"sync"
-	"time"
+
+	"github.com/udovin/solve/db"
 )
 
+// ContestProblem represents connection for problems.
 type ContestProblem struct {
-	ContestID int64  `json:"" db:"contest_id"`
-	ProblemID int64  `json:"" db:"problem_id"`
-	Code      string `json:"" db:"code"`
+	// ID contains ID of role.
+	ID int64 `db:"id" json:""`
+	// ContestID contains ID of contest.
+	ContestID int64 `db:"contest_id" json:""`
+	// ProblemID contains ID of problem.
+	ProblemID int64 `db:"problem_id" json:""`
+	// Code contains code of problem.
+	Code string `db:"code" json:""`
 }
 
-type ContestProblemChange struct {
-	BaseChange
+// ObjectID return ID of problem.
+func (o ContestProblem) ObjectID() int64 {
+	return o.ID
+}
+
+func (o ContestProblem) clone() ContestProblem {
+	return o
+}
+
+// ContestProblemEvent represents problem event.
+type ContestProblemEvent struct {
+	baseEvent
 	ContestProblem
 }
 
-type ContestProblemStore struct {
-	Manager     *ChangeManager
-	table       string
-	changeTable string
-	problems    map[int64]map[int64]ContestProblem
-	mutex       sync.RWMutex
+// Object returns event role edge.
+func (e ContestProblemEvent) Object() db.Object {
+	return e.ContestProblem
 }
 
-func NewContestProblemStore(
-	db *sql.DB, table, changeTable string,
-) *ContestProblemStore {
-	store := ContestProblemStore{
-		table:       table,
-		changeTable: changeTable,
-		problems:    make(map[int64]map[int64]ContestProblem),
+// WithObject returns event with replaced ContestProblem.
+func (e ContestProblemEvent) WithObject(o db.Object) ObjectEvent {
+	e.ContestProblem = o.(ContestProblem)
+	return e
+}
+
+// ContestProblemManager represents a problem manager.
+type ContestProblemManager struct {
+	baseManager
+	problems  map[int64]ContestProblem
+	byContest indexInt64
+}
+
+// Get returns problem by ID.
+//
+// If there is no problem with specified ID then
+// sql.ErrNoRows will be returned.
+func (m *ContestProblemManager) Get(id int64) (ContestProblem, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	if problem, ok := m.problems[id]; ok {
+		return problem.clone(), nil
 	}
-	store.Manager = NewChangeManager(&store, db)
-	return &store
+	return ContestProblem{}, sql.ErrNoRows
 }
 
-func (s *ContestProblemStore) GetByContest(
-	id int64,
+// FindByContest returns problems by parent ID.
+func (m *ContestProblemManager) FindByContest(
+	contestID int64,
 ) ([]ContestProblem, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var found []ContestProblem
-	if problems, ok := s.problems[id]; ok {
-		for _, problem := range problems {
-			found = append(found, problem)
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	var problems []ContestProblem
+	for id := range m.byContest[contestID] {
+		if problem, ok := m.problems[id]; ok {
+			problems = append(problems, problem.clone())
 		}
 	}
-	return found, nil
+	return problems, nil
 }
 
-func (s *ContestProblemStore) Create(m *ContestProblem) error {
-	change := ContestProblemChange{
-		BaseChange:     BaseChange{Type: CreateChange},
-		ContestProblem: *m,
-	}
-	err := s.Manager.Change(&change)
+// CreateTx creates problem and returns copy with valid ID.
+func (m *ContestProblemManager) CreateTx(
+	tx *sql.Tx, problem ContestProblem,
+) (ContestProblem, error) {
+	event, err := m.createObjectEvent(tx, ContestProblemEvent{
+		makeBaseEvent(CreateEvent),
+		problem,
+	})
 	if err != nil {
-		return err
+		return ContestProblem{}, err
 	}
-	*m = change.ContestProblem
-	return nil
+	return event.Object().(ContestProblem), nil
 }
 
-func (s *ContestProblemStore) Update(m *ContestProblem) error {
-	change := ContestProblemChange{
-		BaseChange:     BaseChange{Type: UpdateChange},
-		ContestProblem: *m,
-	}
-	err := s.Manager.Change(&change)
-	if err != nil {
-		return err
-	}
-	*m = change.ContestProblem
-	return nil
-}
-
-func (s *ContestProblemStore) Delete(contestID int64, problemID int64) error {
-	change := ContestProblemChange{
-		BaseChange: BaseChange{Type: DeleteChange},
-		ContestProblem: ContestProblem{
-			ContestID: contestID,
-			ProblemID: problemID,
-		},
-	}
-	return s.Manager.Change(&change)
-}
-
-func (s *ContestProblemStore) GetLocker() sync.Locker {
-	return &s.mutex
-}
-
-func (s *ContestProblemStore) InitChanges(tx *sql.Tx) (int64, error) {
-	return 0, nil
-}
-
-func (s *ContestProblemStore) LoadChanges(
-	tx *sql.Tx, gap ChangeGap,
-) (*sql.Rows, error) {
-	return tx.Query(
-		fmt.Sprintf(
-			`SELECT`+
-				` "change_id", "change_type", "change_time",`+
-				` "contest_id", "problem_id", "code"`+
-				` FROM %q`+
-				` WHERE "change_id" >= $1 AND "change_id" < $2`+
-				` ORDER BY "change_id"`,
-			s.changeTable,
-		),
-		gap.BeginID, gap.EndID,
-	)
-}
-
-func (s *ContestProblemStore) ScanChange(scan Scanner) (Change, error) {
-	problem := ContestProblemChange{}
-	err := scan.Scan(
-		&problem.BaseChange.ID, &problem.Type, &problem.Time,
-		&problem.ContestID, &problem.ProblemID, &problem.Code,
-	)
-	return &problem, err
-}
-
-func (s *ContestProblemStore) SaveChange(tx *sql.Tx, change Change) error {
-	problem := change.(*ContestProblemChange)
-	problem.Time = time.Now().Unix()
-	switch problem.Type {
-	case CreateChange:
-		_, err := tx.Exec(
-			fmt.Sprintf(
-				`INSERT INTO %q`+
-					` ("contest_id", "problem_id", "code")`+
-					` VALUES ($1, $2, $3)`,
-				s.table,
-			),
-			problem.ContestID, problem.ProblemID, problem.Code,
-		)
-		if err != nil {
-			return err
-		}
-	case UpdateChange:
-		problems, ok := s.problems[problem.ContestID]
-		if !ok {
-			return fmt.Errorf(
-				"problem with contest ID = %d does not exists",
-				problem.ContestID,
-			)
-		}
-		if _, ok := problems[problem.ProblemID]; !ok {
-			return fmt.Errorf(
-				"problem with problem ID = %d does not exists",
-				problem.ProblemID,
-			)
-		}
-		_, err := tx.Exec(
-			fmt.Sprintf(
-				`UPDATE %q SET "code" = $1`+
-					` WHERE "contest_id" = $2 AND "problem_id" = $3`,
-				s.table,
-			),
-			problem.Code, problem.ContestID, problem.ProblemID,
-		)
-		if err != nil {
-			return err
-		}
-	case DeleteChange:
-		problems, ok := s.problems[problem.ContestID]
-		if !ok {
-			return fmt.Errorf(
-				"problem with contest ID = %d does not exists",
-				problem.ContestID,
-			)
-		}
-		if _, ok := problems[problem.ProblemID]; !ok {
-			return fmt.Errorf(
-				"problem with problem ID = %d does not exists",
-				problem.ProblemID,
-			)
-		}
-		_, err := tx.Exec(
-			fmt.Sprintf(
-				`DELETE FROM %q`+
-					` WHERE "contest_id" = $1 AND "problem_id" = $2`,
-				s.table,
-			),
-			problem.ContestID, problem.ProblemID,
-		)
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf(
-			"unsupported change type = %s",
-			problem.Type,
-		)
-	}
-	var err error
-	problem.BaseChange.ID, err = execTxReturningID(
-		s.Manager.db.Driver(), tx,
-		fmt.Sprintf(
-			`INSERT INTO %q`+
-				` ("change_type", "change_time",`+
-				` "contest_id", "problem_id", "code")`+
-				` VALUES ($1, $2, $3, $4, $5)`,
-			s.changeTable,
-		),
-		"change_id",
-		problem.Type, problem.Time,
-		problem.ContestID, problem.ProblemID, problem.Code,
-	)
+// UpdateTx updates problem with specified ID.
+func (m *ContestProblemManager) UpdateTx(
+	tx *sql.Tx, problem ContestProblem,
+) error {
+	_, err := m.createObjectEvent(tx, ContestProblemEvent{
+		makeBaseEvent(UpdateEvent),
+		problem,
+	})
 	return err
 }
 
-func (s *ContestProblemStore) ApplyChange(change Change) {
-	problem := change.(*ContestProblemChange)
-	switch problem.Type {
-	case UpdateChange:
-		fallthrough
-	case CreateChange:
-		if _, ok := s.problems[problem.ContestID]; !ok {
-			s.problems[problem.ContestID] = make(map[int64]ContestProblem)
+// DeleteTx deletes problem with specified ID.
+func (m *ContestProblemManager) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := m.createObjectEvent(tx, ContestProblemEvent{
+		makeBaseEvent(DeleteEvent),
+		ContestProblem{ID: id},
+	})
+	return err
+}
+
+func (m *ContestProblemManager) reset() {
+	m.problems = map[int64]ContestProblem{}
+	m.byContest = indexInt64{}
+}
+
+func (m *ContestProblemManager) onCreateObject(o db.Object) {
+	problem := o.(ContestProblem)
+	m.problems[problem.ID] = problem
+	m.byContest.Create(problem.ContestID, problem.ID)
+}
+
+func (m *ContestProblemManager) onDeleteObject(o db.Object) {
+	problem := o.(ContestProblem)
+	m.byContest.Delete(problem.ContestID, problem.ID)
+	delete(m.problems, problem.ID)
+}
+
+func (m *ContestProblemManager) onUpdateObject(o db.Object) {
+	problem := o.(ContestProblem)
+	if old, ok := m.problems[problem.ID]; ok {
+		if old.ContestID != problem.ContestID {
+			m.byContest.Delete(old.ContestID, old.ID)
 		}
-		s.problems[problem.ContestID][problem.ProblemID] =
-			problem.ContestProblem
-	case DeleteChange:
-		if problems, ok := s.problems[problem.ContestID]; ok {
-			delete(problems, problem.ProblemID)
-			if len(problems) == 0 {
-				delete(s.problems, problem.ContestID)
-			}
-		}
-	default:
-		panic(fmt.Errorf(
-			"unsupported change type = %s",
-			problem.Type,
-		))
 	}
+	m.onCreateObject(o)
+}
+
+// NewContestProblemManager creates a new instance of ContestProblemManager.
+func NewContestProblemManager(
+	table, eventTable string, dialect db.Dialect,
+) *ContestProblemManager {
+	impl := &ContestProblemManager{}
+	impl.baseManager = makeBaseManager(
+		ContestProblem{}, table, ContestProblemEvent{}, eventTable, impl, dialect,
+	)
+	return impl
 }

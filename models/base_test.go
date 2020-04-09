@@ -4,12 +4,32 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/db"
 )
+
+var testDB *sql.DB
+
+func testSetup(tb testing.TB) {
+	cfg := config.DB{
+		Driver:  config.SQLiteDriver,
+		Options: config.SQLiteOptions{Path: "?mode=memory"},
+	}
+	var err error
+	testDB, err = cfg.Create()
+	if err != nil {
+		os.Exit(1)
+	}
+}
+
+func testTeardown(tb testing.TB) {
+	_ = testDB.Close()
+}
 
 func TestEventType(t *testing.T) {
 	if s := fmt.Sprintf("%s", CreateEvent); s != "Create" {
@@ -479,6 +499,18 @@ func TestJSON_UnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestJSON_clone(t *testing.T) {
+	a := JSON(`{"hello": "world"}`)
+	b := a.clone()
+	if string(a) != string(b) {
+		t.Fatalf("Expected %s, got %s", a, b)
+	}
+	a[6] = '0'
+	if string(a) == string(b) {
+		t.Fatalf("Update should modify only one copy")
+	}
+}
+
 type managerTestHelper interface {
 	prepareDB(tx *sql.Tx) error
 	newManager() Manager
@@ -560,6 +592,13 @@ func (m *managerTester) Test(t testing.TB) {
 	if err := withTestTx(master.SyncTx); err != nil {
 		t.Fatal("Error:", err)
 	}
+	if err := withTestTx(func(tx *sql.Tx) error {
+		_ = tx.Rollback()
+		_, err := m.helper.createObject(master, tx, m.helper.newObject())
+		return err
+	}); err == nil {
+		t.Fatal("Expected error")
+	}
 }
 
 func (m *managerTester) prepareDB(t testing.TB) {
@@ -572,5 +611,27 @@ func (m *managerTester) prepareDB(t testing.TB) {
 		t.Fatal("Error:", err)
 	} else if err := tx.Commit(); err != nil {
 		t.Fatal("Error:", err)
+	}
+}
+
+func BenchmarkBaseManager_CreateTx(b *testing.B) {
+	testSetup(b)
+	defer testTeardown(b)
+	manager := newTestManager()
+	migrateTestManager(b, manager)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := withTestTx(func(tx *sql.Tx) error {
+			bytes, err := json.Marshal(i + 1)
+			if err != nil {
+				return err
+			}
+			_, err = manager.CreateTx(tx, testObject{
+				JSON: JSON(bytes),
+			})
+			return err
+		}); err != nil {
+			b.Fatal("Error: ", err)
+		}
 	}
 }

@@ -100,6 +100,12 @@ func (v *JSON) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
+func (v JSON) clone() JSON {
+	c := make(JSON, len(v))
+	copy(c, v)
+	return c
+}
+
 // EventType represents type of object event.
 type EventType int8
 

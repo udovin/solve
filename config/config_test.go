@@ -47,3 +47,11 @@ func TestLoadFromFile(t *testing.T) {
 		t.Fatal("Config was corrupted")
 	}
 }
+
+func TestServer_Address(t *testing.T) {
+	s := Server{Host: "localhost", Port: 8080}
+	addr := "localhost:8080"
+	if v := s.Address(); v != addr {
+		t.Fatalf("Expected %q, got %q", addr, v)
+	}
+}

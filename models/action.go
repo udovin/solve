@@ -80,6 +80,12 @@ func (o Action) ObjectID() int64 {
 	return o.ID
 }
 
+func (o Action) clone() Action {
+	o.Config = o.Config.clone()
+	o.State = o.State.clone()
+	return o
+}
+
 // ActionEvent represents action event.
 type ActionEvent struct {
 	baseEvent
@@ -111,7 +117,7 @@ func (m *ActionManager) Get(id int64) (Action, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	if action, ok := m.actions[id]; ok {
-		return action, nil
+		return action.clone(), nil
 	}
 	return Action{}, sql.ErrNoRows
 }
@@ -123,7 +129,7 @@ func (m *ActionManager) FindByStatus(status ActionStatus) ([]Action, error) {
 	var actions []Action
 	for id := range m.byStatus[int64(status)] {
 		if action, ok := m.actions[id]; ok {
-			actions = append(actions, action)
+			actions = append(actions, action.clone())
 		}
 	}
 	return actions, nil
@@ -161,16 +167,23 @@ func (m *ActionManager) DeleteTx(tx *sql.Tx, id int64) error {
 
 // PopQueuedTx pops queued action from the store and sets running status.
 func (m *ActionManager) PopQueuedTx(tx *sql.Tx) (Action, error) {
+	// First of all we should lock store.
 	if err := m.lockStore(tx); err != nil {
 		return Action{}, err
 	}
+	// Now we should load all changes from store.
 	if err := m.SyncTx(tx); err != nil {
 		return Action{}, err
 	}
+	// New changes will not be available right now due to locked store.
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	for id := range m.byStatus[int64(Queued)] {
 		if action, ok := m.actions[id]; ok {
+			// We should make clone of action, because we do not
+			// want to corrupt manager in-memory cache.
+			action = action.clone()
+			// Now we can do any manipulations with this action.
 			action.Status = Running
 			if err := m.UpdateTx(tx, action); err != nil {
 				return Action{}, err

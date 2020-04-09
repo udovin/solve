@@ -46,9 +46,10 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	// Create new echo server instance.
 	s := echo.New()
 	// Setup middleware.
-	s.Use(middleware.Recover())
 	s.Pre(middleware.RemoveTrailingSlash())
+	s.Use(middleware.Recover())
 	s.Use(middleware.Gzip())
+	s.Use(middleware.Logger())
 	// Create API view.
 	v := api.NewView(c)
 	// Register API view.

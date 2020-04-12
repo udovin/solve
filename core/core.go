@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -39,7 +40,10 @@ type Core struct {
 	ContestProblems *models.ContestProblemManager
 	// Visits contains visit manager.
 	Visits *models.VisitManager
-	closer chan struct{}
+	//
+	ctx  context.Context
+	stop context.CancelFunc
+	//
 	waiter sync.WaitGroup
 	// db store database connection.
 	db *sql.DB
@@ -184,11 +188,11 @@ func (c *Core) HasRole(roles Roles, code string) (bool, error) {
 }
 
 // Start starts application and data synchronization.
-func (c *Core) Start() error {
-	if c.closer != nil {
-		return fmt.Errorf("app already started")
+func (c *Core) Start(ctx context.Context) error {
+	if c.stop != nil {
+		return fmt.Errorf("core already started")
 	}
-	c.closer = make(chan struct{})
+	c.ctx, c.stop = context.WithCancel(ctx)
 	errs := make(chan error)
 	count := 0
 	c.startManagers(func(m models.Manager, d time.Duration) {
@@ -213,12 +217,12 @@ func (c *Core) Start() error {
 
 // Stop stops syncing stores.
 func (c *Core) Stop() {
-	if c.closer == nil {
+	if c.stop == nil {
 		return
 	}
-	close(c.closer)
+	c.stop()
 	c.waiter.Wait()
-	c.closer = nil
+	c.ctx, c.stop = nil, nil
 }
 
 func (c *Core) startManager(
@@ -237,7 +241,7 @@ func (c *Core) startManager(
 			if err := c.WithTx(m.SyncTx); err != nil {
 				log.Println("Error:", err)
 			}
-		case <-c.closer:
+		case <-c.ctx.Done():
 			ticker.Stop()
 			return
 		}

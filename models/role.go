@@ -17,11 +17,17 @@ type Role struct {
 }
 
 const (
+	// GuestGroupRole represents name of role for guest group.
 	GuestGroupRole = "GuestGroup"
-	UserGroupRole  = "UserGroup"
-	LoginRole      = "Login"
-	LogoutRole     = "Logout"
-	RegisterRole   = "Register"
+	// UserGroupRole represents name of role for user group.
+	UserGroupRole = "UserGroup"
+	// LoginRole represents name of role for login action.
+	LoginRole = "Login"
+	// LogoutRole represents name of role for logout action.
+	LogoutRole = "Logout"
+	// RegisterRole represents name of role for register action.
+	RegisterRole = "Register"
+	// AuthStatusRole represents name of role for auth status check.
 	AuthStatusRole = "AuthStatus"
 )
 

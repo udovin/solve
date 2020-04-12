@@ -44,9 +44,13 @@ func (t UserFieldType) String() string {
 }
 
 const (
-	EmailField      UserFieldType = 1
-	FirstNameField  UserFieldType = 2
-	LastNameField   UserFieldType = 3
+	// EmailField represents field type for email address.
+	EmailField UserFieldType = 1
+	// FirstNameField represents field type for first name.
+	FirstNameField UserFieldType = 2
+	// LastNameField represents field type for last name.
+	LastNameField UserFieldType = 3
+	// MiddleName represents field type for middle name.
 	MiddleNameField UserFieldType = 4
 )
 

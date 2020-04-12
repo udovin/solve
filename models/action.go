@@ -75,7 +75,7 @@ type Action struct {
 	ExpireTime int64        `db:"expire_time"`
 }
 
-// ObjectId returns ID of action.
+// ObjectID returns ID of action.
 func (o Action) ObjectID() int64 {
 	return o.ID
 }

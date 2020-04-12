@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/url"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/invoker"
+	"github.com/udovin/solve/migrations"
 )
 
 func getConfig(cmd *cobra.Command) (config.Config, error) {
@@ -39,7 +41,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	if err := c.SetupAllManagers(); err != nil {
 		panic(err)
 	}
-	if err := c.Start(); err != nil {
+	if err := c.Start(context.Background()); err != nil {
 		panic(err)
 	}
 	defer c.Stop()
@@ -62,10 +64,9 @@ func serverMain(cmd *cobra.Command, _ []string) {
 		}
 		name := filepath.Join(cfg.Server.Static, path.Clean("/"+p))
 		if _, err := os.Stat(name); os.IsNotExist(err) {
-			return c.File(filepath.Join(cfg.Server.Static, "index.html"))
-		} else {
-			return c.File(name)
+			name = filepath.Join(cfg.Server.Static, "index.html")
 		}
+		return c.File(name)
 	})
 	// Start echo server.
 	if err := s.Start(cfg.Server.Address()); err != nil {
@@ -83,7 +84,7 @@ func invokerMain(cmd *cobra.Command, _ []string) {
 		panic(err)
 	}
 	c.SetupInvokerManagers()
-	if err := c.Start(); err != nil {
+	if err := c.Start(context.Background()); err != nil {
 		panic(err)
 	}
 	defer c.Stop()
@@ -93,6 +94,40 @@ func invokerMain(cmd *cobra.Command, _ []string) {
 	wait := make(chan os.Signal)
 	signal.Notify(wait, os.Interrupt, syscall.SIGTERM)
 	<-wait
+}
+
+func dbApplyMain(cmd *cobra.Command, _ []string) {
+	cfg, err := getConfig(cmd)
+	if err != nil {
+		panic(err)
+	}
+	c, err := core.NewCore(cfg)
+	if err != nil {
+		panic(err)
+	}
+	if err := c.SetupAllManagers(); err != nil {
+		panic(err)
+	}
+	if err := migrations.Apply(c); err != nil {
+		panic(err)
+	}
+}
+
+func dbUnapplyMain(cmd *cobra.Command, _ []string) {
+	cfg, err := getConfig(cmd)
+	if err != nil {
+		panic(err)
+	}
+	c, err := core.NewCore(cfg)
+	if err != nil {
+		panic(err)
+	}
+	if err := c.SetupAllManagers(); err != nil {
+		panic(err)
+	}
+	if err := migrations.Unapply(c); err != nil {
+		panic(err)
+	}
 }
 
 func main() {
@@ -112,8 +147,12 @@ func main() {
 		Use: "db",
 	}
 	dbCmd.AddCommand(&cobra.Command{
-		Use: "upgrade",
-		Run: upgradeDbMain,
+		Use: "apply",
+		Run: dbApplyMain,
+	})
+	dbCmd.AddCommand(&cobra.Command{
+		Use: "unapply",
+		Run: dbUnapplyMain,
 	})
 	rootCmd.AddCommand(&dbCmd)
 	if err := rootCmd.Execute(); err != nil {

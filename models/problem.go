@@ -34,6 +34,7 @@ func (e ProblemEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
+// ProblemManager represents manager for problems.
 type ProblemManager struct {
 	baseManager
 	problems map[int64]Problem

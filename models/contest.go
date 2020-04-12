@@ -39,6 +39,7 @@ func (e ContestEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
+// ContestManager represents manager for contests.
 type ContestManager struct {
 	baseManager
 	contests map[int64]Contest

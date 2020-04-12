@@ -397,7 +397,7 @@ func TestBaseEvent(t *testing.T) {
 }
 
 func TestNInt64_Value(t *testing.T) {
-	var a NInt64 = 0
+	var a NInt64
 	va, err := a.Value()
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -545,23 +545,7 @@ func (m *managerTester) Test(t testing.TB) {
 	if err := withTestTx(master.InitTx); err != nil {
 		t.Fatal("Error:", err)
 	}
-	var objects []db.Object
-	for i := 0; i < 100; i++ {
-		object := m.helper.newObject()
-		if err := withTestTx(func(tx *sql.Tx) error {
-			created, err := m.helper.createObject(master, tx, object)
-			if err != nil {
-				return err
-			}
-			if id := created.ObjectID(); id <= 0 {
-				return fmt.Errorf("object has invalid ID: %d", id)
-			}
-			objects = append(objects, created)
-			return nil
-		}); err != nil {
-			t.Fatal("Error:", err)
-		}
-	}
+	objects := m.createObjects(t, master)
 	if err := withTestTx(master.SyncTx); err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -592,9 +576,34 @@ func (m *managerTester) Test(t testing.TB) {
 	if err := withTestTx(master.SyncTx); err != nil {
 		t.Fatal("Error:", err)
 	}
+	m.testFailedTx(t, master)
+}
+
+func (m *managerTester) createObjects(t testing.TB, mgr Manager) []db.Object {
+	var objects []db.Object
+	for i := 0; i < 100; i++ {
+		object := m.helper.newObject()
+		if err := withTestTx(func(tx *sql.Tx) error {
+			created, err := m.helper.createObject(mgr, tx, object)
+			if err != nil {
+				return err
+			}
+			if id := created.ObjectID(); id <= 0 {
+				return fmt.Errorf("object has invalid ID: %d", id)
+			}
+			objects = append(objects, created)
+			return nil
+		}); err != nil {
+			t.Fatal("Error:", err)
+		}
+	}
+	return objects
+}
+
+func (m *managerTester) testFailedTx(t testing.TB, mgr Manager) {
 	if err := withTestTx(func(tx *sql.Tx) error {
 		_ = tx.Rollback()
-		_, err := m.helper.createObject(master, tx, m.helper.newObject())
+		_, err := m.helper.createObject(mgr, tx, m.helper.newObject())
 		return err
 	}); err == nil {
 		t.Fatal("Expected error")

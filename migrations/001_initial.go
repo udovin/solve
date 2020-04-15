@@ -2,8 +2,6 @@ package migrations
 
 import (
 	"database/sql"
-
-	"github.com/udovin/solve/core"
 )
 
 type m001 struct{}
@@ -122,6 +120,76 @@ CREATE TABLE "solve_user_field_event"
 	"type" integer NOT NULL,
 	"data" TEXT NOT NULL
 );
+-- models.Session
+CREATE TABLE "solve_session"
+(
+	"id" integer PRIMARY KEY,
+	"user_id" integer NOT NULL,
+	"secret" VARCHAR(56) NOT NULL,
+	"create_time" bigint NOT NULL,
+	"expire_time" bigint NOT NULL
+);
+-- models.SessionEvent
+CREATE TABLE "solve_session_event"
+(
+	"event_id" integer PRIMARY KEY,
+	"event_type" int8 NOT NULL,
+	"event_time" bigint NOT NULL,
+	"id" integer NOT NULL,
+	"user_id" integer NOT NULL,
+	"secret" VARCHAR(56) NOT NULL,
+	"create_time" bigint NOT NULL,
+	"expire_time" bigint NOT NULL
+);
+-- models.Contest
+CREATE TABLE "solve_contest"
+(
+	"id" integer PRIMARY KEY,
+	"config" blob
+);
+-- models.ContestEvent
+CREATE TABLE "solve_contest_event"
+(
+	"event_id" integer PRIMARY KEY,
+	"event_type" int8 NOT NULL,
+	"event_time" bigint NOT NULL,
+	"id" integer NOT NULL,
+	"config" blob
+);
+-- models.Problem
+CREATE TABLE "solve_problem"
+(
+	"id" integer PRIMARY KEY,
+	"config" blob
+);
+-- models.ProblemEvent
+CREATE TABLE "solve_problem_event"
+(
+	"event_id" integer PRIMARY KEY,
+	"event_type" int8 NOT NULL,
+	"event_time" bigint NOT NULL,
+	"id" integer NOT NULL,
+	"config" blob
+);
+-- models.ContestProblem
+CREATE TABLE "solve_contest_problem"
+(
+	"id" integer PRIMARY KEY,
+	"contest_id" bigint NOT NULL,
+	"problem_id" bigint NOT NULL,
+	"code" VARCHAR(32) NOT NULL
+);
+-- models.ContestProblemEvent
+CREATE TABLE "solve_contest_problem_event"
+(
+	"event_id" integer PRIMARY KEY,
+	"event_type" int8 NOT NULL,
+	"event_time" bigint NOT NULL,
+	"id" integer NOT NULL,
+	"contest_id" bigint NOT NULL,
+	"problem_id" bigint NOT NULL,
+	"code" VARCHAR(32) NOT NULL
+);
 -- models.Visit
 CREATE TABLE "solve_visit"
 (
@@ -142,6 +210,14 @@ CREATE TABLE "solve_visit"
 
 const m001Unapply = `
 DROP TABLE IF EXISTS "solve_visit";
+DROP TABLE IF EXISTS "solve_contest_problem_event";
+DROP TABLE IF EXISTS "solve_contest_problem";
+DROP TABLE IF EXISTS "solve_problem_event";
+DROP TABLE IF EXISTS "solve_problem";
+DROP TABLE IF EXISTS "solve_contest_event";
+DROP TABLE IF EXISTS "solve_contest";
+DROP TABLE IF EXISTS "solve_session_event";
+DROP TABLE IF EXISTS "solve_session";
 DROP TABLE IF EXISTS "solve_user_field_event";
 DROP TABLE IF EXISTS "solve_user_field";
 DROP TABLE IF EXISTS "solve_user_role_event";
@@ -156,12 +232,12 @@ DROP TABLE IF EXISTS "solve_action_event";
 DROP TABLE IF EXISTS "solve_action";
 `
 
-func (m *m001) Apply(c *core.Core, tx *sql.Tx) error {
+func (m *m001) Apply(c Core, tx *sql.Tx) error {
 	_, err := tx.Exec(m001Apply)
 	return err
 }
 
-func (m *m001) Unapply(c *core.Core, tx *sql.Tx) error {
+func (m *m001) Unapply(c Core, tx *sql.Tx) error {
 	_, err := tx.Exec(m001Unapply)
 	return err
 }

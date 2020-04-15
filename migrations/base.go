@@ -4,18 +4,25 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
 )
+
+// Core represents core.
+type Core interface {
+	// Dialect should return DB dialect.
+	Dialect() db.Dialect
+	// WithTx should run function with transaction.
+	WithTx(func(*sql.Tx) error) error
+}
 
 // Migration represents database migration.
 type Migration interface {
 	// Name should return unique migration name.
 	Name() string
 	// Apply should apply database migration.
-	Apply(c *core.Core, tx *sql.Tx) error
+	Apply(c Core, tx *sql.Tx) error
 	// Unapply should unapply database migration.
-	Unapply(c *core.Core, tx *sql.Tx) error
+	Unapply(c Core, tx *sql.Tx) error
 }
 
 // migrations contains list of all migrations.
@@ -35,16 +42,17 @@ func (o migration) ObjectID() int64 {
 const migrationTable = "solve_db_migration"
 
 // Apply applies all migrations to the specified core.
-func Apply(c *core.Core) error {
-	dialect := core.GetDialect(c.Config.DB.Driver)
+func Apply(c Core) error {
 	// Prepare database.
 	if err := c.WithTx(func(tx *sql.Tx) error {
-		return setupDB(tx, dialect)
+		return setupDB(tx, c.Dialect())
 	}); err != nil {
 		return err
 	}
 	// Prepare migration store.
-	store := db.NewObjectStore(migration{}, "id", migrationTable, dialect)
+	store := db.NewObjectStore(
+		migration{}, "id", migrationTable, c.Dialect(),
+	)
 	for _, m := range migrations {
 		if err := c.WithTx(func(tx *sql.Tx) error {
 			// Check that migration already applied.
@@ -68,16 +76,17 @@ func Apply(c *core.Core) error {
 }
 
 // Unapply rollbacks all applied migrations for specified core.
-func Unapply(c *core.Core) error {
-	dialect := core.GetDialect(c.Config.DB.Driver)
+func Unapply(c Core) error {
 	// Prepare database.
 	if err := c.WithTx(func(tx *sql.Tx) error {
-		return setupDB(tx, dialect)
+		return setupDB(tx, c.Dialect())
 	}); err != nil {
 		return err
 	}
 	// Prepare migration store.
-	store := db.NewObjectStore(migration{}, "id", migrationTable, dialect)
+	store := db.NewObjectStore(
+		migration{}, "id", migrationTable, c.Dialect(),
+	)
 	for i := len(migrations) - 1; i >= 0; i-- {
 		m := migrations[i]
 		if err := c.WithTx(func(tx *sql.Tx) error {
@@ -136,7 +145,8 @@ func setupDB(tx *sql.Tx, dialect db.Dialect) error {
 	case db.SQLite:
 		_, err := tx.Exec(fmt.Sprintf(
 			`CREATE TABLE IF NOT EXISTS %q (`+
-				`"id" INTEGER PRIMARY KEY, "name" VARCHAR(255) NOT NULL)`,
+				`"id" INTEGER PRIMARY KEY,`+
+				`"name" VARCHAR(255) NOT NULL)`,
 			migrationTable,
 		))
 		return err
@@ -144,9 +154,9 @@ func setupDB(tx *sql.Tx, dialect db.Dialect) error {
 		_, err := tx.Exec(fmt.Sprintf(
 			`CREATE TABLE IF NOT EXISTS %q (`+
 				`"id" SERIAL NOT NULL `+
-				`CONSTRAINT solve_db_migration_pkey PRIMARY KEY, `+
+				`CONSTRAINT %q PRIMARY KEY, `+
 				`"name" VARCHAR(255) NOT NULL)`,
-			migrationTable,
+			migrationTable, migrationTable+"_pk",
 		))
 		return err
 	default:

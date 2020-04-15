@@ -248,6 +248,11 @@ func (c *Core) startManager(
 	}
 }
 
+// Dialect returns dialect of core DB.
+func (c *Core) Dialect() db.Dialect {
+	return GetDialect(c.Config.DB.Driver)
+}
+
 // GetDialect returns SQL dialect from database driver.
 func GetDialect(driver config.DBDriver) db.Dialect {
 	switch driver {

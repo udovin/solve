@@ -50,7 +50,7 @@ const (
 	FirstNameField UserFieldType = 2
 	// LastNameField represents field type for last name.
 	LastNameField UserFieldType = 3
-	// MiddleName represents field type for middle name.
+	// MiddleNameField represents field type for middle name.
 	MiddleNameField UserFieldType = 4
 )
 
@@ -71,7 +71,7 @@ func (e UserFieldEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// Manager that caches database records about user fields.
+// UserFieldManager that caches database records about user fields.
 type UserFieldManager struct {
 	baseManager
 	fields map[int64]UserField

@@ -1,4 +1,4 @@
-// db provides implementation of generic object and event stores.
+// Package db provides implementation of generic object and event stores.
 package db
 
 import (

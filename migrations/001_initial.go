@@ -65,10 +65,64 @@ CREATE TABLE "solve_role_edge_event"
 	"role_id" integer NOT NULL,
 	"child_id" integer NOT NULL
 );
+-- models.Account
+CREATE TABLE "solve_account"
+(
+    "id" integer PRIMARY KEY,
+    "kind" integer NOT NULL
+);
+-- models.AccountEvent
+CREATE TABLE "solve_account_event"
+(
+	"event_id" integer PRIMARY KEY,
+	"event_type" int8 NOT NULL,
+	"event_time" bigint NOT NULL,
+	"id" integer NOT NULL,
+	"kind" integer NOT NULL
+);
+-- models.AccountRole
+CREATE TABLE "solve_account_role"
+(
+	"id" integer PRIMARY KEY,
+	"account_id" integer NOT NULL,
+	"role_id" integer NOT NULL
+);
+-- models.AccountRoleEvent
+CREATE TABLE "solve_account_role_event"
+(
+	"event_id" integer PRIMARY KEY,
+	"event_type" int8 NOT NULL,
+	"event_time" bigint NOT NULL,
+	"id" integer NOT NULL,
+	"account_id" integer NOT NULL,
+	"role_id" integer NOT NULL
+);
+-- models.Session
+CREATE TABLE "solve_session"
+(
+	"id" integer PRIMARY KEY,
+	"account_id" integer NOT NULL,
+	"secret" VARCHAR(56) NOT NULL,
+	"create_time" bigint NOT NULL,
+	"expire_time" bigint NOT NULL
+);
+-- models.SessionEvent
+CREATE TABLE "solve_session_event"
+(
+	"event_id" integer PRIMARY KEY,
+	"event_type" int8 NOT NULL,
+	"event_time" bigint NOT NULL,
+	"id" integer NOT NULL,
+	"account_id" integer NOT NULL,
+	"secret" VARCHAR(56) NOT NULL,
+	"create_time" bigint NOT NULL,
+	"expire_time" bigint NOT NULL
+);
 -- models.User
 CREATE TABLE "solve_user"
 (
 	"id" integer PRIMARY KEY,
+	"account_id" integer NOT NULL,
 	"login" integer NOT NULL,
 	"password_hash" integer NOT NULL,
 	"password_salt" TEXT NOT NULL
@@ -80,26 +134,10 @@ CREATE TABLE "solve_user_event"
 	"event_type" int8 NOT NULL,
 	"event_time" bigint NOT NULL,
 	"id" integer NOT NULL,
+	"account_id" integer NOT NULL,
 	"login" integer NOT NULL,
 	"password_hash" integer NOT NULL,
 	"password_salt" TEXT NOT NULL
-);
--- models.UserRole
-CREATE TABLE "solve_user_role"
-(
-	"id" integer PRIMARY KEY,
-	"user_id" integer NOT NULL,
-	"role_id" integer NOT NULL
-);
--- models.UserRoleEvent
-CREATE TABLE "solve_user_role_event"
-(
-	"event_id" integer PRIMARY KEY,
-	"event_type" int8 NOT NULL,
-	"event_time" bigint NOT NULL,
-	"id" integer NOT NULL,
-	"user_id" integer NOT NULL,
-	"role_id" integer NOT NULL
 );
 -- models.UserField
 CREATE TABLE "solve_user_field"
@@ -119,27 +157,6 @@ CREATE TABLE "solve_user_field_event"
 	"user_id" integer NOT NULL,
 	"type" integer NOT NULL,
 	"data" TEXT NOT NULL
-);
--- models.Session
-CREATE TABLE "solve_session"
-(
-	"id" integer PRIMARY KEY,
-	"user_id" integer NOT NULL,
-	"secret" VARCHAR(56) NOT NULL,
-	"create_time" bigint NOT NULL,
-	"expire_time" bigint NOT NULL
-);
--- models.SessionEvent
-CREATE TABLE "solve_session_event"
-(
-	"event_id" integer PRIMARY KEY,
-	"event_type" int8 NOT NULL,
-	"event_time" bigint NOT NULL,
-	"id" integer NOT NULL,
-	"user_id" integer NOT NULL,
-	"secret" VARCHAR(56) NOT NULL,
-	"create_time" bigint NOT NULL,
-	"expire_time" bigint NOT NULL
 );
 -- models.Contest
 CREATE TABLE "solve_contest"
@@ -195,7 +212,7 @@ CREATE TABLE "solve_visit"
 (
 	"id" integer PRIMARY KEY,
 	"time" bigint NOT NULL,
-	"user_id" integer,
+	"account_id" integer,
 	"session_id" integer,
 	"host" varchar(255) NOT NULL,
 	"protocol" varchar(255) NOT NULL,
@@ -220,10 +237,12 @@ DROP TABLE IF EXISTS "solve_session_event";
 DROP TABLE IF EXISTS "solve_session";
 DROP TABLE IF EXISTS "solve_user_field_event";
 DROP TABLE IF EXISTS "solve_user_field";
-DROP TABLE IF EXISTS "solve_user_role_event";
-DROP TABLE IF EXISTS "solve_user_role";
 DROP TABLE IF EXISTS "solve_user_event";
 DROP TABLE IF EXISTS "solve_user";
+DROP TABLE IF EXISTS "solve_account_role_event";
+DROP TABLE IF EXISTS "solve_account_role";
+DROP TABLE IF EXISTS "solve_account_event";
+DROP TABLE IF EXISTS "solve_account";
 DROP TABLE IF EXISTS "solve_role_edge_event";
 DROP TABLE IF EXISTS "solve_role_edge";
 DROP TABLE IF EXISTS "solve_role_event";

@@ -30,12 +30,12 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 		v.requireRole(models.AuthStatusRole),
 	)
 	g.POST(
-		"/login", v.loginUser,
-		v.requireAuth(v.passwordAuth),
+		"/login", v.loginAccount,
+		v.requireAuth(v.userAuth),
 		v.requireRole(models.LoginRole),
 	)
 	g.POST(
-		"/logout", v.logoutUser,
+		"/logout", v.logoutAccount,
 		v.requireAuth(v.sessionAuth),
 		v.requireRole(models.LogoutRole),
 	)
@@ -58,10 +58,9 @@ func (v *View) authStatus(c echo.Context) error {
 	status := authStatus{}
 	if session, ok := c.Get(authSessionKey).(models.Session); ok {
 		status.Session = &session
-		// Currently there can be no situation when user does not exist
-		// with existing session, so panic should not happen.
-		user := c.Get(authUserKey).(models.User)
-		status.User = &user
+		if user, ok := c.Get(authUserKey).(models.User); ok {
+			status.User = &user
+		}
 	}
 	for id := range c.Get(authRolesKey).(core.Roles) {
 		if role, err := v.core.Roles.Get(id); err == nil {
@@ -71,12 +70,12 @@ func (v *View) authStatus(c echo.Context) error {
 	return c.JSON(http.StatusOK, status)
 }
 
-// loginUser creates a new session for user.
-func (v *View) loginUser(c echo.Context) error {
-	user := c.Get(authUserKey).(models.User)
+// loginAccount creates a new session for account.
+func (v *View) loginAccount(c echo.Context) error {
+	account := c.Get(authAccountKey).(models.Account)
 	expires := time.Now().Add(time.Hour * 24 * 90)
 	session := models.Session{
-		UserID:     user.ID,
+		AccountID:  account.ID,
 		ExpireTime: expires.Unix(),
 	}
 	if err := session.GenerateSecret(); err != nil {
@@ -97,8 +96,8 @@ func (v *View) loginUser(c echo.Context) error {
 	return c.JSON(http.StatusCreated, session)
 }
 
-// logoutUser removes current session.
-func (v *View) logoutUser(c echo.Context) error {
+// logoutAccount removes current session.
+func (v *View) logoutAccount(c echo.Context) error {
 	session := c.Get(authSessionKey).(models.Session)
 	if err := v.core.WithTx(func(tx *sql.Tx) error {
 		return v.core.Sessions.DeleteTx(tx, session.ID)

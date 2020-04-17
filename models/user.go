@@ -13,6 +13,7 @@ import (
 // User contains common information about user.
 type User struct {
 	ID           int64  `db:"id" json:""`
+	AccountID    int64  `db:"account_id" json:""`
 	Login        string `db:"login" json:""`
 	PasswordHash string `db:"password_hash" json:"-"`
 	PasswordSalt string `db:"password_salt" json:"-"`
@@ -47,9 +48,10 @@ func (e UserEvent) WithObject(o db.Object) ObjectEvent {
 // UserManager represents users manager.
 type UserManager struct {
 	baseManager
-	users   map[int64]User
-	byLogin map[string]int64
-	salt    string
+	users     map[int64]User
+	byAccount map[int64]int64
+	byLogin   map[string]int64
+	salt      string
 }
 
 // Get returns user by ID.
@@ -67,6 +69,18 @@ func (m *UserManager) GetByLogin(login string) (User, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	if id, ok := m.byLogin[login]; ok {
+		if user, ok := m.users[id]; ok {
+			return user.clone(), nil
+		}
+	}
+	return User{}, sql.ErrNoRows
+}
+
+// GetByAccount returns user by login.
+func (m *UserManager) GetByAccount(id int64) (User, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	if id, ok := m.byAccount[id]; ok {
 		if user, ok := m.users[id]; ok {
 			return user.clone(), nil
 		}
@@ -128,17 +142,20 @@ func (m *UserManager) CheckPassword(user User, password string) bool {
 
 func (m *UserManager) reset() {
 	m.users = map[int64]User{}
+	m.byAccount = map[int64]int64{}
 	m.byLogin = map[string]int64{}
 }
 
 func (m *UserManager) onCreateObject(o db.Object) {
 	user := o.(User)
 	m.users[user.ID] = user
+	m.byAccount[user.AccountID] = user.ID
 	m.byLogin[user.Login] = user.ID
 }
 
 func (m *UserManager) onDeleteObject(o db.Object) {
 	user := o.(User)
+	delete(m.byAccount, user.AccountID)
 	delete(m.byLogin, user.Login)
 	delete(m.users, user.ID)
 }
@@ -146,6 +163,9 @@ func (m *UserManager) onDeleteObject(o db.Object) {
 func (m *UserManager) onUpdateObject(o db.Object) {
 	user := o.(User)
 	if old, ok := m.users[user.ID]; ok {
+		if old.AccountID != user.AccountID {
+			delete(m.byAccount, old.AccountID)
+		}
 		if old.Login != user.Login {
 			delete(m.byLogin, old.Login)
 		}

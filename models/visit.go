@@ -13,7 +13,7 @@ import (
 type Visit struct {
 	ID         int64  `db:"id" json:""`
 	Time       int64  `db:"time" json:""`
-	UserID     NInt64 `db:"user_id" json:",omitempty"`
+	AccountID  NInt64 `db:"account_id" json:",omitempty"`
 	SessionID  NInt64 `db:"session_id" json:",omitempty"`
 	Host       string `db:"host" json:""`
 	Protocol   string `db:"protocol" json:""`

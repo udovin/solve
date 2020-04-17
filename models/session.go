@@ -13,12 +13,12 @@ import (
 	"github.com/udovin/solve/db"
 )
 
-// Session represents user session.
+// Session represents account session.
 type Session struct {
 	// ID contains ID of session.
 	ID int64 `db:"id" json:""`
-	// UserID contains ID of user.
-	UserID int64 `db:"user_id" json:""`
+	// AccountID contains ID of account.
+	AccountID int64 `db:"account_id" json:""`
 	// Secret contains secret string of session.
 	Secret string `db:"secret" json:"-"`
 	// CreateTime contains time when session was created.
@@ -74,8 +74,8 @@ func (e SessionEvent) WithObject(o db.Object) ObjectEvent {
 // SessionManager represents manager for sessions.
 type SessionManager struct {
 	baseManager
-	sessions map[int64]Session
-	byUser   indexInt64
+	sessions  map[int64]Session
+	byAccount indexInt64
 }
 
 // Get returns session by session ID.
@@ -88,12 +88,12 @@ func (m *SessionManager) Get(id int64) (Session, error) {
 	return Session{}, sql.ErrNoRows
 }
 
-// FindByUser returns sessions by user ID.
-func (m *SessionManager) FindByUser(userID int64) ([]Session, error) {
+// FindByAccount returns sessions by account ID.
+func (m *SessionManager) FindByAccount(id int64) ([]Session, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	var sessions []Session
-	for id := range m.byUser[userID] {
+	for id := range m.byAccount[id] {
 		if session, ok := m.sessions[id]; ok {
 			sessions = append(sessions, session.clone())
 		}
@@ -151,26 +151,26 @@ func (m *SessionManager) DeleteTx(tx *sql.Tx, id int64) error {
 
 func (m *SessionManager) reset() {
 	m.sessions = map[int64]Session{}
-	m.byUser = indexInt64{}
+	m.byAccount = indexInt64{}
 }
 
 func (m *SessionManager) onCreateObject(o db.Object) {
 	session := o.(Session)
 	m.sessions[session.ID] = session
-	m.byUser.Create(session.UserID, session.ID)
+	m.byAccount.Create(session.AccountID, session.ID)
 }
 
 func (m *SessionManager) onDeleteObject(o db.Object) {
 	session := o.(Session)
-	m.byUser.Delete(session.UserID, session.ID)
+	m.byAccount.Delete(session.AccountID, session.ID)
 	delete(m.sessions, session.ID)
 }
 
 func (m *SessionManager) onUpdateObject(o db.Object) {
 	session := o.(Session)
 	if old, ok := m.sessions[session.ID]; ok {
-		if old.UserID != session.UserID {
-			m.byUser.Delete(old.UserID, old.ID)
+		if old.AccountID != session.AccountID {
+			m.byAccount.Delete(old.AccountID, old.ID)
 		}
 	}
 	m.onCreateObject(o)

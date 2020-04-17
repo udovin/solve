@@ -13,7 +13,7 @@ func (t *sessionManagerTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "session" (` +
 			`"id" integer PRIMARY KEY,` +
-			`"user_id" integer NOT NULL,` +
+			`"account_id" integer NOT NULL,` +
 			`"secret" varchar(255) NOT NULL,` +
 			`"create_time" integer NOT NULL,` +
 			`"expire_time" integer NOT NULL)`,
@@ -26,7 +26,7 @@ func (t *sessionManagerTest) prepareDB(tx *sql.Tx) error {
 			`"event_type" int8 NOT NULL,` +
 			`"event_time" bigint NOT NULL,` +
 			`"id" integer NOT NULL,` +
-			`"user_id" integer NOT NULL,` +
+			`"account_id" integer NOT NULL,` +
 			`"secret" varchar(255) NOT NULL,` +
 			`"create_time" integer NOT NULL,` +
 			`"expire_time" integer NOT NULL)`,

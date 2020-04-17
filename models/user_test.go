@@ -13,6 +13,7 @@ func (t *userManagerTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "user" (` +
 			`"id" integer PRIMARY KEY,` +
+			`"account_id" integer NOT NULL,` +
 			`"login" varchar(64) NOT NULL,` +
 			`"password_hash" varchar(255) NOT NULL,` +
 			`"password_salt" varchar(255) NOT NULL)`,
@@ -25,6 +26,7 @@ func (t *userManagerTest) prepareDB(tx *sql.Tx) error {
 			`"event_type" int8 NOT NULL,` +
 			`"event_time" bigint NOT NULL,` +
 			`"id" integer NOT NULL,` +
+			`"account_id" integer NOT NULL,` +
 			`"login" varchar(64) NOT NULL,` +
 			`"password_hash" varchar(255) NOT NULL,` +
 			`"password_salt" varchar(255) NOT NULL)`,

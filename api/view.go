@@ -34,10 +34,11 @@ func NewView(core *core.Core) *View {
 }
 
 const (
-	authUserKey    = "AuthUser"
+	authAccountKey = "AuthAccount"
 	authSessionKey = "AuthSession"
 	authVisitKey   = "AuthVisit"
 	authRolesKey   = "AuthRoles"
+	authUserKey    = "AuthUser"
 	sessionCookie  = "session"
 )
 
@@ -47,8 +48,8 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 		c.Set(authVisitKey, v.core.Visits.MakeFromContext(c))
 		defer func() {
 			visit := c.Get(authVisitKey).(models.Visit)
-			if user, ok := c.Get(authUserKey).(models.User); ok {
-				visit.UserID = models.NInt64(user.ID)
+			if account, ok := c.Get(authAccountKey).(models.Account); ok {
+				visit.AccountID = models.NInt64(account.ID)
 			}
 			if session, ok := c.Get(authSessionKey).(models.Session); ok {
 				visit.SessionID = models.NInt64(session.ID)
@@ -93,8 +94,8 @@ func (v *View) requireAuth(methods ...authMethod) echo.MiddlewareFunc {
 
 // extractRoles extract roles for user.
 func (v *View) extractRoles(c echo.Context) error {
-	if user, ok := c.Get(authUserKey).(models.User); ok {
-		roles, err := v.core.GetUserRoles(user.ID)
+	if _, ok := c.Get(authAccountKey).(models.Account); ok {
+		roles, err := v.core.GetUserRoles()
 		if err != nil {
 			return err
 		}
@@ -139,17 +140,24 @@ func (v *View) sessionAuth(c echo.Context) error {
 	if err != nil {
 		return errNoAuth
 	}
-	user, err := v.core.Users.Get(session.UserID)
+	account, err := v.core.Accounts.Get(session.AccountID)
 	if err != nil {
 		return errNoAuth
 	}
-	c.Set(authUserKey, user)
+	if account.Kind == models.UserAccount {
+		user, err := v.core.Users.GetByAccount(session.AccountID)
+		if err != nil {
+			return errNoAuth
+		}
+		c.Set(authUserKey, user)
+	}
+	c.Set(authAccountKey, account)
 	c.Set(authSessionKey, session)
 	return nil
 }
 
-// passwordAuth tries to auth using login and password.
-func (v *View) passwordAuth(c echo.Context) error {
+// userAuth tries to auth using user login and password.
+func (v *View) userAuth(c echo.Context) error {
 	var authData struct {
 		Login    string `json:""`
 		Password string `json:""`
@@ -167,6 +175,21 @@ func (v *View) passwordAuth(c echo.Context) error {
 	if !v.core.Users.CheckPassword(user, authData.Password) {
 		return errNoAuth
 	}
+	account, err := v.core.Accounts.Get(user.AccountID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return errNoAuth
+		}
+		return err
+	}
+	if account.Kind != models.UserAccount {
+		c.Logger().Error(
+			"Account %v should have %v kind, but has %v",
+			account.ID, models.UserAccount, account.Kind,
+		)
+		return errNoAuth
+	}
+	c.Set(authAccountKey, account)
 	c.Set(authUserKey, user)
 	return nil
 }

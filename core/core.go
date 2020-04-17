@@ -24,14 +24,16 @@ type Core struct {
 	Roles *models.RoleManager
 	// RoleEdges contains role edge manager.
 	RoleEdges *models.RoleEdgeManager
+	// Accounts contains account manager.
+	Accounts *models.AccountManager
+	// AccountRoles contains account role manager.
+	AccountRoles *models.AccountRoleManager
+	// Sessions contains session manager.
+	Sessions *models.SessionManager
 	// Users contains user manager.
 	Users *models.UserManager
 	// UserFields contains user field manager.
 	UserFields *models.UserFieldManager
-	// UserRoles contains user role manager.
-	UserRoles *models.UserRoleManager
-	// Sessions contains session manager.
-	Sessions *models.SessionManager
 	// Problems contains problems manager.
 	Problems *models.ProblemManager
 	// Contests contains contest manager.
@@ -60,12 +62,13 @@ func NewCore(cfg config.Config) (*Core, error) {
 
 func (c *Core) startManagers(start func(models.Manager, time.Duration)) {
 	start(c.Actions, time.Second)
-	start(c.Roles, time.Minute)
-	start(c.RoleEdges, time.Minute)
+	start(c.Roles, time.Second)
+	start(c.RoleEdges, time.Second)
+	start(c.Accounts, time.Second)
+	start(c.AccountRoles, time.Second)
+	start(c.Sessions, time.Second)
 	start(c.Users, time.Second)
 	start(c.UserFields, time.Second)
-	start(c.UserRoles, time.Minute)
-	start(c.Sessions, time.Second)
 	start(c.Contests, time.Second)
 	start(c.Problems, time.Second)
 	start(c.ContestProblems, time.Second)
@@ -90,17 +93,20 @@ func (c *Core) SetupAllManagers() error {
 	c.RoleEdges = models.NewRoleEdgeManager(
 		"solve_role_edge", "solve_role_edge_event", dialect,
 	)
+	c.Accounts = models.NewAccountManager(
+		"solve_account", "solve_account_event", dialect,
+	)
+	c.AccountRoles = models.NewAccountRoleManager(
+		"solve_account_role", "solve_account_role_event", dialect,
+	)
+	c.Sessions = models.NewSessionManager(
+		"solve_session", "solve_session_event", dialect,
+	)
 	c.Users = models.NewUserManager(
 		"solve_user", "solve_user_event", salt, dialect,
 	)
 	c.UserFields = models.NewUserFieldManager(
 		"solve_user_field", "solve_user_field_event", dialect,
-	)
-	c.UserRoles = models.NewUserRoleManager(
-		"solve_user_role", "solve_user_role_event", dialect,
-	)
-	c.Sessions = models.NewSessionManager(
-		"solve_session", "solve_session_event", dialect,
 	)
 	c.Contests = models.NewContestManager(
 		"solve_contest", "solve_contest_event", dialect,
@@ -169,7 +175,7 @@ func (c *Core) GetGuestRoles() (Roles, error) {
 }
 
 // GetUserRoles returns roles for user.
-func (c *Core) GetUserRoles(id int64) (Roles, error) {
+func (c *Core) GetUserRoles() (Roles, error) {
 	role, err := c.Roles.GetByCode(models.UserGroupRole)
 	if err != nil {
 		return Roles{}, err

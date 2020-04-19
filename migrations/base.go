@@ -4,25 +4,18 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
 )
-
-// Core represents core.
-type Core interface {
-	// Dialect should return DB dialect.
-	Dialect() db.Dialect
-	// WithTx should run function with transaction.
-	WithTx(func(*sql.Tx) error) error
-}
 
 // Migration represents database migration.
 type Migration interface {
 	// Name should return unique migration name.
 	Name() string
 	// Apply should apply database migration.
-	Apply(c Core, tx *sql.Tx) error
+	Apply(c *core.Core, tx *sql.Tx) error
 	// Unapply should unapply database migration.
-	Unapply(c Core, tx *sql.Tx) error
+	Unapply(c *core.Core, tx *sql.Tx) error
 }
 
 // migrations contains list of all migrations.
@@ -42,7 +35,7 @@ func (o migration) ObjectID() int64 {
 const migrationTable = "solve_db_migration"
 
 // Apply applies all migrations to the specified core.
-func Apply(c Core) error {
+func Apply(c *core.Core) error {
 	// Prepare database.
 	if err := c.WithTx(func(tx *sql.Tx) error {
 		return setupDB(tx, c.Dialect())
@@ -76,7 +69,7 @@ func Apply(c Core) error {
 }
 
 // Unapply rollbacks all applied migrations for specified core.
-func Unapply(c Core) error {
+func Unapply(c *core.Core) error {
 	// Prepare database.
 	if err := c.WithTx(func(tx *sql.Tx) error {
 		return setupDB(tx, c.Dialect())

@@ -1,10 +1,11 @@
-package core
+package core_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/udovin/solve/config"
+	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/migrations"
 )
 
@@ -21,14 +22,14 @@ func TestNewCore(t *testing.T) {
 			},
 		},
 	}
-	c, err := NewCore(cfg)
+	c, err := core.NewCore(cfg)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := migrations.Apply(c); err != nil {
+	if err := c.SetupAllManagers(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := c.SetupAllManagers(); err != nil {
+	if err := migrations.Apply(c); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := c.Start(context.Background()); err != nil {
@@ -39,13 +40,13 @@ func TestNewCore(t *testing.T) {
 
 func TestNewCore_Failure(t *testing.T) {
 	var cfg config.Config
-	if _, err := NewCore(cfg); err == nil {
+	if _, err := core.NewCore(cfg); err == nil {
 		t.Fatal("Expected error while creating core")
 	}
 	cfg.DB = config.DB{
 		Driver: config.SQLiteDriver,
 	}
-	if _, err := NewCore(cfg); err == nil {
+	if _, err := core.NewCore(cfg); err == nil {
 		t.Fatal("Expected error while creating core")
 	}
 	cfg.DB = config.DB{
@@ -58,7 +59,7 @@ func TestNewCore_Failure(t *testing.T) {
 			Data: "qwerty123",
 		},
 	}
-	if _, err := NewCore(cfg); err != nil {
+	if _, err := core.NewCore(cfg); err != nil {
 		t.Fatal("Error:", err)
 	}
 }

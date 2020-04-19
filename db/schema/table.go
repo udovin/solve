@@ -34,30 +34,35 @@ const (
 	suffixNotNULL    = " NOT NULL"
 )
 
+// int64BuildSQL returns SQL string for Int64 column.
+func (c Column) int64BuildSQL(d db.Dialect) (string, error) {
+	typeName := "bigint"
+	if c.PrimaryKey {
+		if d == db.SQLite {
+			// SQLite does not support bigint primary keys.
+			typeName = "integer"
+		}
+		if d == db.Postgres && c.AutoIncrement {
+			// Postgres has special type for autoincrement columns.
+			typeName = "bigserial"
+		}
+		typeName += suffixPrimaryKey
+		if c.AutoIncrement && d == db.SQLite {
+			// AutoIncrement columns for SQLite should be marked
+			// as autoincrement using following keyword.
+			typeName += " AUTOINCREMENT"
+		}
+	} else if !c.Nullable {
+		typeName += suffixNotNULL
+	}
+	return fmt.Sprintf("%q %s", c.Name, typeName), nil
+}
+
 // BuildSQL returns SQL in specified dialect.
 func (c Column) BuildSQL(d db.Dialect) (string, error) {
 	switch c.Type {
 	case Int64:
-		typeName := "bigint"
-		if c.PrimaryKey {
-			if d == db.SQLite {
-				// SQLite does not support bigint primary keys.
-				typeName = "integer"
-			}
-			if d == db.Postgres && c.AutoIncrement {
-				// Postgres has special type for autoincrement columns.
-				typeName = "bigserial"
-			}
-			typeName += suffixPrimaryKey
-			if c.AutoIncrement && d == db.SQLite {
-				// AutoIncrement columns for SQLite should be marked
-				// as autoincrement using following keyword.
-				typeName += " AUTOINCREMENT"
-			}
-		} else if !c.Nullable {
-			typeName += suffixNotNULL
-		}
-		return fmt.Sprintf("%q %s", c.Name, typeName), nil
+		return c.int64BuildSQL(d)
 	case String:
 		typeName := "text"
 		if !c.Nullable {

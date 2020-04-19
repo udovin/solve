@@ -36,6 +36,7 @@ func (s *Invoker) Start() {
 	}
 }
 
+// Stop stops the invoker.
 func (s *Invoker) Stop() {
 	close(s.closer)
 	s.waiter.Wait()

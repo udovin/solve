@@ -2,6 +2,9 @@ package migrations
 
 import (
 	"database/sql"
+
+	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/models"
 )
 
 type m001 struct{}
@@ -251,12 +254,63 @@ DROP TABLE IF EXISTS "solve_action_event";
 DROP TABLE IF EXISTS "solve_action";
 `
 
-func (m *m001) Apply(c Core, tx *sql.Tx) error {
-	_, err := tx.Exec(m001Apply)
-	return err
+func (m *m001) Apply(c *core.Core, tx *sql.Tx) error {
+	if _, err := tx.Exec(m001Apply); err != nil {
+		return err
+	}
+	return m.createRoles(c, tx)
 }
 
-func (m *m001) Unapply(c Core, tx *sql.Tx) error {
+func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
+	roles := map[string]int64{}
+	create := func(code string) error {
+		role, err := c.Roles.CreateTx(tx, models.Role{Code: code})
+		if err == nil {
+			roles[role.Code] = role.ID
+		}
+		return err
+	}
+	join := func(child, parent string) error {
+		_, err := c.RoleEdges.CreateTx(tx, models.RoleEdge{
+			RoleID:  roles[parent],
+			ChildID: roles[child],
+		})
+		return err
+	}
+	for _, role := range []string{
+		models.LoginRole,
+		models.LogoutRole,
+		models.RegisterRole,
+		models.AuthStatusRole,
+		models.GuestGroupRole,
+		models.UserGroupRole,
+	} {
+		if err := create(role); err != nil {
+			return err
+		}
+	}
+	for _, role := range []string{
+		models.LoginRole,
+		models.RegisterRole,
+		models.AuthStatusRole,
+	} {
+		if err := join(role, models.GuestGroupRole); err != nil {
+			return err
+		}
+	}
+	for _, role := range []string{
+		models.LoginRole,
+		models.LogoutRole,
+		models.AuthStatusRole,
+	} {
+		if err := join(role, models.UserGroupRole); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *m001) Unapply(c *core.Core, tx *sql.Tx) error {
 	_, err := tx.Exec(m001Unapply)
 	return err
 }

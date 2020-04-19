@@ -28,6 +28,12 @@ type Column struct {
 	Nullable      bool
 }
 
+const (
+	// Common strings for SQL.
+	suffixPrimaryKey = " PRIMARY KEY"
+	suffixNotNULL    = " NOT NULL"
+)
+
 // BuildSQL returns SQL in specified dialect.
 func (c Column) BuildSQL(d db.Dialect) (string, error) {
 	switch c.Type {
@@ -42,20 +48,31 @@ func (c Column) BuildSQL(d db.Dialect) (string, error) {
 				// Postgres has special type for autoincrement columns.
 				typeName = "bigserial"
 			}
-			typeName += " PRIMARY KEY"
+			typeName += suffixPrimaryKey
 			if c.AutoIncrement && d == db.SQLite {
 				// AutoIncrement columns for SQLite should be marked
 				// as autoincrement using following keyword.
 				typeName += " AUTOINCREMENT"
 			}
 		} else if !c.Nullable {
-			typeName += " NOT NULL"
+			typeName += suffixNotNULL
 		}
 		return fmt.Sprintf("%q %s", c.Name, typeName), nil
 	case String:
 		typeName := "text"
 		if !c.Nullable {
-			typeName += " NOT NULL"
+			typeName += suffixNotNULL
+		}
+		return fmt.Sprintf("%q %s", c.Name, typeName), nil
+	case JSON:
+		typeName := "blob"
+		if d == db.Postgres {
+			// Postgres has special types for JSON: json and jsonb.
+			// We prefer jsonb over json because it is more efficient.
+			typeName = "jsonb"
+		}
+		if !c.Nullable {
+			typeName += suffixNotNULL
 		}
 		return fmt.Sprintf("%q %s", c.Name, typeName), nil
 	default:

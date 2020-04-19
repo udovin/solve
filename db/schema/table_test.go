@@ -72,11 +72,7 @@ func TestColumnInt64(t *testing.T) {
 }
 
 func TestColumnString(t *testing.T) {
-	// String column.
-	c1 := Column{
-		Name: "test1",
-		Type: String,
-	}
+	c1 := Column{Name: "test1", Type: String}
 	// Check for SQLite.
 	if sql, err := c1.BuildSQL(db.SQLite); err != nil {
 		t.Fatal("Error:", err)
@@ -87,6 +83,50 @@ func TestColumnString(t *testing.T) {
 	if sql, err := c1.BuildSQL(db.Postgres); err != nil {
 		t.Fatal("Error:", err)
 	} else if sql != `"test1" text NOT NULL` {
+		t.Fatal("Wrong SQL:", sql)
+	}
+	// Nullable column.
+	c2 := Column{Name: "test2", Type: String, Nullable: true}
+	// Check for SQLite.
+	if sql, err := c2.BuildSQL(db.SQLite); err != nil {
+		t.Fatal("Error:", err)
+	} else if sql != `"test2" text` {
+		t.Fatal("Wrong SQL:", sql)
+	}
+	// Check for Postgres.
+	if sql, err := c2.BuildSQL(db.Postgres); err != nil {
+		t.Fatal("Error:", err)
+	} else if sql != `"test2" text` {
+		t.Fatal("Wrong SQL:", sql)
+	}
+}
+
+func TestColumnJSON(t *testing.T) {
+	c1 := Column{Name: "test1", Type: JSON}
+	// Check for SQLite.
+	if sql, err := c1.BuildSQL(db.SQLite); err != nil {
+		t.Fatal("Error:", err)
+	} else if sql != `"test1" blob NOT NULL` {
+		t.Fatal("Wrong SQL:", sql)
+	}
+	// Check for Postgres.
+	if sql, err := c1.BuildSQL(db.Postgres); err != nil {
+		t.Fatal("Error:", err)
+	} else if sql != `"test1" jsonb NOT NULL` {
+		t.Fatal("Wrong SQL:", sql)
+	}
+	// Nullable column.
+	c2 := Column{Name: "test2", Type: JSON, Nullable: true}
+	// Check for SQLite.
+	if sql, err := c2.BuildSQL(db.SQLite); err != nil {
+		t.Fatal("Error:", err)
+	} else if sql != `"test2" blob` {
+		t.Fatal("Wrong SQL:", sql)
+	}
+	// Check for Postgres.
+	if sql, err := c2.BuildSQL(db.Postgres); err != nil {
+		t.Fatal("Error:", err)
+	} else if sql != `"test2" jsonb` {
 		t.Fatal("Wrong SQL:", sql)
 	}
 }

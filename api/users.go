@@ -82,7 +82,7 @@ func (v *View) loginAccount(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	if err := v.core.WithTx(func(tx *sql.Tx) error {
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
 		var err error
 		session, err = v.core.Sessions.CreateTx(tx, session)
 		return err
@@ -99,7 +99,7 @@ func (v *View) loginAccount(c echo.Context) error {
 // logoutAccount removes current session.
 func (v *View) logoutAccount(c echo.Context) error {
 	session := c.Get(authSessionKey).(models.Session)
-	if err := v.core.WithTx(func(tx *sql.Tx) error {
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
 		return v.core.Sessions.DeleteTx(tx, session.ID)
 	}); err != nil {
 		c.Logger().Error(err)
@@ -137,7 +137,7 @@ func (v *View) registerUser(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	if err := v.core.WithTx(func(tx *sql.Tx) error {
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
 		var err error
 		user.User, err = v.core.Users.CreateTx(tx, user.User)
 		if err != nil {

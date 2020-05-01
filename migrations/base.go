@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -37,7 +38,7 @@ const migrationTable = "solve_db_migration"
 // Apply applies all migrations to the specified core.
 func Apply(c *core.Core) error {
 	// Prepare database.
-	if err := c.WithTx(func(tx *sql.Tx) error {
+	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
 		return setupDB(tx, c.Dialect())
 	}); err != nil {
 		return err
@@ -47,7 +48,7 @@ func Apply(c *core.Core) error {
 		migration{}, "id", migrationTable, c.Dialect(),
 	)
 	for _, m := range migrations {
-		if err := c.WithTx(func(tx *sql.Tx) error {
+		if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
 			// Check that migration already applied.
 			if applied, err := isApplied(store, tx, m.Name()); err != nil {
 				return err
@@ -71,7 +72,7 @@ func Apply(c *core.Core) error {
 // Unapply rollbacks all applied migrations for specified core.
 func Unapply(c *core.Core) error {
 	// Prepare database.
-	if err := c.WithTx(func(tx *sql.Tx) error {
+	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
 		return setupDB(tx, c.Dialect())
 	}); err != nil {
 		return err
@@ -82,7 +83,7 @@ func Unapply(c *core.Core) error {
 	)
 	for i := len(migrations) - 1; i >= 0; i-- {
 		m := migrations[i]
-		if err := c.WithTx(func(tx *sql.Tx) error {
+		if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
 			// Check that migration already applied.
 			if applied, err := isApplied(store, tx, m.Name()); err != nil {
 				return err

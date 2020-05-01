@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/url"
 	"os"
@@ -41,7 +40,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	if err := c.SetupAllManagers(); err != nil {
 		panic(err)
 	}
-	if err := c.Start(context.Background()); err != nil {
+	if err := c.Start(); err != nil {
 		panic(err)
 	}
 	defer c.Stop()
@@ -84,13 +83,12 @@ func invokerMain(cmd *cobra.Command, _ []string) {
 		panic(err)
 	}
 	c.SetupInvokerManagers()
-	if err := c.Start(context.Background()); err != nil {
+	if err := c.Start(); err != nil {
 		panic(err)
 	}
 	defer c.Stop()
 	s := invoker.New(c)
 	s.Start()
-	defer s.Stop()
 	wait := make(chan os.Signal)
 	signal.Notify(wait, os.Interrupt, syscall.SIGTERM)
 	<-wait
@@ -133,26 +131,33 @@ func dbUnapplyMain(cmd *cobra.Command, _ []string) {
 func main() {
 	// Setup good logs.
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	rootCmd := cobra.Command{}
+	rootCmd := cobra.Command{
+		Use: os.Args[0],
+	}
 	rootCmd.PersistentFlags().String("config", "config.json", "")
 	rootCmd.AddCommand(&cobra.Command{
-		Use: "server",
-		Run: serverMain,
+		Use:   "server",
+		Run:   serverMain,
+		Short: "Starts API server",
 	})
 	rootCmd.AddCommand(&cobra.Command{
-		Use: "invoker",
-		Run: invokerMain,
+		Use:   "invoker",
+		Run:   invokerMain,
+		Short: "Starts invoker daemon",
 	})
 	dbCmd := cobra.Command{
-		Use: "db",
+		Use:   "db",
+		Short: "Commands for managing database",
 	}
 	dbCmd.AddCommand(&cobra.Command{
-		Use: "apply",
-		Run: dbApplyMain,
+		Use:   "apply",
+		Run:   dbApplyMain,
+		Short: "Applies all new migrations to database",
 	})
 	dbCmd.AddCommand(&cobra.Command{
-		Use: "unapply",
-		Run: dbUnapplyMain,
+		Use:   "unapply",
+		Run:   dbUnapplyMain,
+		Short: "Rolls back all applied migrations",
 	})
 	rootCmd.AddCommand(&dbCmd)
 	if err := rootCmd.Execute(); err != nil {

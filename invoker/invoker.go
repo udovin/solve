@@ -1,6 +1,7 @@
 package invoker
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log"
@@ -12,51 +13,40 @@ import (
 )
 
 type Invoker struct {
-	app    *core.Core
-	closer chan struct{}
-	waiter sync.WaitGroup
-	mutex  sync.Mutex
+	core  *core.Core
+	mutex sync.Mutex
 }
 
 var errEmptyQueue = errors.New("empty queue")
 
-func New(app *core.Core) *Invoker {
-	return &Invoker{app: app}
+func New(c *core.Core) *Invoker {
+	return &Invoker{core: c}
 }
 
 func (s *Invoker) Start() {
-	threads := s.app.Config.Invoker.Threads
+	threads := s.core.Config.Invoker.Threads
 	if threads <= 0 {
 		threads = 1
 	}
-	s.closer = make(chan struct{})
-	s.waiter.Add(threads)
 	for i := 0; i < threads; i++ {
-		go s.loop()
+		s.core.StartTask(s.runDaemon)
 	}
 }
 
-// Stop stops the invoker.
-func (s *Invoker) Stop() {
-	close(s.closer)
-	s.waiter.Wait()
-}
-
-func (s *Invoker) loop() {
-	defer s.waiter.Done()
+func (s *Invoker) runDaemon(ctx context.Context) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
 		select {
-		case <-s.closer:
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			var action models.Action
-			if err := s.app.WithTx(func(tx *sql.Tx) error {
+			if err := s.core.WithTx(ctx, func(tx *sql.Tx) error {
 				var err error
-				action, err = s.app.Actions.PopQueuedTx(tx)
+				action, err = s.core.Actions.PopQueuedTx(tx)
 				return err
-			}); err != nil {
+			}); err != nil && err != sql.ErrNoRows {
 				log.Println("Error:", err)
 				continue
 			}
@@ -65,6 +55,4 @@ func (s *Invoker) loop() {
 	}
 }
 
-func (s *Invoker) onAction(action models.Action) {
-
-}
+func (s *Invoker) onAction(action models.Action) {}

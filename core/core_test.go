@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/udovin/solve/config"
@@ -32,7 +31,7 @@ func TestNewCore(t *testing.T) {
 	if err := migrations.Apply(c); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := c.Start(context.Background()); err != nil {
+	if err := c.Start(); err != nil {
 		t.Fatal("Error:", err)
 	}
 	defer c.Stop()

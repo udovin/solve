@@ -4,10 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
-	"reflect"
 	"sync"
-	"time"
 
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/db"
@@ -43,10 +40,9 @@ type Core struct {
 	// Visits contains visit manager.
 	Visits *models.VisitManager
 	//
-	ctx  context.Context
-	stop context.CancelFunc
-	//
-	waiter sync.WaitGroup
+	context context.Context
+	cancel  context.CancelFunc
+	waiter  sync.WaitGroup
 	// db store database connection.
 	db *sql.DB
 }
@@ -57,75 +53,35 @@ func NewCore(cfg config.Config) (*Core, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Core{db: conn, Config: cfg}, nil
+	return &Core{Config: cfg, db: conn}, nil
 }
 
-func (c *Core) startManagers(start func(models.Manager, time.Duration)) {
-	start(c.Actions, time.Second)
-	start(c.Roles, time.Second)
-	start(c.RoleEdges, time.Second)
-	start(c.Accounts, time.Second)
-	start(c.AccountRoles, time.Second)
-	start(c.Sessions, time.Second)
-	start(c.Users, time.Second)
-	start(c.UserFields, time.Second)
-	start(c.Contests, time.Second)
-	start(c.Problems, time.Second)
-	start(c.ContestProblems, time.Second)
-}
-
-// SetupInvokerManagers prepares managers for running invoker.
-func (c *Core) SetupInvokerManagers() {}
-
-// SetupAllManagers prepares all managers.
-func (c *Core) SetupAllManagers() error {
-	salt, err := c.Config.Security.PasswordSalt.Secret()
-	if err != nil {
-		return err
+// Start starts application and data synchronization.
+func (c *Core) Start() error {
+	if c.cancel != nil {
+		return fmt.Errorf("core already started")
 	}
-	dialect := GetDialect(c.Config.DB.Driver)
-	c.Actions = models.NewActionManager(
-		"solve_action", "solve_action_event", dialect,
-	)
-	c.Roles = models.NewRoleManager(
-		"solve_role", "solve_role_event", dialect,
-	)
-	c.RoleEdges = models.NewRoleEdgeManager(
-		"solve_role_edge", "solve_role_edge_event", dialect,
-	)
-	c.Accounts = models.NewAccountManager(
-		"solve_account", "solve_account_event", dialect,
-	)
-	c.AccountRoles = models.NewAccountRoleManager(
-		"solve_account_role", "solve_account_role_event", dialect,
-	)
-	c.Sessions = models.NewSessionManager(
-		"solve_session", "solve_session_event", dialect,
-	)
-	c.Users = models.NewUserManager(
-		"solve_user", "solve_user_event", salt, dialect,
-	)
-	c.UserFields = models.NewUserFieldManager(
-		"solve_user_field", "solve_user_field_event", dialect,
-	)
-	c.Contests = models.NewContestManager(
-		"solve_contest", "solve_contest_event", dialect,
-	)
-	c.Problems = models.NewProblemManager(
-		"solve_problem", "solve_problem_event", dialect,
-	)
-	c.ContestProblems = models.NewContestProblemManager(
-		"solve_contest_problem", "solve_contest_problem_event", dialect,
-	)
-	c.Visits = models.NewVisitManager("solve_visit", dialect)
-	return nil
+	c.context, c.cancel = context.WithCancel(context.Background())
+	return c.startManagerLoops()
+}
+
+// Stop stops syncing stores.
+func (c *Core) Stop() {
+	if c.cancel == nil {
+		return
+	}
+	c.cancel()
+	c.waiter.Wait()
+	c.context, c.cancel = nil, nil
 }
 
 // WithTx runs function with transaction.
-func (c *Core) WithTx(fn func(*sql.Tx) error) (err error) {
+func (c *Core) WithTx(
+	ctx context.Context, fn func(tx *sql.Tx) error,
+) (err error) {
 	var tx *sql.Tx
-	if tx, err = c.db.Begin(); err != nil {
-		return err
+	if tx, err = c.db.BeginTx(ctx, nil); err != nil {
+		return
 	}
 	defer func() {
 		if err != nil {
@@ -137,121 +93,13 @@ func (c *Core) WithTx(fn func(*sql.Tx) error) (err error) {
 	return fn(tx)
 }
 
-// Roles contains roles.
-type Roles map[int64]struct{}
-
-// getGroupRoles returns roles for group with specified ID.
-func (c *Core) getGroupRoles(id int64) (Roles, error) {
-	stack := []int64{id}
-	roles := Roles{}
-	for len(stack) > 0 {
-		roleID := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		edges, err := c.RoleEdges.FindByRole(roleID)
-		if err != nil {
-			return nil, err
-		}
-		for _, edge := range edges {
-			role, err := c.Roles.Get(edge.ChildID)
-			if err != nil {
-				return nil, err
-			}
-			if _, ok := roles[role.ID]; !ok {
-				roles[role.ID] = struct{}{}
-				stack = append(stack, role.ID)
-			}
-		}
-	}
-	return roles, nil
-}
-
-// GetGuestRoles returns roles for guest account.
-func (c *Core) GetGuestRoles() (Roles, error) {
-	role, err := c.Roles.GetByCode(models.GuestGroupRole)
-	if err != nil {
-		return Roles{}, err
-	}
-	return c.getGroupRoles(role.ID)
-}
-
-// GetUserRoles returns roles for user.
-func (c *Core) GetUserRoles() (Roles, error) {
-	role, err := c.Roles.GetByCode(models.UserGroupRole)
-	if err != nil {
-		return Roles{}, err
-	}
-	return c.getGroupRoles(role.ID)
-}
-
-// HasRole return true if role set has this role or parent role.
-func (c *Core) HasRole(roles Roles, code string) (bool, error) {
-	role, err := c.Roles.GetByCode(code)
-	if err != nil {
-		return false, err
-	}
-	_, ok := roles[role.ID]
-	return ok, nil
-}
-
-// Start starts application and data synchronization.
-func (c *Core) Start(ctx context.Context) error {
-	if c.stop != nil {
-		return fmt.Errorf("core already started")
-	}
-	c.ctx, c.stop = context.WithCancel(ctx)
-	errs := make(chan error)
-	count := 0
-	c.startManagers(func(m models.Manager, d time.Duration) {
-		v := reflect.ValueOf(m)
-		if m == nil || (v.Kind() == reflect.Ptr && v.IsNil()) {
-			return
-		}
-		count++
-		c.waiter.Add(1)
-		go c.startManager(m, d, errs)
-	})
-	var err error
-	for i := 0; i < count; i++ {
-		lastErr := <-errs
-		if lastErr != nil {
-			log.Println("Error:", lastErr)
-			err = lastErr
-		}
-	}
-	return err
-}
-
-// Stop stops syncing stores.
-func (c *Core) Stop() {
-	if c.stop == nil {
-		return
-	}
-	c.stop()
-	c.waiter.Wait()
-	c.ctx, c.stop = nil, nil
-}
-
-func (c *Core) startManager(
-	m models.Manager, d time.Duration, errs chan<- error,
-) {
-	defer c.waiter.Done()
-	err := c.WithTx(m.InitTx)
-	errs <- err
-	if err != nil {
-		return
-	}
-	ticker := time.NewTicker(d)
-	for {
-		select {
-		case <-ticker.C:
-			if err := c.WithTx(m.SyncTx); err != nil {
-				log.Println("Error:", err)
-			}
-		case <-c.ctx.Done():
-			ticker.Stop()
-			return
-		}
-	}
+// StartTask starts task in new goroutine.
+func (c *Core) StartTask(task func(ctx context.Context)) {
+	c.waiter.Add(1)
+	go func() {
+		defer c.waiter.Done()
+		task(c.context)
+	}()
 }
 
 // Dialect returns dialect of core DB.

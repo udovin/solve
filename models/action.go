@@ -166,6 +166,8 @@ func (m *ActionManager) DeleteTx(tx *sql.Tx, id int64) error {
 }
 
 // PopQueuedTx pops queued action from the store and sets running status.
+//
+// Note that store is not synchronized after actions is popped.
 func (m *ActionManager) PopQueuedTx(tx *sql.Tx) (Action, error) {
 	// First of all we should lock store.
 	if err := m.lockStore(tx); err != nil {

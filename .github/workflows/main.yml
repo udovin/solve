@@ -21,7 +21,7 @@ jobs:
         fi
     - name: Run tests
       run: |
-        go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+        go test -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...
     - name: Upload to Codecov
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

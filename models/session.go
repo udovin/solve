@@ -18,7 +18,7 @@ type Session struct {
 	// ID contains ID of session.
 	ID int64 `db:"id" json:""`
 	// AccountID contains ID of account.
-	AccountID int64 `db:"account_id" json:""`
+	AccountID int64 `db:"account_id" json:"-"`
 	// Secret contains secret string of session.
 	Secret string `db:"secret" json:"-"`
 	// CreateTime contains time when session was created.

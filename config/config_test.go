@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 	"testing"
+
+	"github.com/labstack/gommon/log"
 )
 
 func TestLoadFromFile(t *testing.T) {
@@ -22,6 +24,7 @@ func TestLoadFromFile(t *testing.T) {
 			Driver:  SQLiteDriver,
 			Options: SQLiteOptions{Path: "?mode=memory"},
 		},
+		LogLevel: log.INFO,
 	}
 	expectedConfigData, err := json.Marshal(expectedConfig)
 	if err != nil {

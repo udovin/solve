@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/url"
 	"os"
 	"os/signal"
@@ -46,6 +45,9 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	defer c.Stop()
 	// Create new echo server instance.
 	s := echo.New()
+	s.Logger = c.Logger()
+	s.HideBanner = true
+	s.HidePort = true
 	// Setup middleware.
 	s.Pre(middleware.RemoveTrailingSlash())
 	s.Use(middleware.Recover())
@@ -129,8 +131,6 @@ func dbUnapplyMain(cmd *cobra.Command, _ []string) {
 }
 
 func main() {
-	// Setup good logs.
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	rootCmd := cobra.Command{
 		Use: os.Args[0],
 	}

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+
+	"github.com/labstack/gommon/log"
 )
 
 // Config stores configuration for Solve API and Invoker.
@@ -16,6 +18,15 @@ type Config struct {
 	Invoker Invoker `json:""`
 	// Security contains security config.
 	Security Security `json:""`
+	// LogLevel contains level of logging.
+	//
+	// You can use following values:
+	//  * 1 - DEBUG
+	//  * 2 - INFO (default)
+	//  * 3 - WARN
+	//  * 4 - ERROR
+	//  * 5 - OFF
+	LogLevel log.Lvl `json:""`
 }
 
 // Server contains server config.
@@ -50,6 +61,11 @@ func LoadFromFile(file string) (cfg Config, err error) {
 	bytes, err := ioutil.ReadFile(file)
 	if err == nil {
 		err = json.Unmarshal(bytes, &cfg)
+	}
+	// If LogLevel is zero this means that value is not specified.
+	// By default we should use INFO level.
+	if err == nil && cfg.LogLevel == 0 {
+		cfg.LogLevel = log.INFO
 	}
 	return
 }

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/labstack/gommon/log"
+
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/models"
@@ -43,8 +45,10 @@ type Core struct {
 	context context.Context
 	cancel  context.CancelFunc
 	waiter  sync.WaitGroup
-	// db store database connection.
+	// db stores database connection.
 	db *sql.DB
+	// logger contains logger.
+	logger *log.Logger
 }
 
 // NewCore creates core instance from config.
@@ -53,7 +57,15 @@ func NewCore(cfg config.Config) (*Core, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Core{Config: cfg, db: conn}, nil
+	logger := log.New("core")
+	logger.SetLevel(cfg.LogLevel)
+	logger.EnableColor()
+	return &Core{Config: cfg, db: conn, logger: logger}, nil
+}
+
+// Logger returns logger instance.
+func (c *Core) Logger() *log.Logger {
+	return c.logger
 }
 
 // Start starts application and data synchronization.
@@ -61,6 +73,8 @@ func (c *Core) Start() error {
 	if c.cancel != nil {
 		return fmt.Errorf("core already started")
 	}
+	c.Logger().Debug("Starting core")
+	defer c.Logger().Debug("Core started")
 	c.context, c.cancel = context.WithCancel(context.Background())
 	return c.startManagerLoops()
 }
@@ -70,6 +84,8 @@ func (c *Core) Stop() {
 	if c.cancel == nil {
 		return
 	}
+	c.Logger().Debug("Stopping core")
+	defer c.Logger().Debug("Core stopped")
 	c.cancel()
 	c.waiter.Wait()
 	c.context, c.cancel = nil, nil
@@ -95,8 +111,10 @@ func (c *Core) WithTx(
 
 // StartTask starts task in new goroutine.
 func (c *Core) StartTask(task func(ctx context.Context)) {
+	c.Logger().Debug("Start core task")
 	c.waiter.Add(1)
 	go func() {
+		defer c.Logger().Debug("Core task finished")
 		defer c.waiter.Done()
 		task(c.context)
 	}()

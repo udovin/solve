@@ -13,7 +13,7 @@ import (
 // User contains common information about user.
 type User struct {
 	ID           int64  `db:"id" json:""`
-	AccountID    int64  `db:"account_id" json:""`
+	AccountID    int64  `db:"account_id" json:"-"`
 	Login        string `db:"login" json:""`
 	PasswordHash string `db:"password_hash" json:"-"`
 	PasswordSalt string `db:"password_salt" json:"-"`

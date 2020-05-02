@@ -73,9 +73,11 @@ func (v *View) authStatus(c echo.Context) error {
 // loginAccount creates a new session for account.
 func (v *View) loginAccount(c echo.Context) error {
 	account := c.Get(authAccountKey).(models.Account)
-	expires := time.Now().Add(time.Hour * 24 * 90)
+	created := time.Now()
+	expires := created.Add(time.Hour * 24 * 90)
 	session := models.Session{
 		AccountID:  account.ID,
+		CreateTime: created.Unix(),
 		ExpireTime: expires.Unix(),
 	}
 	if err := session.GenerateSecret(); err != nil {
@@ -138,7 +140,14 @@ func (v *View) registerUser(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		var err error
+		account := models.Account{
+			Kind: models.UserAccount,
+		}
+		account, err := v.core.Accounts.CreateTx(tx, account)
+		if err != nil {
+			return err
+		}
+		user.AccountID = account.ID
 		user.User, err = v.core.Users.CreateTx(tx, user.User)
 		if err != nil {
 			return err

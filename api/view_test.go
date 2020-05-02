@@ -1,6 +1,8 @@
 package api
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/labstack/echo"
@@ -53,4 +55,13 @@ func testTeardown(tb testing.TB) {
 func TestPing(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := testSrv.NewContext(req, rec)
+	if err := testView.ping(c); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Expected %v, got %v", http.StatusOK, rec.Code)
+	}
 }

@@ -6,12 +6,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Go 1.12
-      uses: actions/setup-go@v1
+      uses: actions/setup-go@v2
       with:
         go-version: 1.12
       id: go
+    - name: Setup environment
+      run: |
+        echo "::set-env name=GOPATH::$(dirname $GITHUB_WORKSPACE)"
+        echo "::add-path::$(dirname $GITHUB_WORKSPACE)/bin"
+      shell: bash
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
+      with:
+        path: src/github.com/${{github.repository}}
     - name: Get dependencies
       run: |
         go get -v -t -d ./...
@@ -24,6 +31,6 @@ jobs:
         go test -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...
     - name: Upload to Codecov
       env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        CODECOV_TOKEN: ${{secrets.CODECOV_TOKEN}}
       run: |
         curl -s https://codecov.io/bash | bash

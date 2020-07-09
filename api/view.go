@@ -21,12 +21,18 @@ type View struct {
 func (v *View) Register(g *echo.Group) {
 	g.Use(v.logVisit)
 	g.GET("/ping", v.ping)
+	g.GET("/health", v.health)
 	v.registerUserHandlers(g)
 }
 
 // ping returns pong.
 func (v *View) ping(c echo.Context) error {
-	return c.JSON(http.StatusOK, "pong")
+	return c.String(http.StatusOK, "pong")
+}
+
+// health returns current healthiness status.
+func (v *View) health(c echo.Context) error {
+	return c.JSON(http.StatusOK, nil)
 }
 
 // NewView returns a new instance of view.
@@ -144,20 +150,28 @@ func (v *View) sessionAuth(c echo.Context) error {
 	}
 	session, err := v.getSessionByCookie(c.Request().Context(), cookie.Value)
 	if err != nil {
-		return errNoAuth
+		if err == sql.ErrNoRows {
+			return errNoAuth
+		}
+		return err
 	}
 	account, err := v.core.Accounts.Get(session.AccountID)
 	if err != nil {
+		return err
+	}
+	if account.Kind != models.UserAccount {
+		c.Logger().Errorf(
+			"Account %v should have %v kind, but has %v",
+			account.ID, models.UserAccount, account.Kind,
+		)
 		return errNoAuth
 	}
-	if account.Kind == models.UserAccount {
-		user, err := v.core.Users.GetByAccount(session.AccountID)
-		if err != nil {
-			return errNoAuth
-		}
-		c.Set(authUserKey, user)
+	user, err := v.core.Users.GetByAccount(session.AccountID)
+	if err != nil {
+		return err
 	}
 	c.Set(authAccountKey, account)
+	c.Set(authUserKey, user)
 	c.Set(authSessionKey, session)
 	return nil
 }
@@ -183,13 +197,10 @@ func (v *View) userAuth(c echo.Context) error {
 	}
 	account, err := v.core.Accounts.Get(user.AccountID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return errNoAuth
-		}
 		return err
 	}
 	if account.Kind != models.UserAccount {
-		c.Logger().Error(
+		c.Logger().Errorf(
 			"Account %v should have %v kind, but has %v",
 			account.ID, models.UserAccount, account.Kind,
 		)
@@ -210,6 +221,7 @@ func (v *View) requireRole(code string) echo.MiddlewareFunc {
 			}
 			ok, err := v.core.HasRole(roles, code)
 			if err != nil {
+				c.Logger().Error(err)
 				return c.NoContent(http.StatusInternalServerError)
 			}
 			if !ok {

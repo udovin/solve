@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/url"
 	"os"
 	"os/signal"
@@ -19,14 +20,21 @@ import (
 	"github.com/udovin/solve/migrations"
 )
 
+// getConfig reads config with filename from '--config' flag.
 func getConfig(cmd *cobra.Command) (config.Config, error) {
-	cfgPath, err := cmd.Flags().GetString("config")
+	filename, err := cmd.Flags().GetString("config")
 	if err != nil {
 		return config.Config{}, err
 	}
-	return config.LoadFromFile(cfgPath)
+	return config.LoadFromFile(filename)
 }
 
+// serverMain starts API server.
+//
+// Simply speaking this function does following things:
+//  1. Setup Core instance (with all managers).
+//  2. Setup Echo server instance.
+//  3. Register API View to Echo server.
 func serverMain(cmd *cobra.Command, _ []string) {
 	cfg, err := getConfig(cmd)
 	if err != nil {
@@ -75,6 +83,10 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	}
 }
 
+// invokerMain starts Invoker.
+//
+// This function initializes Core instance with only necessary
+// stores for running actions.
 func invokerMain(cmd *cobra.Command, _ []string) {
 	cfg, err := getConfig(cmd)
 	if err != nil {
@@ -130,10 +142,19 @@ func dbUnapplyMain(cmd *cobra.Command, _ []string) {
 	}
 }
 
+// main is a main entry point.
+//
+// Solve is divided into two main parts:
+//  * API server - server that provides HTTP API. If you want to
+//    understand how API server is working you can go to serverMain
+//    function.
+//  * Invoker - server that performs asynchronous runs. See
+//    invokerMain function if you want to start with Invoker.
+//
+// Also Solve has CLI interface like 'db'. This is a group of commands
+// that work with database migrations.
 func main() {
-	rootCmd := cobra.Command{
-		Use: os.Args[0],
-	}
+	rootCmd := cobra.Command{Use: os.Args[0]}
 	rootCmd.PersistentFlags().String("config", "config.json", "")
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "server",
@@ -161,6 +182,6 @@ func main() {
 	})
 	rootCmd.AddCommand(&dbCmd)
 	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+		log.Fatal(err)
 	}
 }

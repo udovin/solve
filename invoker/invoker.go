@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/udovin/solve/core"
@@ -14,8 +13,7 @@ import (
 
 // Invoker represents manager for asynchronous actions (invocations).
 type Invoker struct {
-	core  *core.Core
-	mutex sync.Mutex
+	core *core.Core
 }
 
 // New creates a new instance of Invoker.

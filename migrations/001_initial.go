@@ -282,6 +282,12 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.LogoutRole,
 		models.RegisterRole,
 		models.AuthStatusRole,
+		models.ObserveRoleRole,
+		models.CreateRoleRole,
+		models.DeleteRoleRole,
+		models.ObserveUserRoleRole,
+		models.CreateUserRoleRole,
+		models.DeleteUserRoleRole,
 		models.GuestGroupRole,
 		models.UserGroupRole,
 	} {

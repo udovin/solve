@@ -11,15 +11,39 @@ import (
 	"github.com/udovin/solve/models"
 )
 
-// fullUser represents user with additional information.
-type fullUser struct {
-	models.User
+// User represents user.
+type User struct {
+	// ID contains user ID.
+	ID int64 `json:"id"`
+	// Login contains user login.
+	Login string `json:"login"`
+	// Email contains user email.
+	Email string `json:"email,omitempty"`
 	// FirstName contains first name.
-	FirstName string `json:",omitempty"`
+	FirstName string `json:"first_name,omitempty"`
 	// LastName contains last name.
-	LastName string `json:",omitempty"`
+	LastName string `json:"last_name,omitempty"`
 	// MiddleName contains middle name.
-	MiddleName string `json:",omitempty"`
+	MiddleName string `json:"middle_name,omitempty"`
+}
+
+// Session represents session.
+type Session struct {
+	// ID contains session ID.
+	ID int64 `json:"id"`
+	// Secret contains session secret.
+	Secret string `json:"secret,omitempty"`
+	// CreateTime contains session create time.
+	CreateTime int64 `json:"create_time,omitempty"`
+	// ExpireTime contains session expire time.
+	ExpireTime int64 `json:"expire_time,omitempty"`
+}
+
+// AuthStatus represents current authorization status.
+type AuthStatus struct {
+	User    *User    `json:"user,omitempty"`
+	Session *Session `json:"session,omitempty"`
+	Roles   []string `json:"roles"`
 }
 
 // registerUserHandlers registers handlers for user management.
@@ -46,20 +70,20 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	)
 }
 
-// authStatus represents current authorization status.
-type authStatus struct {
-	User    *models.User    `json:",omitempty"`
-	Session *models.Session `json:",omitempty"`
-	Roles   []string        `json:""`
-}
-
 // authStatus returns current authorization status.
 func (v *View) authStatus(c echo.Context) error {
-	status := authStatus{}
+	status := AuthStatus{}
 	if session, ok := c.Get(authSessionKey).(models.Session); ok {
-		status.Session = &session
+		status.Session = &Session{
+			ID:         session.ID,
+			CreateTime: session.CreateTime,
+			ExpireTime: session.ExpireTime,
+		}
 		if user, ok := c.Get(authUserKey).(models.User); ok {
-			status.User = &user
+			status.User = &User{
+				ID:    user.ID,
+				Login: user.Login,
+			}
 		}
 	}
 	for id := range c.Get(authRolesKey).(core.Roles) {
@@ -95,7 +119,12 @@ func (v *View) loginAccount(c echo.Context) error {
 	cookie := session.Cookie()
 	cookie.Name = sessionCookie
 	c.SetCookie(&cookie)
-	return c.JSON(http.StatusCreated, session)
+	return c.JSON(http.StatusCreated, Session{
+		ID:         session.ID,
+		Secret:     session.Secret,
+		CreateTime: session.CreateTime,
+		ExpireTime: session.ExpireTime,
+	})
 }
 
 // logoutAccount removes current session.
@@ -112,12 +141,12 @@ func (v *View) logoutAccount(c echo.Context) error {
 
 // registerUserForm represents form for register new user.
 type registerUserForm struct {
-	Login      string `json:""`
-	Email      string `json:""`
-	Password   string `json:""`
-	FirstName  string `json:""`
-	LastName   string `json:""`
-	MiddleName string `json:""`
+	Login      string `json:"login"`
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+	MiddleName string `json:"middle_name"`
 }
 
 // registerUser registers user.
@@ -127,15 +156,8 @@ func (v *View) registerUser(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	user := fullUser{
-		User:       models.User{Login: form.Login},
-		FirstName:  form.FirstName,
-		LastName:   form.LastName,
-		MiddleName: form.MiddleName,
-	}
-	if err := v.core.Users.SetPassword(
-		&user.User, form.Password,
-	); err != nil {
+	user := models.User{Login: form.Login}
+	if err := v.core.Users.SetPassword(&user, form.Password); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
@@ -148,16 +170,23 @@ func (v *View) registerUser(c echo.Context) error {
 			return err
 		}
 		user.AccountID = account.ID
-		user.User, err = v.core.Users.CreateTx(tx, user.User)
+		user, err = v.core.Users.CreateTx(tx, user)
 		if err != nil {
 			return err
 		}
-		return v.registerUserFields(tx, user.User, form)
+		return v.registerUserFields(tx, user, form)
 	}); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	return c.JSON(http.StatusCreated, user)
+	return c.JSON(http.StatusCreated, User{
+		ID:         user.ID,
+		Login:      user.Login,
+		Email:      form.Email,
+		FirstName:  form.FirstName,
+		LastName:   form.LastName,
+		MiddleName: form.MiddleName,
+	})
 }
 
 // registerUserFields creates fields for registered user.

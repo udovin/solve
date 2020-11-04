@@ -9,11 +9,11 @@ import (
 // AccountRole represents a account role.
 type AccountRole struct {
 	// ID contains ID of account role.
-	ID int64 `db:"id" json:""`
+	ID int64 `db:"id"`
 	// AccountID contains account ID.
-	AccountID int64 `db:"account_id" json:""`
+	AccountID int64 `db:"account_id"`
 	// RoleID contains role ID.
-	RoleID int64 `db:"role_id" json:""`
+	RoleID int64 `db:"role_id"`
 }
 
 // ObjectID return ID of account role.

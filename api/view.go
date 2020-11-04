@@ -23,6 +23,7 @@ func (v *View) Register(g *echo.Group) {
 	g.GET("/ping", v.ping)
 	g.GET("/health", v.health)
 	v.registerUserHandlers(g)
+	v.registerRoleHandlers(g)
 }
 
 // ping returns pong.
@@ -41,11 +42,11 @@ func NewView(core *core.Core) *View {
 }
 
 const (
-	authAccountKey = "AuthAccount"
-	authSessionKey = "AuthSession"
-	authVisitKey   = "AuthVisit"
-	authRolesKey   = "AuthRoles"
-	authUserKey    = "AuthUser"
+	authAccountKey = "auth_account"
+	authSessionKey = "auth_session"
+	authVisitKey   = "auth_visit"
+	authRolesKey   = "auth_roles"
+	authUserKey    = "auth_user"
 	sessionCookie  = "session"
 )
 
@@ -176,23 +177,25 @@ func (v *View) sessionAuth(c echo.Context) error {
 	return nil
 }
 
+type userAuthForm struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}
+
 // userAuth tries to auth using user login and password.
 func (v *View) userAuth(c echo.Context) error {
-	var authData struct {
-		Login    string `json:""`
-		Password string `json:""`
-	}
-	if err := c.Bind(&authData); err != nil {
+	var form userAuthForm
+	if err := c.Bind(&form); err != nil {
 		return errNoAuth
 	}
-	user, err := v.core.Users.GetByLogin(authData.Login)
+	user, err := v.core.Users.GetByLogin(form.Login)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return errNoAuth
 		}
 		return err
 	}
-	if !v.core.Users.CheckPassword(user, authData.Password) {
+	if !v.core.Users.CheckPassword(user, form.Password) {
 		return errNoAuth
 	}
 	account, err := v.core.Accounts.Get(user.AccountID)

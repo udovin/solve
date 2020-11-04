@@ -9,31 +9,64 @@ import (
 // Role represents a role.
 type Role struct {
 	// ID contains ID of role.
-	ID int64 `db:"id" json:""`
+	ID int64 `db:"id" json:"id"`
 	// Code contains role code.
 	//
 	// Code should be unique for all roles in the store.
-	Code string `db:"code" json:""`
+	Code string `db:"code" json:"code"`
 }
 
 const (
-	// GuestGroupRole represents name of role for guest group.
-	GuestGroupRole = "GuestGroup"
-	// UserGroupRole represents name of role for user group.
-	UserGroupRole = "UserGroup"
 	// LoginRole represents name of role for login action.
-	LoginRole = "Login"
+	LoginRole = "login"
 	// LogoutRole represents name of role for logout action.
-	LogoutRole = "Logout"
+	LogoutRole = "logout"
 	// RegisterRole represents name of role for register action.
-	RegisterRole = "Register"
+	RegisterRole = "register"
 	// AuthStatusRole represents name of role for auth status check.
-	AuthStatusRole = "AuthStatus"
+	AuthStatusRole = "auth_status"
+	// ObserveRoleRole represents name of role for observing role.
+	ObserveRoleRole = "observe_role"
+	// CreateRoleRole represents name of role for creating new role.
+	CreateRoleRole = "create_role"
+	// DeleteRoleRole represents name of role for deleting new role.
+	DeleteRoleRole = "delete_role"
+	// ObserveUserRoleRole represents name of role for observing user role.
+	ObserveUserRoleRole = "observe_user_role"
+	// CreateUserRoleRole represents name of role for attaching role to user.
+	CreateUserRoleRole = "create_user_role"
+	// DeleteUserRoleRole represents name of role for detaching role from user.
+	DeleteUserRoleRole = "delete_user_role"
+	// GuestGroupRole represents name of role for guest group.
+	GuestGroupRole = "guest_group"
+	// UserGroupRole represents name of role for user group.
+	UserGroupRole = "user_group"
 )
+
+var builtInRoles = map[string]struct{}{
+	LoginRole:           {},
+	LogoutRole:          {},
+	RegisterRole:        {},
+	AuthStatusRole:      {},
+	ObserveRoleRole:     {},
+	CreateRoleRole:      {},
+	DeleteRoleRole:      {},
+	ObserveUserRoleRole: {},
+	CreateUserRoleRole:  {},
+	DeleteUserRoleRole:  {},
+	GuestGroupRole:      {},
+	UserGroupRole:       {},
+}
 
 // ObjectID return ID of role.
 func (o Role) ObjectID() int64 {
 	return o.ID
+}
+
+// IsBuiltIn returns flag that role is built-in.
+func (o Role) IsBuiltIn() bool {
+	_, ok := builtInRoles[o.Code]
+	return ok
 }
 
 func (o Role) clone() Role {

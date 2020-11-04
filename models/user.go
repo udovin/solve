@@ -12,11 +12,11 @@ import (
 
 // User contains common information about user.
 type User struct {
-	ID           int64  `db:"id" json:""`
-	AccountID    int64  `db:"account_id" json:"-"`
-	Login        string `db:"login" json:""`
-	PasswordHash string `db:"password_hash" json:"-"`
-	PasswordSalt string `db:"password_salt" json:"-"`
+	ID           int64  `db:"id"`
+	AccountID    int64  `db:"account_id"`
+	Login        string `db:"login"`
+	PasswordHash string `db:"password_hash"`
+	PasswordSalt string `db:"password_salt"`
 }
 
 // ObjectID returns ID of user.

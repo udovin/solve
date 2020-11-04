@@ -54,6 +54,11 @@ func (c *Core) getGroupRoles(id int64) (Roles, error) {
 			if _, ok := roles[role.ID]; !ok {
 				roles[role.ID] = struct{}{}
 				stack = append(stack, role.ID)
+			} else {
+				c.Logger().Errorf(
+					"Found role cycle with edge %v -> %v",
+					roleID, role.ID,
+				)
 			}
 		}
 	}

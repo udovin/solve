@@ -9,11 +9,11 @@ import (
 // RoleEdge represents connection for roles.
 type RoleEdge struct {
 	// ID contains ID of role.
-	ID int64 `db:"id" json:""`
+	ID int64 `db:"id" json:"id"`
 	// RoleID contains ID of parent role.
-	RoleID int64 `db:"role_id" json:""`
+	RoleID int64 `db:"role_id" json:"role_id"`
 	// ChildID contains ID of child role.
-	ChildID int64 `db:"child_id" json:""`
+	ChildID int64 `db:"child_id" json:"child_id"`
 }
 
 // ObjectID return ID of role edge.

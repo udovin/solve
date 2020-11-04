@@ -8,8 +8,8 @@ import (
 
 // Problem represents a problem.
 type Problem struct {
-	ID     int64 `json:"" db:"id"`
-	Config JSON  `json:"" db:"config"`
+	ID     int64 `db:"id"`
+	Config JSON  `db:"config"`
 }
 
 // ObjectID return ID of problem.

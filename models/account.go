@@ -17,9 +17,9 @@ const (
 // Account represents an account.
 type Account struct {
 	// ID contains ID of account.
-	ID int64 `db:"id" json:"id"`
+	ID int64 `db:"id"`
 	// Kind contains kind of account.
-	Kind AccountKind `db:"kind" json:"kind"`
+	Kind AccountKind `db:"kind"`
 }
 
 // ObjectID return ID of account.

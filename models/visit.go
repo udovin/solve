@@ -11,18 +11,18 @@ import (
 
 // Visit represents user visit.
 type Visit struct {
-	ID         int64  `db:"id" json:""`
-	Time       int64  `db:"time" json:""`
-	AccountID  NInt64 `db:"account_id" json:",omitempty"`
-	SessionID  NInt64 `db:"session_id" json:",omitempty"`
-	Host       string `db:"host" json:""`
-	Protocol   string `db:"protocol" json:""`
-	Method     string `db:"method" json:""`
-	RemoteAddr string `db:"remote_addr" json:""`
-	UserAgent  string `db:"user_agent" json:""`
-	Path       string `db:"path" json:""`
-	RealIP     string `db:"real_ip" json:""`
-	Status     int    `db:"status" json:""`
+	ID         int64  `db:"id"`
+	Time       int64  `db:"time"`
+	AccountID  NInt64 `db:"account_id"`
+	SessionID  NInt64 `db:"session_id"`
+	Host       string `db:"host"`
+	Protocol   string `db:"protocol"`
+	Method     string `db:"method" `
+	RemoteAddr string `db:"remote_addr"`
+	UserAgent  string `db:"user_agent"`
+	Path       string `db:"path"`
+	RealIP     string `db:"real_ip"`
+	Status     int    `db:"status"`
 }
 
 // EventID returns ID of visit.

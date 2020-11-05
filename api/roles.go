@@ -35,26 +35,31 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 		"/roles/:role", v.deleteRole,
 		v.requireAuth(v.userAuth),
 		v.requireRole(models.DeleteRoleRole),
+		v.extractRole,
 	)
 	g.GET(
 		"/roles/:role/roles", v.observeRoleRoles,
 		v.requireAuth(v.userAuth),
 		v.requireRole(models.ObserveRoleRole),
+		v.extractRole,
 	)
 	g.GET(
 		"/users/:user/roles", v.observeUserRoles,
 		v.requireAuth(v.sessionAuth),
 		v.requireRole(models.ObserveUserRoleRole),
+		v.extractUser,
 	)
 	g.POST(
 		"/users/:user/roles", v.createUserRole,
 		v.requireAuth(v.sessionAuth),
 		v.requireRole(models.CreateUserRoleRole),
+		v.extractUser,
 	)
 	g.DELETE(
 		"/users/:user/roles/:role", v.deleteUserRole,
 		v.requireAuth(v.sessionAuth),
 		v.requireRole(models.DeleteUserRoleRole),
+		v.extractUser,
 	)
 }
 
@@ -125,10 +130,26 @@ func (v *View) observeUserRoles(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		id, err := strconv.ParseInt(c.Param("role"), 10, 64)
+		if err != nil {
+			return err
+		}
+		role, err := v.core.Roles.Get(id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return c.NoContent(http.StatusNotFound)
+			}
+		}
+		c.Set(roleKey, role)
+		return next(c)
+	}
+}
+
 func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		param := c.Param("user")
-		id, err := strconv.ParseInt(param, 10, 64)
+		id, err := strconv.ParseInt(c.Param("user"), 10, 64)
 		if err != nil {
 			return err
 		}

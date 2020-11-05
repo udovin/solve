@@ -47,6 +47,7 @@ const (
 	authVisitKey   = "auth_visit"
 	authRolesKey   = "auth_roles"
 	authUserKey    = "auth_user"
+	roleKey        = "role"
 	userKey        = "user"
 	sessionCookie  = "session"
 )

@@ -35,13 +35,13 @@ func (o Visit) EventTime() time.Time {
 	return time.Unix(o.Time, 0)
 }
 
-// VisitManager represents visit manager.
-type VisitManager struct {
-	store db.EventStore
+// VisitStore represents visit store.
+type VisitStore struct {
+	events db.EventStore
 }
 
 // MakeFromContext creates Visit from context.
-func (m *VisitManager) MakeFromContext(c echo.Context) Visit {
+func (s *VisitStore) MakeFromContext(c echo.Context) Visit {
 	return Visit{
 		Time:       time.Now().Unix(),
 		Host:       c.Request().Host,
@@ -54,18 +54,18 @@ func (m *VisitManager) MakeFromContext(c echo.Context) Visit {
 	}
 }
 
-// CreateTx creates a new visit in the store.
-func (m *VisitManager) CreateTx(tx *sql.Tx, visit Visit) (Visit, error) {
-	event, err := m.store.CreateEvent(tx, visit)
+// CreateTx creates a new visit in the events.
+func (s *VisitStore) CreateTx(tx *sql.Tx, visit Visit) (Visit, error) {
+	event, err := s.events.CreateEvent(tx, visit)
 	if err != nil {
 		return Visit{}, err
 	}
 	return event.(Visit), nil
 }
 
-// NewVisitManager creates a new instance of ViewManager.
-func NewVisitManager(table string, dialect db.Dialect) *VisitManager {
-	return &VisitManager{
-		store: db.NewEventStore(Visit{}, "id", table, dialect),
+// NewVisitStore creates a new instance of ViewStore.
+func NewVisitStore(table string, dialect db.Dialect) *VisitStore {
+	return &VisitStore{
+		events: db.NewEventStore(Visit{}, "id", table, dialect),
 	}
 }

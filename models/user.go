@@ -45,9 +45,9 @@ func (e UserEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// UserManager represents users manager.
-type UserManager struct {
-	baseManager
+// UserStore represents users store.
+type UserStore struct {
+	baseStore
 	users     map[int64]User
 	byAccount map[int64]int64
 	byLogin   map[string]int64
@@ -55,21 +55,21 @@ type UserManager struct {
 }
 
 // Get returns user by ID.
-func (m *UserManager) Get(id int64) (User, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if user, ok := m.users[id]; ok {
+func (s *UserStore) Get(id int64) (User, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if user, ok := s.users[id]; ok {
 		return user.clone(), nil
 	}
 	return User{}, sql.ErrNoRows
 }
 
 // GetByLogin returns user by login.
-func (m *UserManager) GetByLogin(login string) (User, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if id, ok := m.byLogin[login]; ok {
-		if user, ok := m.users[id]; ok {
+func (s *UserStore) GetByLogin(login string) (User, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if id, ok := s.byLogin[login]; ok {
+		if user, ok := s.users[id]; ok {
 			return user.clone(), nil
 		}
 	}
@@ -77,11 +77,11 @@ func (m *UserManager) GetByLogin(login string) (User, error) {
 }
 
 // GetByAccount returns user by login.
-func (m *UserManager) GetByAccount(id int64) (User, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if id, ok := m.byAccount[id]; ok {
-		if user, ok := m.users[id]; ok {
+func (s *UserStore) GetByAccount(id int64) (User, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if id, ok := s.byAccount[id]; ok {
+		if user, ok := s.users[id]; ok {
 			return user.clone(), nil
 		}
 	}
@@ -89,8 +89,8 @@ func (m *UserManager) GetByAccount(id int64) (User, error) {
 }
 
 // CreateTx creates user and returns copy with valid ID.
-func (m *UserManager) CreateTx(tx *sql.Tx, user User) (User, error) {
-	event, err := m.createObjectEvent(tx, UserEvent{
+func (s *UserStore) CreateTx(tx *sql.Tx, user User) (User, error) {
+	event, err := s.createObjectEvent(tx, UserEvent{
 		makeBaseEvent(CreateEvent),
 		user,
 	})
@@ -101,8 +101,8 @@ func (m *UserManager) CreateTx(tx *sql.Tx, user User) (User, error) {
 }
 
 // UpdateTx updates user with specified ID.
-func (m *UserManager) UpdateTx(tx *sql.Tx, user User) error {
-	_, err := m.createObjectEvent(tx, UserEvent{
+func (s *UserStore) UpdateTx(tx *sql.Tx, user User) error {
+	_, err := s.createObjectEvent(tx, UserEvent{
 		makeBaseEvent(UpdateEvent),
 		user,
 	})
@@ -110,8 +110,8 @@ func (m *UserManager) UpdateTx(tx *sql.Tx, user User) error {
 }
 
 // DeleteTx deletes user with specified ID.
-func (m *UserManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, UserEvent{
+func (s *UserStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, UserEvent{
 		makeBaseEvent(DeleteEvent),
 		User{ID: id},
 	})
@@ -123,60 +123,62 @@ func (m *UserManager) DeleteTx(tx *sql.Tx, id int64) error {
 // PasswordSalt will be replaced with random 16 byte string
 // and PasswordHash will be calculated using password, salt
 // and global salt.
-func (m *UserManager) SetPassword(user *User, password string) error {
+func (s *UserStore) SetPassword(user *User, password string) error {
 	saltBytes := make([]byte, 16)
 	_, err := rand.Read(saltBytes)
 	if err != nil {
 		return err
 	}
 	user.PasswordSalt = encodeBase64(saltBytes)
-	user.PasswordHash = hashPassword(password, user.PasswordSalt, m.salt)
+	user.PasswordHash = hashPassword(password, user.PasswordSalt, s.salt)
 	return nil
 }
 
 // CheckPassword checks that passwords are the same.
-func (m *UserManager) CheckPassword(user User, password string) bool {
-	passwordHash := hashPassword(password, user.PasswordSalt, m.salt)
+func (s *UserStore) CheckPassword(user User, password string) bool {
+	passwordHash := hashPassword(password, user.PasswordSalt, s.salt)
 	return passwordHash == user.PasswordHash
 }
 
-func (m *UserManager) reset() {
-	m.users = map[int64]User{}
-	m.byAccount = map[int64]int64{}
-	m.byLogin = map[string]int64{}
+func (s *UserStore) reset() {
+	s.users = map[int64]User{}
+	s.byAccount = map[int64]int64{}
+	s.byLogin = map[string]int64{}
 }
 
-func (m *UserManager) onCreateObject(o db.Object) {
+func (s *UserStore) onCreateObject(o db.Object) {
 	user := o.(User)
-	m.users[user.ID] = user
-	m.byAccount[user.AccountID] = user.ID
-	m.byLogin[user.Login] = user.ID
+	s.users[user.ID] = user
+	s.byAccount[user.AccountID] = user.ID
+	s.byLogin[user.Login] = user.ID
 }
 
-func (m *UserManager) onDeleteObject(o db.Object) {
+func (s *UserStore) onDeleteObject(o db.Object) {
 	user := o.(User)
-	delete(m.byAccount, user.AccountID)
-	delete(m.byLogin, user.Login)
-	delete(m.users, user.ID)
+	delete(s.byAccount, user.AccountID)
+	delete(s.byLogin, user.Login)
+	delete(s.users, user.ID)
 }
 
-func (m *UserManager) onUpdateObject(o db.Object) {
+func (s *UserStore) onUpdateObject(o db.Object) {
 	user := o.(User)
-	if old, ok := m.users[user.ID]; ok {
+	if old, ok := s.users[user.ID]; ok {
 		if old.AccountID != user.AccountID {
-			delete(m.byAccount, old.AccountID)
+			delete(s.byAccount, old.AccountID)
 		}
 		if old.Login != user.Login {
-			delete(m.byLogin, old.Login)
+			delete(s.byLogin, old.Login)
 		}
 	}
-	m.onCreateObject(o)
+	s.onCreateObject(o)
 }
 
-// NewUserManager creates new instance of user manager.
-func NewUserManager(table, eventTable, salt string, dialect db.Dialect) *UserManager {
-	impl := &UserManager{salt: salt}
-	impl.baseManager = makeBaseManager(
+// NewUserStore creates new instance of user store.
+func NewUserStore(
+	table, eventTable, salt string, dialect db.Dialect,
+) *UserStore {
+	impl := &UserStore{salt: salt}
+	impl.baseStore = makeBaseStore(
 		User{}, table, UserEvent{}, eventTable, impl, dialect,
 	)
 	return impl

@@ -12,7 +12,7 @@ type Role struct {
 	ID int64 `db:"id" json:"id"`
 	// Code contains role code.
 	//
-	// Code should be unique for all roles in the store.
+	// Code should be unique for all roles in the events.
 	Code string `db:"code" json:"code"`
 }
 
@@ -90,9 +90,9 @@ func (e RoleEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// RoleManager represents a role manager.
-type RoleManager struct {
-	baseManager
+// RoleStore represents a role store.
+type RoleStore struct {
+	baseStore
 	roles  map[int64]Role
 	byCode map[string]int64
 }
@@ -101,24 +101,35 @@ type RoleManager struct {
 //
 // If there is no role with specified ID then
 // sql.ErrNoRows will be returned.
-func (m *RoleManager) Get(id int64) (Role, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if role, ok := m.roles[id]; ok {
+func (s *RoleStore) Get(id int64) (Role, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if role, ok := s.roles[id]; ok {
 		return role.clone(), nil
 	}
 	return Role{}, sql.ErrNoRows
+}
+
+// All returns all roles.
+func (s *RoleStore) All() ([]Role, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	var roles []Role
+	for _, role := range s.roles {
+		roles = append(roles, role)
+	}
+	return roles, nil
 }
 
 // GetByCode returns role by code.
 //
 // If there is no role with specified code then
 // sql.ErrNoRows will be returned.
-func (m *RoleManager) GetByCode(code string) (Role, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if id, ok := m.byCode[code]; ok {
-		if role, ok := m.roles[id]; ok {
+func (s *RoleStore) GetByCode(code string) (Role, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if id, ok := s.byCode[code]; ok {
+		if role, ok := s.roles[id]; ok {
 			return role.clone(), nil
 		}
 	}
@@ -126,8 +137,8 @@ func (m *RoleManager) GetByCode(code string) (Role, error) {
 }
 
 // CreateTx creates role and returns copy with valid ID.
-func (m *RoleManager) CreateTx(tx *sql.Tx, role Role) (Role, error) {
-	event, err := m.createObjectEvent(tx, RoleEvent{
+func (s *RoleStore) CreateTx(tx *sql.Tx, role Role) (Role, error) {
+	event, err := s.createObjectEvent(tx, RoleEvent{
 		makeBaseEvent(CreateEvent),
 		role,
 	})
@@ -138,8 +149,8 @@ func (m *RoleManager) CreateTx(tx *sql.Tx, role Role) (Role, error) {
 }
 
 // UpdateTx updates role with specified ID.
-func (m *RoleManager) UpdateTx(tx *sql.Tx, role Role) error {
-	_, err := m.createObjectEvent(tx, RoleEvent{
+func (s *RoleStore) UpdateTx(tx *sql.Tx, role Role) error {
+	_, err := s.createObjectEvent(tx, RoleEvent{
 		makeBaseEvent(UpdateEvent),
 		role,
 	})
@@ -147,47 +158,47 @@ func (m *RoleManager) UpdateTx(tx *sql.Tx, role Role) error {
 }
 
 // DeleteTx deletes role with specified ID.
-func (m *RoleManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, RoleEvent{
+func (s *RoleStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, RoleEvent{
 		makeBaseEvent(DeleteEvent),
 		Role{ID: id},
 	})
 	return err
 }
 
-func (m *RoleManager) reset() {
-	m.roles = map[int64]Role{}
-	m.byCode = map[string]int64{}
+func (s *RoleStore) reset() {
+	s.roles = map[int64]Role{}
+	s.byCode = map[string]int64{}
 }
 
-func (m *RoleManager) onCreateObject(o db.Object) {
+func (s *RoleStore) onCreateObject(o db.Object) {
 	role := o.(Role)
-	m.roles[role.ID] = role
-	m.byCode[role.Code] = role.ID
+	s.roles[role.ID] = role
+	s.byCode[role.Code] = role.ID
 }
 
-func (m *RoleManager) onDeleteObject(o db.Object) {
+func (s *RoleStore) onDeleteObject(o db.Object) {
 	role := o.(Role)
-	delete(m.byCode, role.Code)
-	delete(m.roles, role.ID)
+	delete(s.byCode, role.Code)
+	delete(s.roles, role.ID)
 }
 
-func (m *RoleManager) onUpdateObject(o db.Object) {
+func (s *RoleStore) onUpdateObject(o db.Object) {
 	role := o.(Role)
-	if old, ok := m.roles[role.ID]; ok {
+	if old, ok := s.roles[role.ID]; ok {
 		if old.Code != role.Code {
-			delete(m.byCode, old.Code)
+			delete(s.byCode, old.Code)
 		}
 	}
-	m.onCreateObject(o)
+	s.onCreateObject(o)
 }
 
-// NewRoleManager creates a new instance of RoleManager.
-func NewRoleManager(
+// NewRoleStore creates a new instance of RoleStore.
+func NewRoleStore(
 	table, eventTable string, dialect db.Dialect,
-) *RoleManager {
-	impl := &RoleManager{}
-	impl.baseManager = makeBaseManager(
+) *RoleStore {
+	impl := &RoleStore{}
+	impl.baseStore = makeBaseStore(
 		Role{}, table, RoleEvent{}, eventTable, impl, dialect,
 	)
 	return impl

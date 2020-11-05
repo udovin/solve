@@ -17,30 +17,30 @@ import (
 type Core struct {
 	// Config contains config.
 	Config config.Config
-	// Actions contains action manager.
-	Actions *models.ActionManager
-	// Roles contains role manager.
-	Roles *models.RoleManager
-	// RoleEdges contains role edge manager.
-	RoleEdges *models.RoleEdgeManager
-	// Accounts contains account manager.
-	Accounts *models.AccountManager
-	// AccountRoles contains account role manager.
-	AccountRoles *models.AccountRoleManager
-	// Sessions contains session manager.
-	Sessions *models.SessionManager
-	// Users contains user manager.
-	Users *models.UserManager
-	// UserFields contains user field manager.
-	UserFields *models.UserFieldManager
-	// Problems contains problems manager.
-	Problems *models.ProblemManager
-	// Contests contains contest manager.
-	Contests *models.ContestManager
-	// ContestProblems contains contest problems manager.
-	ContestProblems *models.ContestProblemManager
-	// Visits contains visit manager.
-	Visits *models.VisitManager
+	// Actions contains action store.
+	Actions *models.ActionStore
+	// Roles contains role store.
+	Roles *models.RoleStore
+	// RoleEdges contains role edge store.
+	RoleEdges *models.RoleEdgeStore
+	// Accounts contains account store.
+	Accounts *models.AccountStore
+	// AccountRoles contains account role store.
+	AccountRoles *models.AccountRoleStore
+	// Sessions contains session store.
+	Sessions *models.SessionStore
+	// Users contains user store.
+	Users *models.UserStore
+	// UserFields contains user field store.
+	UserFields *models.UserFieldStore
+	// Problems contains problems store.
+	Problems *models.ProblemStore
+	// Contests contains contest store.
+	Contests *models.ContestStore
+	// ContestProblems contains contest problems store.
+	ContestProblems *models.ContestProblemStore
+	// Visits contains visit store.
+	Visits *models.VisitStore
 	//
 	context context.Context
 	cancel  context.CancelFunc
@@ -76,7 +76,7 @@ func (c *Core) Start() error {
 	c.Logger().Debug("Starting core")
 	defer c.Logger().Debug("Core started")
 	c.context, c.cancel = context.WithCancel(context.Background())
-	return c.startManagerLoops()
+	return c.startStoreLoops()
 }
 
 // Stop stops syncing stores.

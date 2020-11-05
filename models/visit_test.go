@@ -26,13 +26,13 @@ func TestVisit(t *testing.T) {
 	}
 }
 
-func TestVisitManager(t *testing.T) {
-	manager := NewVisitManager("visit", db.SQLite)
+func TestVisitStore(t *testing.T) {
+	store := NewVisitStore("visit", db.SQLite)
 	req := httptest.NewRequest(http.MethodGet, "/text?q=123", nil)
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	ctx := echo.New().NewContext(req, httptest.NewRecorder())
 	ctx.SetPath("/:test")
-	visit := manager.MakeFromContext(ctx)
+	visit := store.MakeFromContext(ctx)
 	if visit.Path != "/text?q=123" {
 		t.Fatalf("Expected %q, got: %q", "/text?q=123", visit.Path)
 	}

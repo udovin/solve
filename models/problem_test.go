@@ -8,9 +8,9 @@ import (
 	"github.com/udovin/solve/db"
 )
 
-type problemManagerTest struct{}
+type problemStoreTest struct{}
 
-func (t *problemManagerTest) prepareDB(tx *sql.Tx) error {
+func (t *problemStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "problem" (` +
 			`"id" integer PRIMARY KEY,` +
@@ -31,35 +31,35 @@ func (t *problemManagerTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *problemManagerTest) newManager() Manager {
-	return NewProblemManager("problem", "problem_event", db.SQLite)
+func (t *problemStoreTest) newStore() Store {
+	return NewProblemStore("problem", "problem_event", db.SQLite)
 }
 
-func (t *problemManagerTest) newObject() db.Object {
+func (t *problemStoreTest) newObject() db.Object {
 	return Problem{}
 }
 
-func (t *problemManagerTest) createObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *problemStoreTest) createObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return m.(*ProblemManager).CreateTx(tx, o.(Problem))
+	return s.(*ProblemStore).CreateTx(tx, o.(Problem))
 }
 
-func (t *problemManagerTest) updateObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *problemStoreTest) updateObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, m.(*ProblemManager).UpdateTx(tx, o.(Problem))
+	return o, s.(*ProblemStore).UpdateTx(tx, o.(Problem))
 }
 
-func (t *problemManagerTest) deleteObject(
-	m Manager, tx *sql.Tx, id int64,
+func (t *problemStoreTest) deleteObject(
+	s Store, tx *sql.Tx, id int64,
 ) error {
-	return m.(*ProblemManager).DeleteTx(tx, id)
+	return s.(*ProblemStore).DeleteTx(tx, id)
 }
 
-func TestProblemManager(t *testing.T) {
+func TestProblemStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := managerTester{&problemManagerTest{}}
+	tester := StoreTester{&problemStoreTest{}}
 	tester.Test(t)
 }

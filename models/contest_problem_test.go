@@ -7,9 +7,9 @@ import (
 	"github.com/udovin/solve/db"
 )
 
-type contestProblemManagerTest struct{}
+type contestProblemStoreTest struct{}
 
-func (t *contestProblemManagerTest) prepareDB(tx *sql.Tx) error {
+func (t *contestProblemStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "contest_problem" (` +
 			`"id" integer PRIMARY KEY,` +
@@ -32,35 +32,35 @@ func (t *contestProblemManagerTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *contestProblemManagerTest) newManager() Manager {
-	return NewContestProblemManager("contest_problem", "contest_problem_event", db.SQLite)
+func (t *contestProblemStoreTest) newStore() Store {
+	return NewContestProblemStore("contest_problem", "contest_problem_event", db.SQLite)
 }
 
-func (t *contestProblemManagerTest) newObject() db.Object {
+func (t *contestProblemStoreTest) newObject() db.Object {
 	return ContestProblem{}
 }
 
-func (t *contestProblemManagerTest) createObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *contestProblemStoreTest) createObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return m.(*ContestProblemManager).CreateTx(tx, o.(ContestProblem))
+	return s.(*ContestProblemStore).CreateTx(tx, o.(ContestProblem))
 }
 
-func (t *contestProblemManagerTest) updateObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *contestProblemStoreTest) updateObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, m.(*ContestProblemManager).UpdateTx(tx, o.(ContestProblem))
+	return o, s.(*ContestProblemStore).UpdateTx(tx, o.(ContestProblem))
 }
 
-func (t *contestProblemManagerTest) deleteObject(
-	m Manager, tx *sql.Tx, id int64,
+func (t *contestProblemStoreTest) deleteObject(
+	s Store, tx *sql.Tx, id int64,
 ) error {
-	return m.(*ContestProblemManager).DeleteTx(tx, id)
+	return s.(*ContestProblemStore).DeleteTx(tx, id)
 }
 
-func TestContestProblemManager(t *testing.T) {
+func TestContestProblemStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := managerTester{&contestProblemManagerTest{}}
+	tester := StoreTester{&contestProblemStoreTest{}}
 	tester.Test(t)
 }

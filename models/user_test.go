@@ -7,9 +7,9 @@ import (
 	"github.com/udovin/solve/db"
 )
 
-type userManagerTest struct{}
+type userStoreTest struct{}
 
-func (t *userManagerTest) prepareDB(tx *sql.Tx) error {
+func (t *userStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "user" (` +
 			`"id" integer PRIMARY KEY,` +
@@ -34,35 +34,35 @@ func (t *userManagerTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *userManagerTest) newManager() Manager {
-	return NewUserManager("user", "user_event", "", db.SQLite)
+func (t *userStoreTest) newStore() Store {
+	return NewUserStore("user", "user_event", "", db.SQLite)
 }
 
-func (t *userManagerTest) newObject() db.Object {
+func (t *userStoreTest) newObject() db.Object {
 	return User{}
 }
 
-func (t *userManagerTest) createObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *userStoreTest) createObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return m.(*UserManager).CreateTx(tx, o.(User))
+	return s.(*UserStore).CreateTx(tx, o.(User))
 }
 
-func (t *userManagerTest) updateObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *userStoreTest) updateObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, m.(*UserManager).UpdateTx(tx, o.(User))
+	return o, s.(*UserStore).UpdateTx(tx, o.(User))
 }
 
-func (t *userManagerTest) deleteObject(
-	m Manager, tx *sql.Tx, id int64,
+func (t *userStoreTest) deleteObject(
+	s Store, tx *sql.Tx, id int64,
 ) error {
-	return m.(*UserManager).DeleteTx(tx, id)
+	return s.(*UserStore).DeleteTx(tx, id)
 }
 
-func TestUserManager(t *testing.T) {
+func TestUserStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := managerTester{&userManagerTest{}}
+	tester := StoreTester{&userStoreTest{}}
 	tester.Test(t)
 }

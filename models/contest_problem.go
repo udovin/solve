@@ -44,9 +44,9 @@ func (e ContestProblemEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// ContestProblemManager represents a problem manager.
-type ContestProblemManager struct {
-	baseManager
+// ContestProblemStore represents a problem store.
+type ContestProblemStore struct {
+	baseStore
 	problems  map[int64]ContestProblem
 	byContest indexInt64
 }
@@ -55,24 +55,24 @@ type ContestProblemManager struct {
 //
 // If there is no problem with specified ID then
 // sql.ErrNoRows will be returned.
-func (m *ContestProblemManager) Get(id int64) (ContestProblem, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if problem, ok := m.problems[id]; ok {
+func (s *ContestProblemStore) Get(id int64) (ContestProblem, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if problem, ok := s.problems[id]; ok {
 		return problem.clone(), nil
 	}
 	return ContestProblem{}, sql.ErrNoRows
 }
 
 // FindByContest returns problems by parent ID.
-func (m *ContestProblemManager) FindByContest(
+func (s *ContestProblemStore) FindByContest(
 	contestID int64,
 ) ([]ContestProblem, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	var problems []ContestProblem
-	for id := range m.byContest[contestID] {
-		if problem, ok := m.problems[id]; ok {
+	for id := range s.byContest[contestID] {
+		if problem, ok := s.problems[id]; ok {
 			problems = append(problems, problem.clone())
 		}
 	}
@@ -80,10 +80,10 @@ func (m *ContestProblemManager) FindByContest(
 }
 
 // CreateTx creates problem and returns copy with valid ID.
-func (m *ContestProblemManager) CreateTx(
+func (s *ContestProblemStore) CreateTx(
 	tx *sql.Tx, problem ContestProblem,
 ) (ContestProblem, error) {
-	event, err := m.createObjectEvent(tx, ContestProblemEvent{
+	event, err := s.createObjectEvent(tx, ContestProblemEvent{
 		makeBaseEvent(CreateEvent),
 		problem,
 	})
@@ -94,10 +94,10 @@ func (m *ContestProblemManager) CreateTx(
 }
 
 // UpdateTx updates problem with specified ID.
-func (m *ContestProblemManager) UpdateTx(
+func (s *ContestProblemStore) UpdateTx(
 	tx *sql.Tx, problem ContestProblem,
 ) error {
-	_, err := m.createObjectEvent(tx, ContestProblemEvent{
+	_, err := s.createObjectEvent(tx, ContestProblemEvent{
 		makeBaseEvent(UpdateEvent),
 		problem,
 	})
@@ -105,47 +105,47 @@ func (m *ContestProblemManager) UpdateTx(
 }
 
 // DeleteTx deletes problem with specified ID.
-func (m *ContestProblemManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, ContestProblemEvent{
+func (s *ContestProblemStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, ContestProblemEvent{
 		makeBaseEvent(DeleteEvent),
 		ContestProblem{ID: id},
 	})
 	return err
 }
 
-func (m *ContestProblemManager) reset() {
-	m.problems = map[int64]ContestProblem{}
-	m.byContest = indexInt64{}
+func (s *ContestProblemStore) reset() {
+	s.problems = map[int64]ContestProblem{}
+	s.byContest = indexInt64{}
 }
 
-func (m *ContestProblemManager) onCreateObject(o db.Object) {
+func (s *ContestProblemStore) onCreateObject(o db.Object) {
 	problem := o.(ContestProblem)
-	m.problems[problem.ID] = problem
-	m.byContest.Create(problem.ContestID, problem.ID)
+	s.problems[problem.ID] = problem
+	s.byContest.Create(problem.ContestID, problem.ID)
 }
 
-func (m *ContestProblemManager) onDeleteObject(o db.Object) {
+func (s *ContestProblemStore) onDeleteObject(o db.Object) {
 	problem := o.(ContestProblem)
-	m.byContest.Delete(problem.ContestID, problem.ID)
-	delete(m.problems, problem.ID)
+	s.byContest.Delete(problem.ContestID, problem.ID)
+	delete(s.problems, problem.ID)
 }
 
-func (m *ContestProblemManager) onUpdateObject(o db.Object) {
+func (s *ContestProblemStore) onUpdateObject(o db.Object) {
 	problem := o.(ContestProblem)
-	if old, ok := m.problems[problem.ID]; ok {
+	if old, ok := s.problems[problem.ID]; ok {
 		if old.ContestID != problem.ContestID {
-			m.byContest.Delete(old.ContestID, old.ID)
+			s.byContest.Delete(old.ContestID, old.ID)
 		}
 	}
-	m.onCreateObject(o)
+	s.onCreateObject(o)
 }
 
-// NewContestProblemManager creates a new instance of ContestProblemManager.
-func NewContestProblemManager(
+// NewContestProblemStore creates a new instance of ContestProblemStore.
+func NewContestProblemStore(
 	table, eventTable string, dialect db.Dialect,
-) *ContestProblemManager {
-	impl := &ContestProblemManager{}
-	impl.baseManager = makeBaseManager(
+) *ContestProblemStore {
+	impl := &ContestProblemStore{}
+	impl.baseStore = makeBaseStore(
 		ContestProblem{}, table, ContestProblemEvent{}, eventTable, impl, dialect,
 	)
 	return impl

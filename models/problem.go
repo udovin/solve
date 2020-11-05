@@ -34,17 +34,17 @@ func (e ProblemEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// ProblemManager represents manager for problems.
-type ProblemManager struct {
-	baseManager
+// ProblemStore represents store for problems.
+type ProblemStore struct {
+	baseStore
 	problems map[int64]Problem
 }
 
 // CreateTx creates problem and returns copy with valid ID.
-func (m *ProblemManager) CreateTx(
+func (s *ProblemStore) CreateTx(
 	tx *sql.Tx, problem Problem,
 ) (Problem, error) {
-	event, err := m.createObjectEvent(tx, ProblemEvent{
+	event, err := s.createObjectEvent(tx, ProblemEvent{
 		makeBaseEvent(CreateEvent),
 		problem,
 	})
@@ -55,8 +55,8 @@ func (m *ProblemManager) CreateTx(
 }
 
 // UpdateTx updates problem with specified ID.
-func (m *ProblemManager) UpdateTx(tx *sql.Tx, problem Problem) error {
-	_, err := m.createObjectEvent(tx, ProblemEvent{
+func (s *ProblemStore) UpdateTx(tx *sql.Tx, problem Problem) error {
+	_, err := s.createObjectEvent(tx, ProblemEvent{
 		makeBaseEvent(UpdateEvent),
 		problem,
 	})
@@ -64,38 +64,38 @@ func (m *ProblemManager) UpdateTx(tx *sql.Tx, problem Problem) error {
 }
 
 // DeleteTx deletes problem with specified ID.
-func (m *ProblemManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, ProblemEvent{
+func (s *ProblemStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, ProblemEvent{
 		makeBaseEvent(DeleteEvent),
 		Problem{ID: id},
 	})
 	return err
 }
 
-func (m *ProblemManager) reset() {
-	m.problems = map[int64]Problem{}
+func (s *ProblemStore) reset() {
+	s.problems = map[int64]Problem{}
 }
 
-func (m *ProblemManager) onCreateObject(o db.Object) {
+func (s *ProblemStore) onCreateObject(o db.Object) {
 	problem := o.(Problem)
-	m.problems[problem.ID] = problem
+	s.problems[problem.ID] = problem
 }
 
-func (m *ProblemManager) onDeleteObject(o db.Object) {
+func (s *ProblemStore) onDeleteObject(o db.Object) {
 	problem := o.(Problem)
-	delete(m.problems, problem.ID)
+	delete(s.problems, problem.ID)
 }
 
-func (m *ProblemManager) onUpdateObject(o db.Object) {
-	m.onCreateObject(o)
+func (s *ProblemStore) onUpdateObject(o db.Object) {
+	s.onCreateObject(o)
 }
 
-// NewProblemManager creates a new instance of ProblemManager.
-func NewProblemManager(
+// NewProblemStore creates a new instance of ProblemStore.
+func NewProblemStore(
 	table, eventTable string, dialect db.Dialect,
-) *ProblemManager {
-	impl := &ProblemManager{}
-	impl.baseManager = makeBaseManager(
+) *ProblemStore {
+	impl := &ProblemStore{}
+	impl.baseStore = makeBaseStore(
 		Problem{}, table, ProblemEvent{}, eventTable, impl, dialect,
 	)
 	return impl

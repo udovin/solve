@@ -8,9 +8,9 @@ import (
 	"github.com/udovin/solve/db"
 )
 
-type contestManagerTest struct{}
+type contestStoreTest struct{}
 
-func (t *contestManagerTest) prepareDB(tx *sql.Tx) error {
+func (t *contestStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "contest" (` +
 			`"id" integer PRIMARY KEY,` +
@@ -27,39 +27,38 @@ func (t *contestManagerTest) prepareDB(tx *sql.Tx) error {
 			`"id" integer NOT NULL,` +
 			`"config" text NOT NULL)`,
 	)
-	log.Println("Error", err)
 	return err
 }
 
-func (t *contestManagerTest) newManager() Manager {
-	return NewContestManager("contest", "contest_event", db.SQLite)
+func (t *contestStoreTest) newStore() Store {
+	return NewContestStore("contest", "contest_event", db.SQLite)
 }
 
-func (t *contestManagerTest) newObject() db.Object {
+func (t *contestStoreTest) newObject() db.Object {
 	return Contest{}
 }
 
-func (t *contestManagerTest) createObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *contestStoreTest) createObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return m.(*ContestManager).CreateTx(tx, o.(Contest))
+	return s.(*ContestStore).CreateTx(tx, o.(Contest))
 }
 
-func (t *contestManagerTest) updateObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *contestStoreTest) updateObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, m.(*ContestManager).UpdateTx(tx, o.(Contest))
+	return o, s.(*ContestStore).UpdateTx(tx, o.(Contest))
 }
 
-func (t *contestManagerTest) deleteObject(
-	m Manager, tx *sql.Tx, id int64,
+func (t *contestStoreTest) deleteObject(
+	s Store, tx *sql.Tx, id int64,
 ) error {
-	return m.(*ContestManager).DeleteTx(tx, id)
+	return s.(*ContestStore).DeleteTx(tx, id)
 }
 
-func TestContestManager(t *testing.T) {
+func TestContestStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := managerTester{&contestManagerTest{}}
+	tester := StoreTester{&contestStoreTest{}}
 	tester.Test(t)
 }

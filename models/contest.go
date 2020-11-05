@@ -39,17 +39,17 @@ func (e ContestEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// ContestManager represents manager for contests.
-type ContestManager struct {
-	baseManager
+// ContestStore represents store for contests.
+type ContestStore struct {
+	baseStore
 	contests map[int64]Contest
 }
 
 // CreateTx creates contest and returns copy with valid ID.
-func (m *ContestManager) CreateTx(
+func (s *ContestStore) CreateTx(
 	tx *sql.Tx, contest Contest,
 ) (Contest, error) {
-	event, err := m.createObjectEvent(tx, ContestEvent{
+	event, err := s.createObjectEvent(tx, ContestEvent{
 		makeBaseEvent(CreateEvent),
 		contest,
 	})
@@ -60,8 +60,8 @@ func (m *ContestManager) CreateTx(
 }
 
 // UpdateTx updates contest with specified ID.
-func (m *ContestManager) UpdateTx(tx *sql.Tx, contest Contest) error {
-	_, err := m.createObjectEvent(tx, ContestEvent{
+func (s *ContestStore) UpdateTx(tx *sql.Tx, contest Contest) error {
+	_, err := s.createObjectEvent(tx, ContestEvent{
 		makeBaseEvent(UpdateEvent),
 		contest,
 	})
@@ -69,38 +69,38 @@ func (m *ContestManager) UpdateTx(tx *sql.Tx, contest Contest) error {
 }
 
 // DeleteTx deletes contest with specified ID.
-func (m *ContestManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, ContestEvent{
+func (s *ContestStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, ContestEvent{
 		makeBaseEvent(DeleteEvent),
 		Contest{ID: id},
 	})
 	return err
 }
 
-func (m *ContestManager) reset() {
-	m.contests = map[int64]Contest{}
+func (s *ContestStore) reset() {
+	s.contests = map[int64]Contest{}
 }
 
-func (m *ContestManager) onCreateObject(o db.Object) {
+func (s *ContestStore) onCreateObject(o db.Object) {
 	contest := o.(Contest)
-	m.contests[contest.ID] = contest
+	s.contests[contest.ID] = contest
 }
 
-func (m *ContestManager) onDeleteObject(o db.Object) {
+func (s *ContestStore) onDeleteObject(o db.Object) {
 	contest := o.(Contest)
-	delete(m.contests, contest.ID)
+	delete(s.contests, contest.ID)
 }
 
-func (m *ContestManager) onUpdateObject(o db.Object) {
-	m.onCreateObject(o)
+func (s *ContestStore) onUpdateObject(o db.Object) {
+	s.onCreateObject(o)
 }
 
-// NewContestManager creates a new instance of ContestManager.
-func NewContestManager(
+// NewContestStore creates a new instance of ContestStore.
+func NewContestStore(
 	table, eventTable string, dialect db.Dialect,
-) *ContestManager {
-	impl := &ContestManager{}
-	impl.baseManager = makeBaseManager(
+) *ContestStore {
+	impl := &ContestStore{}
+	impl.baseStore = makeBaseStore(
 		Contest{}, table, ContestEvent{}, eventTable, impl, dialect,
 	)
 	return impl

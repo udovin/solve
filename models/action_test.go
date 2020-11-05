@@ -8,9 +8,9 @@ import (
 	"github.com/udovin/solve/db"
 )
 
-type actionManagerTest struct{}
+type actionStoreTest struct{}
 
-func (t *actionManagerTest) prepareDB(tx *sql.Tx) error {
+func (t *actionStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "action" (` +
 			`"id" integer PRIMARY KEY,` +
@@ -37,30 +37,30 @@ func (t *actionManagerTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *actionManagerTest) newManager() Manager {
-	return NewActionManager("action", "action_event", db.SQLite)
+func (t *actionStoreTest) newStore() Store {
+	return NewActionStore("action", "action_event", db.SQLite)
 }
 
-func (t *actionManagerTest) newObject() db.Object {
+func (t *actionStoreTest) newObject() db.Object {
 	return Action{}
 }
 
-func (t *actionManagerTest) createObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *actionStoreTest) createObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return m.(*ActionManager).CreateTx(tx, o.(Action))
+	return s.(*ActionStore).CreateTx(tx, o.(Action))
 }
 
-func (t *actionManagerTest) updateObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *actionStoreTest) updateObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, m.(*ActionManager).UpdateTx(tx, o.(Action))
+	return o, s.(*ActionStore).UpdateTx(tx, o.(Action))
 }
 
-func (t *actionManagerTest) deleteObject(
-	m Manager, tx *sql.Tx, id int64,
+func (t *actionStoreTest) deleteObject(
+	s Store, tx *sql.Tx, id int64,
 ) error {
-	return m.(*ActionManager).DeleteTx(tx, id)
+	return s.(*ActionStore).DeleteTx(tx, id)
 }
 
 func TestActionStatus(t *testing.T) {
@@ -104,9 +104,9 @@ func TestActionType(t *testing.T) {
 	}
 }
 
-func TestActionManager(t *testing.T) {
+func TestActionStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := managerTester{&actionManagerTest{}}
+	tester := StoreTester{&actionStoreTest{}}
 	tester.Test(t)
 }

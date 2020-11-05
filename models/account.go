@@ -48,27 +48,27 @@ func (e AccountEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// AccountManager represents manager for accounts.
-type AccountManager struct {
-	baseManager
+// AccountStore represents store for accounts.
+type AccountStore struct {
+	baseStore
 	accounts map[int64]Account
 }
 
 // Get returns account by ID.
-func (m *AccountManager) Get(id int64) (Account, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if account, ok := m.accounts[id]; ok {
+func (s *AccountStore) Get(id int64) (Account, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if account, ok := s.accounts[id]; ok {
 		return account.clone(), nil
 	}
 	return Account{}, sql.ErrNoRows
 }
 
 // CreateTx creates account and returns copy with valid ID.
-func (m *AccountManager) CreateTx(
+func (s *AccountStore) CreateTx(
 	tx *sql.Tx, account Account,
 ) (Account, error) {
-	event, err := m.createObjectEvent(tx, AccountEvent{
+	event, err := s.createObjectEvent(tx, AccountEvent{
 		makeBaseEvent(CreateEvent),
 		account,
 	})
@@ -79,8 +79,8 @@ func (m *AccountManager) CreateTx(
 }
 
 // UpdateTx updates account with specified ID.
-func (m *AccountManager) UpdateTx(tx *sql.Tx, account Account) error {
-	_, err := m.createObjectEvent(tx, AccountEvent{
+func (s *AccountStore) UpdateTx(tx *sql.Tx, account Account) error {
+	_, err := s.createObjectEvent(tx, AccountEvent{
 		makeBaseEvent(UpdateEvent),
 		account,
 	})
@@ -88,38 +88,38 @@ func (m *AccountManager) UpdateTx(tx *sql.Tx, account Account) error {
 }
 
 // DeleteTx deletes account with specified ID.
-func (m *AccountManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, AccountEvent{
+func (s *AccountStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, AccountEvent{
 		makeBaseEvent(DeleteEvent),
 		Account{ID: id},
 	})
 	return err
 }
 
-func (m *AccountManager) reset() {
-	m.accounts = map[int64]Account{}
+func (s *AccountStore) reset() {
+	s.accounts = map[int64]Account{}
 }
 
-func (m *AccountManager) onCreateObject(o db.Object) {
+func (s *AccountStore) onCreateObject(o db.Object) {
 	account := o.(Account)
-	m.accounts[account.ID] = account
+	s.accounts[account.ID] = account
 }
 
-func (m *AccountManager) onDeleteObject(o db.Object) {
+func (s *AccountStore) onDeleteObject(o db.Object) {
 	account := o.(Account)
-	delete(m.accounts, account.ID)
+	delete(s.accounts, account.ID)
 }
 
-func (m *AccountManager) onUpdateObject(o db.Object) {
-	m.onCreateObject(o)
+func (s *AccountStore) onUpdateObject(o db.Object) {
+	s.onCreateObject(o)
 }
 
-// NewAccountManager creates a new instance of AccountManager.
-func NewAccountManager(
+// NewAccountStore creates a new instance of AccountStore.
+func NewAccountStore(
 	table, eventTable string, dialect db.Dialect,
-) *AccountManager {
-	impl := &AccountManager{}
-	impl.baseManager = makeBaseManager(
+) *AccountStore {
+	impl := &AccountStore{}
+	impl.baseStore = makeBaseStore(
 		Account{}, table, AccountEvent{}, eventTable, impl, dialect,
 	)
 	return impl

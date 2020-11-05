@@ -71,30 +71,30 @@ func (e SessionEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// SessionManager represents manager for sessions.
-type SessionManager struct {
-	baseManager
+// SessionStore represents store for sessions.
+type SessionStore struct {
+	baseStore
 	sessions  map[int64]Session
 	byAccount indexInt64
 }
 
 // Get returns session by session ID.
-func (m *SessionManager) Get(id int64) (Session, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if session, ok := m.sessions[id]; ok {
+func (s *SessionStore) Get(id int64) (Session, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if session, ok := s.sessions[id]; ok {
 		return session.clone(), nil
 	}
 	return Session{}, sql.ErrNoRows
 }
 
 // FindByAccount returns sessions by account ID.
-func (m *SessionManager) FindByAccount(id int64) ([]Session, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+func (s *SessionStore) FindByAccount(id int64) ([]Session, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	var sessions []Session
-	for id := range m.byAccount[id] {
-		if session, ok := m.sessions[id]; ok {
+	for id := range s.byAccount[id] {
+		if session, ok := s.sessions[id]; ok {
 			sessions = append(sessions, session.clone())
 		}
 	}
@@ -102,15 +102,15 @@ func (m *SessionManager) FindByAccount(id int64) ([]Session, error) {
 }
 
 // GetByCookie returns session for specified cookie value.
-func (m *SessionManager) GetByCookie(cookie string) (Session, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	parts := strings.SplitN(cookie, "_", 2)
 	id, err := strconv.ParseInt(parts[0], 10, 60)
 	if err != nil {
 		return Session{}, err
 	}
-	session, ok := m.sessions[id]
+	session, ok := s.sessions[id]
 	if !ok || session.Secret != parts[1] {
 		return Session{}, sql.ErrNoRows
 	}
@@ -118,10 +118,10 @@ func (m *SessionManager) GetByCookie(cookie string) (Session, error) {
 }
 
 // CreateTx creates session and returns new session with valid ID.
-func (m *SessionManager) CreateTx(
+func (s *SessionStore) CreateTx(
 	tx *sql.Tx, session Session,
 ) (Session, error) {
-	event, err := m.createObjectEvent(tx, SessionEvent{
+	event, err := s.createObjectEvent(tx, SessionEvent{
 		makeBaseEvent(CreateEvent),
 		session,
 	})
@@ -132,8 +132,8 @@ func (m *SessionManager) CreateTx(
 }
 
 // UpdateTx updates session with specified ID.
-func (m *SessionManager) UpdateTx(tx *sql.Tx, session Session) error {
-	_, err := m.createObjectEvent(tx, SessionEvent{
+func (s *SessionStore) UpdateTx(tx *sql.Tx, session Session) error {
+	_, err := s.createObjectEvent(tx, SessionEvent{
 		makeBaseEvent(UpdateEvent),
 		session,
 	})
@@ -141,47 +141,47 @@ func (m *SessionManager) UpdateTx(tx *sql.Tx, session Session) error {
 }
 
 // DeleteTx deletes session with specified ID.
-func (m *SessionManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, SessionEvent{
+func (s *SessionStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, SessionEvent{
 		makeBaseEvent(DeleteEvent),
 		Session{ID: id},
 	})
 	return err
 }
 
-func (m *SessionManager) reset() {
-	m.sessions = map[int64]Session{}
-	m.byAccount = indexInt64{}
+func (s *SessionStore) reset() {
+	s.sessions = map[int64]Session{}
+	s.byAccount = indexInt64{}
 }
 
-func (m *SessionManager) onCreateObject(o db.Object) {
+func (s *SessionStore) onCreateObject(o db.Object) {
 	session := o.(Session)
-	m.sessions[session.ID] = session
-	m.byAccount.Create(session.AccountID, session.ID)
+	s.sessions[session.ID] = session
+	s.byAccount.Create(session.AccountID, session.ID)
 }
 
-func (m *SessionManager) onDeleteObject(o db.Object) {
+func (s *SessionStore) onDeleteObject(o db.Object) {
 	session := o.(Session)
-	m.byAccount.Delete(session.AccountID, session.ID)
-	delete(m.sessions, session.ID)
+	s.byAccount.Delete(session.AccountID, session.ID)
+	delete(s.sessions, session.ID)
 }
 
-func (m *SessionManager) onUpdateObject(o db.Object) {
+func (s *SessionStore) onUpdateObject(o db.Object) {
 	session := o.(Session)
-	if old, ok := m.sessions[session.ID]; ok {
+	if old, ok := s.sessions[session.ID]; ok {
 		if old.AccountID != session.AccountID {
-			m.byAccount.Delete(old.AccountID, old.ID)
+			s.byAccount.Delete(old.AccountID, old.ID)
 		}
 	}
-	m.onCreateObject(o)
+	s.onCreateObject(o)
 }
 
-// NewSessionManager creates a new instance of SessionManager.
-func NewSessionManager(
+// NewSessionStore creates a new instance of SessionStore.
+func NewSessionStore(
 	table, eventTable string, dialect db.Dialect,
-) *SessionManager {
-	impl := &SessionManager{}
-	impl.baseManager = makeBaseManager(
+) *SessionStore {
+	impl := &SessionStore{}
+	impl.baseStore = makeBaseStore(
 		Session{}, table, SessionEvent{}, eventTable, impl, dialect,
 	)
 	return impl

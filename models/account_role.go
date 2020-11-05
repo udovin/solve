@@ -42,9 +42,9 @@ func (e AccountRoleEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// AccountRoleManager represents manager for account roles.
-type AccountRoleManager struct {
-	baseManager
+// AccountRoleStore represents store for account roles.
+type AccountRoleStore struct {
+	baseStore
 	roles     map[int64]AccountRole
 	byAccount indexInt64
 }
@@ -53,22 +53,22 @@ type AccountRoleManager struct {
 //
 // If there is no role with specified id then
 // sql.ErrNoRows will be returned.
-func (m *AccountRoleManager) Get(id int64) (AccountRole, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if role, ok := m.roles[id]; ok {
+func (s *AccountRoleStore) Get(id int64) (AccountRole, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if role, ok := s.roles[id]; ok {
 		return role.clone(), nil
 	}
 	return AccountRole{}, sql.ErrNoRows
 }
 
 // FindByAccount returns roles by account ID.
-func (m *AccountRoleManager) FindByAccount(id int64) ([]AccountRole, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	var roles []AccountRole
-	for id := range m.byAccount[id] {
-		if role, ok := m.roles[id]; ok {
+	for id := range s.byAccount[id] {
+		if role, ok := s.roles[id]; ok {
 			roles = append(roles, role.clone())
 		}
 	}
@@ -76,10 +76,10 @@ func (m *AccountRoleManager) FindByAccount(id int64) ([]AccountRole, error) {
 }
 
 // CreateTx creates account role and returns copy with valid ID.
-func (m *AccountRoleManager) CreateTx(
+func (s *AccountRoleStore) CreateTx(
 	tx *sql.Tx, role AccountRole,
 ) (AccountRole, error) {
-	event, err := m.createObjectEvent(tx, AccountRoleEvent{
+	event, err := s.createObjectEvent(tx, AccountRoleEvent{
 		makeBaseEvent(CreateEvent),
 		role,
 	})
@@ -90,8 +90,8 @@ func (m *AccountRoleManager) CreateTx(
 }
 
 // UpdateTx updates account role with specified ID.
-func (m *AccountRoleManager) UpdateTx(tx *sql.Tx, role AccountRole) error {
-	_, err := m.createObjectEvent(tx, AccountRoleEvent{
+func (s *AccountRoleStore) UpdateTx(tx *sql.Tx, role AccountRole) error {
+	_, err := s.createObjectEvent(tx, AccountRoleEvent{
 		makeBaseEvent(UpdateEvent),
 		role,
 	})
@@ -99,47 +99,47 @@ func (m *AccountRoleManager) UpdateTx(tx *sql.Tx, role AccountRole) error {
 }
 
 // DeleteTx deletes account role with specified ID.
-func (m *AccountRoleManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, AccountRoleEvent{
+func (s *AccountRoleStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, AccountRoleEvent{
 		makeBaseEvent(DeleteEvent),
 		AccountRole{ID: id},
 	})
 	return err
 }
 
-func (m *AccountRoleManager) reset() {
-	m.roles = map[int64]AccountRole{}
-	m.byAccount = indexInt64{}
+func (s *AccountRoleStore) reset() {
+	s.roles = map[int64]AccountRole{}
+	s.byAccount = indexInt64{}
 }
 
-func (m *AccountRoleManager) onCreateObject(o db.Object) {
+func (s *AccountRoleStore) onCreateObject(o db.Object) {
 	role := o.(AccountRole)
-	m.roles[role.ID] = role
-	m.byAccount.Create(role.AccountID, role.ID)
+	s.roles[role.ID] = role
+	s.byAccount.Create(role.AccountID, role.ID)
 }
 
-func (m *AccountRoleManager) onDeleteObject(o db.Object) {
+func (s *AccountRoleStore) onDeleteObject(o db.Object) {
 	role := o.(AccountRole)
-	m.byAccount.Delete(role.AccountID, role.ID)
-	delete(m.roles, role.ID)
+	s.byAccount.Delete(role.AccountID, role.ID)
+	delete(s.roles, role.ID)
 }
 
-func (m *AccountRoleManager) onUpdateObject(o db.Object) {
+func (s *AccountRoleStore) onUpdateObject(o db.Object) {
 	role := o.(AccountRole)
-	if old, ok := m.roles[role.ID]; ok {
+	if old, ok := s.roles[role.ID]; ok {
 		if old.AccountID != role.AccountID {
-			m.byAccount.Delete(old.AccountID, old.ID)
+			s.byAccount.Delete(old.AccountID, old.ID)
 		}
 	}
-	m.onCreateObject(o)
+	s.onCreateObject(o)
 }
 
-// NewAccountRoleManager creates a new instance of AccountRoleManager.
-func NewAccountRoleManager(
+// NewAccountRoleStore creates a new instance of AccountRoleStore.
+func NewAccountRoleStore(
 	table, eventTable string, dialect db.Dialect,
-) *AccountRoleManager {
-	impl := &AccountRoleManager{}
-	impl.baseManager = makeBaseManager(
+) *AccountRoleStore {
+	impl := &AccountRoleStore{}
+	impl.baseStore = makeBaseStore(
 		AccountRole{}, table, AccountRoleEvent{}, eventTable, impl, dialect,
 	)
 	return impl

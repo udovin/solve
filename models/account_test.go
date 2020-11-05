@@ -8,9 +8,9 @@ import (
 	"github.com/udovin/solve/db"
 )
 
-type accountManagerTest struct{}
+type accountStoreTest struct{}
 
-func (t *accountManagerTest) prepareDB(tx *sql.Tx) error {
+func (t *accountStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "account" (` +
 			`"id" integer PRIMARY KEY,` +
@@ -31,35 +31,35 @@ func (t *accountManagerTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *accountManagerTest) newManager() Manager {
-	return NewAccountManager("account", "account_event", db.SQLite)
+func (t *accountStoreTest) newStore() Store {
+	return NewAccountStore("account", "account_event", db.SQLite)
 }
 
-func (t *accountManagerTest) newObject() db.Object {
+func (t *accountStoreTest) newObject() db.Object {
 	return Account{}
 }
 
-func (t *accountManagerTest) createObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *accountStoreTest) createObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return m.(*AccountManager).CreateTx(tx, o.(Account))
+	return s.(*AccountStore).CreateTx(tx, o.(Account))
 }
 
-func (t *accountManagerTest) updateObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *accountStoreTest) updateObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, m.(*AccountManager).UpdateTx(tx, o.(Account))
+	return o, s.(*AccountStore).UpdateTx(tx, o.(Account))
 }
 
-func (t *accountManagerTest) deleteObject(
-	m Manager, tx *sql.Tx, id int64,
+func (t *accountStoreTest) deleteObject(
+	s Store, tx *sql.Tx, id int64,
 ) error {
-	return m.(*AccountManager).DeleteTx(tx, id)
+	return s.(*AccountStore).DeleteTx(tx, id)
 }
 
-func TestAccountManager(t *testing.T) {
+func TestAccountStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := managerTester{&accountManagerTest{}}
+	tester := StoreTester{&accountStoreTest{}}
 	tester.Test(t)
 }

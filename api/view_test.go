@@ -34,7 +34,7 @@ func testSetup(tb testing.TB) {
 	if err != nil {
 		tb.Fatal("Error:", err)
 	}
-	if err := c.SetupAllManagers(); err != nil {
+	if err := c.SetupAllStores(); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	if err := migrations.Apply(c); err != nil {

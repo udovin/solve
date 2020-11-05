@@ -31,20 +31,20 @@ func (m indexInt64) Delete(key, value int64) {
 type NInt64 int64
 
 // Value returns value.
-func (n NInt64) Value() (driver.Value, error) {
-	if n == 0 {
+func (v NInt64) Value() (driver.Value, error) {
+	if v == 0 {
 		return nil, nil
 	}
-	return int64(n), nil
+	return int64(v), nil
 }
 
 // Scan scans value.
-func (n *NInt64) Scan(value interface{}) error {
-	switch v := value.(type) {
+func (v *NInt64) Scan(value interface{}) error {
+	switch x := value.(type) {
 	case nil:
-		*n = 0
+		*v = 0
 	case int64:
-		*n = NInt64(v)
+		*v = NInt64(x)
 	default:
 		return fmt.Errorf("unsupported type: %T", v)
 	}
@@ -173,42 +173,42 @@ func makeBaseEvent(t EventType) baseEvent {
 	return baseEvent{BaseEventType: t, BaseEventTime: time.Now().Unix()}
 }
 
-type baseManagerImpl interface {
+type baseStoreImpl interface {
 	reset()
 	onCreateObject(o db.Object)
 	onDeleteObject(o db.Object)
 	onUpdateObject(o db.Object)
 }
 
-// Manager represents store manager.
-type Manager interface {
+// Store represents cached store.
+type Store interface {
 	InitTx(tx *sql.Tx) error
 	SyncTx(tx *sql.Tx) error
 }
 
-type baseManager struct {
+type baseStore struct {
 	table    string
 	objects  db.ObjectStore
 	events   db.EventStore
 	consumer db.EventConsumer
-	impl     baseManagerImpl
+	impl     baseStoreImpl
 	dialect  db.Dialect
 	mutex    sync.RWMutex
 }
 
-func (m *baseManager) InitTx(tx *sql.Tx) error {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	if err := m.initEvents(tx); err != nil {
+func (s *baseStore) InitTx(tx *sql.Tx) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if err := s.initEvents(tx); err != nil {
 		return err
 	}
-	return m.initObjects(tx)
+	return s.initObjects(tx)
 }
 
 const eventGapSkipWindow = 5000
 
-func (m *baseManager) initEvents(tx *sql.Tx) error {
-	beginID, err := m.events.LastEventID(tx)
+func (s *baseStore) initEvents(tx *sql.Tx) error {
+	beginID, err := s.events.LastEventID(tx)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -220,91 +220,91 @@ func (m *baseManager) initEvents(tx *sql.Tx) error {
 	} else {
 		beginID = 1
 	}
-	m.consumer = db.NewEventConsumer(m.events, beginID)
-	return m.consumer.ConsumeEvents(tx, func(db.Event) error {
+	s.consumer = db.NewEventConsumer(s.events, beginID)
+	return s.consumer.ConsumeEvents(tx, func(db.Event) error {
 		return nil
 	})
 }
 
-func (m *baseManager) initObjects(tx *sql.Tx) error {
-	rows, err := m.objects.LoadObjects(tx)
+func (s *baseStore) initObjects(tx *sql.Tx) error {
+	rows, err := s.objects.LoadObjects(tx)
 	if err != nil && err != sql.ErrNoRows {
 		return err
 	}
 	defer func() {
 		_ = rows.Close()
 	}()
-	m.impl.reset()
+	s.impl.reset()
 	for rows.Next() {
-		m.impl.onCreateObject(rows.Object())
+		s.impl.onCreateObject(rows.Object())
 	}
 	return rows.Err()
 }
 
-func (m *baseManager) SyncTx(tx *sql.Tx) error {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	return m.consumer.ConsumeEvents(tx, m.consumeEvent)
+func (s *baseStore) SyncTx(tx *sql.Tx) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.consumer.ConsumeEvents(tx, s.consumeEvent)
 }
 
-func (m *baseManager) createObjectEvent(
+func (s *baseStore) createObjectEvent(
 	tx *sql.Tx, event ObjectEvent,
 ) (ObjectEvent, error) {
 	switch object := event.Object(); event.EventType() {
 	case CreateEvent:
-		object, err := m.objects.CreateObject(tx, object)
+		object, err := s.objects.CreateObject(tx, object)
 		if err != nil {
 			return nil, err
 		}
 		event = event.WithObject(object)
 	case UpdateEvent:
-		object, err := m.objects.UpdateObject(tx, object)
+		object, err := s.objects.UpdateObject(tx, object)
 		if err != nil {
 			return nil, err
 		}
 		event = event.WithObject(object)
 	case DeleteEvent:
-		if err := m.objects.DeleteObject(tx, object.ObjectID()); err != nil {
+		if err := s.objects.DeleteObject(tx, object.ObjectID()); err != nil {
 			return nil, err
 		}
 	}
-	result, err := m.events.CreateEvent(tx, event)
+	result, err := s.events.CreateEvent(tx, event)
 	if err != nil {
 		return nil, err
 	}
 	return result.(ObjectEvent), err
 }
 
-func (m *baseManager) lockStore(tx *sql.Tx) error {
-	switch m.dialect {
+func (s *baseStore) lockStore(tx *sql.Tx) error {
+	switch s.dialect {
 	case db.SQLite:
 		return nil
 	default:
-		_, err := tx.Exec(fmt.Sprintf("LOCK TABLE %q", m.table))
+		_, err := tx.Exec(fmt.Sprintf("LOCK TABLE %q", s.table))
 		return err
 	}
 }
 
-func (m *baseManager) consumeEvent(e db.Event) error {
+func (s *baseStore) consumeEvent(e db.Event) error {
 	switch v := e.(ObjectEvent); v.EventType() {
 	case CreateEvent:
-		m.impl.onCreateObject(v.Object())
+		s.impl.onCreateObject(v.Object())
 	case DeleteEvent:
-		m.impl.onDeleteObject(v.Object())
+		s.impl.onDeleteObject(v.Object())
 	case UpdateEvent:
-		m.impl.onUpdateObject(v.Object())
+		s.impl.onUpdateObject(v.Object())
 	default:
 		return fmt.Errorf("unexpected event type: %v", v.EventType())
 	}
 	return nil
 }
 
-func makeBaseManager(
+func makeBaseStore(
 	object db.Object, table string,
 	event ObjectEvent, eventTable string,
-	impl baseManagerImpl, dialect db.Dialect,
-) baseManager {
-	return baseManager{
+	impl baseStoreImpl, dialect db.Dialect,
+) baseStore {
+	return baseStore{
 		table:   table,
 		objects: db.NewObjectStore(object, "id", table, dialect),
 		events:  db.NewEventStore(event, "event_id", eventTable, dialect),

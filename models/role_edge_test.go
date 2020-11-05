@@ -7,9 +7,9 @@ import (
 	"github.com/udovin/solve/db"
 )
 
-type roleEdgeManagerTest struct{}
+type roleEdgeStoreTest struct{}
 
-func (t *roleEdgeManagerTest) prepareDB(tx *sql.Tx) error {
+func (t *roleEdgeStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "role_edge" (` +
 			`"id" integer PRIMARY KEY,` +
@@ -30,35 +30,35 @@ func (t *roleEdgeManagerTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *roleEdgeManagerTest) newManager() Manager {
-	return NewRoleEdgeManager("role_edge", "role_edge_event", db.SQLite)
+func (t *roleEdgeStoreTest) newStore() Store {
+	return NewRoleEdgeStore("role_edge", "role_edge_event", db.SQLite)
 }
 
-func (t *roleEdgeManagerTest) newObject() db.Object {
+func (t *roleEdgeStoreTest) newObject() db.Object {
 	return RoleEdge{}
 }
 
-func (t *roleEdgeManagerTest) createObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *roleEdgeStoreTest) createObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return m.(*RoleEdgeManager).CreateTx(tx, o.(RoleEdge))
+	return s.(*RoleEdgeStore).CreateTx(tx, o.(RoleEdge))
 }
 
-func (t *roleEdgeManagerTest) updateObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *roleEdgeStoreTest) updateObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, m.(*RoleEdgeManager).UpdateTx(tx, o.(RoleEdge))
+	return o, s.(*RoleEdgeStore).UpdateTx(tx, o.(RoleEdge))
 }
 
-func (t *roleEdgeManagerTest) deleteObject(
-	m Manager, tx *sql.Tx, id int64,
+func (t *roleEdgeStoreTest) deleteObject(
+	s Store, tx *sql.Tx, id int64,
 ) error {
-	return m.(*RoleEdgeManager).DeleteTx(tx, id)
+	return s.(*RoleEdgeStore).DeleteTx(tx, id)
 }
 
-func TestRoleEdgeManager(t *testing.T) {
+func TestRoleEdgeStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := managerTester{&roleEdgeManagerTest{}}
+	tester := StoreTester{&roleEdgeStoreTest{}}
 	tester.Test(t)
 }

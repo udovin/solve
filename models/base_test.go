@@ -78,23 +78,23 @@ func (e testObjectEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-type testManager struct {
-	baseManager
+type testStore struct {
+	baseStore
 	table, eventTable string
 	objects           map[int64]testObject
 }
 
-func (m *testManager) Get(id int64) (testObject, error) {
-	if object, ok := m.objects[id]; ok {
+func (s *testStore) Get(id int64) (testObject, error) {
+	if object, ok := s.objects[id]; ok {
 		return object, nil
 	}
 	return testObject{}, sql.ErrNoRows
 }
 
-func (m *testManager) CreateTx(
+func (s *testStore) CreateTx(
 	tx *sql.Tx, object testObject,
 ) (testObject, error) {
-	event, err := m.createObjectEvent(tx, testObjectEvent{
+	event, err := s.createObjectEvent(tx, testObjectEvent{
 		makeBaseEvent(CreateEvent),
 		object,
 	})
@@ -104,48 +104,48 @@ func (m *testManager) CreateTx(
 	return event.Object().(testObject), nil
 }
 
-func (m *testManager) UpdateTx(tx *sql.Tx, object testObject) error {
-	_, err := m.createObjectEvent(tx, testObjectEvent{
+func (s *testStore) UpdateTx(tx *sql.Tx, object testObject) error {
+	_, err := s.createObjectEvent(tx, testObjectEvent{
 		makeBaseEvent(UpdateEvent),
 		object,
 	})
 	return err
 }
 
-func (m *testManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, testObjectEvent{
+func (s *testStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, testObjectEvent{
 		makeBaseEvent(DeleteEvent),
 		testObject{ID: id},
 	})
 	return err
 }
 
-func (m *testManager) reset() {
-	m.objects = map[int64]testObject{}
+func (s *testStore) reset() {
+	s.objects = map[int64]testObject{}
 }
 
-func (m *testManager) onCreateObject(o db.Object) {
-	if _, ok := m.objects[o.ObjectID()]; ok {
+func (s *testStore) onCreateObject(o db.Object) {
+	if _, ok := s.objects[o.ObjectID()]; ok {
 		panic("object already exists")
 	}
-	m.objects[o.ObjectID()] = o.(testObject)
+	s.objects[o.ObjectID()] = o.(testObject)
 }
 
-func (m *testManager) onUpdateObject(o db.Object) {
-	if _, ok := m.objects[o.ObjectID()]; !ok {
+func (s *testStore) onUpdateObject(o db.Object) {
+	if _, ok := s.objects[o.ObjectID()]; !ok {
 		panic("object not found")
 	}
-	m.objects[o.ObjectID()] = o.(testObject)
+	s.objects[o.ObjectID()] = o.(testObject)
 }
 
-func (m *testManager) onDeleteObject(o db.Object) {
-	if _, ok := m.objects[o.ObjectID()]; !ok {
+func (s *testStore) onDeleteObject(o db.Object) {
+	if _, ok := s.objects[o.ObjectID()]; !ok {
 		panic("object not found")
 	}
-	delete(m.objects, o.ObjectID())
+	delete(s.objects, o.ObjectID())
 }
 
-func migrateTestManager(t testing.TB, m *testManager) {
+func migrateTestStore(t testing.TB, s *testStore) {
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -162,7 +162,7 @@ func migrateTestManager(t testing.TB, m *testManager) {
 			`"bool" boolean NOT NULL,`+
 			`"bytes" blob,`+
 			`"json" blob NOT NULL)`,
-		m.table,
+		s.table,
 	)); err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -178,7 +178,7 @@ func migrateTestManager(t testing.TB, m *testManager) {
 			`"bool" boolean NOT NULL,`+
 			`"bytes" blob,`+
 			`"json" blob NOT NULL)`,
-		m.eventTable,
+		s.eventTable,
 	)); err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -187,12 +187,12 @@ func migrateTestManager(t testing.TB, m *testManager) {
 	}
 }
 
-func newTestManager() *testManager {
-	impl := &testManager{
+func newTestStore() *testStore {
+	impl := &testStore{
 		table:      "test_object",
 		eventTable: "test_object_event",
 	}
-	impl.baseManager = makeBaseManager(
+	impl.baseStore = makeBaseStore(
 		testObject{}, impl.table,
 		testObjectEvent{}, impl.eventTable,
 		impl, db.SQLite,
@@ -200,7 +200,7 @@ func newTestManager() *testManager {
 	return impl
 }
 
-func testInitManager(t testing.TB, m Manager) {
+func testInitStore(t testing.TB, m Store) {
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -213,7 +213,7 @@ func testInitManager(t testing.TB, m Manager) {
 	}
 }
 
-func testSyncManager(t testing.TB, m Manager) {
+func testSyncStore(t testing.TB, s Store) {
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -221,12 +221,12 @@ func testSyncManager(t testing.TB, m Manager) {
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	if err := m.SyncTx(tx); err != nil {
+	if err := s.SyncTx(tx); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func createTestObject(t testing.TB, m *testManager, o testObject) testObject {
+func createTestObject(t testing.TB, s *testStore, o testObject) testObject {
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -234,7 +234,7 @@ func createTestObject(t testing.TB, m *testManager, o testObject) testObject {
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	if o, err = m.CreateTx(tx, o); err != nil {
+	if o, err = s.CreateTx(tx, o); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -244,7 +244,7 @@ func createTestObject(t testing.TB, m *testManager, o testObject) testObject {
 }
 
 func updateTestObject(
-	t testing.TB, m *testManager, o testObject, expErr error,
+	t testing.TB, s *testStore, o testObject, expErr error,
 ) {
 	tx, err := testDB.Begin()
 	if err != nil {
@@ -253,7 +253,7 @@ func updateTestObject(
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	if err = m.UpdateTx(tx, o); err != expErr {
+	if err = s.UpdateTx(tx, o); err != expErr {
 		t.Fatalf("Expected %v, got %v", expErr, err)
 	}
 	if err == nil {
@@ -264,7 +264,7 @@ func updateTestObject(
 }
 
 func deleteTestObject(
-	t testing.TB, m *testManager, id int64, expErr error,
+	t testing.TB, s *testStore, id int64, expErr error,
 ) {
 	tx, err := testDB.Begin()
 	if err != nil {
@@ -273,7 +273,7 @@ func deleteTestObject(
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	err = m.DeleteTx(tx, id)
+	err = s.DeleteTx(tx, id)
 	if err != expErr {
 		t.Fatal(err)
 	}
@@ -284,14 +284,14 @@ func deleteTestObject(
 	}
 }
 
-func TestMakeBaseManager(t *testing.T) {
+func TestMakeBaseStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	master := newTestManager()
-	replica := newTestManager()
-	migrateTestManager(t, master)
-	testInitManager(t, master)
-	testInitManager(t, replica)
+	master := newTestStore()
+	replica := newTestStore()
+	migrateTestStore(t, master)
+	testInitStore(t, master)
+	testInitStore(t, replica)
 	object := testObject{
 		testObjectBase: testObjectBase{
 			String: "Test",
@@ -312,7 +312,7 @@ func TestMakeBaseManager(t *testing.T) {
 		)
 	}
 	checkReplicaObject := func(object testObject, expErr error) {
-		testSyncManager(t, replica)
+		testSyncStore(t, replica)
 		loaded, err := replica.Get(object.ID)
 		if err != expErr {
 			t.Fatalf(
@@ -338,11 +338,11 @@ func TestMakeBaseManager(t *testing.T) {
 	checkReplicaObject(savedObject, sql.ErrNoRows)
 }
 
-func TestBaseManager_lockStore(t *testing.T) {
+func TestBaseStore_lockStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	manager := newTestManager()
-	migrateTestManager(t, manager)
+	store := newTestStore()
+	migrateTestStore(t, store)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal("Error:", err)
@@ -350,31 +350,31 @@ func TestBaseManager_lockStore(t *testing.T) {
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	if err := manager.lockStore(tx); err != nil {
+	if err := store.lockStore(tx); err != nil {
 		t.Fatal("Error:", err)
 	}
 }
 
-func TestBaseManager_consumeEvent(t *testing.T) {
-	manager := baseManager{}
-	if err := manager.consumeEvent(testObjectEvent{
+func TestBaseStore_consumeEvent(t *testing.T) {
+	store := baseStore{}
+	if err := store.consumeEvent(testObjectEvent{
 		baseEvent: makeBaseEvent(-1),
 	}); err == nil {
 		t.Fatal("Expected error")
 	}
 }
 
-func TestBaseManager_InitTx(t *testing.T) {
+func TestBaseStore_InitTx(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	manager := &testManager{
+	store := &testStore{
 		table:      "invalid_object",
 		eventTable: "invalid_object_event",
 	}
-	manager.baseManager = makeBaseManager(
-		testObject{}, manager.table,
-		testObjectEvent{}, manager.eventTable,
-		manager, db.SQLite,
+	store.baseStore = makeBaseStore(
+		testObject{}, store.table,
+		testObjectEvent{}, store.eventTable,
+		store, db.SQLite,
 	)
 	tx, err := testDB.Begin()
 	if err != nil {
@@ -383,7 +383,7 @@ func TestBaseManager_InitTx(t *testing.T) {
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	if err := manager.InitTx(tx); err == nil {
+	if err := store.InitTx(tx); err == nil {
 		t.Fatal("Expected error")
 	}
 }
@@ -469,7 +469,7 @@ func TestJSON_Scan(t *testing.T) {
 	if err := a.Scan([]byte("{")); err == nil {
 		t.Fatal("Expected error")
 	}
-	if err := a.Scan(baseManager{}); err == nil {
+	if err := a.Scan(baseStore{}); err == nil {
 		t.Fatal("Expected error")
 	}
 }
@@ -511,13 +511,13 @@ func TestJSON_clone(t *testing.T) {
 	}
 }
 
-type managerTestHelper interface {
+type StoreTestHelper interface {
 	prepareDB(tx *sql.Tx) error
-	newManager() Manager
+	newStore() Store
 	newObject() db.Object
-	createObject(m Manager, tx *sql.Tx, o db.Object) (db.Object, error)
-	updateObject(m Manager, tx *sql.Tx, o db.Object) (db.Object, error)
-	deleteObject(m Manager, tx *sql.Tx, id int64) error
+	createObject(s Store, tx *sql.Tx, o db.Object) (db.Object, error)
+	updateObject(s Store, tx *sql.Tx, o db.Object) (db.Object, error)
+	deleteObject(s Store, tx *sql.Tx, id int64) error
 }
 
 func withTestTx(fn func(*sql.Tx) error) (err error) {
@@ -535,23 +535,23 @@ func withTestTx(fn func(*sql.Tx) error) (err error) {
 	return fn(tx)
 }
 
-type managerTester struct {
-	helper managerTestHelper
+type StoreTester struct {
+	helper StoreTestHelper
 }
 
-func (m *managerTester) Test(t testing.TB) {
-	m.prepareDB(t)
-	master := m.helper.newManager()
+func (s *StoreTester) Test(t testing.TB) {
+	s.prepareDB(t)
+	master := s.helper.newStore()
 	if err := withTestTx(master.InitTx); err != nil {
 		t.Fatal("Error:", err)
 	}
-	objects := m.createObjects(t, master)
+	objects := s.createObjects(t, master)
 	if err := withTestTx(master.SyncTx); err != nil {
 		t.Fatal("Error:", err)
 	}
 	for _, object := range objects {
 		if err := withTestTx(func(tx *sql.Tx) error {
-			updated, err := m.helper.updateObject(master, tx, object)
+			updated, err := s.helper.updateObject(master, tx, object)
 			if err != nil {
 				return err
 			}
@@ -568,7 +568,7 @@ func (m *managerTester) Test(t testing.TB) {
 	}
 	for _, object := range objects {
 		if err := withTestTx(func(tx *sql.Tx) error {
-			return m.helper.deleteObject(master, tx, object.ObjectID())
+			return s.helper.deleteObject(master, tx, object.ObjectID())
 		}); err != nil {
 			t.Fatal("Error:", err)
 		}
@@ -576,15 +576,15 @@ func (m *managerTester) Test(t testing.TB) {
 	if err := withTestTx(master.SyncTx); err != nil {
 		t.Fatal("Error:", err)
 	}
-	m.testFailedTx(t, master)
+	s.testFailedTx(t, master)
 }
 
-func (m *managerTester) createObjects(t testing.TB, mgr Manager) []db.Object {
+func (s *StoreTester) createObjects(t testing.TB, mgr Store) []db.Object {
 	var objects []db.Object
 	for i := 0; i < 100; i++ {
-		object := m.helper.newObject()
+		object := s.helper.newObject()
 		if err := withTestTx(func(tx *sql.Tx) error {
-			created, err := m.helper.createObject(mgr, tx, object)
+			created, err := s.helper.createObject(mgr, tx, object)
 			if err != nil {
 				return err
 			}
@@ -600,22 +600,22 @@ func (m *managerTester) createObjects(t testing.TB, mgr Manager) []db.Object {
 	return objects
 }
 
-func (m *managerTester) testFailedTx(t testing.TB, mgr Manager) {
+func (s *StoreTester) testFailedTx(t testing.TB, mgr Store) {
 	if err := withTestTx(func(tx *sql.Tx) error {
 		_ = tx.Rollback()
-		_, err := m.helper.createObject(mgr, tx, m.helper.newObject())
+		_, err := s.helper.createObject(mgr, tx, s.helper.newObject())
 		return err
 	}); err == nil {
 		t.Fatal("Expected error")
 	}
 }
 
-func (m *managerTester) prepareDB(t testing.TB) {
+func (s *StoreTester) prepareDB(t testing.TB) {
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := m.helper.prepareDB(tx); err != nil {
+	if err := s.helper.prepareDB(tx); err != nil {
 		_ = tx.Rollback()
 		t.Fatal("Error:", err)
 	} else if err := tx.Commit(); err != nil {
@@ -623,11 +623,11 @@ func (m *managerTester) prepareDB(t testing.TB) {
 	}
 }
 
-func BenchmarkBaseManager_CreateTx(b *testing.B) {
+func BenchmarkBaseStore_CreateTx(b *testing.B) {
 	testSetup(b)
 	defer testTeardown(b)
-	manager := newTestManager()
-	migrateTestManager(b, manager)
+	store := newTestStore()
+	migrateTestStore(b, store)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if err := withTestTx(func(tx *sql.Tx) error {
@@ -635,9 +635,7 @@ func BenchmarkBaseManager_CreateTx(b *testing.B) {
 			if err != nil {
 				return err
 			}
-			_, err = manager.CreateTx(tx, testObject{
-				JSON: JSON(bytes),
-			})
+			_, err = store.CreateTx(tx, testObject{JSON: bytes})
 			return err
 		}); err != nil {
 			b.Fatal("Error: ", err)

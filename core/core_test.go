@@ -12,24 +12,25 @@ import (
 	"github.com/udovin/solve/migrations"
 )
 
+var testCfg = config.Config{
+	DB: config.DB{
+		Driver:  config.SQLiteDriver,
+		Options: config.SQLiteOptions{Path: "?mode=memory"},
+	},
+	Security: config.Security{
+		PasswordSalt: config.Secret{
+			Type: config.DataSecret,
+			Data: "qwerty123",
+		},
+	},
+}
+
 func TestNewCore(t *testing.T) {
-	cfg := config.Config{
-		DB: config.DB{
-			Driver:  config.SQLiteDriver,
-			Options: config.SQLiteOptions{Path: "?mode=memory"},
-		},
-		Security: config.Security{
-			PasswordSalt: config.Secret{
-				Type: config.DataSecret,
-				Data: "qwerty123",
-			},
-		},
-	}
-	c, err := core.NewCore(cfg)
+	c, err := core.NewCore(testCfg)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := c.SetupAllManagers(); err != nil {
+	if err := c.SetupAllStores(); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := migrations.Apply(c); err != nil {
@@ -74,23 +75,11 @@ func TestNewCore_Failure(t *testing.T) {
 }
 
 func TestCore_WithTx(t *testing.T) {
-	cfg := config.Config{
-		DB: config.DB{
-			Driver:  config.SQLiteDriver,
-			Options: config.SQLiteOptions{Path: "?mode=memory"},
-		},
-		Security: config.Security{
-			PasswordSalt: config.Secret{
-				Type: config.DataSecret,
-				Data: "qwerty123",
-			},
-		},
-	}
-	c, err := core.NewCore(cfg)
+	c, err := core.NewCore(testCfg)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := c.SetupAllManagers(); err != nil {
+	if err := c.SetupAllStores(); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := migrations.Apply(c); err != nil {
@@ -104,6 +93,29 @@ func TestCore_WithTx(t *testing.T) {
 		return fmt.Errorf("test error")
 	}); err == nil {
 		t.Fatal("Expected error")
+	}
+}
+
+func TestCore_Roles(t *testing.T) {
+	c, err := core.NewCore(testCfg)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := c.SetupAllStores(); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := migrations.Apply(c); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := c.Start(); err != nil {
+		t.Fatal("Error:", err)
+	}
+	defer c.Stop()
+	if _, err := c.GetGuestRoles(); err != nil {
+		t.Fatal("Error", err)
+	}
+	if _, err := c.GetUserRoles(); err != nil {
+		t.Fatal("Error", err)
 	}
 }
 

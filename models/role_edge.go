@@ -42,9 +42,9 @@ func (e RoleEdgeEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// RoleEdgeManager represents a role edge manager.
-type RoleEdgeManager struct {
-	baseManager
+// RoleEdgeStore represents a role edge store.
+type RoleEdgeStore struct {
+	baseStore
 	edges  map[int64]RoleEdge
 	byRole indexInt64
 }
@@ -53,22 +53,22 @@ type RoleEdgeManager struct {
 //
 // If there is no role with specified ID then
 // sql.ErrNoRows will be returned.
-func (m *RoleEdgeManager) Get(id int64) (RoleEdge, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if edge, ok := m.edges[id]; ok {
+func (s *RoleEdgeStore) Get(id int64) (RoleEdge, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if edge, ok := s.edges[id]; ok {
 		return edge.clone(), nil
 	}
 	return RoleEdge{}, sql.ErrNoRows
 }
 
 // FindByRole returns edges by parent ID.
-func (m *RoleEdgeManager) FindByRole(id int64) ([]RoleEdge, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	var edges []RoleEdge
-	for id := range m.byRole[id] {
-		if edge, ok := m.edges[id]; ok {
+	for id := range s.byRole[id] {
+		if edge, ok := s.edges[id]; ok {
 			edges = append(edges, edge.clone())
 		}
 	}
@@ -76,10 +76,10 @@ func (m *RoleEdgeManager) FindByRole(id int64) ([]RoleEdge, error) {
 }
 
 // CreateTx creates role edge and returns copy with valid ID.
-func (m *RoleEdgeManager) CreateTx(
+func (s *RoleEdgeStore) CreateTx(
 	tx *sql.Tx, edge RoleEdge,
 ) (RoleEdge, error) {
-	event, err := m.createObjectEvent(tx, RoleEdgeEvent{
+	event, err := s.createObjectEvent(tx, RoleEdgeEvent{
 		makeBaseEvent(CreateEvent),
 		edge,
 	})
@@ -90,8 +90,8 @@ func (m *RoleEdgeManager) CreateTx(
 }
 
 // UpdateTx updates role edge with specified ID.
-func (m *RoleEdgeManager) UpdateTx(tx *sql.Tx, edge RoleEdge) error {
-	_, err := m.createObjectEvent(tx, RoleEdgeEvent{
+func (s *RoleEdgeStore) UpdateTx(tx *sql.Tx, edge RoleEdge) error {
+	_, err := s.createObjectEvent(tx, RoleEdgeEvent{
 		makeBaseEvent(UpdateEvent),
 		edge,
 	})
@@ -99,47 +99,47 @@ func (m *RoleEdgeManager) UpdateTx(tx *sql.Tx, edge RoleEdge) error {
 }
 
 // DeleteTx deletes role edge with specified ID.
-func (m *RoleEdgeManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, RoleEdgeEvent{
+func (s *RoleEdgeStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, RoleEdgeEvent{
 		makeBaseEvent(DeleteEvent),
 		RoleEdge{ID: id},
 	})
 	return err
 }
 
-func (m *RoleEdgeManager) reset() {
-	m.edges = map[int64]RoleEdge{}
-	m.byRole = indexInt64{}
+func (s *RoleEdgeStore) reset() {
+	s.edges = map[int64]RoleEdge{}
+	s.byRole = indexInt64{}
 }
 
-func (m *RoleEdgeManager) onCreateObject(o db.Object) {
+func (s *RoleEdgeStore) onCreateObject(o db.Object) {
 	edge := o.(RoleEdge)
-	m.edges[edge.ID] = edge
-	m.byRole.Create(edge.RoleID, edge.ID)
+	s.edges[edge.ID] = edge
+	s.byRole.Create(edge.RoleID, edge.ID)
 }
 
-func (m *RoleEdgeManager) onDeleteObject(o db.Object) {
+func (s *RoleEdgeStore) onDeleteObject(o db.Object) {
 	edge := o.(RoleEdge)
-	m.byRole.Delete(edge.RoleID, edge.ID)
-	delete(m.edges, edge.ID)
+	s.byRole.Delete(edge.RoleID, edge.ID)
+	delete(s.edges, edge.ID)
 }
 
-func (m *RoleEdgeManager) onUpdateObject(o db.Object) {
+func (s *RoleEdgeStore) onUpdateObject(o db.Object) {
 	edge := o.(RoleEdge)
-	if old, ok := m.edges[edge.ID]; ok {
+	if old, ok := s.edges[edge.ID]; ok {
 		if old.RoleID != edge.RoleID {
-			m.byRole.Delete(old.RoleID, old.ID)
+			s.byRole.Delete(old.RoleID, old.ID)
 		}
 	}
-	m.onCreateObject(o)
+	s.onCreateObject(o)
 }
 
-// NewRoleEdgeManager creates a new instance of RoleEdgeManager.
-func NewRoleEdgeManager(
+// NewRoleEdgeStore creates a new instance of RoleEdgeStore.
+func NewRoleEdgeStore(
 	table, eventTable string, dialect db.Dialect,
-) *RoleEdgeManager {
-	impl := &RoleEdgeManager{}
-	impl.baseManager = makeBaseManager(
+) *RoleEdgeStore {
+	impl := &RoleEdgeStore{}
+	impl.baseStore = makeBaseStore(
 		RoleEdge{}, table, RoleEdgeEvent{}, eventTable, impl, dialect,
 	)
 	return impl

@@ -7,9 +7,9 @@ import (
 	"github.com/udovin/solve/db"
 )
 
-type roleManagerTest struct{}
+type roleStoreTest struct{}
 
-func (t *roleManagerTest) prepareDB(tx *sql.Tx) error {
+func (t *roleStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "role" (` +
 			`"id" integer PRIMARY KEY,` +
@@ -28,35 +28,35 @@ func (t *roleManagerTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *roleManagerTest) newManager() Manager {
-	return NewRoleManager("role", "role_event", db.SQLite)
+func (t *roleStoreTest) newStore() Store {
+	return NewRoleStore("role", "role_event", db.SQLite)
 }
 
-func (t *roleManagerTest) newObject() db.Object {
+func (t *roleStoreTest) newObject() db.Object {
 	return Role{}
 }
 
-func (t *roleManagerTest) createObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *roleStoreTest) createObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return m.(*RoleManager).CreateTx(tx, o.(Role))
+	return s.(*RoleStore).CreateTx(tx, o.(Role))
 }
 
-func (t *roleManagerTest) updateObject(
-	m Manager, tx *sql.Tx, o db.Object,
+func (t *roleStoreTest) updateObject(
+	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, m.(*RoleManager).UpdateTx(tx, o.(Role))
+	return o, s.(*RoleStore).UpdateTx(tx, o.(Role))
 }
 
-func (t *roleManagerTest) deleteObject(
-	m Manager, tx *sql.Tx, id int64,
+func (t *roleStoreTest) deleteObject(
+	s Store, tx *sql.Tx, id int64,
 ) error {
-	return m.(*RoleManager).DeleteTx(tx, id)
+	return s.(*RoleStore).DeleteTx(tx, id)
 }
 
-func TestRoleManager(t *testing.T) {
+func TestRoleStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := managerTester{&roleManagerTest{}}
+	tester := StoreTester{&roleStoreTest{}}
 	tester.Test(t)
 }

@@ -103,9 +103,9 @@ func (e ActionEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// ActionManager represents manager for actions.
-type ActionManager struct {
-	baseManager
+// ActionStore represents store for actions.
+type ActionStore struct {
+	baseStore
 	actions  map[int64]Action
 	byStatus indexInt64
 }
@@ -113,22 +113,22 @@ type ActionManager struct {
 // Get returns action by id.
 //
 // Returns sql.ErrNoRows if action does not exist.
-func (m *ActionManager) Get(id int64) (Action, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if action, ok := m.actions[id]; ok {
+func (s *ActionStore) Get(id int64) (Action, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if action, ok := s.actions[id]; ok {
 		return action.clone(), nil
 	}
 	return Action{}, sql.ErrNoRows
 }
 
 // FindByStatus returns a list of actions with specified status.
-func (m *ActionManager) FindByStatus(status ActionStatus) ([]Action, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+func (s *ActionStore) FindByStatus(status ActionStatus) ([]Action, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	var actions []Action
-	for id := range m.byStatus[int64(status)] {
-		if action, ok := m.actions[id]; ok {
+	for id := range s.byStatus[int64(status)] {
+		if action, ok := s.actions[id]; ok {
 			actions = append(actions, action.clone())
 		}
 	}
@@ -136,8 +136,8 @@ func (m *ActionManager) FindByStatus(status ActionStatus) ([]Action, error) {
 }
 
 // CreateTx creates action and returns copy with valid ID.
-func (m *ActionManager) CreateTx(tx *sql.Tx, action Action) (Action, error) {
-	event, err := m.createObjectEvent(tx, ActionEvent{
+func (s *ActionStore) CreateTx(tx *sql.Tx, action Action) (Action, error) {
+	event, err := s.createObjectEvent(tx, ActionEvent{
 		makeBaseEvent(CreateEvent),
 		action,
 	})
@@ -148,8 +148,8 @@ func (m *ActionManager) CreateTx(tx *sql.Tx, action Action) (Action, error) {
 }
 
 // UpdateTx updates action.
-func (m *ActionManager) UpdateTx(tx *sql.Tx, action Action) error {
-	_, err := m.createObjectEvent(tx, ActionEvent{
+func (s *ActionStore) UpdateTx(tx *sql.Tx, action Action) error {
+	_, err := s.createObjectEvent(tx, ActionEvent{
 		makeBaseEvent(UpdateEvent),
 		action,
 	})
@@ -157,37 +157,37 @@ func (m *ActionManager) UpdateTx(tx *sql.Tx, action Action) error {
 }
 
 // DeleteTx deletes action.
-func (m *ActionManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, ActionEvent{
+func (s *ActionStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, ActionEvent{
 		makeBaseEvent(DeleteEvent),
 		Action{ID: id},
 	})
 	return err
 }
 
-// PopQueuedTx pops queued action from the store and sets running status.
+// PopQueuedTx pops queued action from the events and sets running status.
 //
-// Note that store is not synchronized after actions is popped.
-func (m *ActionManager) PopQueuedTx(tx *sql.Tx) (Action, error) {
-	// First of all we should lock store.
-	if err := m.lockStore(tx); err != nil {
+// Note that events is not synchronized after actions is popped.
+func (s *ActionStore) PopQueuedTx(tx *sql.Tx) (Action, error) {
+	// First of all we should lock events.
+	if err := s.lockStore(tx); err != nil {
 		return Action{}, err
 	}
-	// Now we should load all changes from store.
-	if err := m.SyncTx(tx); err != nil {
+	// Now we should load all changes from events.
+	if err := s.SyncTx(tx); err != nil {
 		return Action{}, err
 	}
-	// New changes will not be available right now due to locked store.
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	for id := range m.byStatus[int64(Queued)] {
-		if action, ok := m.actions[id]; ok {
+	// New changes will not be available right now due to locked events.
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	for id := range s.byStatus[int64(Queued)] {
+		if action, ok := s.actions[id]; ok {
 			// We should make clone of action, because we do not
-			// want to corrupt manager in-memory cache.
+			// want to corrupt Store in-memory cache.
 			action = action.clone()
 			// Now we can do any manipulations with this action.
 			action.Status = Running
-			if err := m.UpdateTx(tx, action); err != nil {
+			if err := s.UpdateTx(tx, action); err != nil {
 				return Action{}, err
 			}
 			return action, nil
@@ -196,39 +196,39 @@ func (m *ActionManager) PopQueuedTx(tx *sql.Tx) (Action, error) {
 	return Action{}, sql.ErrNoRows
 }
 
-func (m *ActionManager) reset() {
-	m.actions = map[int64]Action{}
-	m.byStatus = indexInt64{}
+func (s *ActionStore) reset() {
+	s.actions = map[int64]Action{}
+	s.byStatus = indexInt64{}
 }
 
-func (m *ActionManager) onCreateObject(o db.Object) {
+func (s *ActionStore) onCreateObject(o db.Object) {
 	action := o.(Action)
-	m.actions[action.ID] = action
-	m.byStatus.Create(int64(action.Status), action.ID)
+	s.actions[action.ID] = action
+	s.byStatus.Create(int64(action.Status), action.ID)
 }
 
-func (m *ActionManager) onDeleteObject(o db.Object) {
+func (s *ActionStore) onDeleteObject(o db.Object) {
 	action := o.(Action)
-	m.byStatus.Delete(int64(action.Status), action.ID)
-	delete(m.actions, action.ID)
+	s.byStatus.Delete(int64(action.Status), action.ID)
+	delete(s.actions, action.ID)
 }
 
-func (m *ActionManager) onUpdateObject(o db.Object) {
+func (s *ActionStore) onUpdateObject(o db.Object) {
 	action := o.(Action)
-	if old, ok := m.actions[action.ID]; ok {
+	if old, ok := s.actions[action.ID]; ok {
 		if old.Status != action.Status {
-			m.byStatus.Delete(int64(old.Status), old.ID)
+			s.byStatus.Delete(int64(old.Status), old.ID)
 		}
 	}
-	m.onCreateObject(o)
+	s.onCreateObject(o)
 }
 
-// NewActionManager creates a new instance of ActionManager.
-func NewActionManager(
+// NewActionStore creates a new instance of ActionStore.
+func NewActionStore(
 	table, eventTable string, dialect db.Dialect,
-) *ActionManager {
-	impl := &ActionManager{}
-	impl.baseManager = makeBaseManager(
+) *ActionStore {
+	impl := &ActionStore{}
+	impl.baseStore = makeBaseStore(
 		Action{}, table, ActionEvent{}, eventTable, impl, dialect,
 	)
 	return impl

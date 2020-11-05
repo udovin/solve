@@ -47,6 +47,7 @@ const (
 	authVisitKey   = "auth_visit"
 	authRolesKey   = "auth_roles"
 	authUserKey    = "auth_user"
+	userKey        = "user"
 	sessionCookie  = "session"
 )
 
@@ -105,10 +106,16 @@ func (v *View) requireAuth(methods ...authMethod) echo.MiddlewareFunc {
 
 // extractRoles extract roles for user.
 func (v *View) extractRoles(c echo.Context) error {
-	if _, ok := c.Get(authAccountKey).(models.Account); ok {
-		roles, err := v.core.GetUserRoles()
+	if account, ok := c.Get(authAccountKey).(models.Account); ok {
+		roles, err := v.core.GetAccountRoles(account.ID)
 		if err != nil {
 			return err
+		}
+		if len(roles) == 0 && account.Kind == models.UserAccount {
+			roles, err = v.core.GetUserRoles()
+			if err != nil {
+				return err
+			}
 		}
 		c.Set(authRolesKey, roles)
 	} else {

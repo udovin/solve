@@ -71,30 +71,30 @@ func (e UserFieldEvent) WithObject(o db.Object) ObjectEvent {
 	return e
 }
 
-// UserFieldManager that caches database records about user fields.
-type UserFieldManager struct {
-	baseManager
+// UserFieldStore that caches database records about user fields.
+type UserFieldStore struct {
+	baseStore
 	fields map[int64]UserField
 	byUser indexInt64
 }
 
 // Get returns user field by ID.
-func (m *UserFieldManager) Get(id int64) (UserField, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if field, ok := m.fields[id]; ok {
+func (s *UserFieldStore) Get(id int64) (UserField, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if field, ok := s.fields[id]; ok {
 		return field.clone(), nil
 	}
 	return UserField{}, sql.ErrNoRows
 }
 
 // FindByUser returns user field by user ID.
-func (m *UserFieldManager) FindByUser(userID int64) ([]UserField, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+func (s *UserFieldStore) FindByUser(userID int64) ([]UserField, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	var fields []UserField
-	for id := range m.byUser[userID] {
-		if field, ok := m.fields[id]; ok {
+	for id := range s.byUser[userID] {
+		if field, ok := s.fields[id]; ok {
 			fields = append(fields, field.clone())
 		}
 	}
@@ -102,10 +102,10 @@ func (m *UserFieldManager) FindByUser(userID int64) ([]UserField, error) {
 }
 
 // CreateTx creates user field and returns copy with valid ID.
-func (m *UserFieldManager) CreateTx(
+func (s *UserFieldStore) CreateTx(
 	tx *sql.Tx, field UserField,
 ) (UserField, error) {
-	event, err := m.createObjectEvent(tx, UserFieldEvent{
+	event, err := s.createObjectEvent(tx, UserFieldEvent{
 		makeBaseEvent(CreateEvent),
 		field,
 	})
@@ -116,8 +116,8 @@ func (m *UserFieldManager) CreateTx(
 }
 
 // UpdateTx updates user field with specified ID.
-func (m *UserFieldManager) UpdateTx(tx *sql.Tx, field UserField) error {
-	_, err := m.createObjectEvent(tx, UserFieldEvent{
+func (s *UserFieldStore) UpdateTx(tx *sql.Tx, field UserField) error {
+	_, err := s.createObjectEvent(tx, UserFieldEvent{
 		makeBaseEvent(UpdateEvent),
 		field,
 	})
@@ -125,47 +125,47 @@ func (m *UserFieldManager) UpdateTx(tx *sql.Tx, field UserField) error {
 }
 
 // DeleteTx deletes user field with specified ID.
-func (m *UserFieldManager) DeleteTx(tx *sql.Tx, id int64) error {
-	_, err := m.createObjectEvent(tx, UserFieldEvent{
+func (s *UserFieldStore) DeleteTx(tx *sql.Tx, id int64) error {
+	_, err := s.createObjectEvent(tx, UserFieldEvent{
 		makeBaseEvent(DeleteEvent),
 		UserField{ID: id},
 	})
 	return err
 }
 
-func (m *UserFieldManager) reset() {
-	m.fields = map[int64]UserField{}
-	m.byUser = indexInt64{}
+func (s *UserFieldStore) reset() {
+	s.fields = map[int64]UserField{}
+	s.byUser = indexInt64{}
 }
 
-func (m *UserFieldManager) onCreateObject(o db.Object) {
+func (s *UserFieldStore) onCreateObject(o db.Object) {
 	field := o.(UserField)
-	m.fields[field.ID] = field
-	m.byUser.Create(field.UserID, field.ID)
+	s.fields[field.ID] = field
+	s.byUser.Create(field.UserID, field.ID)
 }
 
-func (m *UserFieldManager) onDeleteObject(o db.Object) {
+func (s *UserFieldStore) onDeleteObject(o db.Object) {
 	field := o.(UserField)
-	m.byUser.Delete(field.UserID, field.ID)
-	delete(m.fields, field.ID)
+	s.byUser.Delete(field.UserID, field.ID)
+	delete(s.fields, field.ID)
 }
 
-func (m *UserFieldManager) onUpdateObject(o db.Object) {
+func (s *UserFieldStore) onUpdateObject(o db.Object) {
 	field := o.(UserField)
-	if old, ok := m.fields[field.ID]; ok {
+	if old, ok := s.fields[field.ID]; ok {
 		if old.UserID != field.UserID {
-			m.byUser.Delete(old.UserID, old.ID)
+			s.byUser.Delete(old.UserID, old.ID)
 		}
 	}
-	m.onCreateObject(o)
+	s.onCreateObject(o)
 }
 
-// NewUserFieldManager creates new instance of user field manager.
-func NewUserFieldManager(
+// NewUserFieldStore creates new instance of user field store.
+func NewUserFieldStore(
 	table, eventTable string, dialect db.Dialect,
-) *UserFieldManager {
-	impl := &UserFieldManager{}
-	impl.baseManager = makeBaseManager(
+) *UserFieldStore {
+	impl := &UserFieldStore{}
+	impl.baseStore = makeBaseStore(
 		UserField{}, table, UserFieldEvent{}, eventTable, impl, dialect,
 	)
 	return impl

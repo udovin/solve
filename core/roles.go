@@ -13,16 +13,16 @@ func (c *Core) GetGuestRoles() (Roles, error) {
 	if err != nil {
 		return Roles{}, err
 	}
-	return c.getGroupRoles(role.ID)
+	return c.getRecursiveRoles(role.ID)
 }
 
-// GetUserRoles returns roles for user.
+// GetUserRoles returns roles for empty user.
 func (c *Core) GetUserRoles() (Roles, error) {
 	role, err := c.Roles.GetByCode(models.UserGroupRole)
 	if err != nil {
 		return Roles{}, err
 	}
-	return c.getGroupRoles(role.ID)
+	return c.getRecursiveRoles(role.ID)
 }
 
 // HasRole return true if role set has this role or parent role.
@@ -35,10 +35,25 @@ func (c *Core) HasRole(roles Roles, code string) (bool, error) {
 	return ok, nil
 }
 
-// getGroupRoles returns roles for group with specified ID.
-func (c *Core) getGroupRoles(id int64) (Roles, error) {
-	stack := []int64{id}
-	roles := Roles{}
+// GetAccountRoles returns roles for account.
+func (c *Core) GetAccountRoles(id int64) (Roles, error) {
+	edges, err := c.AccountRoles.FindByAccount(id)
+	if err != nil {
+		return nil, err
+	}
+	var ids []int64
+	for _, edge := range edges {
+		ids = append(ids, edge.RoleID)
+	}
+	return c.getRecursiveRoles(ids...)
+}
+
+// getRecursiveRoles returns recursive roles for specified list of roles.
+func (c *Core) getRecursiveRoles(ids ...int64) (Roles, error) {
+	stack, roles := ids, Roles{}
+	for _, id := range stack {
+		roles[id] = struct{}{}
+	}
 	for len(stack) > 0 {
 		roleID := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
@@ -54,11 +69,6 @@ func (c *Core) getGroupRoles(id int64) (Roles, error) {
 			if _, ok := roles[role.ID]; !ok {
 				roles[role.ID] = struct{}{}
 				stack = append(stack, role.ID)
-			} else {
-				c.Logger().Errorf(
-					"Found role cycle with edge %v -> %v",
-					roleID, role.ID,
-				)
 			}
 		}
 	}

@@ -44,28 +44,20 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		panic(err)
 	}
-	if err := c.SetupAllManagers(); err != nil {
+	if err := c.SetupAllStores(); err != nil {
 		panic(err)
 	}
 	if err := c.Start(); err != nil {
 		panic(err)
 	}
 	defer c.Stop()
-	// Create new echo server instance.
 	s := echo.New()
 	s.Logger = c.Logger()
 	s.HideBanner = true
 	s.HidePort = true
-	// Setup middleware.
 	s.Pre(middleware.RemoveTrailingSlash())
-	s.Use(middleware.Recover())
-	s.Use(middleware.Gzip())
-	s.Use(middleware.Logger())
-	// Create API view.
-	v := api.NewView(c)
-	// Register API view.
-	v.Register(s.Group("/api/v0"))
-	// Register view for static.
+	s.Use(middleware.Recover(), middleware.Gzip(), middleware.Logger())
+	api.NewView(c).Register(s.Group("/api/v0"))
 	s.Any("/*", func(c echo.Context) error {
 		p, err := url.PathUnescape(c.Param("*"))
 		if err != nil {
@@ -77,7 +69,6 @@ func serverMain(cmd *cobra.Command, _ []string) {
 		}
 		return c.File(name)
 	})
-	// Start echo server.
 	if err := s.Start(cfg.Server.Address()); err != nil {
 		s.Logger.Fatal(err)
 	}
@@ -96,7 +87,7 @@ func invokerMain(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		panic(err)
 	}
-	c.SetupInvokerManagers()
+	c.SetupInvokerStores()
 	if err := c.Start(); err != nil {
 		panic(err)
 	}
@@ -117,7 +108,7 @@ func dbApplyMain(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		panic(err)
 	}
-	if err := c.SetupAllManagers(); err != nil {
+	if err := c.SetupAllStores(); err != nil {
 		panic(err)
 	}
 	if err := migrations.Apply(c); err != nil {
@@ -134,7 +125,7 @@ func dbUnapplyMain(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		panic(err)
 	}
-	if err := c.SetupAllManagers(); err != nil {
+	if err := c.SetupAllStores(); err != nil {
 		panic(err)
 	}
 	if err := migrations.Unapply(c); err != nil {

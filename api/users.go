@@ -53,6 +53,13 @@ type AuthStatus struct {
 // registerUserHandlers registers handlers for user management.
 func (v *View) registerUserHandlers(g *echo.Group) {
 	g.GET(
+		"/users/:user", v.observeUser,
+		v.sessionAuth,
+		v.requireAuthRole(models.ObserveUserRole),
+		v.extractUser,
+		v.extractUserRoles,
+	)
+	g.GET(
 		"/auth-status", v.authStatus,
 		v.sessionAuth,
 		v.requireAuthRole(models.AuthStatusRole),
@@ -73,6 +80,65 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	)
 }
 
+func (v *View) observeUser(c echo.Context) error {
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	roles, ok := c.Get(authRolesKey).(core.Roles)
+	if !ok {
+		c.Logger().Error("roles not extracted")
+		return fmt.Errorf("roles not extracted")
+	}
+	resp := User{
+		ID:    user.ID,
+		Login: user.Login,
+	}
+	fields, err := v.core.UserFields.FindByUser(user.ID)
+	if err != nil {
+		c.Logger().Error(err)
+	} else {
+		for _, field := range fields {
+			switch field.Type {
+			case models.EmailField:
+				if ok, err := v.core.HasRole(
+					roles, models.ObserveUserEmailRole,
+				); ok {
+					resp.Email = field.Data
+				} else if err != nil {
+					c.Logger().Error(err)
+				}
+			case models.FirstNameField:
+				if ok, err := v.core.HasRole(
+					roles, models.ObserveUserFirstNameRole,
+				); ok {
+					resp.FirstName = field.Data
+				} else if err != nil {
+					c.Logger().Error(err)
+				}
+			case models.LastNameField:
+				if ok, err := v.core.HasRole(
+					roles, models.ObserveUserLastNameRole,
+				); ok {
+					resp.LastName = field.Data
+				} else if err != nil {
+					c.Logger().Error(err)
+				}
+			case models.MiddleNameField:
+				if ok, err := v.core.HasRole(
+					roles, models.ObserveUserMiddleNameRole,
+				); ok {
+					resp.MiddleName = field.Data
+				} else if err != nil {
+					c.Logger().Error(err)
+				}
+			}
+		}
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
 // authStatus returns current authorization status.
 func (v *View) authStatus(c echo.Context) error {
 	status := AuthStatus{}
@@ -89,9 +155,11 @@ func (v *View) authStatus(c echo.Context) error {
 			}
 		}
 	}
-	for id := range c.Get(authRolesKey).(core.Roles) {
-		if role, err := v.core.Roles.Get(id); err == nil {
-			status.Roles = append(status.Roles, role.Code)
+	if roles, ok := c.Get(authRolesKey).(core.Roles); ok {
+		for id := range roles {
+			if role, err := v.core.Roles.Get(id); err == nil {
+				status.Roles = append(status.Roles, role.Code)
+			}
 		}
 	}
 	return c.JSON(http.StatusOK, status)
@@ -314,4 +382,58 @@ func (v *View) registerUserFields(
 		}
 	}
 	return nil
+}
+
+func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		user, ok := c.Get(userKey).(models.User)
+		if !ok {
+			c.Logger().Error("user not extracted")
+			return fmt.Errorf("user not extracted")
+		}
+		roles, ok := c.Get(authRolesKey).(core.Roles)
+		if !ok {
+			c.Logger().Error("roles not extracted")
+			return fmt.Errorf("roles not extracted")
+		}
+		if authUser, ok := c.Get(authUserKey).(models.User); ok && authUser.ID == user.ID {
+			if role, err := v.core.Roles.GetByCode(
+				models.ObserveUserEmailRole,
+			); err != nil {
+				if err != sql.ErrNoRows {
+					c.Logger().Error(err)
+				}
+			} else {
+				roles[role.ID] = struct{}{}
+			}
+		}
+		if role, err := v.core.Roles.GetByCode(
+			models.ObserveUserFirstNameRole,
+		); err != nil {
+			if err != sql.ErrNoRows {
+				c.Logger().Error(err)
+			}
+		} else {
+			roles[role.ID] = struct{}{}
+		}
+		if role, err := v.core.Roles.GetByCode(
+			models.ObserveUserLastNameRole,
+		); err != nil {
+			if err != sql.ErrNoRows {
+				c.Logger().Error(err)
+			}
+		} else {
+			roles[role.ID] = struct{}{}
+		}
+		if role, err := v.core.Roles.GetByCode(
+			models.ObserveUserMiddleNameRole,
+		); err != nil {
+			if err != sql.ErrNoRows {
+				c.Logger().Error(err)
+			}
+		} else {
+			roles[role.ID] = struct{}{}
+		}
+		return next(c)
+	}
 }

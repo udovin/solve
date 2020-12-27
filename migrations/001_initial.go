@@ -288,6 +288,11 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.ObserveUserRoleRole,
 		models.CreateUserRoleRole,
 		models.DeleteUserRoleRole,
+		models.ObserveUserRole,
+		models.ObserveUserEmailRole,
+		models.ObserveUserFirstNameRole,
+		models.ObserveUserLastNameRole,
+		models.ObserveUserMiddleNameRole,
 		models.GuestGroupRole,
 		models.UserGroupRole,
 	} {
@@ -299,6 +304,7 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.LoginRole,
 		models.RegisterRole,
 		models.AuthStatusRole,
+		models.ObserveUserRole,
 	} {
 		if err := join(role, models.GuestGroupRole); err != nil {
 			return err
@@ -308,6 +314,7 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.LoginRole,
 		models.LogoutRole,
 		models.AuthStatusRole,
+		models.ObserveUserRole,
 	} {
 		if err := join(role, models.UserGroupRole); err != nil {
 			return err

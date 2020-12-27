@@ -59,19 +59,11 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 		"/users/:user/roles/:role", v.deleteUserRole,
 		v.sessionAuth, v.requireAuth,
 		v.requireAuthRole(models.DeleteUserRoleRole),
-		v.extractUser,
+		v.extractUser, v.extractRole,
 	)
 }
 
 var errNotImplemented = fmt.Errorf("not implemented")
-
-func (v *View) createRole(c echo.Context) error {
-	return errNotImplemented
-}
-
-func (v *View) deleteRole(c echo.Context) error {
-	return errNotImplemented
-}
 
 func (v *View) observeRoles(c echo.Context) error {
 	var resp []Role
@@ -89,15 +81,15 @@ func (v *View) observeRoles(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+func (v *View) createRole(c echo.Context) error {
+	return errNotImplemented
+}
+
+func (v *View) deleteRole(c echo.Context) error {
+	return errNotImplemented
+}
+
 func (v *View) observeRoleRoles(c echo.Context) error {
-	return errNotImplemented
-}
-
-func (v *View) createUserRole(c echo.Context) error {
-	return errNotImplemented
-}
-
-func (v *View) deleteUserRole(c echo.Context) error {
 	return errNotImplemented
 }
 
@@ -131,6 +123,14 @@ func (v *View) observeUserRoles(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+func (v *View) createUserRole(c echo.Context) error {
+	return errNotImplemented
+}
+
+func (v *View) deleteUserRole(c echo.Context) error {
+	return errNotImplemented
+}
+
 func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		id, err := strconv.ParseInt(c.Param("role"), 10, 64)
@@ -155,8 +155,16 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		id, err := strconv.ParseInt(c.Param("user"), 10, 64)
 		if err != nil {
-			c.Logger().Warn(err)
-			return err
+			user, err := v.core.Users.GetByLogin(c.Param("user"))
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return c.NoContent(http.StatusNotFound)
+				}
+				c.Logger().Error(err)
+				return err
+			}
+			c.Set(userKey, user)
+			return next(c)
 		}
 		user, err := v.core.Users.Get(id)
 		if err != nil {

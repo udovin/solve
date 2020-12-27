@@ -37,6 +37,16 @@ const (
 	CreateUserRoleRole = "create_user_role"
 	// DeleteUserRoleRole represents name of role for detaching role from user.
 	DeleteUserRoleRole = "delete_user_role"
+	// ObserveUserRole represents name of role for observing user.
+	ObserveUserRole = "observe_user_role"
+	// ObserveUserEmailRole.
+	ObserveUserEmailRole = "observe_user_email_role"
+	// ObserveUserFirstNameRole.
+	ObserveUserFirstNameRole = "observe_user_first_name_role"
+	// ObserveUserLastNameRole.
+	ObserveUserLastNameRole = "observe_user_last_name_role"
+	// ObserveUserMiddleNameRole.
+	ObserveUserMiddleNameRole = "observe_user_middle_name_role"
 	// GuestGroupRole represents name of role for guest group.
 	GuestGroupRole = "guest_group"
 	// UserGroupRole represents name of role for user group.

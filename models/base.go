@@ -146,11 +146,11 @@ type ObjectEvent interface {
 // baseEvent represents base for all events.
 type baseEvent struct {
 	// BaseEventID contains event id.
-	BaseEventID int64 `db:"event_id" json:"EventID"`
+	BaseEventID int64 `db:"event_id"`
 	// BaseEventType contains type of event.
-	BaseEventType EventType `db:"event_type" json:"EventType"`
+	BaseEventType EventType `db:"event_type"`
 	// BaseEventTime contains event type.
-	BaseEventTime int64 `db:"event_time" json:"EventTime"`
+	BaseEventTime int64 `db:"event_time"`
 }
 
 // EventId returns id of this event.
@@ -205,7 +205,7 @@ func (s *baseStore) InitTx(tx *sql.Tx) error {
 	return s.initObjects(tx)
 }
 
-const eventGapSkipWindow = 5000
+const eventGapSkipWindow = 25000
 
 func (s *baseStore) initEvents(tx *sql.Tx) error {
 	beginID, err := s.events.LastEventID(tx)

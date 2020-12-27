@@ -2,7 +2,11 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
+	"net"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo"
@@ -148,12 +152,91 @@ type registerUserForm struct {
 	MiddleName string `json:"middle_name"`
 }
 
+var loginRegexp = regexp.MustCompile(
+	"^[a-zA-Z]([a-zA-Z0-9_\\-])*[a-zA-Z0-9]$",
+)
+
+var emailRegexp = regexp.MustCompile(
+	"^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$",
+)
+
+func (f registerUserForm) Validate() *errorResp {
+	errors := errorFields{}
+	validateLogin(errors, f.Login)
+	validateEmail(errors, f.Email)
+	validatePassword(errors, f.Password)
+	if len(errors) == 0 {
+		return nil
+	}
+	return &errorResp{
+		Message:       "passed invalid fields to form",
+		InvalidFields: errors,
+	}
+}
+
+func validateLogin(errors errorFields, login string) {
+	if len(login) < 3 {
+		errors["login"] = errorField{Message: "login too short (<3)"}
+	} else if len(login) > 20 {
+		errors["login"] = errorField{Message: "login too long (>20)"}
+	} else if !loginRegexp.MatchString(login) {
+		errors["login"] = errorField{Message: "login has invalid format"}
+	}
+}
+
+func validateEmail(errors errorFields, email string) {
+	if len(email) < 3 {
+		errors["email"] = errorField{Message: "email too short (<3)"}
+	} else if len(email) > 254 {
+		errors["email"] = errorField{Message: "email too long (>254)"}
+	} else if !emailRegexp.MatchString(email) {
+		errors["email"] = errorField{Message: "email has invalid format"}
+	} else {
+		parts := strings.SplitN(email, "@", 2)
+		if len(parts) != 2 {
+			errors["email"] = errorField{Message: "email has invalid format"}
+		} else {
+			mx, err := net.LookupMX(parts[1])
+			if err != nil || len(mx) == 0 {
+				errors["email"] = errorField{
+					Message: fmt.Sprintf(
+						"mailserver %q not found", parts[1],
+					),
+				}
+			}
+		}
+	}
+}
+
+func validatePassword(errors errorFields, password string) {
+	if len(password) < 6 {
+		errors["password"] = errorField{Message: "password too short (<6)"}
+	} else if len(password) > 32 {
+		errors["password"] = errorField{Message: "password too long (>32)"}
+	}
+}
+
 // registerUser registers user.
 func (v *View) registerUser(c echo.Context) error {
 	var form registerUserForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusBadRequest)
+	}
+	if resp := form.Validate(); resp != nil {
+		return c.JSON(http.StatusBadRequest, resp)
+	}
+	if _, err := v.core.Users.GetByLogin(form.Login); err != sql.ErrNoRows {
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+		resp := errorResp{
+			Message: fmt.Sprintf(
+				"user with login %q already exists", form.Login,
+			),
+		}
+		return c.JSON(http.StatusForbidden, resp)
 	}
 	user := models.User{Login: form.Login}
 	if err := v.core.Users.SetPassword(&user, form.Password); err != nil {

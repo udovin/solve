@@ -59,7 +59,7 @@ const SolutionPage = ({match}: RouteComponentProps<SolutionPageParams>) => {
 	if (!solution) {
 		return <>Loading...</>;
 	}
-	let isSuper = Boolean(status && status.User.IsSuper);
+	let isSuper = Boolean(status);
 	const {Report} = solution;
 	return <Page title={"Solution #" + solution.ID}>
 		<Block title={"Solution #" + solution.ID} className="b-solutions">

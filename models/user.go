@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"strings"
 
 	"golang.org/x/crypto/sha3"
 
@@ -68,7 +69,7 @@ func (s *UserStore) Get(id int64) (User, error) {
 func (s *UserStore) GetByLogin(login string) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if id, ok := s.byLogin[login]; ok {
+	if id, ok := s.byLogin[strings.ToLower(login)]; ok {
 		if user, ok := s.users[id]; ok {
 			return user.clone(), nil
 		}
@@ -150,13 +151,13 @@ func (s *UserStore) onCreateObject(o db.Object) {
 	user := o.(User)
 	s.users[user.ID] = user
 	s.byAccount[user.AccountID] = user.ID
-	s.byLogin[user.Login] = user.ID
+	s.byLogin[strings.ToLower(user.Login)] = user.ID
 }
 
 func (s *UserStore) onDeleteObject(o db.Object) {
 	user := o.(User)
 	delete(s.byAccount, user.AccountID)
-	delete(s.byLogin, user.Login)
+	delete(s.byLogin, strings.ToLower(user.Login))
 	delete(s.users, user.ID)
 }
 
@@ -167,7 +168,7 @@ func (s *UserStore) onUpdateObject(o db.Object) {
 			delete(s.byAccount, old.AccountID)
 		}
 		if old.Login != user.Login {
-			delete(s.byLogin, old.Login)
+			delete(s.byLogin, strings.ToLower(old.Login))
 		}
 	}
 	s.onCreateObject(o)

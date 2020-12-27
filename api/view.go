@@ -83,11 +83,24 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+type errorField struct {
+	Message string `json:"message"`
+}
+
+type errorFields map[string]errorField
+
 type errorResp struct {
 	// Message.
 	Message string `json:"message"`
 	// MissingRoles.
 	MissingRoles []string `json:"missing_roles,omitempty"`
+	// InvalidFields.
+	InvalidFields errorFields `json:"invalid_fields"`
+}
+
+// Error returns response error message.
+func (r errorResp) Error() string {
+	return r.Message
 }
 
 // sessionAuth tries to authorize account by session.
@@ -109,8 +122,7 @@ func (v *View) sessionAuth(next echo.HandlerFunc) echo.HandlerFunc {
 		)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResp{Message: "session not found"}
-				return c.JSON(http.StatusForbidden, resp)
+				return next(c)
 			}
 			c.Logger().Error(err)
 			return err

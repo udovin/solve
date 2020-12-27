@@ -22,4 +22,12 @@
 		display: block;
 		width: 100%;
 	}
+	.ui-alert {
+	    margin: 4px 0 0 0;
+	    border: none;
+	    background: none !important;
+	    .ui-alert-content {
+	        padding: 0;
+	    }
+	}
 }

@@ -19,7 +19,7 @@ const LogoutPage = () => {
 				});
 		}
 	}, [status, setStatus]);
-	if (!(status && status.User) || success) {
+	if (!(status && status.user) || success) {
 		return <Redirect to={"/"}/>;
 	}
 	return <>Loading...</>;

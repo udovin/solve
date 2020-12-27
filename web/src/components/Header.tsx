@@ -21,11 +21,11 @@ const Header: FC<RouteComponentProps> = props => {
 			<Link to="/register">Register</Link>
 		</li>
 	</>;
-	if (status && status.User) {
-		const {Login} = status.User;
+	if (status && status.user) {
+		const {login} = status.user;
 		accountLinks = <>
 			<li>
-				Hello, <Link to={`/users/${Login}`}>{Login}</Link>!
+				Hello, <Link to={`/users/${login}`}>{login}</Link>!
 			</li>
 			<li>
 				<Link to="/logout">Logout</Link>

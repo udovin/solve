@@ -25,7 +25,7 @@ const SolutionRow: FC<SolutionRowProps> = props => {
 			<div className="date">{formatDate(createDate)}</div>
 		</td>
 		<td className="participant">{User ?
-			<Link to={`/users/${User.Login}`}>{User.Login}</Link> :
+			<Link to={`/users/${User.login}`}>{User.login}</Link> :
 			<>&mdash;</>
 		}</td>
 		<td className="problem">{Problem ?

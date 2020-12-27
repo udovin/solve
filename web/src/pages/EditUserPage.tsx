@@ -39,7 +39,7 @@ const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 			setSuccess(false);
 			return;
 		}
-		fetch("/api/v0/users/" + user.ID, {
+		fetch("/api/v0/users/" + user.id, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json; charset=UTF-8",
@@ -53,8 +53,8 @@ const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 	if (success) {
 		return <Redirect to={"/users/" + UserID} push={true}/>
 	}
-	const {Login} = user;
-	return <Page title={Login}>
+	const {login} = user;
+	return <Page title={login}>
 		<FormBlock title="Change password" onSubmit={onSubmit} footer={
 			<Button type="submit">Change</Button>
 		}>
@@ -72,7 +72,7 @@ const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 			</div>
 		</FormBlock>
 		{sessions ?
-			<SessionsBlock sessions={sessions} currentSession={status.Session}/> :
+			<SessionsBlock sessions={sessions} currentSession={status.session}/> :
 			<>Loading...</>}
 	</Page>;
 };

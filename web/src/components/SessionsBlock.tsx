@@ -11,8 +11,8 @@ export type SessionsBlockProps = BlockProps & {
 const SessionsBlock: FC<SessionsBlockProps> = props => {
 	const {sessions, currentSession, ...rest} = props;
 	const onClick = (session: Session) => {
-		const {ID} = session;
-		fetch(`/api/v0/sessions/${ID}`, {method: "DELETE"})
+		const {id} = session;
+		fetch(`/api/v0/sessions/${id}`, {method: "DELETE"})
 			.then(result => result.json());
 	};
 	return <Block className="b-sessions" title="Sessions" {...rest}>
@@ -25,11 +25,11 @@ const SessionsBlock: FC<SessionsBlockProps> = props => {
 			</thead>
 			<tbody>
 			{sessions && sessions.map((session, key) => {
-				const {ID} = session;
+				const {id} = session;
 				return <tr key={key} className="session">
-					<td className="id">{ID}</td>
+					<td className="id">{id}</td>
 					<td className="actions">
-						{(!currentSession || ID !== currentSession.ID) &&
+						{(!currentSession || id !== currentSession.id) &&
 						<button onClick={() => onClick(session)}>Close</button>}
 					</td>
 				</tr>;

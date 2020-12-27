@@ -1,23 +1,31 @@
+export type ErrorField = {
+	message: string;
+};
+
+export type ErrorResp = {
+	message: string;
+	missing_roles?: string[];
+	invalid_fields?: {[key: string]: ErrorField};
+};
+
 export type User = {
-	ID: number;
-	Login: string;
-	CreateTime: number;
-	IsSuper: boolean;
-	FirstName?: string;
-	LastName?: string;
-	MiddleName?: string;
+	id: number;
+	login: string;
+	first_name?: string;
+	last_name?: string;
+	middle_name?: string;
 };
 
 export type Session = {
-	ID: number;
-	UserID: number;
-	CreateTime: number;
-	ExpireTime: number;
+	id: number;
+	create_time: number;
+	expire_time: number;
 };
 
 export type AuthStatus = {
-	Session: Session;
-	User: User;
+	session: Session;
+	user: User;
+	roles: string[];
 };
 
 export type Problem = {
@@ -153,44 +161,52 @@ export type LoginUserForm = {
 };
 
 export type RegisterUserForm = {
-	Login: string;
-	Password: string;
-	Email: string;
-	FirstName?: string;
-	LastName?: string;
-	MiddleName?: string;
+	login: string;
+	password: string;
+	email: string;
+	first_name?: string;
+	last_name?: string;
+	middle_name?: string;
 };
 
 const HEADERS = {
 	"Solve-Web-Version": "0.1.0",
 };
 
+const parseResp = (promise: Promise<Response>) => {
+	return promise
+		.then(resp => Promise.all([resp, resp.json()]))
+		.then(([resp, json]) => {
+			if (!resp.ok) {
+				throw json;
+			}
+			return json;
+		});
+};
+
 export const loginUser = (form: LoginUserForm) => {
-	return fetch("/api/v0/login", {
+	return parseResp(fetch("/api/v0/login", {
 		method: "POST",
 		headers: {...HEADERS, ...{
 			"Content-Type": "application/json; charset=UTF-8",
 		}},
 		body: JSON.stringify(form)
-	})
-		.then(resp => resp.json());
+	}));
 };
 
 export const registerUser = (form: RegisterUserForm) => {
-	return fetch("/api/v0/register", {
+	return parseResp(fetch("/api/v0/register", {
 		method: "POST",
 		headers: {...HEADERS, ...{
 			"Content-Type": "application/json; charset=UTF-8",
 		}},
 		body: JSON.stringify(form),
-	})
-		.then(resp => resp.json());
+	}));
 };
 
 export const authStatus = () => {
-	return fetch("/api/v0/auth-status", {
+	return parseResp(fetch("/api/v0/auth-status", {
 		method: "GET",
 		headers: HEADERS,
-	})
-		.then(resp => resp.json());
+	}));
 };

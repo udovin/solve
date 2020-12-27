@@ -5,11 +5,11 @@ import {AuthContext} from "../AuthContext";
 
 const Sidebar: FC = () => {
 	const {status} = useContext(AuthContext);
-	if (status && status.User) {
-		const {Login} = status.User;
+	if (status && status.user) {
+		const {login} = status.user;
 		return <Block><ul>
-			<li><Link to={`/users/${Login}`}>Profile</Link></li>
-			<li><Link to={`/users/${Login}/edit`}>Edit</Link></li>
+			<li><Link to={`/users/${login}`}>Profile</Link></li>
+			<li><Link to={`/users/${login}/edit`}>Edit</Link></li>
 			<li><Link to="/logout">Logout</Link></li>
 		</ul></Block>;
 	}

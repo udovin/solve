@@ -22,12 +22,12 @@ const UserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 	if (!user) {
 		return <>Loading...</>;
 	}
-	const {Login, FirstName, LastName, MiddleName} = user;
-	return <Page title={Login} sidebar={<Sidebar/>}>
-		<Block title={Login} id="block-user">
-			{FirstName && <Field title="First name:"><span>{FirstName}</span></Field>}
-			{LastName && <Field title="Last name:"><span>{LastName}</span></Field>}
-			{MiddleName && <Field title="Middle name:"><span>{MiddleName}</span></Field>}
+	const {login, first_name, last_name, middle_name} = user;
+	return <Page title={login} sidebar={<Sidebar/>}>
+		<Block title={login} id="block-user">
+			{first_name && <Field title="First name:"><span>{first_name}</span></Field>}
+			{last_name && <Field title="Last name:"><span>{last_name}</span></Field>}
+			{middle_name && <Field title="Middle name:"><span>{middle_name}</span></Field>}
 		</Block>
 	</Page>;
 };

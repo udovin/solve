@@ -57,15 +57,17 @@ type Invoker struct {
 }
 
 // LoadFromFile loads configuration from json file.
-func LoadFromFile(file string) (cfg Config, err error) {
+func LoadFromFile(file string) (Config, error) {
+	cfg := Config{
+		// By default we should use INFO level.
+		LogLevel: log.INFO,
+	}
 	bytes, err := ioutil.ReadFile(file)
-	if err == nil {
-		err = json.Unmarshal(bytes, &cfg)
+	if err != nil {
+		return Config{}, err
 	}
-	// If LogLevel is zero this means that value is not specified.
-	// By default we should use INFO level.
-	if err == nil && cfg.LogLevel == 0 {
-		cfg.LogLevel = log.INFO
+	if err := json.Unmarshal(bytes, &cfg); err != nil {
+		return Config{}, err
 	}
-	return
+	return cfg, nil
 }

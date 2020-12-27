@@ -23,42 +23,42 @@ type Role struct {
 func (v *View) registerRoleHandlers(g *echo.Group) {
 	g.GET(
 		"/roles", v.observeRoles,
-		v.requireAuth(v.sessionAuth),
-		v.requireRole(models.ObserveRoleRole),
+		v.sessionAuth, v.requireAuth,
+		v.requireAuthRole(models.ObserveRoleRole),
 	)
 	g.POST(
 		"/roles", v.createRole,
-		v.requireAuth(v.sessionAuth),
-		v.requireRole(models.CreateRoleRole),
+		v.sessionAuth, v.requireAuth,
+		v.requireAuthRole(models.CreateRoleRole),
 	)
 	g.DELETE(
 		"/roles/:role", v.deleteRole,
-		v.requireAuth(v.userAuth),
-		v.requireRole(models.DeleteRoleRole),
+		v.sessionAuth, v.requireAuth,
+		v.requireAuthRole(models.DeleteRoleRole),
 		v.extractRole,
 	)
 	g.GET(
 		"/roles/:role/roles", v.observeRoleRoles,
-		v.requireAuth(v.userAuth),
-		v.requireRole(models.ObserveRoleRole),
+		v.sessionAuth, v.requireAuth,
+		v.requireAuthRole(models.ObserveRoleRole),
 		v.extractRole,
 	)
 	g.GET(
 		"/users/:user/roles", v.observeUserRoles,
-		v.requireAuth(v.sessionAuth),
-		v.requireRole(models.ObserveUserRoleRole),
+		v.sessionAuth, v.requireAuth,
+		v.requireAuthRole(models.ObserveUserRoleRole),
 		v.extractUser,
 	)
 	g.POST(
 		"/users/:user/roles", v.createUserRole,
-		v.requireAuth(v.sessionAuth),
-		v.requireRole(models.CreateUserRoleRole),
+		v.sessionAuth, v.requireAuth,
+		v.requireAuthRole(models.CreateUserRoleRole),
 		v.extractUser,
 	)
 	g.DELETE(
 		"/users/:user/roles/:role", v.deleteUserRole,
-		v.requireAuth(v.sessionAuth),
-		v.requireRole(models.DeleteUserRoleRole),
+		v.sessionAuth, v.requireAuth,
+		v.requireAuthRole(models.DeleteUserRoleRole),
 		v.extractUser,
 	)
 }
@@ -78,7 +78,7 @@ func (v *View) observeRoles(c echo.Context) error {
 	roles, err := v.core.Roles.All()
 	if err != nil {
 		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
+		return err
 	}
 	for _, role := range roles {
 		resp = append(resp, Role{
@@ -104,12 +104,13 @@ func (v *View) deleteUserRole(c echo.Context) error {
 func (v *View) observeUserRoles(c echo.Context) error {
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {
-		return c.NoContent(http.StatusInternalServerError)
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
 	}
 	edges, err := v.core.AccountRoles.FindByAccount(user.AccountID)
 	if err != nil {
 		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
+		return err
 	}
 	var resp []Role
 	for _, edge := range edges {
@@ -120,7 +121,7 @@ func (v *View) observeUserRoles(c echo.Context) error {
 				continue
 			}
 			c.Logger().Error(err)
-			return c.NoContent(http.StatusInternalServerError)
+			return err
 		}
 		resp = append(resp, Role{
 			ID:   role.ID,
@@ -134,6 +135,7 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		id, err := strconv.ParseInt(c.Param("role"), 10, 64)
 		if err != nil {
+			c.Logger().Warn(err)
 			return err
 		}
 		role, err := v.core.Roles.Get(id)
@@ -141,6 +143,8 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 			if err == sql.ErrNoRows {
 				return c.NoContent(http.StatusNotFound)
 			}
+			c.Logger().Error(err)
+			return err
 		}
 		c.Set(roleKey, role)
 		return next(c)
@@ -151,6 +155,7 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		id, err := strconv.ParseInt(c.Param("user"), 10, 64)
 		if err != nil {
+			c.Logger().Warn(err)
 			return err
 		}
 		user, err := v.core.Users.Get(id)
@@ -158,6 +163,8 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 			if err == sql.ErrNoRows {
 				return c.NoContent(http.StatusNotFound)
 			}
+			c.Logger().Error(err)
+			return err
 		}
 		c.Set(userKey, user)
 		return next(c)

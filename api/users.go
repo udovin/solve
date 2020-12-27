@@ -50,23 +50,22 @@ type AuthStatus struct {
 func (v *View) registerUserHandlers(g *echo.Group) {
 	g.GET(
 		"/auth-status", v.authStatus,
-		v.requireAuth(v.sessionAuth, v.guestAuth),
-		v.requireRole(models.AuthStatusRole),
+		v.sessionAuth,
+		v.requireAuthRole(models.AuthStatusRole),
 	)
 	g.POST(
 		"/login", v.loginAccount,
-		v.requireAuth(v.userAuth),
-		v.requireRole(models.LoginRole),
+		v.userAuth, v.requireAuth,
+		v.requireAuthRole(models.LoginRole),
 	)
 	g.POST(
 		"/logout", v.logoutAccount,
-		v.requireAuth(v.sessionAuth),
-		v.requireRole(models.LogoutRole),
+		v.sessionAuth, v.requireAuth,
+		v.requireAuthRole(models.LogoutRole),
 	)
 	g.POST(
 		"/register", v.registerUser,
-		v.requireAuth(v.guestAuth),
-		v.requireRole(models.RegisterRole),
+		v.requireAuthRole(models.RegisterRole),
 	)
 }
 
@@ -106,7 +105,7 @@ func (v *View) loginAccount(c echo.Context) error {
 	}
 	if err := session.GenerateSecret(); err != nil {
 		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
+		return err
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
 		var err error
@@ -114,7 +113,7 @@ func (v *View) loginAccount(c echo.Context) error {
 		return err
 	}); err != nil {
 		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
+		return err
 	}
 	cookie := session.Cookie()
 	cookie.Name = sessionCookie
@@ -134,7 +133,7 @@ func (v *View) logoutAccount(c echo.Context) error {
 		return v.core.Sessions.DeleteTx(tx, session.ID)
 	}); err != nil {
 		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
+		return err
 	}
 	return c.NoContent(http.StatusOK)
 }
@@ -159,7 +158,7 @@ func (v *View) registerUser(c echo.Context) error {
 	user := models.User{Login: form.Login}
 	if err := v.core.Users.SetPassword(&user, form.Password); err != nil {
 		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
+		return err
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
 		account := models.Account{
@@ -177,7 +176,7 @@ func (v *View) registerUser(c echo.Context) error {
 		return v.registerUserFields(tx, user, form)
 	}); err != nil {
 		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
+		return err
 	}
 	return c.JSON(http.StatusCreated, User{
 		ID:         user.ID,

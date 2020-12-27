@@ -46,7 +46,7 @@ type Core struct {
 	cancel  context.CancelFunc
 	waiter  sync.WaitGroup
 	// db stores database connection.
-	db *sql.DB
+	DB *sql.DB
 	// logger contains logger.
 	logger *log.Logger
 }
@@ -60,7 +60,7 @@ func NewCore(cfg config.Config) (*Core, error) {
 	logger := log.New("core")
 	logger.SetLevel(cfg.LogLevel)
 	logger.EnableColor()
-	return &Core{Config: cfg, db: conn, logger: logger}, nil
+	return &Core{Config: cfg, DB: conn, logger: logger}, nil
 }
 
 // Logger returns logger instance.
@@ -96,7 +96,7 @@ func (c *Core) WithTx(
 	ctx context.Context, fn func(tx *sql.Tx) error,
 ) (err error) {
 	var tx *sql.Tx
-	if tx, err = c.db.BeginTx(ctx, nil); err != nil {
+	if tx, err = c.DB.BeginTx(ctx, nil); err != nil {
 		return
 	}
 	defer func() {

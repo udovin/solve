@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo"
@@ -33,7 +33,11 @@ func (v *View) ping(c echo.Context) error {
 
 // health returns current healthiness status.
 func (v *View) health(c echo.Context) error {
-	return c.JSON(http.StatusOK, nil)
+	if err := v.core.DB.Ping(); err != nil {
+		c.Logger().Error(err)
+		return c.String(http.StatusInternalServerError, "unhealthy")
+	}
+	return c.String(http.StatusOK, "healthy")
 }
 
 // NewView returns a new instance of view.
@@ -79,59 +83,177 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-type authMethod func(echo.Context) error
+type errorResp struct {
+	// Message.
+	Message string `json:"message"`
+	// MissingRoles.
+	MissingRoles []string `json:"missing_roles,omitempty"`
+}
 
-var errNoAuth = errors.New("bad auth")
-
-func (v *View) requireAuth(methods ...authMethod) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			for _, method := range methods {
-				if err := method(c); err != nil {
-					if err == errNoAuth {
-						continue
-					}
-					c.Logger().Error(err)
-					return err
-				}
-				if err := v.extractRoles(c); err != nil {
-					c.Logger().Error(err)
-					return err
-				}
+// sessionAuth tries to authorize account by session.
+func (v *View) sessionAuth(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if _, ok := c.Get(authAccountKey).(models.Account); ok {
+			return next(c)
+		}
+		cookie, err := c.Cookie(sessionCookie)
+		if err != nil {
+			if err == http.ErrNoCookie {
 				return next(c)
 			}
-			return c.NoContent(http.StatusForbidden)
+			c.Logger().Warn(err)
+			return err
 		}
+		session, err := v.getSessionByCookie(
+			c.Request().Context(), cookie.Value,
+		)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				resp := errorResp{Message: "session not found"}
+				return c.JSON(http.StatusForbidden, resp)
+			}
+			c.Logger().Error(err)
+			return err
+		}
+		account, err := v.core.Accounts.Get(session.AccountID)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+		if account.Kind != models.UserAccount {
+			resp := errorResp{Message: "only user account supported"}
+			return c.JSON(http.StatusNotImplemented, resp)
+		}
+		user, err := v.core.Users.GetByAccount(session.AccountID)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+		c.Set(authAccountKey, account)
+		c.Set(authUserKey, user)
+		c.Set(authSessionKey, session)
+		return next(c)
 	}
 }
 
-// extractRoles extract roles for user.
-func (v *View) extractRoles(c echo.Context) error {
-	if account, ok := c.Get(authAccountKey).(models.Account); ok {
-		roles, err := v.core.GetAccountRoles(account.ID)
+type userAuthForm struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}
+
+// userAuth tries to authorize user by login and password.
+func (v *View) userAuth(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if _, ok := c.Get(authAccountKey).(models.Account); ok {
+			return next(c)
+		}
+		var form userAuthForm
+		if err := c.Bind(&form); err != nil {
+			return err
+		}
+		if form.Login == "" || form.Password == "" {
+			return next(c)
+		}
+		user, err := v.core.Users.GetByLogin(form.Login)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				resp := errorResp{Message: "user not found"}
+				return c.JSON(http.StatusForbidden, resp)
+			}
+			c.Logger().Error(err)
+			return err
+		}
+		if !v.core.Users.CheckPassword(user, form.Password) {
+			resp := errorResp{Message: "user not found"}
+			return c.JSON(http.StatusForbidden, resp)
+		}
+		account, err := v.core.Accounts.Get(user.AccountID)
 		if err != nil {
 			return err
 		}
-		if len(roles) == 0 && account.Kind == models.UserAccount {
-			roles, err = v.core.GetUserRoles()
+		if account.Kind != models.UserAccount {
+			c.Logger().Errorf(
+				"Account %v should have %v kind, but has %v",
+				account.ID, models.UserAccount, account.Kind,
+			)
+			return fmt.Errorf("invalid account kind %q", account.Kind)
+		}
+		c.Set(authAccountKey, account)
+		c.Set(authUserKey, user)
+		return next(c)
+	}
+}
+
+// requireAuth checks account authorization.
+func (v *View) requireAuth(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if _, ok := c.Get(authAccountKey).(models.Account); !ok {
+			resp := errorResp{Message: "auth required"}
+			return c.JSON(http.StatusForbidden, resp)
+		}
+		return next(c)
+	}
+}
+
+// extractAuthRoles extract roles for user.
+func (v *View) extractAuthRoles(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if _, ok := c.Get(authRolesKey).(core.Roles); ok {
+			return next(c)
+		}
+		if account, ok := c.Get(authAccountKey).(models.Account); ok {
+			roles, err := v.core.GetAccountRoles(account.ID)
 			if err != nil {
+				c.Logger().Error(err)
 				return err
 			}
+			if len(roles) == 0 && account.Kind == models.UserAccount {
+				roles, err = v.core.GetUserRoles()
+				if err != nil {
+					c.Logger().Error(err)
+					return err
+				}
+			}
+			c.Set(authRolesKey, roles)
+		} else {
+			roles, err := v.core.GetGuestRoles()
+			if err != nil {
+				c.Logger().Error(err)
+				return err
+			}
+			c.Set(authRolesKey, roles)
 		}
-		c.Set(authRolesKey, roles)
-	} else {
-		roles, err := v.core.GetGuestRoles()
-		if err != nil {
-			return err
-		}
-		c.Set(authRolesKey, roles)
+		return next(c)
 	}
-	return nil
 }
 
-// guestAuth authorizes guest.
-func (v *View) guestAuth(c echo.Context) error {
-	return nil
+// requireRole check that user has required roles.
+func (v *View) requireAuthRole(codes ...string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		nextWrap := func(c echo.Context) error {
+			resp := errorResp{Message: "account missing roles"}
+			roles, ok := c.Get(authRolesKey).(core.Roles)
+			if !ok {
+				resp.MissingRoles = codes
+				return c.JSON(http.StatusForbidden, resp)
+			}
+			for _, code := range codes {
+				ok, err := v.core.HasRole(roles, code)
+				if err != nil {
+					c.Logger().Error(err)
+					return err
+				}
+				if !ok {
+					resp.MissingRoles = append(resp.MissingRoles, code)
+				}
+			}
+			if len(resp.MissingRoles) > 0 {
+				return c.JSON(http.StatusForbidden, resp)
+			}
+			return next(c)
+		}
+		return v.extractAuthRoles(nextWrap)
+	}
 }
 
 // getSessionByCookie returns session.
@@ -149,96 +271,4 @@ func (v *View) getSessionByCookie(
 		return models.Session{}, err
 	}
 	return session, nil
-}
-
-// sessionAuth tries to auth using session cookie.
-func (v *View) sessionAuth(c echo.Context) error {
-	cookie, err := c.Cookie(sessionCookie)
-	if err != nil {
-		return errNoAuth
-	}
-	session, err := v.getSessionByCookie(c.Request().Context(), cookie.Value)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return errNoAuth
-		}
-		return err
-	}
-	account, err := v.core.Accounts.Get(session.AccountID)
-	if err != nil {
-		return err
-	}
-	if account.Kind != models.UserAccount {
-		c.Logger().Errorf(
-			"Account %v should have %v kind, but has %v",
-			account.ID, models.UserAccount, account.Kind,
-		)
-		return errNoAuth
-	}
-	user, err := v.core.Users.GetByAccount(session.AccountID)
-	if err != nil {
-		return err
-	}
-	c.Set(authAccountKey, account)
-	c.Set(authUserKey, user)
-	c.Set(authSessionKey, session)
-	return nil
-}
-
-type userAuthForm struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
-}
-
-// userAuth tries to auth using user login and password.
-func (v *View) userAuth(c echo.Context) error {
-	var form userAuthForm
-	if err := c.Bind(&form); err != nil {
-		return errNoAuth
-	}
-	user, err := v.core.Users.GetByLogin(form.Login)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return errNoAuth
-		}
-		return err
-	}
-	if !v.core.Users.CheckPassword(user, form.Password) {
-		return errNoAuth
-	}
-	account, err := v.core.Accounts.Get(user.AccountID)
-	if err != nil {
-		return err
-	}
-	if account.Kind != models.UserAccount {
-		c.Logger().Errorf(
-			"Account %v should have %v kind, but has %v",
-			account.ID, models.UserAccount, account.Kind,
-		)
-		return errNoAuth
-	}
-	c.Set(authAccountKey, account)
-	c.Set(authUserKey, user)
-	return nil
-}
-
-// requireRole check that user has required roles.
-func (v *View) requireRole(code string) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			roles, ok := c.Get(authRolesKey).(core.Roles)
-			if !ok {
-				return c.NoContent(http.StatusForbidden)
-			}
-			ok, err := v.core.HasRole(roles, code)
-			if err != nil {
-				c.Logger().Error(err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
-			if !ok {
-				return c.NoContent(http.StatusForbidden)
-			}
-			return next(c)
-		}
-	}
 }

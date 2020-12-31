@@ -12,7 +12,7 @@ import (
 type UserField struct {
 	ID     int64         `db:"id"`
 	UserID int64         `db:"user_id"`
-	Type   UserFieldType `db:"type"`
+	Kind   UserFieldKind `db:"kind"`
 	Data   string        `db:"data"`
 }
 
@@ -25,10 +25,10 @@ func (o UserField) clone() UserField {
 	return o
 }
 
-// UserFieldType represents type of UserField.
-type UserFieldType int
+// UserFieldKind represents type of UserField.
+type UserFieldKind int
 
-func (t UserFieldType) String() string {
+func (t UserFieldKind) String() string {
 	switch t {
 	case EmailField:
 		return "Email"
@@ -39,19 +39,19 @@ func (t UserFieldType) String() string {
 	case MiddleNameField:
 		return "MiddleName"
 	default:
-		return fmt.Sprintf("UserFieldType(%d)", t)
+		return fmt.Sprintf("UserFieldKind(%d)", t)
 	}
 }
 
 const (
-	// EmailField represents field type for email address.
-	EmailField UserFieldType = 1
-	// FirstNameField represents field type for first name.
-	FirstNameField UserFieldType = 2
-	// LastNameField represents field type for last name.
-	LastNameField UserFieldType = 3
-	// MiddleNameField represents field type for middle name.
-	MiddleNameField UserFieldType = 4
+	// EmailField represents field kind for email address.
+	EmailField UserFieldKind = 1
+	// FirstNameField represents field kind for first name.
+	FirstNameField UserFieldKind = 2
+	// LastNameField represents field kind for last name.
+	LastNameField UserFieldKind = 3
+	// MiddleNameField represents field kind for middle name.
+	MiddleNameField UserFieldKind = 4
 )
 
 // UserFieldEvent represents user field event.

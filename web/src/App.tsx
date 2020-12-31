@@ -42,8 +42,8 @@ const App: React.FC = () => {
 						<Route exact path="/logout" component={LogoutPage}/>
 						<Route exact path="/register" component={RegisterPage}/>
 						<Route exact path="/language" component={LanguagePage}/>
-						<Route exact path="/users/:UserID" component={UserPage}/>
-						<Route exact path="/users/:UserID/edit" component={EditUserPage}/>
+						<Route exact path="/users/:user_id" component={UserPage}/>
+						<Route exact path="/users/:user_id/edit" component={EditUserPage}/>
 					</Switch>
 					<Footer/>
 				</BrowserRouter>

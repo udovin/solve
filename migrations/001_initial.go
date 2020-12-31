@@ -147,7 +147,7 @@ CREATE TABLE "solve_user_field"
 (
 	"id" integer PRIMARY KEY,
 	"user_id" integer NOT NULL,
-	"type" integer NOT NULL,
+	"kind" integer NOT NULL,
 	"data" TEXT NOT NULL
 );
 -- models.UserFieldEvent
@@ -158,7 +158,7 @@ CREATE TABLE "solve_user_field_event"
 	"event_time" bigint NOT NULL,
 	"id" integer NOT NULL,
 	"user_id" integer NOT NULL,
-	"type" integer NOT NULL,
+	"kind" integer NOT NULL,
 	"data" TEXT NOT NULL
 );
 -- models.Contest

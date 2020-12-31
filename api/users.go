@@ -91,16 +91,13 @@ func (v *View) observeUser(c echo.Context) error {
 		c.Logger().Error("roles not extracted")
 		return fmt.Errorf("roles not extracted")
 	}
-	resp := User{
-		ID:    user.ID,
-		Login: user.Login,
-	}
+	resp := User{ID: user.ID, Login: user.Login}
 	fields, err := v.core.UserFields.FindByUser(user.ID)
 	if err != nil {
 		c.Logger().Error(err)
 	} else {
 		for _, field := range fields {
-			switch field.Type {
+			switch field.Kind {
 			case models.EmailField:
 				if ok, err := v.core.HasRole(
 					roles, models.ObserveUserEmailRole,
@@ -149,10 +146,7 @@ func (v *View) authStatus(c echo.Context) error {
 			ExpireTime: session.ExpireTime,
 		}
 		if user, ok := c.Get(authUserKey).(models.User); ok {
-			status.User = &User{
-				ID:    user.ID,
-				Login: user.Login,
-			}
+			status.User = &User{ID: user.ID, Login: user.Login}
 		}
 	}
 	if roles, ok := c.Get(authRolesKey).(core.Roles); ok {
@@ -312,9 +306,7 @@ func (v *View) registerUser(c echo.Context) error {
 		return err
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		account := models.Account{
-			Kind: models.UserAccount,
-		}
+		account := models.Account{Kind: models.UserAccount}
 		account, err := v.core.Accounts.CreateTx(tx, account)
 		if err != nil {
 			return err
@@ -345,7 +337,7 @@ func (v *View) registerUserFields(
 ) error {
 	email := models.UserField{
 		UserID: user.ID,
-		Type:   models.EmailField,
+		Kind:   models.EmailField,
 		Data:   form.Email,
 	}
 	if _, err := v.core.UserFields.CreateTx(tx, email); err != nil {
@@ -354,7 +346,7 @@ func (v *View) registerUserFields(
 	if form.FirstName != "" {
 		field := models.UserField{
 			UserID: user.ID,
-			Type:   models.FirstNameField,
+			Kind:   models.FirstNameField,
 			Data:   form.FirstName,
 		}
 		if _, err := v.core.UserFields.CreateTx(tx, field); err != nil {
@@ -364,7 +356,7 @@ func (v *View) registerUserFields(
 	if form.LastName != "" {
 		field := models.UserField{
 			UserID: user.ID,
-			Type:   models.LastNameField,
+			Kind:   models.LastNameField,
 			Data:   form.LastName,
 		}
 		if _, err := v.core.UserFields.CreateTx(tx, field); err != nil {
@@ -374,7 +366,7 @@ func (v *View) registerUserFields(
 	if form.MiddleName != "" {
 		field := models.UserField{
 			UserID: user.ID,
-			Type:   models.MiddleNameField,
+			Kind:   models.MiddleNameField,
 			Data:   form.MiddleName,
 		}
 		if _, err := v.core.UserFields.CreateTx(tx, field); err != nil {
@@ -397,43 +389,23 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			return fmt.Errorf("roles not extracted")
 		}
 		if authUser, ok := c.Get(authUserKey).(models.User); ok && authUser.ID == user.ID {
-			if role, err := v.core.Roles.GetByCode(
-				models.ObserveUserEmailRole,
-			); err != nil {
-				if err != sql.ErrNoRows {
-					c.Logger().Error(err)
-				}
-			} else {
-				roles[role.ID] = struct{}{}
-			}
+			_ = v.addRoleByCode(c, roles, models.ObserveUserEmailRole)
+			_ = v.addRoleByCode(c, roles, models.ObserveUserMiddleNameRole)
 		}
-		if role, err := v.core.Roles.GetByCode(
-			models.ObserveUserFirstNameRole,
-		); err != nil {
-			if err != sql.ErrNoRows {
-				c.Logger().Error(err)
-			}
-		} else {
-			roles[role.ID] = struct{}{}
-		}
-		if role, err := v.core.Roles.GetByCode(
-			models.ObserveUserLastNameRole,
-		); err != nil {
-			if err != sql.ErrNoRows {
-				c.Logger().Error(err)
-			}
-		} else {
-			roles[role.ID] = struct{}{}
-		}
-		if role, err := v.core.Roles.GetByCode(
-			models.ObserveUserMiddleNameRole,
-		); err != nil {
-			if err != sql.ErrNoRows {
-				c.Logger().Error(err)
-			}
-		} else {
-			roles[role.ID] = struct{}{}
-		}
+		_ = v.addRoleByCode(c, roles, models.ObserveUserFirstNameRole)
+		_ = v.addRoleByCode(c, roles, models.ObserveUserLastNameRole)
 		return next(c)
 	}
+}
+
+func (v *View) addRoleByCode(
+	c echo.Context, roles core.Roles, code string,
+) error {
+	if role, err := v.core.Roles.GetByCode(code); err != nil {
+		c.Logger().Error(err)
+		return err
+	} else {
+		roles[role.ID] = struct{}{}
+	}
+	return nil
 }

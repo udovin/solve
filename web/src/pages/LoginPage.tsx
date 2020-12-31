@@ -23,9 +23,7 @@ const LoginPage = () => {
 				setError({message: ""});
 				return authStatus().then(json => setStatus(json))
 			})
-			.catch(error => {
-				setError(error);
-			});
+			.catch(error => setError(error));
 	};
 	if (status && status.user) {
 		return <Redirect to={"/"}/>

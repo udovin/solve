@@ -205,6 +205,13 @@ export const registerUser = (form: RegisterUserForm) => {
 	}));
 };
 
+export const observeUser = (userID: string | number) => {
+	return parseResp(fetch(`/api/v0/users/${userID}`, {
+		method: "GET",
+		headers: HEADERS,
+	}));
+};
+
 export const authStatus = () => {
 	return parseResp(fetch("/api/v0/auth-status", {
 		method: "GET",

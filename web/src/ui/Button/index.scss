@@ -35,9 +35,9 @@
 	}
 	// Disabled buttons.
 	&:disabled {
-		border-color: $border-color;
-		background-color: $dark-background-color;
-		color: #666666;
+		border-color: $border-color !important;
+		background-color: $dark-background-color !important;
+		color: #666666 !important;
 		cursor: default;
 	}
 	// Primary buttons.

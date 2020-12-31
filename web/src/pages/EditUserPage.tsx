@@ -9,25 +9,25 @@ import SessionsBlock from "../components/SessionsBlock";
 import {AuthContext} from "../AuthContext";
 
 type UserPageParams = {
-	UserID: string;
+	user_id: string;
 }
 
 const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
-	const {UserID} = match.params;
+	const {user_id} = match.params;
 	const [user, setUser] = useState<User>();
 	const [sessions, setSessions] = useState<Session[]>();
 	const {status} = useContext(AuthContext);
 	const [success, setSuccess] = useState<boolean>();
 	useEffect(() => {
-		fetch(`/api/v0/users/${UserID}`)
+		fetch(`/api/v0/users/${user_id}`)
 			.then(result => result.json())
 			.then(result => setUser(result));
-	}, [UserID]);
+	}, [user_id]);
 	useEffect(() => {
-		fetch(`/api/v0/users/${UserID}/sessions`)
+		fetch(`/api/v0/users/${user_id}/sessions`)
 			.then(result => result.json())
 			.then(result => setSessions(result));
-	}, [UserID]);
+	}, [user_id]);
 	if (!status || !user) {
 		return <>Loading...</>;
 	}
@@ -51,7 +51,7 @@ const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 			.then(() => setSuccess(true));
 	};
 	if (success) {
-		return <Redirect to={"/users/" + UserID} push={true}/>
+		return <Redirect to={"/users/" + user_id} push={true}/>
 	}
 	const {login} = user;
 	return <Page title={login}>

@@ -1,7 +1,7 @@
 import React, {useContext, useEffect, useState} from "react";
 import {Redirect, RouteComponentProps} from "react-router";
 import Page from "../components/Page";
-import {Session, User} from "../api";
+import {ErrorResp, observeUser, Session, User} from "../api";
 import FormBlock from "../components/FormBlock";
 import Input from "../ui/Input";
 import Button from "../ui/Button";
@@ -18,15 +18,20 @@ const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 	const [sessions, setSessions] = useState<Session[]>();
 	const {status} = useContext(AuthContext);
 	const [success, setSuccess] = useState<boolean>();
+	const [error, setError] = useState<ErrorResp>({message: ""});
 	useEffect(() => {
-		fetch(`/api/v0/users/${user_id}`)
-			.then(result => result.json())
-			.then(result => setUser(result));
+		observeUser(user_id)
+			.then(user => {
+				setError({message: ""});
+				setUser(user);
+			})
+			.catch(error => setError(error));
 	}, [user_id]);
 	useEffect(() => {
 		fetch(`/api/v0/users/${user_id}/sessions`)
 			.then(result => result.json())
-			.then(result => setSessions(result));
+			.then(result => setSessions(result))
+			.catch(error => console.log);
 	}, [user_id]);
 	if (!status || !user) {
 		return <>Loading...</>;

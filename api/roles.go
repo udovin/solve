@@ -158,7 +158,8 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 			user, err := v.core.Users.GetByLogin(c.Param("user"))
 			if err != nil {
 				if err == sql.ErrNoRows {
-					return c.NoContent(http.StatusNotFound)
+					resp := errorResp{Message: "user not found"}
+					return c.JSON(http.StatusNotFound, resp)
 				}
 				c.Logger().Error(err)
 				return err
@@ -169,7 +170,8 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 		user, err := v.core.Users.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return c.NoContent(http.StatusNotFound)
+				resp := errorResp{Message: "user not found"}
+				return c.JSON(http.StatusNotFound, resp)
 			}
 			c.Logger().Error(err)
 			return err

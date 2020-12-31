@@ -293,6 +293,7 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.ObserveUserFirstNameRole,
 		models.ObserveUserLastNameRole,
 		models.ObserveUserMiddleNameRole,
+		models.ObserveUserSessionRole,
 		models.GuestGroupRole,
 		models.UserGroupRole,
 	} {

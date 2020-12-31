@@ -50,6 +50,9 @@ const (
 	// ObserveUserMiddleNameRole represents name of role for observing
 	// user middle name.
 	ObserveUserMiddleNameRole = "observe_user_middle_name"
+	// ObserveUserSessionRole represents name of role for observing
+	// user sessions.
+	ObserveUserSessionRole = "observe_user_session"
 	// GuestGroupRole represents name of role for guest group.
 	GuestGroupRole = "guest_group"
 	// UserGroupRole represents name of role for user group.
@@ -72,6 +75,7 @@ var builtInRoles = map[string]struct{}{
 	ObserveUserFirstNameRole:  {},
 	ObserveUserLastNameRole:   {},
 	ObserveUserMiddleNameRole: {},
+	ObserveUserSessionRole:    {},
 	GuestGroupRole:            {},
 	UserGroupRole:             {},
 }

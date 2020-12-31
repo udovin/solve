@@ -60,6 +60,13 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 		v.extractUserRoles,
 	)
 	g.GET(
+		"/users/:user/sessions", v.observeUserSessions,
+		v.sessionAuth,
+		v.requireAuthRole(models.ObserveUserSessionRole),
+		v.extractUser,
+		v.extractUserRoles,
+	)
+	g.GET(
 		"/auth-status", v.authStatus,
 		v.sessionAuth,
 		v.requireAuthRole(models.AuthStatusRole),
@@ -129,6 +136,16 @@ func (v *View) observeUser(c echo.Context) error {
 		}
 	}
 	return c.JSON(http.StatusOK, resp)
+}
+
+func (v *View) observeUserSessions(c echo.Context) error {
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	_ = user
+	return errNotImplemented
 }
 
 // authStatus returns current authorization status.
@@ -395,9 +412,11 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 			roles[role.ID] = struct{}{}
 		}
-		if authUser, ok := c.Get(authUserKey).(models.User); ok && authUser.ID == user.ID {
+		authUser, ok := c.Get(authUserKey).(models.User)
+		if ok && authUser.ID == user.ID {
 			addRole(roles, models.ObserveUserEmailRole)
 			addRole(roles, models.ObserveUserMiddleNameRole)
+			addRole(roles, models.ObserveUserSessionRole)
 		}
 		addRole(roles, models.ObserveUserFirstNameRole)
 		addRole(roles, models.ObserveUserLastNameRole)

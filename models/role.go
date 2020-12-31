@@ -38,15 +38,18 @@ const (
 	// DeleteUserRoleRole represents name of role for detaching role from user.
 	DeleteUserRoleRole = "delete_user_role"
 	// ObserveUserRole represents name of role for observing user.
-	ObserveUserRole = "observe_user_role"
-	// ObserveUserEmailRole.
-	ObserveUserEmailRole = "observe_user_email_role"
-	// ObserveUserFirstNameRole.
-	ObserveUserFirstNameRole = "observe_user_first_name_role"
-	// ObserveUserLastNameRole.
-	ObserveUserLastNameRole = "observe_user_last_name_role"
-	// ObserveUserMiddleNameRole.
-	ObserveUserMiddleNameRole = "observe_user_middle_name_role"
+	ObserveUserRole = "observe_user"
+	// ObserveUserEmailRole represents name of role for observing user email.
+	ObserveUserEmailRole = "observe_user_email"
+	// ObserveUserFirstNameRole represents name of role for observing
+	// user first name.
+	ObserveUserFirstNameRole = "observe_user_first_name"
+	// ObserveUserLastNameRole represents name of role for observing
+	// user last name.
+	ObserveUserLastNameRole = "observe_user_last_name"
+	// ObserveUserMiddleNameRole represents name of role for observing
+	// user middle name.
+	ObserveUserMiddleNameRole = "observe_user_middle_name"
 	// GuestGroupRole represents name of role for guest group.
 	GuestGroupRole = "guest_group"
 	// UserGroupRole represents name of role for user group.
@@ -54,18 +57,23 @@ const (
 )
 
 var builtInRoles = map[string]struct{}{
-	LoginRole:           {},
-	LogoutRole:          {},
-	RegisterRole:        {},
-	AuthStatusRole:      {},
-	ObserveRoleRole:     {},
-	CreateRoleRole:      {},
-	DeleteRoleRole:      {},
-	ObserveUserRoleRole: {},
-	CreateUserRoleRole:  {},
-	DeleteUserRoleRole:  {},
-	GuestGroupRole:      {},
-	UserGroupRole:       {},
+	LoginRole:                 {},
+	LogoutRole:                {},
+	RegisterRole:              {},
+	AuthStatusRole:            {},
+	ObserveRoleRole:           {},
+	CreateRoleRole:            {},
+	DeleteRoleRole:            {},
+	ObserveUserRoleRole:       {},
+	CreateUserRoleRole:        {},
+	DeleteUserRoleRole:        {},
+	ObserveUserRole:           {},
+	ObserveUserEmailRole:      {},
+	ObserveUserFirstNameRole:  {},
+	ObserveUserLastNameRole:   {},
+	ObserveUserMiddleNameRole: {},
+	GuestGroupRole:            {},
+	UserGroupRole:             {},
 }
 
 // ObjectID return ID of role.

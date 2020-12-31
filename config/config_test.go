@@ -57,6 +57,9 @@ func TestLoadFromInvalidFile(t *testing.T) {
 		t.Error("Error: ", err)
 	}
 	_, err = file.Write([]byte("invalid data"))
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
 	_ = file.Close()
 	defer func() {
 		_ = os.Remove(file.Name())

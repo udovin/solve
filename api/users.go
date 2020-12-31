@@ -400,11 +400,11 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 func (v *View) addRoleByCode(
 	c echo.Context, roles core.Roles, code string,
 ) error {
-	if role, err := v.core.Roles.GetByCode(code); err != nil {
+	role, err := v.core.Roles.GetByCode(code)
+	if err != nil {
 		c.Logger().Error(err)
 		return err
-	} else {
-		roles[role.ID] = struct{}{}
-		return nil
 	}
+	roles[role.ID] = struct{}{}
+	return nil
 }

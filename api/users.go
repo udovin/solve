@@ -405,6 +405,6 @@ func (v *View) addRoleByCode(
 		return err
 	} else {
 		roles[role.ID] = struct{}{}
+		return nil
 	}
-	return nil
 }

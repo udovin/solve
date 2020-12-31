@@ -387,24 +387,20 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error("roles not extracted")
 			return fmt.Errorf("roles not extracted")
 		}
-		if authUser, ok := c.Get(authUserKey).(models.User); ok && authUser.ID == user.ID {
-			_ = v.addRoleByCode(c, roles, models.ObserveUserEmailRole)
-			_ = v.addRoleByCode(c, roles, models.ObserveUserMiddleNameRole)
+		addRole := func(roles core.Roles, code string) {
+			role, err := v.core.Roles.GetByCode(code)
+			if err != nil {
+				c.Logger().Error(err)
+				return
+			}
+			roles[role.ID] = struct{}{}
 		}
-		_ = v.addRoleByCode(c, roles, models.ObserveUserFirstNameRole)
-		_ = v.addRoleByCode(c, roles, models.ObserveUserLastNameRole)
+		if authUser, ok := c.Get(authUserKey).(models.User); ok && authUser.ID == user.ID {
+			addRole(roles, models.ObserveUserEmailRole)
+			addRole(roles, models.ObserveUserMiddleNameRole)
+		}
+		addRole(roles, models.ObserveUserFirstNameRole)
+		addRole(roles, models.ObserveUserLastNameRole)
 		return next(c)
 	}
-}
-
-func (v *View) addRoleByCode(
-	c echo.Context, roles core.Roles, code string,
-) error {
-	role, err := v.core.Roles.GetByCode(code)
-	if err != nil {
-		c.Logger().Error(err)
-		return err
-	}
-	roles[role.ID] = struct{}{}
-	return nil
 }

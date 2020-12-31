@@ -5,27 +5,41 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/udovin/solve/models"
 )
 
 func TestUserLoginScenario(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 	registerUser(t, "test", "qwerty123")
-	if err := testView.core.WithTx(context.Background(), func(tx *sql.Tx) error {
-		if err := testView.core.Accounts.SyncTx(tx); err != nil {
-			return err
-		}
-		if err := testView.core.Users.SyncTx(tx); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		t.Fatal("Error:", err)
-	}
+	syncManagers(t)
+	observeUser(t, "test")
 	loginUser(t, "test", "qwerty123")
+}
+
+func syncManagers(tb testing.TB) {
+	if err := testView.core.WithTx(
+		context.Background(),
+		func(tx *sql.Tx) error {
+			if err := testView.core.Accounts.SyncTx(tx); err != nil {
+				return err
+			}
+			if err := testView.core.Users.SyncTx(tx); err != nil {
+				return err
+			}
+			if err := testView.core.UserFields.SyncTx(tx); err != nil {
+				return err
+			}
+			return nil
+		},
+	); err != nil {
+		tb.Fatal("Error:", err)
+	}
 }
 
 func registerUser(tb testing.TB, login, password string) {
@@ -71,4 +85,25 @@ func loginUser(tb testing.TB, login, password string) {
 		tb.Fatal("Error:", err)
 	}
 	expectStatus(tb, http.StatusCreated, rec.Code)
+}
+
+func observeUser(tb testing.TB, login string) {
+	req := httptest.NewRequest(
+		http.MethodGet, fmt.Sprintf("/users/%s", login), nil,
+	)
+	rec := httptest.NewRecorder()
+	c := testSrv.NewContext(req, rec)
+	c.SetParamNames("user")
+	c.SetParamValues(login)
+	handler := testView.sessionAuth(
+		testView.requireAuthRole(models.ObserveUserRole)(
+			testView.extractUser(
+				testView.extractUserRoles(testView.observeUser),
+			),
+		),
+	)
+	if err := handler(c); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	expectStatus(tb, http.StatusOK, rec.Code)
 }

@@ -2,6 +2,7 @@ package invoker
 
 import (
 	"testing"
+	"time"
 
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
@@ -47,4 +48,5 @@ func TestInvoker_Start(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 	testInvoker.Start()
+	<-time.After(2 * time.Second)
 }

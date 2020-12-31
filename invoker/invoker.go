@@ -47,8 +47,10 @@ func (s *Invoker) runDaemon(ctx context.Context) {
 				var err error
 				action, err = s.core.Actions.PopQueuedTx(tx)
 				return err
-			}); err != nil && err != sql.ErrNoRows {
-				log.Println("Error:", err)
+			}); err != nil {
+				if err != sql.ErrNoRows {
+					log.Println("Error:", err)
+				}
 				continue
 			}
 			if err := s.onAction(action); err != nil {

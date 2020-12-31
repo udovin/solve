@@ -12,6 +12,7 @@ import (
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/migrations"
+	"github.com/udovin/solve/models"
 )
 
 var (
@@ -63,9 +64,7 @@ func TestPing(t *testing.T) {
 	if err := testView.ping(c); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Expected %v, got %v", http.StatusOK, rec.Code)
-	}
+	expectStatus(t, http.StatusOK, rec.Code)
 }
 
 func TestHealth(t *testing.T) {
@@ -77,9 +76,7 @@ func TestHealth(t *testing.T) {
 	if err := testView.health(c); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Expected %v, got %v", http.StatusOK, rec.Code)
-	}
+	expectStatus(t, http.StatusOK, rec.Code)
 }
 
 func TestHealthUnhealthy(t *testing.T) {
@@ -94,12 +91,7 @@ func TestHealthUnhealthy(t *testing.T) {
 	if err := testView.health(c); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf(
-			"Expected %v, got %v",
-			http.StatusInternalServerError, rec.Code,
-		)
-	}
+	expectStatus(t, http.StatusInternalServerError, rec.Code)
 }
 
 func TestLogVisit(t *testing.T) {
@@ -112,9 +104,7 @@ func TestLogVisit(t *testing.T) {
 	if err := handler(c); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Expected %v, got %v", http.StatusOK, rec.Code)
-	}
+	expectStatus(t, http.StatusOK, rec.Code)
 }
 
 func TestSessionAuth(t *testing.T) {
@@ -128,9 +118,7 @@ func TestSessionAuth(t *testing.T) {
 	if err := handler(c); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Expected %v, got %v", http.StatusOK, rec.Code)
-	}
+	expectStatus(t, http.StatusOK, rec.Code)
 }
 
 func TestUserAuth(t *testing.T) {
@@ -153,9 +141,7 @@ func TestUserAuth(t *testing.T) {
 	if err := handler(c); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("Expected %v, got %v", http.StatusForbidden, rec.Code)
-	}
+	expectStatus(t, http.StatusForbidden, rec.Code)
 }
 
 func TestRequireAuth(t *testing.T) {
@@ -168,9 +154,7 @@ func TestRequireAuth(t *testing.T) {
 	if err := handler(c); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("Expected %v, got %v", http.StatusForbidden, rec.Code)
-	}
+	expectStatus(t, http.StatusForbidden, rec.Code)
 }
 
 func TestExtractAuthRoles(t *testing.T) {
@@ -183,7 +167,24 @@ func TestExtractAuthRoles(t *testing.T) {
 	if err := handler(c); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Expected %v, got %v", http.StatusOK, rec.Code)
+	expectStatus(t, http.StatusOK, rec.Code)
+}
+
+func TestRequireAuthRole(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	rec := httptest.NewRecorder()
+	c := testSrv.NewContext(req, rec)
+	handler := testView.requireAuthRole(models.ObserveUserRole)(testView.ping)
+	if err := handler(c); err != nil {
+		t.Fatal("Error:", err)
+	}
+	expectStatus(t, http.StatusOK, rec.Code)
+}
+
+func expectStatus(tb testing.TB, expected, got int) {
+	if got != expected {
+		tb.Fatalf("Expected %v, got %v", expected, got)
 	}
 }

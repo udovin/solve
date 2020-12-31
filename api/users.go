@@ -161,7 +161,11 @@ func (v *View) authStatus(c echo.Context) error {
 
 // loginAccount creates a new session for account.
 func (v *View) loginAccount(c echo.Context) error {
-	account := c.Get(authAccountKey).(models.Account)
+	account, ok := c.Get(authAccountKey).(models.Account)
+	if !ok {
+		c.Logger().Error("account not extracted")
+		return fmt.Errorf("account not extracted")
+	}
 	created := time.Now()
 	expires := created.Add(time.Hour * 24 * 90)
 	session := models.Session{

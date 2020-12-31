@@ -14,61 +14,28 @@ func TestColumnInt64(t *testing.T) {
 		PrimaryKey:    true,
 		AutoIncrement: true,
 	}
-	// Check for SQLite.
+	check := func(c Column, dialect db.Dialect, expected string) {
+		if sql, err := c.BuildSQL(dialect); err != nil {
+			t.Fatal("Error:", err)
+		} else if sql != expected {
+			t.Fatal("Wrong SQL:", sql)
+		}
+	}
 	// Note that SQLite does not support bigint as primary key.
-	if sql, err := c1.BuildSQL(db.SQLite); err != nil {
-		t.Fatal("Error:", err)
-	} else if sql != `"test1" integer PRIMARY KEY AUTOINCREMENT` {
-		t.Fatal("Wrong SQL:", sql)
-	}
-	// Check for Postgres.
-	if sql, err := c1.BuildSQL(db.Postgres); err != nil {
-		t.Fatal("Error:", err)
-	} else if sql != `"test1" bigserial PRIMARY KEY` {
-		t.Fatal("Wrong SQL:", sql)
-	}
+	check(c1, db.SQLite, `"test1" integer PRIMARY KEY AUTOINCREMENT`)
+	check(c1, db.Postgres, `"test1" bigserial PRIMARY KEY`)
 	// PrimaryKey Int64 column.
 	c2 := Column{Name: "test2", Type: Int64, PrimaryKey: true}
-	// Check for SQLite.
-	if sql, err := c2.BuildSQL(db.SQLite); err != nil {
-		t.Fatal("Error:", err)
-	} else if sql != `"test2" integer PRIMARY KEY` {
-		t.Fatal("Wrong SQL:", sql)
-	}
-	// Check for Postgres.
-	if sql, err := c2.BuildSQL(db.Postgres); err != nil {
-		t.Fatal("Error:", err)
-	} else if sql != `"test2" bigint PRIMARY KEY` {
-		t.Fatal("Wrong SQL:", sql)
-	}
+	check(c2, db.SQLite, `"test2" integer PRIMARY KEY`)
+	check(c2, db.Postgres, `"test2" bigint PRIMARY KEY`)
 	// Int64 column.
 	c3 := Column{Name: "test3", Type: Int64}
-	// Check for SQLite.
-	if sql, err := c3.BuildSQL(db.SQLite); err != nil {
-		t.Fatal("Error:", err)
-	} else if sql != `"test3" bigint NOT NULL` {
-		t.Fatal("Wrong SQL:", sql)
-	}
-	// Check for Postgres.
-	if sql, err := c3.BuildSQL(db.Postgres); err != nil {
-		t.Fatal("Error:", err)
-	} else if sql != `"test3" bigint NOT NULL` {
-		t.Fatal("Wrong SQL:", sql)
-	}
+	check(c3, db.SQLite, `"test3" bigint NOT NULL`)
+	check(c3, db.Postgres, `"test3" bigint NOT NULL`)
 	// Int64 column.
 	c4 := Column{Name: "test4", Type: Int64, Nullable: true}
-	// Check for SQLite.
-	if sql, err := c4.BuildSQL(db.SQLite); err != nil {
-		t.Fatal("Error:", err)
-	} else if sql != `"test4" bigint` {
-		t.Fatal("Wrong SQL:", sql)
-	}
-	// Check for Postgres.
-	if sql, err := c4.BuildSQL(db.Postgres); err != nil {
-		t.Fatal("Error:", err)
-	} else if sql != `"test4" bigint` {
-		t.Fatal("Wrong SQL:", sql)
-	}
+	check(c4, db.SQLite, `"test4" bigint`)
+	check(c4, db.Postgres, `"test4" bigint`)
 }
 
 func TestColumnString(t *testing.T) {

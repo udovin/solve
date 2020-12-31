@@ -91,6 +91,13 @@ func (v *View) observeUser(c echo.Context) error {
 		c.Logger().Error("roles not extracted")
 		return fmt.Errorf("roles not extracted")
 	}
+	assign := func(field *string, value, role string) {
+		if ok, err := v.core.HasRole(roles, role); ok {
+			*field = value
+		} else if err != nil {
+			c.Logger().Error(err)
+		}
+	}
 	resp := User{ID: user.ID, Login: user.Login}
 	fields, err := v.core.UserFields.FindByUser(user.ID)
 	if err != nil {
@@ -99,37 +106,25 @@ func (v *View) observeUser(c echo.Context) error {
 		for _, field := range fields {
 			switch field.Kind {
 			case models.EmailField:
-				if ok, err := v.core.HasRole(
-					roles, models.ObserveUserEmailRole,
-				); ok {
-					resp.Email = field.Data
-				} else if err != nil {
-					c.Logger().Error(err)
-				}
+				assign(
+					&resp.Email, field.Data,
+					models.ObserveUserEmailRole,
+				)
 			case models.FirstNameField:
-				if ok, err := v.core.HasRole(
-					roles, models.ObserveUserFirstNameRole,
-				); ok {
-					resp.FirstName = field.Data
-				} else if err != nil {
-					c.Logger().Error(err)
-				}
+				assign(
+					&resp.FirstName, field.Data,
+					models.ObserveUserFirstNameRole,
+				)
 			case models.LastNameField:
-				if ok, err := v.core.HasRole(
-					roles, models.ObserveUserLastNameRole,
-				); ok {
-					resp.LastName = field.Data
-				} else if err != nil {
-					c.Logger().Error(err)
-				}
+				assign(
+					&resp.LastName, field.Data,
+					models.ObserveUserLastNameRole,
+				)
 			case models.MiddleNameField:
-				if ok, err := v.core.HasRole(
-					roles, models.ObserveUserMiddleNameRole,
-				); ok {
-					resp.MiddleName = field.Data
-				} else if err != nil {
-					c.Logger().Error(err)
-				}
+				assign(
+					&resp.MiddleName, field.Data,
+					models.ObserveUserMiddleNameRole,
+				)
 			}
 		}
 	}

@@ -1,7 +1,10 @@
 @import "../../mixins.scss";
 
 .ui-block-wrap {
-	margin: 10px 0 0 0;
+	margin: 0 0 10px 0;
+	&:last-child {
+	    margin-bottom: 0;
+	}
 }
 
 .ui-block {

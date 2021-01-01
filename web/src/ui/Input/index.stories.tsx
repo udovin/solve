@@ -1,7 +1,9 @@
 import React from "react";
 import Input from "./index";
 
-export default {title: "Input"};
+const config = {title: "Input"};
+
+export default config;
 
 export const common = () => <>
 	<p><Input defaultValue="Default"/></p>

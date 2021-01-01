@@ -2,7 +2,9 @@ import React from "react";
 import Button from "./index";
 import "../../index.scss";
 
-export default {title: "Button"};
+const config = {title: "Button"};
+
+export default config;
 
 export const common = () => <>
 	<p><Button>Default</Button></p>

@@ -1,7 +1,9 @@
 import React from "react";
 import Textarea from "./index";
 
-export default {title: "Textarea"};
+const config = {title: "Textarea"};
+
+export default config;
 
 export const common = () => <>
 	<p><Textarea defaultValue="Default"/></p>

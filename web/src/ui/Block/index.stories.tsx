@@ -2,7 +2,9 @@ import React from "react";
 import Block from "./index";
 import "../../index.scss";
 
-export default {title: "Block"};
+const config = {title: "Block"}
+
+export default config;
 
 export const common = () => <>
 	<Block header="Header" footer="Footer">Content</Block>

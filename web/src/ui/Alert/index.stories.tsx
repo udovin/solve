@@ -1,7 +1,9 @@
 import React from "react";
 import Alert, {AlertKind} from "./index";
 
-export default {title: "Alert"};
+const config = {title: "Alert"};
+
+export default config;
 
 export const common = () => <>
 	<Alert>Default</Alert>

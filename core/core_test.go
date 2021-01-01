@@ -10,12 +10,13 @@ import (
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/migrations"
+	"github.com/udovin/solve/models"
 )
 
 var testCfg = config.Config{
 	DB: config.DB{
 		Driver:  config.SQLiteDriver,
-		Options: config.SQLiteOptions{Path: "?mode=memory"},
+		Options: config.SQLiteOptions{Path: ":memory:"},
 	},
 	Security: config.Security{
 		PasswordSalt: config.Secret{
@@ -113,6 +114,44 @@ func TestCore_Roles(t *testing.T) {
 	defer c.Stop()
 	if _, err := c.GetGuestRoles(); err != nil {
 		t.Fatal("Error", err)
+	}
+}
+
+func TestCore_Roles_NoRows(t *testing.T) {
+	c, err := core.NewCore(testCfg)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := c.SetupAllStores(); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := migrations.Apply(c); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := c.Start(); err != nil {
+		t.Fatal("Error:", err)
+	}
+	defer c.Stop()
+	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
+		role, err := c.Roles.GetByCode(models.GuestGroupRole)
+		if err != nil {
+			return err
+		}
+		return c.Roles.DeleteTx(tx, role.ID)
+	}); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := c.WithTx(context.Background(), c.Roles.SyncTx); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if _, err := c.GetGuestRoles(); err != sql.ErrNoRows {
+		t.Fatalf("Expected %q, got %q", sql.ErrNoRows, err)
+	}
+	if _, err := c.HasRole(core.Roles{}, "unknown"); err != sql.ErrNoRows {
+		t.Fatalf("Expected %q, got %q", sql.ErrNoRows, err)
+	}
+	if _, err := c.GetAccountRoles(0); err != nil {
+		t.Fatal("Error:", err)
 	}
 }
 

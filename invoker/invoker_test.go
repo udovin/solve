@@ -15,7 +15,7 @@ func testSetup(tb testing.TB) {
 	cfg := config.Config{
 		DB: config.DB{
 			Driver:  config.SQLiteDriver,
-			Options: config.SQLiteOptions{Path: "?mode=memory"},
+			Options: config.SQLiteOptions{Path: ":memory:"},
 		},
 		Security: config.Security{
 			PasswordSalt: config.Secret{
@@ -34,6 +34,7 @@ func testSetup(tb testing.TB) {
 	if err := migrations.Apply(c); err != nil {
 		tb.Fatal("Error:", err)
 	}
+	c.SetupInvokerStores()
 	if err := c.Start(); err != nil {
 		tb.Fatal("Error:", err)
 	}
@@ -48,5 +49,6 @@ func TestInvoker_Start(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 	testInvoker.Start()
-	<-time.After(2 * time.Second)
+	// Wait for cache sync.
+	<-time.After(1100 * time.Millisecond)
 }

@@ -24,7 +24,7 @@ func testSetup(tb testing.TB) {
 	cfg := config.Config{
 		DB: config.DB{
 			Driver:  config.SQLiteDriver,
-			Options: config.SQLiteOptions{Path: "?mode=memory"},
+			Options: config.SQLiteOptions{Path: ":memory:"},
 		},
 		Security: config.Security{
 			PasswordSalt: config.Secret{

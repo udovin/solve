@@ -42,7 +42,7 @@ func syncManagers(tb testing.TB) {
 	}
 }
 
-func registerUser(tb testing.TB, login, password string) {
+func registerUser(tb testing.TB, login, password string) User {
 	data, err := json.Marshal(map[string]string{
 		"login":       login,
 		"password":    password,
@@ -64,9 +64,14 @@ func registerUser(tb testing.TB, login, password string) {
 		tb.Fatal("Error:", err)
 	}
 	expectStatus(tb, http.StatusCreated, rec.Code)
+	var resp User
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	return resp
 }
 
-func loginUser(tb testing.TB, login, password string) {
+func loginUser(tb testing.TB, login, password string) Session {
 	data, err := json.Marshal(map[string]string{
 		"login":    login,
 		"password": password,
@@ -85,6 +90,11 @@ func loginUser(tb testing.TB, login, password string) {
 		tb.Fatal("Error:", err)
 	}
 	expectStatus(tb, http.StatusCreated, rec.Code)
+	var resp Session
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	return resp
 }
 
 func observeUser(tb testing.TB, login string) {

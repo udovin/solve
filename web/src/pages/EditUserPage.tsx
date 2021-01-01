@@ -1,7 +1,13 @@
 import React, {useContext, useEffect, useState} from "react";
 import {Redirect, RouteComponentProps} from "react-router";
 import Page from "../components/Page";
-import {ErrorResp, observeUser, Session, User} from "../api";
+import {
+	ErrorResp,
+	observeUser,
+	observeUserSessions,
+	Session,
+	User
+} from "../api";
 import FormBlock from "../components/FormBlock";
 import Input from "../ui/Input";
 import Button from "../ui/Button";
@@ -28,10 +34,9 @@ const EditUserPage = ({match}: RouteComponentProps<UserPageParams>) => {
 			.catch(error => setError(error));
 	}, [user_id]);
 	useEffect(() => {
-		fetch(`/api/v0/users/${user_id}/sessions`)
-			.then(result => result.json())
-			.then(result => setSessions(result))
-			.catch(error => console.log);
+		observeUserSessions(user_id)
+			.then(sessions => setSessions(sessions))
+			.catch(console.log);
 	}, [user_id]);
 	if (!status || !user) {
 		return <>Loading...</>;

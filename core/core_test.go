@@ -114,9 +114,6 @@ func TestCore_Roles(t *testing.T) {
 	if _, err := c.GetGuestRoles(); err != nil {
 		t.Fatal("Error", err)
 	}
-	if _, err := c.GetUserRoles(); err != nil {
-		t.Fatal("Error", err)
-	}
 }
 
 func TestGetDriver(t *testing.T) {

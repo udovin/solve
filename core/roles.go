@@ -16,15 +16,6 @@ func (c *Core) GetGuestRoles() (Roles, error) {
 	return c.getRecursiveRoles(role.ID)
 }
 
-// GetUserRoles returns roles for empty user.
-func (c *Core) GetUserRoles() (Roles, error) {
-	role, err := c.Roles.GetByCode(models.UserGroupRole)
-	if err != nil {
-		return Roles{}, err
-	}
-	return c.getRecursiveRoles(role.ID)
-}
-
 // HasRole return true if role set has this role or parent role.
 func (c *Core) HasRole(roles Roles, code string) (bool, error) {
 	role, err := c.Roles.GetByCode(code)

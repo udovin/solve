@@ -16,48 +16,48 @@ type DBDriver string
 
 const (
 	// SQLiteDriver represents SQLite driver.
-	SQLiteDriver DBDriver = "SQLite"
+	SQLiteDriver DBDriver = "sqlite"
 	// PostgresDriver represents Postgres driver.
-	PostgresDriver DBDriver = "Postgres"
+	PostgresDriver DBDriver = "postgres"
 )
 
 // DB stores configuration for database connection.
 type DB struct {
 	// Driver contains database driver name.
-	Driver DBDriver `json:""`
+	Driver DBDriver `json:"driver"`
 	// Options contains options for database driver.
 	//
 	// For SQLiteDriver field should contains SQLiteOptions.
 	// For PostgresDriver field should contains PostgresOptions.
-	Options interface{} `json:""`
+	Options interface{} `json:"options"`
 }
 
 // SQLiteOptions stores SQLite connection options.
 type SQLiteOptions struct {
 	// Path contains path to SQLite database file.
-	Path string `json:""`
+	Path string `json:"path"`
 }
 
 // PostgresOptions stores Postgres connection options.
 type PostgresOptions struct {
 	// Host contains host address.
-	Host string `json:""`
+	Host string `json:"host"`
 	// Port contains port address.
-	Port int `json:""`
+	Port int `json:"port"`
 	// User contains username of user.
-	User string `json:""`
+	User string `json:"user"`
 	// Password contains password of user.
-	Password Secret `json:""`
+	Password Secret `json:"password"`
 	// Name contains name of database.
-	Name string `json:""`
+	Name string `json:"name"`
 }
 
 // UnmarshalJSON parses JSON to create appropriate connection configuration.
 func (c *DB) UnmarshalJSON(bytes []byte) error {
 	var g struct {
-		Driver DBDriver `json:""`
+		Driver DBDriver `json:"driver"`
 		// Options will be parsed after detecting driver name.
-		Options json.RawMessage `json:""`
+		Options json.RawMessage `json:"options"`
 	}
 	if err := json.Unmarshal(bytes, &g); err != nil {
 		return err

@@ -24,6 +24,7 @@ func (v *View) Register(g *echo.Group) {
 	g.GET("/health", v.health)
 	v.registerUserHandlers(g)
 	v.registerRoleHandlers(g)
+	v.registerSessionHandlers(g)
 }
 
 // ping returns pong.
@@ -53,6 +54,7 @@ const (
 	authUserKey    = "auth_user"
 	roleKey        = "role"
 	userKey        = "user"
+	sessionKey     = "session"
 	sessionCookie  = "session"
 )
 
@@ -218,13 +220,6 @@ func (v *View) extractAuthRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			if err != nil {
 				c.Logger().Error(err)
 				return err
-			}
-			if len(roles) == 0 && account.Kind == models.UserAccount {
-				roles, err = v.core.GetUserRoles()
-				if err != nil {
-					c.Logger().Error(err)
-					return err
-				}
 			}
 			c.Set(authRolesKey, roles)
 		} else {

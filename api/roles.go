@@ -33,33 +33,28 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 	)
 	g.DELETE(
 		"/roles/:role", v.deleteRole,
-		v.sessionAuth, v.requireAuth,
+		v.sessionAuth, v.requireAuth, v.extractRole,
 		v.requireAuthRole(models.DeleteRoleRole),
-		v.extractRole,
 	)
 	g.GET(
 		"/roles/:role/roles", v.observeRoleRoles,
-		v.sessionAuth, v.requireAuth,
+		v.sessionAuth, v.requireAuth, v.extractRole,
 		v.requireAuthRole(models.ObserveRoleRole),
-		v.extractRole,
 	)
 	g.GET(
 		"/users/:user/roles", v.observeUserRoles,
-		v.sessionAuth, v.requireAuth,
+		v.sessionAuth, v.requireAuth, v.extractUser,
 		v.requireAuthRole(models.ObserveUserRoleRole),
-		v.extractUser,
 	)
 	g.POST(
 		"/users/:user/roles", v.createUserRole,
-		v.sessionAuth, v.requireAuth,
+		v.sessionAuth, v.requireAuth, v.extractUser,
 		v.requireAuthRole(models.CreateUserRoleRole),
-		v.extractUser,
 	)
 	g.DELETE(
 		"/users/:user/roles/:role", v.deleteUserRole,
-		v.sessionAuth, v.requireAuth,
+		v.sessionAuth, v.requireAuth, v.extractUser, v.extractRole,
 		v.requireAuthRole(models.DeleteUserRoleRole),
-		v.extractUser, v.extractRole,
 	)
 }
 
@@ -147,36 +142,6 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 			return err
 		}
 		c.Set(roleKey, role)
-		return next(c)
-	}
-}
-
-func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		id, err := strconv.ParseInt(c.Param("user"), 10, 64)
-		if err != nil {
-			user, err := v.core.Users.GetByLogin(c.Param("user"))
-			if err != nil {
-				if err == sql.ErrNoRows {
-					resp := errorResp{Message: "user not found"}
-					return c.JSON(http.StatusNotFound, resp)
-				}
-				c.Logger().Error(err)
-				return err
-			}
-			c.Set(userKey, user)
-			return next(c)
-		}
-		user, err := v.core.Users.Get(id)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				resp := errorResp{Message: "user not found"}
-				return c.JSON(http.StatusNotFound, resp)
-			}
-			c.Logger().Error(err)
-			return err
-		}
-		c.Set(userKey, user)
 		return next(c)
 	}
 }

@@ -11,13 +11,13 @@ import (
 // Config stores configuration for Solve API and Invoker.
 type Config struct {
 	// DB contains database connection config.
-	DB DB `json:""`
+	DB DB `json:"db"`
 	// Server contains API server config.
-	Server Server `json:""`
+	Server Server `json:"server"`
 	// Invoker contains invoker config.
-	Invoker Invoker `json:""`
+	Invoker Invoker `json:"invoker"`
 	// Security contains security config.
-	Security Security `json:""`
+	Security Security `json:"security"`
 	// LogLevel contains level of logging.
 	//
 	// You can use following values:
@@ -26,17 +26,17 @@ type Config struct {
 	//  * 3 - WARN
 	//  * 4 - ERROR
 	//  * 5 - OFF
-	LogLevel log.Lvl `json:""`
+	LogLevel log.Lvl `json:"log_level"`
 }
 
 // Server contains server config.
 type Server struct {
 	// Host contains server host.
-	Host string `json:""`
+	Host string `json:"host"`
 	// Port contains server port.
-	Port int `json:""`
+	Port int `json:"port"`
 	// Static contains path to static files.
-	Static string `json:""`
+	Static string `json:"static"`
 }
 
 // Address returns string representation of server address.
@@ -47,13 +47,13 @@ func (s Server) Address() string {
 // Security contains security config.
 type Security struct {
 	// PasswordSalt contains salt for password hashing.
-	PasswordSalt Secret `json:""`
+	PasswordSalt Secret `json:"password_salt"`
 }
 
 // Invoker contains invoker config.
 type Invoker struct {
-	ProblemsDir string `json:""`
-	Threads     int    `json:""`
+	ProblemsDir string `json:"problems_dir"`
+	Threads     int    `json:"threads"`
 }
 
 // LoadFromFile loads configuration from json file.

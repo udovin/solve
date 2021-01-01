@@ -212,6 +212,13 @@ export const observeUser = (userID: string | number) => {
 	}));
 };
 
+export const observeUserSessions = (userID: string | number) => {
+	return parseResp(fetch(`/api/v0/users/${userID}/sessions`, {
+		method: "GET",
+		headers: HEADERS,
+	}));
+};
+
 export const authStatus = () => {
 	return parseResp(fetch("/api/v0/auth-status", {
 		method: "GET",

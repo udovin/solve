@@ -14,12 +14,12 @@ type SecretType string
 
 const (
 	// DataSecret represents secret that contains value in Data field.
-	DataSecret SecretType = "Data"
+	DataSecret SecretType = "data"
 	// FileSecret represents secret that contains value in file.
-	FileSecret SecretType = "File"
+	FileSecret SecretType = "file"
 	// EnvSecret represents secret that contains
 	// value in environment variable.
-	EnvSecret SecretType = "Env"
+	EnvSecret SecretType = "env"
 )
 
 // Secret stores configuration for secret data.
@@ -33,9 +33,9 @@ const (
 //   Secret{Type: EnvSecret, Data: "DB_PASSWORD"}
 type Secret struct {
 	// Type contains secret type.
-	Type SecretType `json:""`
+	Type SecretType `json:"type"`
 	// Data contains secret data.
-	Data string `json:""`
+	Data string `json:"data"`
 	// cache contains cached secret value.
 	cache atomic.Value
 }

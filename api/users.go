@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,17 +55,13 @@ type AuthStatus struct {
 func (v *View) registerUserHandlers(g *echo.Group) {
 	g.GET(
 		"/users/:user", v.observeUser,
-		v.sessionAuth,
+		v.sessionAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.ObserveUserRole),
-		v.extractUser,
-		v.extractUserRoles,
 	)
 	g.GET(
 		"/users/:user/sessions", v.observeUserSessions,
-		v.sessionAuth,
+		v.sessionAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.ObserveUserSessionRole),
-		v.extractUser,
-		v.extractUserRoles,
 	)
 	g.GET(
 		"/auth-status", v.authStatus,
@@ -144,8 +141,20 @@ func (v *View) observeUserSessions(c echo.Context) error {
 		c.Logger().Error("user not extracted")
 		return fmt.Errorf("user not extracted")
 	}
-	_ = user
-	return errNotImplemented
+	sessions, err := v.core.Sessions.FindByAccount(user.AccountID)
+	if err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	var resp []Session
+	for _, session := range sessions {
+		resp = append(resp, Session{
+			ID:         session.ID,
+			ExpireTime: session.ExpireTime,
+			CreateTime: session.CreateTime,
+		})
+	}
+	return c.JSON(http.StatusOK, resp)
 }
 
 // authStatus returns current authorization status.
@@ -322,14 +331,25 @@ func (v *View) registerUser(c echo.Context) error {
 		return err
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		role, err := v.core.Roles.GetByCode(models.UserGroupRole)
+		if err != nil {
+			return err
+		}
 		account := models.Account{Kind: models.UserAccount}
-		account, err := v.core.Accounts.CreateTx(tx, account)
+		account, err = v.core.Accounts.CreateTx(tx, account)
 		if err != nil {
 			return err
 		}
 		user.AccountID = account.ID
 		user, err = v.core.Users.CreateTx(tx, user)
 		if err != nil {
+			return err
+		}
+		userRole := models.AccountRole{
+			AccountID: account.ID,
+			RoleID:    role.ID,
+		}
+		if _, err := v.core.AccountRoles.CreateTx(tx, userRole); err != nil {
 			return err
 		}
 		return v.registerUserFields(tx, user, form)
@@ -392,8 +412,38 @@ func (v *View) registerUserFields(
 	return nil
 }
 
-func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
+func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		id, err := strconv.ParseInt(c.Param("user"), 10, 64)
+		if err != nil {
+			user, err := v.core.Users.GetByLogin(c.Param("user"))
+			if err != nil {
+				if err == sql.ErrNoRows {
+					resp := errorResp{Message: "user not found"}
+					return c.JSON(http.StatusNotFound, resp)
+				}
+				c.Logger().Error(err)
+				return err
+			}
+			c.Set(userKey, user)
+			return next(c)
+		}
+		user, err := v.core.Users.Get(id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				resp := errorResp{Message: "user not found"}
+				return c.JSON(http.StatusNotFound, resp)
+			}
+			c.Logger().Error(err)
+			return err
+		}
+		c.Set(userKey, user)
+		return next(c)
+	}
+}
+
+func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
+	nextWrap := func(c echo.Context) error {
 		user, ok := c.Get(userKey).(models.User)
 		if !ok {
 			c.Logger().Error("user not extracted")
@@ -422,4 +472,5 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 		addRole(roles, models.ObserveUserLastNameRole)
 		return next(c)
 	}
+	return v.extractAuthRoles(nextWrap)
 }

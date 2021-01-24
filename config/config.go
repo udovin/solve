@@ -35,8 +35,6 @@ type Server struct {
 	Host string `json:"host"`
 	// Port contains server port.
 	Port int `json:"port"`
-	// Static contains path to static files.
-	Static string `json:"static"`
 }
 
 // Address returns string representation of server address.

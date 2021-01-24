@@ -2,11 +2,8 @@ package main
 
 import (
 	"log"
-	"net/url"
 	"os"
 	"os/signal"
-	"path"
-	"path/filepath"
 	"syscall"
 
 	"github.com/labstack/echo"
@@ -53,22 +50,10 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	defer c.Stop()
 	s := echo.New()
 	s.Logger = c.Logger()
-	s.HideBanner = true
-	s.HidePort = true
+	s.HideBanner, s.HidePort = true, true
 	s.Pre(middleware.RemoveTrailingSlash())
 	s.Use(middleware.Recover(), middleware.Gzip(), middleware.Logger())
 	api.NewView(c).Register(s.Group("/api/v0"))
-	s.Any("/*", func(c echo.Context) error {
-		p, err := url.PathUnescape(c.Param("*"))
-		if err != nil {
-			return err
-		}
-		name := filepath.Join(cfg.Server.Static, path.Clean("/"+p))
-		if _, err := os.Stat(name); os.IsNotExist(err) {
-			name = filepath.Join(cfg.Server.Static, "index.html")
-		}
-		return c.File(name)
-	})
 	if err := s.Start(cfg.Server.Address()); err != nil {
 		s.Logger.Fatal(err)
 	}

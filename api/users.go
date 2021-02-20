@@ -90,7 +90,7 @@ func (v *View) observeUser(c echo.Context) error {
 		c.Logger().Error("user not extracted")
 		return fmt.Errorf("user not extracted")
 	}
-	roles, ok := c.Get(authRolesKey).(core.Roles)
+	roles, ok := c.Get(authRolesKey).(core.RoleSet)
 	if !ok {
 		c.Logger().Error("roles not extracted")
 		return fmt.Errorf("roles not extracted")
@@ -170,7 +170,7 @@ func (v *View) authStatus(c echo.Context) error {
 			status.User = &User{ID: user.ID, Login: user.Login}
 		}
 	}
-	if roles, ok := c.Get(authRolesKey).(core.Roles); ok {
+	if roles, ok := c.Get(authRolesKey).(core.RoleSet); ok {
 		for id := range roles {
 			if role, err := v.core.Roles.Get(id); err == nil {
 				status.Roles = append(status.Roles, role.Code)
@@ -449,12 +449,12 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error("user not extracted")
 			return fmt.Errorf("user not extracted")
 		}
-		roles, ok := c.Get(authRolesKey).(core.Roles)
+		roles, ok := c.Get(authRolesKey).(core.RoleSet)
 		if !ok {
 			c.Logger().Error("roles not extracted")
 			return fmt.Errorf("roles not extracted")
 		}
-		addRole := func(roles core.Roles, code string) {
+		addRole := func(roles core.RoleSet, code string) {
 			role, err := v.core.Roles.GetByCode(code)
 			if err != nil {
 				c.Logger().Error(err)

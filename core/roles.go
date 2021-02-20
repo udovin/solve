@@ -4,30 +4,34 @@ import (
 	"github.com/udovin/solve/models"
 )
 
-// Roles contains roles.
-type Roles map[int64]struct{}
+// RoleSet contains role set.
+type RoleSet map[int64]struct{}
 
-// GetGuestRoles returns roles for guest account.
-func (c *Core) GetGuestRoles() (Roles, error) {
-	role, err := c.Roles.GetByCode(models.GuestGroupRole)
-	if err != nil {
-		return Roles{}, err
-	}
-	return c.getRecursiveRoles(role.ID)
+func (s RoleSet) HasRole(id int64) bool {
+	_, ok := s[id]
+	return ok
 }
 
 // HasRole return true if role set has this role or parent role.
-func (c *Core) HasRole(roles Roles, code string) (bool, error) {
+func (c *Core) HasRole(roles RoleSet, code string) (bool, error) {
 	role, err := c.Roles.GetByCode(code)
 	if err != nil {
 		return false, err
 	}
-	_, ok := roles[role.ID]
-	return ok, nil
+	return roles.HasRole(role.ID), nil
+}
+
+// GetGuestRoles returns roles for guest account.
+func (c *Core) GetGuestRoles() (RoleSet, error) {
+	role, err := c.Roles.GetByCode(models.GuestGroupRole)
+	if err != nil {
+		return RoleSet{}, err
+	}
+	return c.getRecursiveRoles(role.ID)
 }
 
 // GetAccountRoles returns roles for account.
-func (c *Core) GetAccountRoles(id int64) (Roles, error) {
+func (c *Core) GetAccountRoles(id int64) (RoleSet, error) {
 	edges, err := c.AccountRoles.FindByAccount(id)
 	if err != nil {
 		return nil, err
@@ -40,8 +44,8 @@ func (c *Core) GetAccountRoles(id int64) (Roles, error) {
 }
 
 // getRecursiveRoles returns recursive roles for specified list of roles.
-func (c *Core) getRecursiveRoles(ids ...int64) (Roles, error) {
-	stack, roles := ids, Roles{}
+func (c *Core) getRecursiveRoles(ids ...int64) (RoleSet, error) {
+	stack, roles := ids, RoleSet{}
 	for _, id := range stack {
 		roles[id] = struct{}{}
 	}

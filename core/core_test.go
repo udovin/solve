@@ -147,7 +147,7 @@ func TestCore_Roles_NoRows(t *testing.T) {
 	if _, err := c.GetGuestRoles(); err != sql.ErrNoRows {
 		t.Fatalf("Expected %q, got %q", sql.ErrNoRows, err)
 	}
-	if _, err := c.HasRole(core.Roles{}, "unknown"); err != sql.ErrNoRows {
+	if _, err := c.HasRole(core.RoleSet{}, "unknown"); err != sql.ErrNoRows {
 		t.Fatalf("Expected %q, got %q", sql.ErrNoRows, err)
 	}
 	if _, err := c.GetAccountRoles(0); err != nil {

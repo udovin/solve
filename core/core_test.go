@@ -112,8 +112,14 @@ func TestCore_Roles(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	defer c.Stop()
-	if _, err := c.GetGuestRoles(); err != nil {
-		t.Fatal("Error", err)
+	roles, err := c.GetGuestRoles()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if ok, err := c.HasRole(roles, models.GuestGroupRole); err != nil {
+		t.Fatal("Error:", err)
+	} else if !ok {
+		t.Fatalf("Role %q should exist", models.GuestGroupRole)
 	}
 }
 

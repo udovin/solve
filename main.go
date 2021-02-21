@@ -2,9 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/labstack/echo"
-	"github.com/labstack/echo/middleware"
-	"github.com/udovin/solve/api"
 	"log"
 	"net"
 	"net/http"
@@ -13,13 +10,18 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 	"github.com/spf13/cobra"
 
+	"github.com/udovin/solve/api"
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/invoker"
 	"github.com/udovin/solve/migrations"
 )
+
+var shutdown = make(chan os.Signal, 1)
 
 // getConfig reads config with filename from '--config' flag.
 func getConfig(cmd *cobra.Command) (config.Config, error) {
@@ -60,14 +62,13 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	var waiter sync.WaitGroup
 	defer waiter.Wait()
 	ctx, cancel := context.WithCancel(context.Background())
-	exited := make(chan os.Signal, 1)
-	signal.Notify(exited, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 	waiter.Add(1)
 	go func() {
 		defer waiter.Done()
 		select {
 		case <-ctx.Done():
-		case <-exited:
+		case <-shutdown:
 			cancel()
 		}
 	}()
@@ -158,9 +159,8 @@ func invokerMain(cmd *cobra.Command, _ []string) {
 	defer c.Stop()
 	s := invoker.New(c)
 	s.Start()
-	exited := make(chan os.Signal)
-	signal.Notify(exited, os.Interrupt, syscall.SIGTERM)
-	<-exited
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+	<-shutdown
 }
 
 func dbApplyMain(cmd *cobra.Command, _ []string) {

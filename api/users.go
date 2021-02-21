@@ -457,12 +457,9 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			return fmt.Errorf("roles not extracted")
 		}
 		addRole := func(roles core.RoleSet, code string) {
-			role, err := v.core.Roles.GetByCode(code)
-			if err != nil {
+			if err := v.core.AddRole(roles, code); err != nil {
 				c.Logger().Error(err)
-				return
 			}
-			roles[role.ID] = struct{}{}
 		}
 		authUser, ok := c.Get(authUserKey).(models.User)
 		if ok && authUser.ID == user.ID {

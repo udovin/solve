@@ -7,12 +7,32 @@ import (
 // RoleSet contains role set.
 type RoleSet map[int64]struct{}
 
+// HasRole return that role set has specified role.
 func (s RoleSet) HasRole(id int64) bool {
 	_, ok := s[id]
 	return ok
 }
 
-// HasRole return true if role set has this role or parent role.
+// Clone creates clone of role set.
+func (s RoleSet) Clone() RoleSet {
+	var clone RoleSet
+	for key := range s {
+		clone[key] = struct{}{}
+	}
+	return clone
+}
+
+// AddRole adds role to role set.
+func (c *Core) AddRole(roles RoleSet, code string) error {
+	role, err := c.Roles.GetByCode(code)
+	if err != nil {
+		return err
+	}
+	roles[role.ID] = struct{}{}
+	return nil
+}
+
+// HasRole checks that role set has specified role.
 func (c *Core) HasRole(roles RoleSet, code string) (bool, error) {
 	role, err := c.Roles.GetByCode(code)
 	if err != nil {
@@ -25,7 +45,7 @@ func (c *Core) HasRole(roles RoleSet, code string) (bool, error) {
 func (c *Core) GetGuestRoles() (RoleSet, error) {
 	role, err := c.Roles.GetByCode(models.GuestGroupRole)
 	if err != nil {
-		return RoleSet{}, err
+		return nil, err
 	}
 	return c.getRecursiveRoles(role.ID)
 }

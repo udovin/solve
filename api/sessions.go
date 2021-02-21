@@ -62,7 +62,7 @@ func (v *View) deleteSession(c echo.Context) error {
 
 func (v *View) extractSession(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		id, err := strconv.ParseInt(c.Param("user"), 10, 64)
+		id, err := strconv.ParseInt(c.Param("session"), 10, 64)
 		if err != nil {
 			c.Logger().Warn(err)
 			return err

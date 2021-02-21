@@ -14,24 +14,24 @@ func (m *m001) Name() string {
 }
 
 const m001Apply = `
--- models.Action
-CREATE TABLE "solve_action" (
+-- models.Task
+CREATE TABLE "solve_task" (
 	"id" integer PRIMARY KEY,
 	"status" integer NOT NULL,
-	"type" integer NOT NULL,
+	"kind" integer NOT NULL,
 	"config" blob,
 	"state" blob,
 	"expire_time" bigint
 );
--- models.ActionEvent
-CREATE TABLE "solve_action_event"
+-- models.TaskEvent
+CREATE TABLE "solve_task_event"
 (
 	"event_id" integer PRIMARY KEY,
 	"event_type" int8 NOT NULL,
 	"event_time" bigint NOT NULL,
 	"id" integer NOT NULL,
 	"status" integer NOT NULL,
-	"type" integer NOT NULL,
+	"kind" integer NOT NULL,
 	"config" blob,
 	"state" blob,
 	"expire_time" bigint

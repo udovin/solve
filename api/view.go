@@ -27,6 +27,12 @@ func (v *View) Register(g *echo.Group) {
 	v.registerSessionHandlers(g)
 }
 
+func (v *View) RegisterSocket(g *echo.Group) {
+	g.GET("/ping", v.ping)
+	g.GET("/health", v.health)
+	v.registerSocketRoleHandlers(g)
+}
+
 // ping returns pong.
 func (v *View) ping(c echo.Context) error {
 	return c.String(http.StatusOK, "pong")

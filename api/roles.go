@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"github.com/labstack/echo"
@@ -14,7 +15,7 @@ import (
 // Role represents role.
 type Role struct {
 	// ID contains role ID.
-	ID int64 `json:"role"`
+	ID int64 `json:"id"`
 	// Code contains role code.
 	Code string `json:"code"`
 }
@@ -58,6 +59,32 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 	)
 }
 
+// registerUserHandlers registers handlers for user management.
+func (v *View) registerSocketRoleHandlers(g *echo.Group) {
+	g.GET("/roles", v.observeRoles)
+	g.POST("/roles", v.createRole)
+	g.DELETE(
+		"/roles/:role", v.deleteRole,
+		v.extractRole,
+	)
+	g.GET(
+		"/roles/:role/roles", v.observeRoleRoles,
+		v.extractRole,
+	)
+	g.GET(
+		"/users/:user/roles", v.observeUserRoles,
+		v.extractUser,
+	)
+	g.POST(
+		"/users/:user/roles", v.createUserRole,
+		v.extractUser,
+	)
+	g.DELETE(
+		"/users/:user/roles/:role", v.deleteUserRole,
+		v.extractUser, v.extractRole,
+	)
+}
+
 var errNotImplemented = fmt.Errorf("not implemented")
 
 func (v *View) observeRoles(c echo.Context) error {
@@ -76,16 +103,109 @@ func (v *View) observeRoles(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+type createRoleForm struct {
+	Code string `json:"code"`
+}
+
+var roleCodeRegexp = regexp.MustCompile(
+	"^[a-zA-Z]([a-zA-Z0-9_\\-])*[a-zA-Z0-9]$",
+)
+
+func (f createRoleForm) Validate() *errorResp {
+	errors := errorFields{}
+	if len(f.Code) < 3 {
+		errors["code"] = errorField{Message: "code too short (<3)"}
+	} else if len(f.Code) > 32 {
+		errors["code"] = errorField{Message: "code too long (>32)"}
+	} else if !roleCodeRegexp.MatchString(f.Code) {
+		errors["code"] = errorField{Message: "code has invalid format"}
+	} else if (models.Role{Code: f.Code}).IsBuiltIn() {
+		errors["code"] = errorField{Message: "code can not be builtin"}
+	}
+	if len(errors) == 0 {
+		return nil
+	}
+	return &errorResp{
+		Message:       "passed invalid fields to form",
+		InvalidFields: errors,
+	}
+}
+
 func (v *View) createRole(c echo.Context) error {
-	return errNotImplemented
+	var form createRoleForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if resp := form.Validate(); resp != nil {
+		return c.JSON(http.StatusBadRequest, resp)
+	}
+	role := models.Role{Code: form.Code}
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		var err error
+		role, err = v.core.Roles.CreateTx(tx, role)
+		return err
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusCreated, Role{
+		ID:   role.ID,
+		Code: role.Code,
+	})
 }
 
 func (v *View) deleteRole(c echo.Context) error {
-	return errNotImplemented
+	role, ok := c.Get(roleKey).(models.Role)
+	if !ok {
+		c.Logger().Error("role not extracted")
+		return fmt.Errorf("role not extracted")
+	}
+	if role.IsBuiltIn() {
+		return c.JSON(http.StatusBadRequest, errorResp{
+			Message: "unable to delete builtin role",
+		})
+	}
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		return v.core.Roles.DeleteTx(tx, role.ID)
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusOK, Role{
+		ID:   role.ID,
+		Code: role.Code,
+	})
 }
 
 func (v *View) observeRoleRoles(c echo.Context) error {
-	return errNotImplemented
+	role, ok := c.Get(roleKey).(models.Role)
+	if !ok {
+		c.Logger().Error("role not extracted")
+		return fmt.Errorf("role not extracted")
+	}
+	edges, err := v.core.RoleEdges.FindByRole(role.ID)
+	if err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	var resp []Role
+	for _, edge := range edges {
+		role, err := v.core.Roles.Get(edge.ChildID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				c.Logger().Warnf("Role %v not found", edge.ChildID)
+				continue
+			}
+			c.Logger().Error(err)
+			return err
+		}
+		resp = append(resp, Role{
+			ID:   role.ID,
+			Code: role.Code,
+		})
+	}
+	return c.JSON(http.StatusOK, resp)
 }
 
 func (v *View) observeUserRoles(c echo.Context) error {

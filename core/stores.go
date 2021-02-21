@@ -11,8 +11,8 @@ import (
 // SetupInvokerStores prepares stores for running invoker.
 func (c *Core) SetupInvokerStores() {
 	dialect := c.Dialect()
-	c.Actions = models.NewActionStore(
-		"solve_action", "solve_action_event", dialect,
+	c.Tasks = models.NewTaskStore(
+		"solve_task", "solve_task_event", dialect,
 	)
 }
 
@@ -23,8 +23,8 @@ func (c *Core) SetupAllStores() error {
 		return err
 	}
 	dialect := c.Dialect()
-	c.Actions = models.NewActionStore(
-		"solve_action", "solve_action_event", dialect,
+	c.Tasks = models.NewTaskStore(
+		"solve_task", "solve_task_event", dialect,
 	)
 	c.Roles = models.NewRoleStore(
 		"solve_role", "solve_role_event", dialect,
@@ -61,7 +61,7 @@ func (c *Core) SetupAllStores() error {
 }
 
 func (c *Core) startStores(start func(models.Store, time.Duration)) {
-	start(c.Actions, time.Second)
+	start(c.Tasks, time.Second)
 	start(c.Roles, time.Second)
 	start(c.RoleEdges, time.Second)
 	start(c.Accounts, time.Second)

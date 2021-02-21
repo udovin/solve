@@ -8,14 +8,14 @@ import (
 	"github.com/udovin/solve/db"
 )
 
-type actionStoreTest struct{}
+type taskStoreTest struct{}
 
-func (t *actionStoreTest) prepareDB(tx *sql.Tx) error {
+func (t *taskStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
-		`CREATE TABLE "action" (` +
+		`CREATE TABLE "task" (` +
 			`"id" integer PRIMARY KEY,` +
 			`"status" integer NOT NULL,` +
-			`"type" integer NOT NULL,` +
+			`"kind" integer NOT NULL,` +
 			`"config" blob NOT NULL,` +
 			`"state" blob NOT NULL,` +
 			`"expire_time" integer NOT NULL)`,
@@ -23,13 +23,13 @@ func (t *actionStoreTest) prepareDB(tx *sql.Tx) error {
 		return err
 	}
 	_, err := tx.Exec(
-		`CREATE TABLE "action_event" (` +
+		`CREATE TABLE "task_event" (` +
 			`"event_id" integer PRIMARY KEY,` +
 			`"event_type" int8 NOT NULL,` +
 			`"event_time" bigint NOT NULL,` +
 			`"id" integer NOT NULL,` +
 			`"status" integer NOT NULL,` +
-			`"type" integer NOT NULL,` +
+			`"kind" integer NOT NULL,` +
 			`"config" blob NOT NULL,` +
 			`"state" blob NOT NULL,` +
 			`"expire_time" integer NOT NULL)`,
@@ -37,33 +37,33 @@ func (t *actionStoreTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *actionStoreTest) newStore() Store {
-	return NewActionStore("action", "action_event", db.SQLite)
+func (t *taskStoreTest) newStore() Store {
+	return NewTaskStore("task", "task_event", db.SQLite)
 }
 
-func (t *actionStoreTest) newObject() db.Object {
-	return Action{}
+func (t *taskStoreTest) newObject() db.Object {
+	return Task{}
 }
 
-func (t *actionStoreTest) createObject(
+func (t *taskStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return s.(*ActionStore).CreateTx(tx, o.(Action))
+	return s.(*TaskStore).CreateTx(tx, o.(Task))
 }
 
-func (t *actionStoreTest) updateObject(
+func (t *taskStoreTest) updateObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, s.(*ActionStore).UpdateTx(tx, o.(Action))
+	return o, s.(*TaskStore).UpdateTx(tx, o.(Task))
 }
 
-func (t *actionStoreTest) deleteObject(
+func (t *taskStoreTest) deleteObject(
 	s Store, tx *sql.Tx, id int64,
 ) error {
-	return s.(*ActionStore).DeleteTx(tx, id)
+	return s.(*TaskStore).DeleteTx(tx, id)
 }
 
-func TestActionStatus(t *testing.T) {
+func TestTaskStatus(t *testing.T) {
 	if s := fmt.Sprintf("%s", Queued); s != "Queued" {
 		t.Errorf("Expected %q, got %q", "Queued", s)
 	}
@@ -76,8 +76,8 @@ func TestActionStatus(t *testing.T) {
 	if s := fmt.Sprintf("%s", Failed); s != "Failed" {
 		t.Errorf("Expected %q, got %q", "Failed", s)
 	}
-	if s := fmt.Sprintf("%s", ActionStatus(-1)); s != "ActionStatus(-1)" {
-		t.Errorf("Expected %q, got %q", "ActionStatus(-1)", s)
+	if s := fmt.Sprintf("%s", TaskStatus(-1)); s != "TaskStatus(-1)" {
+		t.Errorf("Expected %q, got %q", "TaskStatus(-1)", s)
 	}
 	text, err := Succeeded.MarshalText()
 	if err != nil {
@@ -88,12 +88,12 @@ func TestActionStatus(t *testing.T) {
 	}
 }
 
-func TestActionType(t *testing.T) {
+func TestTaskKind(t *testing.T) {
 	if s := fmt.Sprintf("%s", JudgeSolution); s != "JudgeSolution" {
 		t.Errorf("Expected %q, got %q", "JudgeSolution", s)
 	}
-	if s := fmt.Sprintf("%s", ActionType(-1)); s != "ActionType(-1)" {
-		t.Errorf("Expected %q, got %q", "ActionType(-1)", s)
+	if s := fmt.Sprintf("%s", TaskKind(-1)); s != "TaskKind(-1)" {
+		t.Errorf("Expected %q, got %q", "TaskKind(-1)", s)
 	}
 	text, err := JudgeSolution.MarshalText()
 	if err != nil {
@@ -104,9 +104,9 @@ func TestActionType(t *testing.T) {
 	}
 }
 
-func TestActionStore(t *testing.T) {
+func TestTaskStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := StoreTester{&actionStoreTest{}}
+	tester := StoreTester{&taskStoreTest{}}
 	tester.Test(t)
 }

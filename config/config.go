@@ -35,6 +35,8 @@ type Server struct {
 	Host string `json:"host"`
 	// Port contains server port.
 	Port int `json:"port"`
+	// SocketFile contains path to socket.
+	SocketFile string `json:"socket_file"`
 }
 
 // Address returns string representation of server address.
@@ -57,6 +59,9 @@ type Invoker struct {
 // LoadFromFile loads configuration from json file.
 func LoadFromFile(file string) (Config, error) {
 	cfg := Config{
+		Server: Server{
+			SocketFile: "/tmp/solve-server.sock",
+		},
 		// By default we should use INFO level.
 		LogLevel: log.INFO,
 	}

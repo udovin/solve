@@ -173,7 +173,9 @@ func (v *View) authStatus(c echo.Context) error {
 	if roles, ok := c.Get(authRolesKey).(core.RoleSet); ok {
 		for id := range roles {
 			if role, err := v.core.Roles.Get(id); err == nil {
-				status.Roles = append(status.Roles, role.Code)
+				if role.IsBuiltIn() {
+					status.Roles = append(status.Roles, role.Code)
+				}
 			}
 		}
 	}
@@ -307,7 +309,7 @@ func validatePassword(errors errorFields, password string) {
 func (v *View) registerUser(c echo.Context) error {
 	var form registerUserForm
 	if err := c.Bind(&form); err != nil {
-		c.Logger().Error(err)
+		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
 	if resp := form.Validate(); resp != nil {

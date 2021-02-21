@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"sync"
 	"time"
 
 	"github.com/udovin/solve/core"
@@ -41,43 +41,105 @@ func (s *Invoker) runDaemon(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			var action models.Action
-			if err := s.core.WithTx(ctx, func(tx *sql.Tx) error {
-				var err error
-				action, err = s.core.Actions.PopQueuedTx(tx)
-				return err
-			}); err != nil {
-				if err != sql.ErrNoRows {
-					log.Println("Error:", err)
+		default:
+			if ok := s.runDaemonTick(ctx); !ok {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
 				}
-				continue
-			}
-			if err := s.onAction(action); err != nil {
-				action.Status = models.Failed
-			} else {
-				action.Status = models.Succeeded
-			}
-			if err := s.core.WithTx(ctx, func(tx *sql.Tx) error {
-				return s.core.Actions.UpdateTx(tx, action)
-			}); err != nil && err != sql.ErrNoRows {
-				log.Println("Error:", err)
 			}
 		}
 	}
 }
 
-func (s *Invoker) onAction(action models.Action) error {
-	s.core.Logger().Debug("Received new action %d", action.ID)
-	switch action.Type {
-	case models.JudgeSolution:
-		return s.onJudgeSolution(action)
+func (s *Invoker) runDaemonTick(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return true
 	default:
-		s.core.Logger().Errorf("Unknown action: %v", action.Type)
-		return fmt.Errorf("unknown action")
+	}
+	var task models.Task
+	if err := s.core.WithTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		task, err = s.core.Tasks.PopQueuedTx(tx)
+		return err
+	}); err != nil {
+		if err != sql.ErrNoRows {
+			s.core.Logger().Error("Error:", err)
+		}
+		return false
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			task.Status = models.Failed
+			s.core.Logger().Error("Task panic:", r)
+		}
+		ctx, cancel := context.WithDeadline(context.Background(), time.Unix(task.ExpireTime, 0))
+		defer cancel()
+		if err := s.core.WithTx(ctx, func(tx *sql.Tx) error {
+			return s.core.Tasks.UpdateTx(tx, task)
+		}); err != nil {
+			s.core.Logger().Error("Error:", err)
+		}
+	}()
+	var waiter sync.WaitGroup
+	defer waiter.Wait()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	waiter.Add(1)
+	go func() {
+		defer waiter.Done()
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				if time.Now().After(time.Unix(task.ExpireTime, 0)) {
+					s.core.Logger().Error("Task expired:", task.ID)
+					return
+				}
+				clone := task
+				if err := s.core.WithTx(ctx, func(tx *sql.Tx) error {
+					clone.ExpireTime = time.Now().Add(5 * time.Second).Unix()
+					return s.core.Tasks.UpdateTx(tx, clone)
+				}); err != nil {
+					s.core.Logger().Warn("Unable to ping task:", err)
+				} else {
+					task.ExpireTime = clone.ExpireTime
+				}
+			}
+		}
+	}()
+	err := s.onTask(ctx, task)
+	cancel()
+	waiter.Wait()
+	if err != nil {
+		task.Status = models.Failed
+	} else {
+		task.Status = models.Succeeded
+	}
+	return true
+}
+
+func (s *Invoker) onTask(ctx context.Context, task models.Task) error {
+	s.core.Logger().Debug("Received new task:", task.ID)
+	switch task.Kind {
+	case models.JudgeSolution:
+		return s.onJudgeSolution(ctx, task)
+	default:
+		s.core.Logger().Error("Unknown task", task.Kind)
+		return fmt.Errorf("unknown task")
 	}
 }
 
-func (s *Invoker) onJudgeSolution(action models.Action) error {
+func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	return fmt.Errorf("not implemented")
 }

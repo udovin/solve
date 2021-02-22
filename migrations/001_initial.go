@@ -250,8 +250,8 @@ DROP TABLE IF EXISTS "solve_role_edge_event";
 DROP TABLE IF EXISTS "solve_role_edge";
 DROP TABLE IF EXISTS "solve_role_event";
 DROP TABLE IF EXISTS "solve_role";
-DROP TABLE IF EXISTS "solve_action_event";
-DROP TABLE IF EXISTS "solve_action";
+DROP TABLE IF EXISTS "solve_task_event";
+DROP TABLE IF EXISTS "solve_task";
 `
 
 func (m *m001) Apply(c *core.Core, tx *sql.Tx) error {

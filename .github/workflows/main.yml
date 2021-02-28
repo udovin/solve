@@ -36,7 +36,7 @@ jobs:
         POSTGRES_HOST: postgres
         POSTGRES_PORT: 5432
     - name: Upload to Codecov
-      if: succeeded() || failed()
+      if: success() || failure()
       env:
         CODECOV_TOKEN: ${{secrets.CODECOV_TOKEN}}
       run: |

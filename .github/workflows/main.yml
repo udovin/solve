@@ -32,11 +32,11 @@ jobs:
     - name: Run tests
       run: |
         go test -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...
-      continue-on-error: true
       env:
         POSTGRES_HOST: postgres
         POSTGRES_PORT: 5432
     - name: Upload to Codecov
+      if: succeeded() || failed()
       env:
         CODECOV_TOKEN: ${{secrets.CODECOV_TOKEN}}
       run: |

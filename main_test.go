@@ -2,9 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/udovin/solve/config"
@@ -20,7 +23,8 @@ var (
 			Options: config.SQLiteOptions{Path: ":memory:?cache=shared"},
 		},
 		Server: config.Server{
-			Port: 0,
+			Port:       0,
+			SocketFile: fmt.Sprintf("/tmp/test-solve-%d.sock", rand.Int63()),
 		},
 		Security: config.Security{
 			PasswordSalt: config.Secret{
@@ -30,6 +34,10 @@ var (
 		},
 	}
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func testSetup(tb testing.TB) {
 	var err error
@@ -105,4 +113,47 @@ func TestClientMain(t *testing.T) {
 		}
 	}()
 	clientMain(&cmd, nil)
+}
+
+func TestDBApplyMain(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	cmd := cobra.Command{}
+	cmd.Flags().String("config", "", "")
+	cmd.Flags().Set("config", testConfigFile.Name())
+	go func() {
+		shutdown <- os.Interrupt
+	}()
+	dbApplyMain(&cmd, nil)
+}
+
+func TestDBUnapplyMain(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	cmd := cobra.Command{}
+	cmd.Flags().String("config", "", "")
+	cmd.Flags().Set("config", testConfigFile.Name())
+	go func() {
+		shutdown <- os.Interrupt
+	}()
+	dbUnapplyMain(&cmd, nil)
+}
+
+func TestGetConfigUnknown(t *testing.T) {
+	cmd := cobra.Command{}
+	if _, err := getConfig(&cmd); err != nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestCommand(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic")
+		}
+	}()
+	args := os.Args
+	os.Args = []string{"solve", "--config", "not-found", "server"}
+	main()
+	os.Args = args
 }

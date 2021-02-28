@@ -141,7 +141,7 @@ func TestDBUnapplyMain(t *testing.T) {
 
 func TestGetConfigUnknown(t *testing.T) {
 	cmd := cobra.Command{}
-	if _, err := getConfig(&cmd); err != nil {
+	if _, err := getConfig(&cmd); err == nil {
 		t.Fatal("Expected error")
 	}
 }

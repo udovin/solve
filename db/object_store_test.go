@@ -48,8 +48,8 @@ func testSetupObjectStore(t testing.TB, store ObjectStore) []testObject {
 }
 
 func TestObjectStore(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	testSetup(t, sqliteConfig, sqliteCreateTables)
+	defer testTeardown(t, sqliteDropTables)
 	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
 	objects := testSetupObjectStore(t, store)
 	tx, err := testDB.Begin()
@@ -97,8 +97,8 @@ func TestObjectStore(t *testing.T) {
 }
 
 func TestObjectStoreClosed(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	testSetup(t, sqliteConfig, sqliteCreateTables)
+	defer testTeardown(t, sqliteDropTables)
 	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
 	tx, err := testDB.Begin()
 	if err != nil {
@@ -125,8 +125,8 @@ func TestObjectStoreClosed(t *testing.T) {
 }
 
 func TestObjectStoreLoadObjectsFail(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	testSetup(t, sqliteConfig, sqliteCreateTables)
+	defer testTeardown(t, sqliteDropTables)
 	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
 	objects := testSetupObjectStore(t, store)
 	tx, err := testDB.Begin()
@@ -153,8 +153,8 @@ func TestObjectStoreLoadObjectsFail(t *testing.T) {
 }
 
 func TestObjectStoreFindObjectsFail(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	testSetup(t, sqliteConfig, sqliteCreateTables)
+	defer testTeardown(t, sqliteDropTables)
 	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
 	objects := testSetupObjectStore(t, store)
 	tx, err := testDB.Begin()

@@ -22,7 +22,7 @@ type testEvent struct {
 
 var testDB *sql.DB
 
-var createTables = []string{
+var sqliteCreateTables = []string{
 	`CREATE TABLE "test_object"
 (
 	"id" INTEGER PRIMARY KEY,
@@ -41,30 +41,31 @@ var createTables = []string{
 )`,
 }
 
-var dropTables = []string{
+var sqliteDropTables = []string{
 	`DROP TABLE "test_event"`,
 	`DROP TABLE "test_object"`,
 }
 
-func testSetup(tb testing.TB) {
-	cfg := config.DB{
-		Driver:  config.SQLiteDriver,
-		Options: config.SQLiteOptions{Path: "?mode=memory"},
-	}
+var sqliteConfig = config.DB{
+	Driver:  config.SQLiteDriver,
+	Options: config.SQLiteOptions{Path: "?mode=memory"},
+}
+
+func testSetup(tb testing.TB, cfg config.DB, creates []string) {
 	var err error
 	testDB, err = cfg.Create()
 	if err != nil {
 		os.Exit(1)
 	}
-	for _, query := range createTables {
+	for _, query := range creates {
 		if _, err := testDB.Exec(query); err != nil {
 			tb.Fatal(err)
 		}
 	}
 }
 
-func testTeardown(tb testing.TB) {
-	for _, query := range dropTables {
+func testTeardown(tb testing.TB, removes []string) {
+	for _, query := range removes {
 		if _, err := testDB.Exec(query); err != nil {
 			tb.Fatal(err)
 		}
@@ -72,9 +73,9 @@ func testTeardown(tb testing.TB) {
 	_ = testDB.Close()
 }
 
-func TestEventStore(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
+	testSetup(t, cfg, creates)
+	defer testTeardown(t, removes)
 	store := NewEventStore(testEvent{}, "id", "test_event", SQLite)
 	tx, err := testDB.Begin()
 	if err != nil {
@@ -122,9 +123,13 @@ func TestEventStore(t *testing.T) {
 	}
 }
 
+func TestSQLiteEventStore(t *testing.T) {
+	testEventStore(t, sqliteConfig, sqliteCreateTables, sqliteDropTables)
+}
+
 func TestEventStoreClosed(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	testSetup(t, sqliteConfig, sqliteCreateTables)
+	defer testTeardown(t, sqliteDropTables)
 	store := NewEventStore(testEvent{}, "id", "test_event", SQLite)
 	tx, err := testDB.Begin()
 	if err != nil {

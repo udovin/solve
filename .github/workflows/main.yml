@@ -4,11 +4,21 @@ jobs:
   test:
     name: Test Repository
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
-    - name: Set up Go 1.15
+    - name: Set up Go 1.16
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
       id: go
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
@@ -22,6 +32,10 @@ jobs:
     - name: Run tests
       run: |
         go test -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...
+      continue-on-error: true
+      env:
+        POSTGRES_HOST: postgres
+        POSTGRES_PORT: 5432
     - name: Upload to Codecov
       env:
         CODECOV_TOKEN: ${{secrets.CODECOV_TOKEN}}

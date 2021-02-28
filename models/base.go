@@ -101,6 +101,9 @@ func (v *JSON) UnmarshalJSON(bytes []byte) error {
 }
 
 func (v JSON) clone() JSON {
+	if v == nil {
+		return nil
+	}
 	c := make(JSON, len(v))
 	copy(c, v)
 	return c

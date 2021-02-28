@@ -509,6 +509,10 @@ func TestJSON_clone(t *testing.T) {
 	if string(a) == string(b) {
 		t.Fatalf("Update should modify only one copy")
 	}
+	var c JSON = nil
+	if d := c.clone(); !reflect.DeepEqual(c, d) {
+		t.Fatalf("Expected %v, got %v", c, d)
+	}
 }
 
 type StoreTestHelper interface {

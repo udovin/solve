@@ -17,6 +17,11 @@ func (o Problem) ObjectID() int64 {
 	return o.ID
 }
 
+func (o Problem) clone() Problem {
+	o.Config = o.Config.clone()
+	return o
+}
+
 // ProblemEvent represents a problem event.
 type ProblemEvent struct {
 	baseEvent

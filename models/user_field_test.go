@@ -64,3 +64,11 @@ func TestUserFieldStore(t *testing.T) {
 	tester := StoreTester{&userFieldStoreTest{}}
 	tester.Test(t)
 }
+
+func TestUserFieldKind_String(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		if len(UserFieldKind(i).String()) == 0 {
+			t.Fatal("Expected non-empty kind")
+		}
+	}
+}

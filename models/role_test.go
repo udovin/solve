@@ -60,3 +60,11 @@ func TestRoleStore(t *testing.T) {
 	tester := StoreTester{&roleStoreTest{}}
 	tester.Test(t)
 }
+
+func TestRole_IsBuiltIn(t *testing.T) {
+	for code, _ := range builtInRoles {
+		if !(Role{Code: code}).IsBuiltIn() {
+			t.Fatalf("Expected built-in role %q", code)
+		}
+	}
+}

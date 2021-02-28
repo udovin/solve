@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"log"
+	"reflect"
 	"testing"
 
 	"github.com/udovin/solve/db"
@@ -61,4 +62,12 @@ func TestContestStore(t *testing.T) {
 	defer testTeardown(t)
 	tester := StoreTester{&contestStoreTest{}}
 	tester.Test(t)
+}
+
+func TestContestClone(t *testing.T) {
+	contest := Contest{ID: 12345, Config: JSON("{}")}
+	clone := contest.clone()
+	if !reflect.DeepEqual(contest, clone) {
+		t.Fatalf("Contest clone is invalid, %v != %v", contest, clone)
+	}
 }

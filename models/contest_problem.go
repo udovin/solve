@@ -23,7 +23,8 @@ func (o ContestProblem) ObjectID() int64 {
 	return o.ID
 }
 
-func (o ContestProblem) clone() ContestProblem {
+// Clone creates copy of contest problem.
+func (o ContestProblem) Clone() ContestProblem {
 	return o
 }
 
@@ -59,7 +60,7 @@ func (s *ContestProblemStore) Get(id int64) (ContestProblem, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if problem, ok := s.problems[id]; ok {
-		return problem.clone(), nil
+		return problem.Clone(), nil
 	}
 	return ContestProblem{}, sql.ErrNoRows
 }
@@ -73,7 +74,7 @@ func (s *ContestProblemStore) FindByContest(
 	var problems []ContestProblem
 	for id := range s.byContest[contestID] {
 		if problem, ok := s.problems[id]; ok {
-			problems = append(problems, problem.clone())
+			problems = append(problems, problem.Clone())
 		}
 	}
 	return problems, nil

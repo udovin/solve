@@ -21,7 +21,8 @@ func (o AccountRole) ObjectID() int64 {
 	return o.ID
 }
 
-func (o AccountRole) clone() AccountRole {
+// Clone creates copy of account role.
+func (o AccountRole) Clone() AccountRole {
 	return o
 }
 
@@ -57,7 +58,7 @@ func (s *AccountRoleStore) Get(id int64) (AccountRole, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if role, ok := s.roles[id]; ok {
-		return role.clone(), nil
+		return role.Clone(), nil
 	}
 	return AccountRole{}, sql.ErrNoRows
 }
@@ -69,7 +70,7 @@ func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
 	var roles []AccountRole
 	for id := range s.byAccount[id] {
 		if role, ok := s.roles[id]; ok {
-			roles = append(roles, role.clone())
+			roles = append(roles, role.Clone())
 		}
 	}
 	return roles, nil

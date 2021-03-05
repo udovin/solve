@@ -21,7 +21,8 @@ func (o RoleEdge) ObjectID() int64 {
 	return o.ID
 }
 
-func (o RoleEdge) clone() RoleEdge {
+// Clone creates copy of role edge.
+func (o RoleEdge) Clone() RoleEdge {
 	return o
 }
 
@@ -57,7 +58,7 @@ func (s *RoleEdgeStore) Get(id int64) (RoleEdge, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if edge, ok := s.edges[id]; ok {
-		return edge.clone(), nil
+		return edge.Clone(), nil
 	}
 	return RoleEdge{}, sql.ErrNoRows
 }
@@ -69,7 +70,7 @@ func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
 	var edges []RoleEdge
 	for id := range s.byRole[id] {
 		if edge, ok := s.edges[id]; ok {
-			edges = append(edges, edge.clone())
+			edges = append(edges, edge.Clone())
 		}
 	}
 	return edges, nil

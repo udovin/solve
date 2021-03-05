@@ -81,7 +81,8 @@ func (o Task) ObjectID() int64 {
 	return o.ID
 }
 
-func (o Task) clone() Task {
+// Clone create copy of task.
+func (o Task) Clone() Task {
 	o.Config = o.Config.clone()
 	o.State = o.State.clone()
 	return o
@@ -118,7 +119,7 @@ func (s *TaskStore) Get(id int64) (Task, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if task, ok := s.tasks[id]; ok {
-		return task.clone(), nil
+		return task.Clone(), nil
 	}
 	return Task{}, sql.ErrNoRows
 }
@@ -130,7 +131,7 @@ func (s *TaskStore) FindByStatus(status TaskStatus) ([]Task, error) {
 	var tasks []Task
 	for id := range s.byStatus[int64(status)] {
 		if task, ok := s.tasks[id]; ok {
-			tasks = append(tasks, task.clone())
+			tasks = append(tasks, task.Clone())
 		}
 	}
 	return tasks, nil
@@ -182,7 +183,7 @@ func (s *TaskStore) PopQueuedTx(tx *sql.Tx) (Task, error) {
 		if task, ok := s.tasks[id]; ok {
 			// We should make clone of action, because we do not
 			// want to corrupt Store in-memory cache.
-			task = task.clone()
+			task = task.Clone()
 			// Now we can do any manipulations with this action.
 			task.Status = Running
 			task.ExpireTime = time.Now().Add(5 * time.Second).Unix()

@@ -17,7 +17,8 @@ func (o Problem) ObjectID() int64 {
 	return o.ID
 }
 
-func (o Problem) clone() Problem {
+// Clone creates copy of problem.
+func (o Problem) Clone() Problem {
 	o.Config = o.Config.clone()
 	return o
 }

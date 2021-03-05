@@ -67,7 +67,7 @@ func TestProblemStore(t *testing.T) {
 
 func TestProblemClone(t *testing.T) {
 	problem := Problem{ID: 12345, Config: JSON("{}")}
-	clone := problem.clone()
+	clone := problem.Clone()
 	if !reflect.DeepEqual(problem, clone) {
 		t.Fatalf("Problem clone is invalid, %v != %v", problem, clone)
 	}

@@ -27,7 +27,8 @@ func (o Account) ObjectID() int64 {
 	return o.ID
 }
 
-func (o Account) clone() Account {
+// Clone creates copy of account.
+func (o Account) Clone() Account {
 	return o
 }
 
@@ -59,7 +60,7 @@ func (s *AccountStore) Get(id int64) (Account, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if account, ok := s.accounts[id]; ok {
-		return account.clone(), nil
+		return account.Clone(), nil
 	}
 	return Account{}, sql.ErrNoRows
 }

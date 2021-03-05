@@ -17,7 +17,8 @@ func (o Contest) ObjectID() int64 {
 	return o.ID
 }
 
-func (o Contest) clone() Contest {
+// Clone creates copy of contest.
+func (o Contest) Clone() Contest {
 	o.Config = o.Config.clone()
 	return o
 }

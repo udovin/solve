@@ -21,7 +21,8 @@ func (o UserField) ObjectID() int64 {
 	return o.ID
 }
 
-func (o UserField) clone() UserField {
+// Clone creates copy of user field.
+func (o UserField) Clone() UserField {
 	return o
 }
 
@@ -83,7 +84,7 @@ func (s *UserFieldStore) Get(id int64) (UserField, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if field, ok := s.fields[id]; ok {
-		return field.clone(), nil
+		return field.Clone(), nil
 	}
 	return UserField{}, sql.ErrNoRows
 }
@@ -95,7 +96,7 @@ func (s *UserFieldStore) FindByUser(userID int64) ([]UserField, error) {
 	var fields []UserField
 	for id := range s.byUser[userID] {
 		if field, ok := s.fields[id]; ok {
-			fields = append(fields, field.clone())
+			fields = append(fields, field.Clone())
 		}
 	}
 	return fields, nil

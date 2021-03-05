@@ -25,7 +25,8 @@ func (o User) ObjectID() int64 {
 	return o.ID
 }
 
-func (o User) clone() User {
+// Clone creates copy of user.
+func (o User) Clone() User {
 	return o
 }
 
@@ -60,7 +61,7 @@ func (s *UserStore) Get(id int64) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if user, ok := s.users[id]; ok {
-		return user.clone(), nil
+		return user.Clone(), nil
 	}
 	return User{}, sql.ErrNoRows
 }
@@ -71,7 +72,7 @@ func (s *UserStore) GetByLogin(login string) (User, error) {
 	defer s.mutex.RUnlock()
 	if id, ok := s.byLogin[strings.ToLower(login)]; ok {
 		if user, ok := s.users[id]; ok {
-			return user.clone(), nil
+			return user.Clone(), nil
 		}
 	}
 	return User{}, sql.ErrNoRows
@@ -83,7 +84,7 @@ func (s *UserStore) GetByAccount(id int64) (User, error) {
 	defer s.mutex.RUnlock()
 	if id, ok := s.byAccount[id]; ok {
 		if user, ok := s.users[id]; ok {
-			return user.clone(), nil
+			return user.Clone(), nil
 		}
 	}
 	return User{}, sql.ErrNoRows

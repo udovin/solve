@@ -97,7 +97,8 @@ func (o Role) IsBuiltIn() bool {
 	return ok
 }
 
-func (o Role) clone() Role {
+// Clone creates copy of role.
+func (o Role) Clone() Role {
 	return o
 }
 
@@ -133,7 +134,7 @@ func (s *RoleStore) Get(id int64) (Role, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if role, ok := s.roles[id]; ok {
-		return role.clone(), nil
+		return role.Clone(), nil
 	}
 	return Role{}, sql.ErrNoRows
 }
@@ -158,7 +159,7 @@ func (s *RoleStore) GetByCode(code string) (Role, error) {
 	defer s.mutex.RUnlock()
 	if id, ok := s.byCode[code]; ok {
 		if role, ok := s.roles[id]; ok {
-			return role.clone(), nil
+			return role.Clone(), nil
 		}
 	}
 	return Role{}, sql.ErrNoRows

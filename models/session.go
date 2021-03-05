@@ -32,7 +32,8 @@ func (o Session) ObjectID() int64 {
 	return o.ID
 }
 
-func (o Session) clone() Session {
+// Clone creates copy of session.
+func (o Session) Clone() Session {
 	return o
 }
 
@@ -83,7 +84,7 @@ func (s *SessionStore) Get(id int64) (Session, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if session, ok := s.sessions[id]; ok {
-		return session.clone(), nil
+		return session.Clone(), nil
 	}
 	return Session{}, sql.ErrNoRows
 }
@@ -95,7 +96,7 @@ func (s *SessionStore) FindByAccount(id int64) ([]Session, error) {
 	var sessions []Session
 	for id := range s.byAccount[id] {
 		if session, ok := s.sessions[id]; ok {
-			sessions = append(sessions, session.clone())
+			sessions = append(sessions, session.Clone())
 		}
 	}
 	return sessions, nil
@@ -114,7 +115,7 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 	if !ok || session.Secret != parts[1] {
 		return Session{}, sql.ErrNoRows
 	}
-	return session.clone(), nil
+	return session.Clone(), nil
 }
 
 // CreateTx creates session and returns new session with valid ID.

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/labstack/gommon/log"
+	"go.uber.org/zap"
 
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/db"
@@ -48,7 +48,7 @@ type Core struct {
 	// db stores database connection.
 	DB *sql.DB
 	// logger contains logger.
-	logger *log.Logger
+	logger *zap.Logger
 }
 
 // NewCore creates core instance from config.
@@ -57,14 +57,19 @@ func NewCore(cfg config.Config) (*Core, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger := log.New("core")
-	logger.SetLevel(cfg.LogLevel)
-	logger.EnableColor()
+	loggerCfg := zap.Config{
+		Level:    zap.NewAtomicLevelAt(cfg.Logger.Level),
+		Encoding: "json",
+	}
+	logger, err := loggerCfg.Build()
+	if err != nil {
+		return nil, err
+	}
 	return &Core{Config: cfg, DB: conn, logger: logger}, nil
 }
 
 // Logger returns logger instance.
-func (c *Core) Logger() *log.Logger {
+func (c *Core) Logger() *zap.Logger {
 	return c.logger
 }
 

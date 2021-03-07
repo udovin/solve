@@ -19,6 +19,7 @@ func TestUserLoginScenario(t *testing.T) {
 	registerUser(t, "test", "qwerty123")
 	syncManagers(t)
 	observeUser(t, "test")
+	observeUserRoles(t, "test")
 	loginUser(t, "test", "qwerty123")
 }
 
@@ -33,6 +34,12 @@ func syncManagers(tb testing.TB) {
 				return err
 			}
 			if err := testView.core.UserFields.SyncTx(tx); err != nil {
+				return err
+			}
+			if err := testView.core.Roles.SyncTx(tx); err != nil {
+				return err
+			}
+			if err := testView.core.AccountRoles.SyncTx(tx); err != nil {
 				return err
 			}
 			return nil
@@ -116,4 +123,24 @@ func observeUser(tb testing.TB, login string) {
 		tb.Fatal("Error:", err)
 	}
 	expectStatus(tb, http.StatusOK, rec.Code)
+}
+
+func observeUserRoles(tb testing.TB, login string) []Role {
+	req := httptest.NewRequest(
+		http.MethodGet, fmt.Sprintf("/users/%s/roles", login), nil,
+	)
+	rec := httptest.NewRecorder()
+	c := testSrv.NewContext(req, rec)
+	c.SetParamNames("user")
+	c.SetParamValues(login)
+	handler := testView.extractUser(testView.observeUserRoles)
+	if err := handler(c); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	expectStatus(tb, http.StatusOK, rec.Code)
+	var resp []Role
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	return resp
 }

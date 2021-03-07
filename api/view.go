@@ -25,6 +25,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerUserHandlers(g)
 	v.registerRoleHandlers(g)
 	v.registerSessionHandlers(g)
+	v.registerContestHandlers(g)
 }
 
 func (v *View) RegisterSocket(g *echo.Group) {

@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 )
@@ -68,21 +66,21 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 		return err
 	}); err != nil {
 		if err != sql.ErrNoRows {
-			s.core.Logger().Error("Unable to pop task", zap.Error(err))
+			s.core.Logger().Error("Error:", err)
 		}
 		return false
 	}
 	defer func() {
 		if r := recover(); r != nil {
 			task.Status = models.Failed
-			s.core.Logger().Error("Task panic", zap.Any("panic", r))
+			s.core.Logger().Error("Task panic:", r)
 		}
 		ctx, cancel := context.WithDeadline(context.Background(), time.Unix(task.ExpireTime, 0))
 		defer cancel()
 		if err := s.core.WithTx(ctx, func(tx *sql.Tx) error {
 			return s.core.Tasks.UpdateTx(tx, task)
 		}); err != nil {
-			s.core.Logger().Error("Unable to update task", zap.Error(err))
+			s.core.Logger().Error("Error:", err)
 		}
 	}()
 	var waiter sync.WaitGroup
@@ -105,10 +103,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 				default:
 				}
 				if time.Now().After(time.Unix(task.ExpireTime, 0)) {
-					s.core.Logger().Error(
-						"Task expired",
-						zap.Int64("task_id", task.ID),
-					)
+					s.core.Logger().Error("Task expired:", task.ID)
 					return
 				}
 				clone := task
@@ -116,11 +111,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 					clone.ExpireTime = time.Now().Add(5 * time.Second).Unix()
 					return s.core.Tasks.UpdateTx(tx, clone)
 				}); err != nil {
-					s.core.Logger().Error(
-						"Unable to ping task",
-						zap.Int64("task_id", task.ID),
-						zap.Error(err),
-					)
+					s.core.Logger().Warn("Unable to ping task:", err)
 				} else {
 					task.ExpireTime = clone.ExpireTime
 				}
@@ -139,19 +130,12 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 }
 
 func (s *Invoker) onTask(ctx context.Context, task models.Task) error {
-	s.core.Logger().Debug(
-		"Received new task",
-		zap.Int64("task_id", task.ID),
-	)
+	s.core.Logger().Debug("Received new task:", task.ID)
 	switch task.Kind {
 	case models.JudgeSolution:
 		return s.onJudgeSolution(ctx, task)
 	default:
-		s.core.Logger().Error(
-			"Unknown task",
-			zap.Int64("task_id", task.ID),
-			zap.Int("task_kind", int(task.Kind)),
-		)
+		s.core.Logger().Error("Unknown task", task.Kind)
 		return fmt.Errorf("unknown task")
 	}
 }

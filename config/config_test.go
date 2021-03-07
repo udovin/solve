@@ -5,10 +5,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"reflect"
 	"testing"
 
-	"go.uber.org/zap"
+	"github.com/labstack/gommon/log"
 )
 
 func TestLoadFromFile(t *testing.T) {
@@ -25,9 +24,7 @@ func TestLoadFromFile(t *testing.T) {
 			Driver:  SQLiteDriver,
 			Options: SQLiteOptions{Path: "?mode=memory"},
 		},
-		Logger: Logger{
-			Level: zap.InfoLevel,
-		},
+		LogLevel: log.INFO,
 	}
 	expectedConfigData, err := json.Marshal(expectedConfig)
 	if err != nil {
@@ -49,7 +46,7 @@ func TestLoadFromFile(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	if !reflect.DeepEqual(config, expectedConfig) {
+	if config != expectedConfig {
 		t.Fatal("Config was corrupted")
 	}
 }

@@ -3,10 +3,9 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap/zapcore"
 	"io/ioutil"
 
-	"go.uber.org/zap"
+	"github.com/labstack/gommon/log"
 )
 
 // Config stores configuration for Solve API and Invoker.
@@ -19,8 +18,15 @@ type Config struct {
 	Invoker Invoker `json:"invoker"`
 	// Security contains security config.
 	Security Security `json:"security"`
-	// Logger contains logger configuration.
-	Logger Logger `json:"logger"`
+	// LogLevel contains level of logging.
+	//
+	// You can use following values:
+	//  * 1 - DEBUG
+	//  * 2 - INFO (default)
+	//  * 3 - WARN
+	//  * 4 - ERROR
+	//  * 5 - OFF
+	LogLevel log.Lvl `json:"log_level"`
 }
 
 // Server contains server config.
@@ -50,20 +56,14 @@ type Invoker struct {
 	Threads     int    `json:"threads"`
 }
 
-type Logger struct {
-	Level zapcore.Level `json:"level"`
-}
-
 // LoadFromFile loads configuration from json file.
 func LoadFromFile(file string) (Config, error) {
 	cfg := Config{
 		Server: Server{
 			SocketFile: "/tmp/solve-server.sock",
 		},
-		Logger: Logger{
-			// By default we should use INFO level.
-			Level: zap.InfoLevel,
-		},
+		// By default we should use INFO level.
+		LogLevel: log.INFO,
 	}
 	bytes, err := ioutil.ReadFile(file)
 	if err != nil {

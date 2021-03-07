@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 
 	"github.com/udovin/solve/api"
 	"github.com/udovin/solve/config"
@@ -80,7 +80,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 		if sock.Listener, err = net.Listen("unix", file); err != nil {
 			panic(err)
 		}
-		sock.Logger = api.ZapWrap{Logger: c.Logger()}
+		sock.Logger = c.Logger()
 		sock.HideBanner, sock.HidePort = true, true
 		sock.Pre(middleware.RemoveTrailingSlash())
 		sock.Use(middleware.Recover(), middleware.Gzip(), middleware.Logger())
@@ -90,17 +90,17 @@ func serverMain(cmd *cobra.Command, _ []string) {
 			defer waiter.Done()
 			defer cancel()
 			if err := sock.Start(""); isServerError(err) {
-				c.Logger().Error("Unable to start server", zap.Error(err))
+				c.Logger().Error(err)
 			}
 		}()
 		defer func() {
 			if err := sock.Shutdown(context.Background()); err != nil {
-				c.Logger().Error("Error shutdown server", zap.Error(err))
+				c.Logger().Error(err)
 			}
 		}()
 	}
 	srv := echo.New()
-	srv.Logger = api.ZapWrap{Logger: c.Logger()}
+	srv.Logger = c.Logger()
 	srv.HideBanner, srv.HidePort = true, true
 	srv.Pre(middleware.RemoveTrailingSlash())
 	srv.Use(middleware.Recover(), middleware.Gzip(), middleware.Logger())
@@ -110,12 +110,12 @@ func serverMain(cmd *cobra.Command, _ []string) {
 		defer waiter.Done()
 		defer cancel()
 		if err := srv.Start(cfg.Server.Address()); isServerError(err) {
-			c.Logger().Error("Unable to start server", zap.Error(err))
+			c.Logger().Error(err)
 		}
 	}()
 	defer func() {
 		if err := srv.Shutdown(context.Background()); err != nil {
-			c.Logger().Error("Error shutdown server", zap.Error(err))
+			c.Logger().Error(err)
 		}
 	}()
 	<-ctx.Done()
@@ -242,6 +242,6 @@ func main() {
 	})
 	rootCmd.AddCommand(&dbCmd)
 	if err := rootCmd.Execute(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }

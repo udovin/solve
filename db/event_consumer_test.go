@@ -1,10 +1,10 @@
 package db
 
 import (
-	"container/list"
 	"database/sql"
 	"fmt"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 )
@@ -30,34 +30,40 @@ func (e mockEvent) EventTime() time.Time {
 }
 
 type mockEventStore struct {
-	events *list.List
+	events []Event
 }
 
 func (s *mockEventStore) LastEventID(tx *sql.Tx) (int64, error) {
 	return 0, nil
 }
 
+type eventSorter []Event
+
+func (e eventSorter) Len() int {
+	return len(e)
+}
+
+func (e eventSorter) Less(i, j int) bool {
+	return e[i].EventID() < e[j].EventID()
+}
+
+func (e eventSorter) Swap(i, j int) {
+	e[i], e[j] = e[j], e[i]
+}
+
 func (s *mockEventStore) LoadEvents(
 	tx *sql.Tx, begin, end int64,
 ) (EventReader, error) {
-	lv := s.events.Front()
-	if lv == nil {
+	var events []Event
+	for _, event := range s.events {
+		if event.EventID() >= begin && event.EventID() < end {
+			events = append(events, event)
+		}
+	}
+	if len(events) == 0 {
 		return nil, sql.ErrNoRows
 	}
-	events := list.New()
-	l := lv.Value.(*list.List)
-	for it := l.Front(); it != nil; {
-		jt := it.Next()
-		event := it.Value.(Event)
-		if event.EventID() >= begin && event.EventID() < end {
-			events.PushBack(event)
-			l.Remove(it)
-		}
-		it = jt
-	}
-	if l.Len() == 0 {
-		s.events.Remove(lv)
-	}
+	sort.Sort(eventSorter(events))
 	return &mockEventReader{events: events}, nil
 }
 
@@ -67,29 +73,16 @@ func (s *mockEventStore) FindEvents(
 	return nil, sql.ErrNoRows
 }
 
-func newMockEventStore(groups [][]Event) *mockEventStore {
-	store := mockEventStore{
-		events: list.New(),
-	}
-	for _, group := range groups {
-		events := list.New()
-		for _, event := range group {
-			events.PushBack(event)
-		}
-		store.events.PushBack(events)
-	}
-	return &store
-}
-
 type mockEventReader struct {
-	events *list.List
+	events []Event
 	event  Event
+	pos    int
 }
 
 func (r *mockEventReader) Next() bool {
-	if it := r.events.Front(); it != nil {
-		r.event = it.Value.(Event)
-		r.events.Remove(it)
+	if r.pos < len(r.events) {
+		r.event = r.events[r.pos]
+		r.pos++
 		return true
 	}
 	return false
@@ -136,14 +129,21 @@ func TestEventConsumer(t *testing.T) {
 			mockEvent{ID: 26},
 		},
 	}
-	store := newMockEventStore(groups)
+	store := &mockEventStore{}
 	consumer := NewEventConsumer(store, 1)
 	var result, answer []mockEvent
 	usedIDs := map[int64]struct{}{}
 	currID := int64(1)
 	for _, group := range groups {
 		for _, event := range group {
+			store.events = append(store.events, event)
 			answer = append(answer, event.(mockEvent))
+		}
+		errConsume := fmt.Errorf("consuming error")
+		if err := consumer.ConsumeEvents(nil, func(event Event) error {
+			return errConsume
+		}); err != errConsume {
+			t.Fatal(err)
 		}
 		if err := consumer.ConsumeEvents(nil, func(event Event) error {
 			result = append(result, event.(mockEvent))

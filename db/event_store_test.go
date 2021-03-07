@@ -150,4 +150,7 @@ func TestEventStoreClosed(t *testing.T) {
 	if _, err := store.CreateEvent(tx, testEvent{}); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
+	if _, err := store.CreateEvent(tx, mockEvent{}); err == nil {
+		t.Fatal("Expected error")
+	}
 }

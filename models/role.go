@@ -57,6 +57,12 @@ const (
 	ObserveSessionRole = "observe_session"
 	// DeleteSessionRole represents role for deleting session.
 	DeleteSessionRole = "delete_session"
+	// CreateProblemRole represents role for creating problem.
+	CreateProblemRole = "create_problem"
+	// UpdateProblem represents role for updating problem.
+	UpdateProblemRole = "update_problem"
+	// DeleteProblem represents role for deleting problem.
+	DeleteProblemRole = "delete_problem"
 	// GuestGroupRole represents name of role for guest group.
 	GuestGroupRole = "guest_group"
 	// UserGroupRole represents name of role for user group.
@@ -81,6 +87,9 @@ var builtInRoles = map[string]struct{}{
 	ObserveUserMiddleNameRole: {},
 	ObserveUserSessionRole:    {},
 	ObserveSessionRole:        {},
+	CreateProblemRole:         {},
+	UpdateProblemRole:         {},
+	DeleteProblemRole:         {},
 	DeleteSessionRole:         {},
 	GuestGroupRole:            {},
 	UserGroupRole:             {},

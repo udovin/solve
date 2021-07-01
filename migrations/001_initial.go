@@ -296,6 +296,9 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.ObserveUserSessionRole,
 		models.ObserveSessionRole,
 		models.DeleteSessionRole,
+		models.CreateProblemRole,
+		models.UpdateProblemRole,
+		models.DeleteProblemRole,
 		models.GuestGroupRole,
 		models.UserGroupRole,
 	} {

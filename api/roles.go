@@ -111,7 +111,7 @@ var roleCodeRegexp = regexp.MustCompile(
 	"^[a-zA-Z]([a-zA-Z0-9_\\-])*[a-zA-Z0-9]$",
 )
 
-func (f createRoleForm) Validate() *errorResp {
+func (f createRoleForm) validate() *errorResp {
 	errors := errorFields{}
 	if len(f.Code) < 3 {
 		errors["code"] = errorField{Message: "code too short (<3)"}
@@ -131,16 +131,24 @@ func (f createRoleForm) Validate() *errorResp {
 	}
 }
 
+func (f createRoleForm) Update(role *models.Role) *errorResp {
+	if err := f.validate(); err != nil {
+		return err
+	}
+	role.Code = f.Code
+	return nil
+}
+
 func (v *View) createRole(c echo.Context) error {
 	var form createRoleForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	if resp := form.Validate(); resp != nil {
+	var role models.Role
+	if resp := form.Update(&role); resp != nil {
 		return c.JSON(http.StatusBadRequest, resp)
 	}
-	role := models.Role{Code: form.Code}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
 		var err error
 		role, err = v.core.Roles.CreateTx(tx, role)

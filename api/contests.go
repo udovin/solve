@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/labstack/echo"
+	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 	"net/http"
 	"sort"
@@ -17,8 +18,13 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/contests/:contest", v.observeContest,
-		v.sessionAuth, v.requireAuth, v.extractContest,
+		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.ObserveContestRole),
+	)
+	g.DELETE(
+		"/contests/:contest", v.deleteContest,
+		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
+		v.requireAuthRole(models.DeleteRoleRole),
 	)
 }
 
@@ -68,6 +74,60 @@ func (v *View) observeContest(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+type createContestForm struct {
+}
+
+func (f createContestForm) validate() *errorResp {
+	return nil
+}
+
+func (f createContestForm) Update(contest *models.Contest) *errorResp {
+	if err := f.validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (v *View) createContest(c echo.Context) error {
+	var form createContestForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	var contest models.Contest
+	if err := form.Update(&contest); err != nil {
+		return c.JSON(http.StatusBadRequest, err)
+	}
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		var err error
+		contest, err = v.core.Contests.CreateTx(tx, contest)
+		return err
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusCreated, Contest{
+		ID: contest.ID,
+	})
+}
+
+func (v *View) deleteContest(c echo.Context) error {
+	contest, ok := c.Get(contestKey).(models.Contest)
+	if !ok {
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
+	}
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		return v.core.Contests.DeleteTx(tx, contest.ID)
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusOK, Contest{
+		ID: contest.ID,
+	})
+}
+
 func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		id, err := strconv.ParseInt(c.Param("contest"), 10, 64)
@@ -87,4 +147,28 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 		c.Set(contestKey, contest)
 		return next(c)
 	}
+}
+
+func (v *View) extractContestRoles(next echo.HandlerFunc) echo.HandlerFunc {
+	nextWrap := func(c echo.Context) error {
+		contest, ok := c.Get(contestKey).(models.Contest)
+		if !ok {
+			c.Logger().Error("session not extracted")
+			return fmt.Errorf("session not extracted")
+		}
+		roles, ok := c.Get(authRolesKey).(core.RoleSet)
+		if !ok {
+			c.Logger().Error("roles not extracted")
+			return fmt.Errorf("roles not extracted")
+		}
+		addRole := func(roles core.RoleSet, code string) {
+			if err := v.core.AddRole(roles, code); err != nil {
+				c.Logger().Error(err)
+			}
+		}
+		_ = contest
+		addRole(roles, models.ObserveContestRole)
+		return next(c)
+	}
+	return v.extractAuthRoles(nextWrap)
 }

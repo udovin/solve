@@ -59,10 +59,18 @@ const (
 	DeleteSessionRole = "delete_session"
 	// CreateProblemRole represents role for creating problem.
 	CreateProblemRole = "create_problem"
-	// UpdateProblem represents role for updating problem.
+	// UpdateProblemRole represents role for updating problem.
 	UpdateProblemRole = "update_problem"
-	// DeleteProblem represents role for deleting problem.
+	// DeleteProblemRole represents role for deleting problem.
 	DeleteProblemRole = "delete_problem"
+	// ObserveContestRole represents role for observing contest.
+	ObserveContestRole = "observe_contest"
+	// CreateContestRole represents role for creating contest.
+	CreateContestRole = "create_contest"
+	// UpdateContestRole represents role for updating contest.
+	UpdateContestRole = "update_contest"
+	// DeleteContestRole represents role for deleting contest.
+	DeleteContestRole = "delete_contest"
 	// GuestGroupRole represents name of role for guest group.
 	GuestGroupRole = "guest_group"
 	// UserGroupRole represents name of role for user group.
@@ -90,6 +98,10 @@ var builtInRoles = map[string]struct{}{
 	CreateProblemRole:         {},
 	UpdateProblemRole:         {},
 	DeleteProblemRole:         {},
+	ObserveContestRole:        {},
+	CreateContestRole:         {},
+	UpdateContestRole:         {},
+	DeleteContestRole:         {},
 	DeleteSessionRole:         {},
 	GuestGroupRole:            {},
 	UserGroupRole:             {},

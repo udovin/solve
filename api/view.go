@@ -63,6 +63,8 @@ const (
 	userKey        = "user"
 	sessionKey     = "session"
 	sessionCookie  = "session"
+	contestKey     = "contest"
+	problemKey     = "problem"
 )
 
 // logVisit saves visit to visit store.

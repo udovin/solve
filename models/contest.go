@@ -78,6 +78,30 @@ func (s *ContestStore) DeleteTx(tx *sql.Tx, id int64) error {
 	return err
 }
 
+// Get returns contest by ID.
+//
+// If there is no contest with specified ID then
+// sql.ErrNoRows will be returned.
+func (s *ContestStore) Get(id int64) (Contest, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if contest, ok := s.contests[id]; ok {
+		return contest.Clone(), nil
+	}
+	return Contest{}, sql.ErrNoRows
+}
+
+// All returns all contests.
+func (s *ContestStore) All() ([]Contest, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	var contests []Contest
+	for _, contest := range s.contests {
+		contests = append(contests, contest)
+	}
+	return contests, nil
+}
+
 func (s *ContestStore) reset() {
 	s.contests = map[int64]Contest{}
 }

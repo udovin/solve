@@ -3,12 +3,14 @@ package api
 import (
 	"database/sql"
 	"fmt"
-	"github.com/labstack/echo"
-	"github.com/udovin/solve/core"
-	"github.com/udovin/solve/models"
 	"net/http"
 	"sort"
 	"strconv"
+
+	"github.com/labstack/echo"
+
+	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/models"
 )
 
 func (v *View) registerContestHandlers(g *echo.Group) {

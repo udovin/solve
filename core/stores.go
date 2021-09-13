@@ -14,6 +14,9 @@ func (c *Core) SetupInvokerStores() {
 	c.Tasks = models.NewTaskStore(
 		"solve_task", "solve_task_event", dialect,
 	)
+	c.Solutions = models.NewSolutionStore(
+		"solve_solution", "solve_solution_event", dialect,
+	)
 }
 
 // SetupAllStores prepares all stores.
@@ -53,6 +56,9 @@ func (c *Core) SetupAllStores() error {
 	c.Problems = models.NewProblemStore(
 		"solve_problem", "solve_problem_event", dialect,
 	)
+	c.Solutions = models.NewSolutionStore(
+		"solve_solution", "solve_solution_event", dialect,
+	)
 	c.ContestProblems = models.NewContestProblemStore(
 		"solve_contest_problem", "solve_contest_problem_event", dialect,
 	)
@@ -71,6 +77,7 @@ func (c *Core) startStores(start func(models.Store, time.Duration)) {
 	start(c.UserFields, time.Second)
 	start(c.Contests, time.Second)
 	start(c.Problems, time.Second)
+	start(c.Solutions, time.Second)
 	start(c.ContestProblems, time.Second)
 }
 

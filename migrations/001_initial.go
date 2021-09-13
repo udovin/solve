@@ -195,6 +195,23 @@ CREATE TABLE "solve_problem_event"
 	"owner_id" integer,
 	"config" blob
 );
+-- models.Solution
+CREATE TABLE "solve_solution"
+(
+	"id" integer PRIMARY KEY,
+	"problem_id" integer NOT NULL,
+	"author_id" integer NOT NULL
+);
+-- models.SolutionEvent
+CREATE TABLE "solve_solution_event"
+(
+	"event_id" integer PRIMARY KEY,
+	"event_type" int8 NOT NULL,
+	"event_time" bigint NOT NULL,
+	"id" integer NOT NULL,
+	"problem_id" integer NOT NULL,
+	"author_id" integer NOT NULL
+);
 -- models.ContestProblem
 CREATE TABLE "solve_contest_problem"
 (
@@ -236,6 +253,8 @@ const m001Unapply = `
 DROP TABLE IF EXISTS "solve_visit";
 DROP TABLE IF EXISTS "solve_contest_problem_event";
 DROP TABLE IF EXISTS "solve_contest_problem";
+DROP TABLE IF EXISTS "solve_solution_event";
+DROP TABLE IF EXISTS "solve_solution";
 DROP TABLE IF EXISTS "solve_problem_event";
 DROP TABLE IF EXISTS "solve_problem";
 DROP TABLE IF EXISTS "solve_contest_event";

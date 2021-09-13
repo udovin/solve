@@ -35,6 +35,8 @@ type Core struct {
 	UserFields *models.UserFieldStore
 	// Problems contains problems store.
 	Problems *models.ProblemStore
+	// Solutions contains solutions store.
+	Solutions *models.SolutionStore
 	// Contests contains contest store.
 	Contests *models.ContestStore
 	// ContestProblems contains contest problems store.

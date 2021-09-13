@@ -8,8 +8,9 @@ import (
 
 // Contest represents a contest.
 type Contest struct {
-	ID     int64 `db:"id"`
-	Config JSON  `db:"config"`
+	ID      int64  `db:"id"`
+	OwnerID NInt64 `db:"owner_id"`
+	Config  JSON   `db:"config"`
 }
 
 // ObjectID return ID of contest.

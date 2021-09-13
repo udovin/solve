@@ -165,6 +165,7 @@ CREATE TABLE "solve_user_field_event"
 CREATE TABLE "solve_contest"
 (
 	"id" integer PRIMARY KEY,
+	"owner_id" integer,
 	"config" blob
 );
 -- models.ContestEvent
@@ -174,12 +175,14 @@ CREATE TABLE "solve_contest_event"
 	"event_type" int8 NOT NULL,
 	"event_time" bigint NOT NULL,
 	"id" integer NOT NULL,
+	"owner_id" integer,
 	"config" blob
 );
 -- models.Problem
 CREATE TABLE "solve_problem"
 (
 	"id" integer PRIMARY KEY,
+	"owner_id" integer,
 	"config" blob
 );
 -- models.ProblemEvent
@@ -189,6 +192,7 @@ CREATE TABLE "solve_problem_event"
 	"event_type" int8 NOT NULL,
 	"event_time" bigint NOT NULL,
 	"id" integer NOT NULL,
+	"owner_id" integer,
 	"config" blob
 );
 -- models.ContestProblem
@@ -296,13 +300,16 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.ObserveUserSessionRole,
 		models.ObserveSessionRole,
 		models.DeleteSessionRole,
+		models.ObserveProblemRole,
 		models.CreateProblemRole,
 		models.UpdateProblemRole,
 		models.DeleteProblemRole,
+		models.ObserveProblemsRole,
 		models.ObserveContestRole,
 		models.CreateContestRole,
 		models.UpdateContestRole,
 		models.DeleteContestRole,
+		models.ObserveContestsRole,
 		models.GuestGroupRole,
 		models.UserGroupRole,
 	} {
@@ -315,6 +322,8 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.RegisterRole,
 		models.AuthStatusRole,
 		models.ObserveUserRole,
+		models.ObserveProblemsRole,
+		models.ObserveContestsRole,
 	} {
 		if err := join(role, models.GuestGroupRole); err != nil {
 			return err
@@ -325,6 +334,8 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.LogoutRole,
 		models.AuthStatusRole,
 		models.ObserveUserRole,
+		models.ObserveProblemsRole,
+		models.ObserveContestsRole,
 	} {
 		if err := join(role, models.UserGroupRole); err != nil {
 			return err

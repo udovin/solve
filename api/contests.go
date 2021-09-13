@@ -15,6 +15,7 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	g.GET(
 		"/contests", v.observeContests,
 		v.sessionAuth,
+		v.requireAuthRole(models.ObserveContestsRole),
 	)
 	g.GET(
 		"/contests/:contest", v.observeContest,
@@ -32,33 +33,45 @@ type Contest struct {
 	ID int64 `json:"id"`
 }
 
-type contestIDDescSorter []Contest
+type contestSorter []Contest
 
-func (v contestIDDescSorter) Len() int {
+func (v contestSorter) Len() int {
 	return len(v)
 }
 
-func (v contestIDDescSorter) Less(i, j int) bool {
+func (v contestSorter) Less(i, j int) bool {
 	return v[i].ID > v[j].ID
 }
 
-func (v contestIDDescSorter) Swap(i, j int) {
+func (v contestSorter) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
 }
 
+type Contests struct {
+	Contests []Contest `json:"contests"`
+}
+
 func (v *View) observeContests(c echo.Context) error {
-	var resp []Contest
+	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	if !ok {
+		c.Logger().Error("roles not extracted")
+		return fmt.Errorf("roles not extracted")
+	}
+	var resp Contests
 	contests, err := v.core.Contests.All()
 	if err != nil {
 		c.Logger().Error(err)
 		return err
 	}
 	for _, contest := range contests {
-		resp = append(resp, Contest{
-			ID: contest.ID,
-		})
+		contestRoles := v.extendContestRoles(c, roles, contest)
+		if ok, err := v.core.HasRole(contestRoles, models.ObserveContestRole); ok && err == nil {
+			resp.Contests = append(resp.Contests, Contest{
+				ID: contest.ID,
+			})
+		}
 	}
-	sort.Sort(contestIDDescSorter(resp))
+	sort.Sort(contestSorter(resp.Contests))
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -149,6 +162,24 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+func (v *View) extendContestRoles(
+	c echo.Context, roles core.RoleSet, contest models.Contest,
+) core.RoleSet {
+	contestRoles := roles.Clone()
+	addRole := func(code string) {
+		if err := v.core.AddRole(contestRoles, code); err != nil {
+			c.Logger().Error(err)
+		}
+	}
+	authUser, ok := c.Get(authUserKey).(models.User)
+	if ok && contest.OwnerID != 0 && authUser.ID == int64(contest.OwnerID) {
+		addRole(models.UpdateContestRole)
+		addRole(models.DeleteContestRole)
+	}
+	addRole(models.ObserveContestRole)
+	return contestRoles
+}
+
 func (v *View) extractContestRoles(next echo.HandlerFunc) echo.HandlerFunc {
 	nextWrap := func(c echo.Context) error {
 		contest, ok := c.Get(contestKey).(models.Contest)
@@ -161,13 +192,7 @@ func (v *View) extractContestRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error("roles not extracted")
 			return fmt.Errorf("roles not extracted")
 		}
-		addRole := func(roles core.RoleSet, code string) {
-			if err := v.core.AddRole(roles, code); err != nil {
-				c.Logger().Error(err)
-			}
-		}
-		_ = contest
-		addRole(roles, models.ObserveContestRole)
+		c.Set(authRolesKey, v.extendContestRoles(c, roles, contest))
 		return next(c)
 	}
 	return v.extractAuthRoles(nextWrap)

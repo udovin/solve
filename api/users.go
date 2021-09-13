@@ -36,8 +36,6 @@ type User struct {
 type Session struct {
 	// ID contains session ID.
 	ID int64 `json:"id"`
-	// Secret contains session secret.
-	Secret string `json:"secret,omitempty"`
 	// CreateTime contains session create time.
 	CreateTime int64 `json:"create_time,omitempty"`
 	// ExpireTime contains session expire time.
@@ -213,7 +211,6 @@ func (v *View) loginAccount(c echo.Context) error {
 	c.SetCookie(&cookie)
 	return c.JSON(http.StatusCreated, Session{
 		ID:         session.ID,
-		Secret:     session.Secret,
 		CreateTime: session.CreateTime,
 		ExpireTime: session.ExpireTime,
 	})
@@ -451,7 +448,7 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error("user not extracted")
 			return fmt.Errorf("user not extracted")
 		}
-		roles, ok := c.Get(authRolesKey).(core.RoleSet)
+		authRoles, ok := c.Get(authRolesKey).(core.RoleSet)
 		if !ok {
 			c.Logger().Error("roles not extracted")
 			return fmt.Errorf("roles not extracted")
@@ -463,12 +460,12 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		authUser, ok := c.Get(authUserKey).(models.User)
 		if ok && authUser.ID == user.ID {
-			addRole(roles, models.ObserveUserEmailRole)
-			addRole(roles, models.ObserveUserMiddleNameRole)
-			addRole(roles, models.ObserveUserSessionRole)
+			addRole(authRoles, models.ObserveUserEmailRole)
+			addRole(authRoles, models.ObserveUserMiddleNameRole)
+			addRole(authRoles, models.ObserveUserSessionRole)
 		}
-		addRole(roles, models.ObserveUserFirstNameRole)
-		addRole(roles, models.ObserveUserLastNameRole)
+		addRole(authRoles, models.ObserveUserFirstNameRole)
+		addRole(authRoles, models.ObserveUserLastNameRole)
 		return next(c)
 	}
 	return v.extractAuthRoles(nextWrap)

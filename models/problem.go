@@ -8,8 +8,9 @@ import (
 
 // Problem represents a problem.
 type Problem struct {
-	ID     int64 `db:"id"`
-	Config JSON  `db:"config"`
+	ID      int64  `db:"id"`
+	OwnerID NInt64 `db:"owner_id"`
+	Config  JSON   `db:"config"`
 }
 
 // ObjectID return ID of problem.
@@ -76,6 +77,30 @@ func (s *ProblemStore) DeleteTx(tx *sql.Tx, id int64) error {
 		Problem{ID: id},
 	})
 	return err
+}
+
+// Get returns problem by ID.
+//
+// If there is no problem with specified ID then
+// sql.ErrNoRows will be returned.
+func (s *ProblemStore) Get(id int64) (Problem, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if problem, ok := s.problems[id]; ok {
+		return problem.Clone(), nil
+	}
+	return Problem{}, sql.ErrNoRows
+}
+
+// All returns all problems.
+func (s *ProblemStore) All() ([]Problem, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	var problems []Problem
+	for _, problem := range s.problems {
+		problems = append(problems, problem)
+	}
+	return problems, nil
 }
 
 func (s *ProblemStore) reset() {

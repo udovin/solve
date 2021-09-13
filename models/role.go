@@ -57,12 +57,16 @@ const (
 	ObserveSessionRole = "observe_session"
 	// DeleteSessionRole represents role for deleting session.
 	DeleteSessionRole = "delete_session"
+	// ObserveProblemRole represents role for observing problem.
+	ObserveProblemRole = "observe_problem"
 	// CreateProblemRole represents role for creating problem.
 	CreateProblemRole = "create_problem"
 	// UpdateProblemRole represents role for updating problem.
 	UpdateProblemRole = "update_problem"
 	// DeleteProblemRole represents role for deleting problem.
 	DeleteProblemRole = "delete_problem"
+	// ObserveProblemsRole represents role for observing problem list.
+	ObserveProblemsRole = "observe_problems"
 	// ObserveContestRole represents role for observing contest.
 	ObserveContestRole = "observe_contest"
 	// CreateContestRole represents role for creating contest.
@@ -71,6 +75,8 @@ const (
 	UpdateContestRole = "update_contest"
 	// DeleteContestRole represents role for deleting contest.
 	DeleteContestRole = "delete_contest"
+	// ObserveContestsRole represents role for observing contest list.
+	ObserveContestsRole = "observe_contests"
 	// GuestGroupRole represents name of role for guest group.
 	GuestGroupRole = "guest_group"
 	// UserGroupRole represents name of role for user group.
@@ -95,13 +101,16 @@ var builtInRoles = map[string]struct{}{
 	ObserveUserMiddleNameRole: {},
 	ObserveUserSessionRole:    {},
 	ObserveSessionRole:        {},
+	ObserveProblemRole:        {},
 	CreateProblemRole:         {},
 	UpdateProblemRole:         {},
 	DeleteProblemRole:         {},
+	ObserveProblemsRole:       {},
 	ObserveContestRole:        {},
 	CreateContestRole:         {},
 	UpdateContestRole:         {},
 	DeleteContestRole:         {},
+	ObserveContestsRole:       {},
 	DeleteSessionRole:         {},
 	GuestGroupRole:            {},
 	UserGroupRole:             {},

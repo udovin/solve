@@ -19,13 +19,13 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/contests/:contest", v.observeContest,
-		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
+		v.sessionAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.ObserveContestRole),
 	)
 	g.DELETE(
 		"/contests/:contest", v.deleteContest,
 		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
-		v.requireAuthRole(models.DeleteRoleRole),
+		v.requireAuthRole(models.DeleteContestRole),
 	)
 }
 

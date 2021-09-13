@@ -13,6 +13,21 @@ import (
 
 // registerProblemHandlers registers handlers for problem management.
 func (v *View) registerProblemHandlers(g *echo.Group) {
+	g.GET(
+		"/problems", v.observeProblems,
+		v.sessionAuth,
+		v.requireAuthRole(models.ObserveProblemsRole),
+	)
+	g.GET(
+		"/problems/:problem", v.observeProblem,
+		v.sessionAuth, v.extractProblem, v.extractProblemRoles,
+		v.requireAuthRole(models.ObserveProblemRole),
+	)
+	g.DELETE(
+		"/problems/:problem", v.deleteProblem,
+		v.sessionAuth, v.requireAuth, v.extractProblem, v.extractProblemRoles,
+		v.requireAuthRole(models.DeleteProblemRole),
+	)
 }
 
 type Problem struct {

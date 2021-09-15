@@ -24,6 +24,11 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.ObserveContestRole),
 	)
+	g.GET(
+		"/contests/:contest/problem/:problem", v.observeContestProblem,
+		v.sessionAuth, v.extractContest, v.extractContestRoles,
+		v.requireAuthRole(models.ObserveContestRole),
+	)
 	g.DELETE(
 		"/contests/:contest", v.deleteContest,
 		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
@@ -141,6 +146,10 @@ func (v *View) deleteContest(c echo.Context) error {
 	return c.JSON(http.StatusOK, Contest{
 		ID: contest.ID,
 	})
+}
+
+func (v *View) observeContestProblem(c echo.Context) error {
+	return fmt.Errorf("not implemented")
 }
 
 func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {

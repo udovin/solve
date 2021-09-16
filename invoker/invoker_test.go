@@ -17,6 +17,7 @@ func testSetup(tb testing.TB) {
 			Driver:  config.SQLiteDriver,
 			Options: config.SQLiteOptions{Path: ":memory:"},
 		},
+		Invoker: &config.Invoker{},
 		Security: config.Security{
 			PasswordSalt: config.Secret{
 				Type: config.DataSecret,
@@ -34,7 +35,6 @@ func testSetup(tb testing.TB) {
 	if err := migrations.Apply(c); err != nil {
 		tb.Fatal("Error:", err)
 	}
-	c.SetupInvokerStores()
 	if err := c.Start(); err != nil {
 		tb.Fatal("Error:", err)
 	}

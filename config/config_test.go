@@ -16,7 +16,7 @@ func TestLoadFromFile(t *testing.T) {
 		t.Error("Error: ", err)
 	}
 	expectedConfig := Config{
-		Server: Server{
+		Server: &Server{
 			Host: "localhost",
 			Port: 4242,
 		},
@@ -46,7 +46,11 @@ func TestLoadFromFile(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	if config != expectedConfig {
+	configData, err := json.Marshal(config)
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	if string(configData) != string(expectedConfigData) {
 		t.Fatal("Config was corrupted")
 	}
 }

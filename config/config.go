@@ -12,10 +12,12 @@ import (
 type Config struct {
 	// DB contains database connection config.
 	DB DB `json:"db"`
+	// SocketFile contains path to socket.
+	SocketFile string `json:"socket_file"`
 	// Server contains API server config.
-	Server Server `json:"server"`
+	Server *Server `json:"server"`
 	// Invoker contains invoker config.
-	Invoker Invoker `json:"invoker"`
+	Invoker *Invoker `json:"invoker"`
 	// Security contains security config.
 	Security Security `json:"security"`
 	// LogLevel contains level of logging.
@@ -35,8 +37,6 @@ type Server struct {
 	Host string `json:"host"`
 	// Port contains server port.
 	Port int `json:"port"`
-	// SocketFile contains path to socket.
-	SocketFile string `json:"socket_file"`
 }
 
 // Address returns string representation of server address.
@@ -59,9 +59,7 @@ type Invoker struct {
 // LoadFromFile loads configuration from json file.
 func LoadFromFile(file string) (Config, error) {
 	cfg := Config{
-		Server: Server{
-			SocketFile: "/tmp/solve-server.sock",
-		},
+		SocketFile: "/tmp/solve-server.sock",
 		// By default we should use INFO level.
 		LogLevel: log.INFO,
 	}

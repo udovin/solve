@@ -36,16 +36,20 @@ func isServerError(err error) bool {
 	return err != nil && err != http.ErrServerClosed
 }
 
-// serverMain starts API server.
+// serverMain starts Solve server.
 //
 // Simply speaking this function does following things:
 //  1. Setup Core instance (with all managers).
-//  2. Setup Echo server instance.
+//  2. Setup Echo server instance (HTTP + unix socket).
 //  3. Register API View to Echo server.
+//  4. Start Invoker server.
 func serverMain(cmd *cobra.Command, _ []string) {
 	cfg, err := getConfig(cmd)
 	if err != nil {
 		panic(err)
+	}
+	if cfg.Server == nil && cfg.Invoker == nil {
+		panic("section 'server' or 'invoker' should be configured")
 	}
 	c, err := core.NewCore(cfg)
 	if err != nil {
@@ -72,7 +76,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 			cancel()
 		}
 	}()
-	if file := cfg.Server.SocketFile; file != "" {
+	if file := cfg.SocketFile; file != "" {
 		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
 			panic(err)
 		}
@@ -99,25 +103,30 @@ func serverMain(cmd *cobra.Command, _ []string) {
 			}
 		}()
 	}
-	srv := echo.New()
-	srv.Logger = c.Logger()
-	srv.HideBanner, srv.HidePort = true, true
-	srv.Pre(middleware.RemoveTrailingSlash())
-	srv.Use(middleware.Recover(), middleware.Gzip(), middleware.Logger())
-	v.Register(srv.Group("/api/v0"))
-	waiter.Add(1)
-	go func() {
-		defer waiter.Done()
-		defer cancel()
-		if err := srv.Start(cfg.Server.Address()); isServerError(err) {
-			c.Logger().Error(err)
-		}
-	}()
-	defer func() {
-		if err := srv.Shutdown(context.Background()); err != nil {
-			c.Logger().Error(err)
-		}
-	}()
+	if cfg.Server != nil {
+		srv := echo.New()
+		srv.Logger = c.Logger()
+		srv.HideBanner, srv.HidePort = true, true
+		srv.Pre(middleware.RemoveTrailingSlash())
+		srv.Use(middleware.Recover(), middleware.Gzip(), middleware.Logger())
+		v.Register(srv.Group("/api/v0"))
+		waiter.Add(1)
+		go func() {
+			defer waiter.Done()
+			defer cancel()
+			if err := srv.Start(cfg.Server.Address()); isServerError(err) {
+				c.Logger().Error(err)
+			}
+		}()
+		defer func() {
+			if err := srv.Shutdown(context.Background()); err != nil {
+				c.Logger().Error(err)
+			}
+		}()
+	}
+	if cfg.Invoker != nil {
+		invoker.New(c).Start()
+	}
 	<-ctx.Done()
 }
 
@@ -127,40 +136,16 @@ func clientMain(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		panic(err)
 	}
-	if cfg.Server.SocketFile == "" {
+	if cfg.SocketFile == "" {
 		panic("Socket file is not configured")
 	}
 	dialer := func(_ context.Context, _, _ string) (net.Conn, error) {
-		return net.Dial("unix", cfg.Server.SocketFile)
+		return net.Dial("unix", cfg.SocketFile)
 	}
 	client := http.Client{
 		Transport: &http.Transport{DialContext: dialer},
 	}
 	_ = client
-}
-
-// invokerMain starts Invoker.
-//
-// This function initializes Core instance with only necessary
-// stores for running actions.
-func invokerMain(cmd *cobra.Command, _ []string) {
-	cfg, err := getConfig(cmd)
-	if err != nil {
-		panic(err)
-	}
-	c, err := core.NewCore(cfg)
-	if err != nil {
-		panic(err)
-	}
-	c.SetupInvokerStores()
-	if err := c.Start(); err != nil {
-		panic(err)
-	}
-	defer c.Stop()
-	s := invoker.New(c)
-	s.Start()
-	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
-	<-shutdown
 }
 
 func dbApplyMain(cmd *cobra.Command, _ []string) {
@@ -200,11 +185,11 @@ func dbUnapplyMain(cmd *cobra.Command, _ []string) {
 // main is a main entry point.
 //
 // Solve is divided into two main parts:
-//  * API server - server that provides HTTP API. If you want to
-//    understand how API server is working you can go to serverMain
-//    function.
-//  * Invoker - server that performs asynchronous runs. See
-//    invokerMain function if you want to start with Invoker.
+//  * API server - server that provides HTTP API (http + socket).
+//  * Invoker - server that performs asynchronous runs.
+// This two parts was running from serverMain with respect of configuration.
+// API server will be run if "server" section was specified.
+// Invoker will be run if "invoker" section was specified.
 //
 // Also Solve has CLI interface like 'db'. This is a group of commands
 // that work with database migrations.
@@ -220,11 +205,6 @@ func main() {
 		Use:   "client",
 		Run:   clientMain,
 		Short: "Commands for managing server",
-	})
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "invoker",
-		Run:   invokerMain,
-		Short: "Starts invoker daemon",
 	})
 	dbCmd := cobra.Command{
 		Use:   "db",

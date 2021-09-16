@@ -8,17 +8,6 @@ import (
 	"github.com/udovin/solve/models"
 )
 
-// SetupInvokerStores prepares stores for running invoker.
-func (c *Core) SetupInvokerStores() {
-	dialect := c.Dialect()
-	c.Tasks = models.NewTaskStore(
-		"solve_task", "solve_task_event", dialect,
-	)
-	c.Solutions = models.NewSolutionStore(
-		"solve_solution", "solve_solution_event", dialect,
-	)
-}
-
 // SetupAllStores prepares all stores.
 func (c *Core) SetupAllStores() error {
 	salt, err := c.Config.Security.PasswordSalt.Secret()

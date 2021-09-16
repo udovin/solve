@@ -22,10 +22,9 @@ var (
 			Driver:  config.SQLiteDriver,
 			Options: config.SQLiteOptions{Path: ":memory:?cache=shared"},
 		},
-		Server: config.Server{
-			Port:       0,
-			SocketFile: fmt.Sprintf("/tmp/test-solve-%d.sock", rand.Int63()),
-		},
+		SocketFile: fmt.Sprintf("/tmp/test-solve-%d.sock", rand.Int63()),
+		Server:     &config.Server{},
+		Invoker:    &config.Invoker{},
 		Security: config.Security{
 			PasswordSalt: config.Secret{
 				Type: config.DataSecret,
@@ -88,18 +87,6 @@ func TestServerMain(t *testing.T) {
 		shutdown <- os.Interrupt
 	}()
 	serverMain(&cmd, nil)
-}
-
-func TestInvokerMain(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	cmd := cobra.Command{}
-	cmd.Flags().String("config", "", "")
-	cmd.Flags().Set("config", testConfigFile.Name())
-	go func() {
-		shutdown <- os.Interrupt
-	}()
-	invokerMain(&cmd, nil)
 }
 
 func TestClientMain(t *testing.T) {

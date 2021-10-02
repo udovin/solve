@@ -100,7 +100,7 @@ func TestHealthUnhealthy(t *testing.T) {
 func TestSessionAuth(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
 	req.AddCookie(&http.Cookie{Name: "session", Value: "123_qwerty123"})
 	rec := httptest.NewRecorder()
 	c := testSrv.NewContext(req, rec)

@@ -48,17 +48,15 @@ type ProblemStore struct {
 }
 
 // CreateTx creates problem and returns copy with valid ID.
-func (s *ProblemStore) CreateTx(
-	tx *sql.Tx, problem Problem,
-) (Problem, error) {
+func (s *ProblemStore) CreateTx(tx *sql.Tx, problem *Problem) error {
 	event, err := s.createObjectEvent(tx, ProblemEvent{
-		makeBaseEvent(CreateEvent),
-		problem,
+		makeBaseEvent(CreateEvent), *problem,
 	})
 	if err != nil {
-		return Problem{}, err
+		return err
 	}
-	return event.Object().(Problem), nil
+	*problem = event.Object().(Problem)
+	return nil
 }
 
 // UpdateTx updates problem with specified ID.

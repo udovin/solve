@@ -330,25 +330,12 @@ func (v *View) registerUser(c echo.Context) error {
 		return err
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		role, err := v.core.Roles.GetByCode(models.UserGroupRole)
-		if err != nil {
-			return err
-		}
 		account := models.Account{Kind: models.UserAccount}
-		account, err = v.core.Accounts.CreateTx(tx, account)
-		if err != nil {
+		if err := v.core.Accounts.CreateTx(tx, &account); err != nil {
 			return err
 		}
 		user.AccountID = account.ID
-		user, err = v.core.Users.CreateTx(tx, user)
-		if err != nil {
-			return err
-		}
-		userRole := models.AccountRole{
-			AccountID: account.ID,
-			RoleID:    role.ID,
-		}
-		if _, err := v.core.AccountRoles.CreateTx(tx, userRole); err != nil {
+		if err := v.core.Users.CreateTx(tx, &user); err != nil {
 			return err
 		}
 		return v.registerUserFields(tx, user, form)

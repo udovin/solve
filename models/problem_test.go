@@ -45,7 +45,11 @@ func (t *problemStoreTest) newObject() db.Object {
 func (t *problemStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return s.(*ProblemStore).CreateTx(tx, o.(Problem))
+	problem := o.(Problem)
+	if err := s.(*ProblemStore).CreateTx(tx, &problem); err != nil {
+		return Problem{}, err
+	}
+	return problem, nil
 }
 
 func (t *problemStoreTest) updateObject(

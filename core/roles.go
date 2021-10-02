@@ -15,7 +15,7 @@ func (s RoleSet) HasRole(id int64) bool {
 
 // Clone creates clone of role set.
 func (s RoleSet) Clone() RoleSet {
-	var clone RoleSet
+	clone := RoleSet{}
 	for key := range s {
 		clone[key] = struct{}{}
 	}
@@ -52,11 +52,15 @@ func (c *Core) GetGuestRoles() (RoleSet, error) {
 
 // GetAccountRoles returns roles for account.
 func (c *Core) GetAccountRoles(id int64) (RoleSet, error) {
+	role, err := c.Roles.GetByCode(models.UserGroupRole)
+	if err != nil {
+		return nil, err
+	}
+	ids := []int64{role.ID}
 	edges, err := c.AccountRoles.FindByAccount(id)
 	if err != nil {
 		return nil, err
 	}
-	var ids []int64
 	for _, edge := range edges {
 		ids = append(ids, edge.RoleID)
 	}

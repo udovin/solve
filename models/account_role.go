@@ -77,17 +77,15 @@ func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
 }
 
 // CreateTx creates account role and returns copy with valid ID.
-func (s *AccountRoleStore) CreateTx(
-	tx *sql.Tx, role AccountRole,
-) (AccountRole, error) {
+func (s *AccountRoleStore) CreateTx(tx *sql.Tx, role *AccountRole) error {
 	event, err := s.createObjectEvent(tx, AccountRoleEvent{
-		makeBaseEvent(CreateEvent),
-		role,
+		makeBaseEvent(CreateEvent), *role,
 	})
 	if err != nil {
-		return AccountRole{}, err
+		return err
 	}
-	return event.Object().(AccountRole), nil
+	*role = event.Object().(AccountRole)
+	return nil
 }
 
 // UpdateTx updates account role with specified ID.

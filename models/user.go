@@ -91,15 +91,15 @@ func (s *UserStore) GetByAccount(id int64) (User, error) {
 }
 
 // CreateTx creates user and returns copy with valid ID.
-func (s *UserStore) CreateTx(tx *sql.Tx, user User) (User, error) {
+func (s *UserStore) CreateTx(tx *sql.Tx, user *User) error {
 	event, err := s.createObjectEvent(tx, UserEvent{
-		makeBaseEvent(CreateEvent),
-		user,
+		makeBaseEvent(CreateEvent), *user,
 	})
 	if err != nil {
-		return User{}, err
+		return err
 	}
-	return event.Object().(User), nil
+	*user = event.Object().(User)
+	return nil
 }
 
 // UpdateTx updates user with specified ID.

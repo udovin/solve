@@ -115,9 +115,7 @@ func (v *View) createProblem(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err)
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		var err error
-		problem, err = v.core.Problems.CreateTx(tx, problem)
-		return err
+		return v.core.Problems.CreateTx(tx, &problem)
 	}); err != nil {
 		c.Logger().Error(err)
 		return err

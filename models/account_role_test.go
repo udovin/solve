@@ -41,7 +41,11 @@ func (t *accountRoleStoreTest) newObject() db.Object {
 func (t *accountRoleStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return s.(*AccountRoleStore).CreateTx(tx, o.(AccountRole))
+	role := o.(AccountRole)
+	if err := s.(*AccountRoleStore).CreateTx(tx, &role); err != nil {
+		return AccountRole{}, err
+	}
+	return role, nil
 }
 
 func (t *accountRoleStoreTest) updateObject(

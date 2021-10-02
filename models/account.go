@@ -66,17 +66,15 @@ func (s *AccountStore) Get(id int64) (Account, error) {
 }
 
 // CreateTx creates account and returns copy with valid ID.
-func (s *AccountStore) CreateTx(
-	tx *sql.Tx, account Account,
-) (Account, error) {
+func (s *AccountStore) CreateTx(tx *sql.Tx, account *Account) error {
 	event, err := s.createObjectEvent(tx, AccountEvent{
-		makeBaseEvent(CreateEvent),
-		account,
+		makeBaseEvent(CreateEvent), *account,
 	})
 	if err != nil {
-		return Account{}, err
+		return err
 	}
-	return event.Object().(Account), nil
+	*account = event.Object().(Account)
+	return nil
 }
 
 // UpdateTx updates account with specified ID.

@@ -55,13 +55,18 @@ func testTeardown(tb testing.TB) {
 	testView.core.Stop()
 }
 
+func testHandler(req *http.Request, rec *httptest.ResponseRecorder) error {
+	c := testSrv.NewContext(req, rec)
+	testSrv.Router().Find(req.Method, req.URL.Path, c)
+	return c.Handler()(c)
+}
+
 func TestPing(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v0/ping", nil)
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
-	if err := testView.ping(c); err != nil {
+	if err := testHandler(req, rec); err != nil {
 		t.Fatal("Error:", err)
 	}
 	expectStatus(t, http.StatusOK, rec.Code)
@@ -70,10 +75,9 @@ func TestPing(t *testing.T) {
 func TestHealth(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v0/health", nil)
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
-	if err := testView.health(c); err != nil {
+	if err := testHandler(req, rec); err != nil {
 		t.Fatal("Error:", err)
 	}
 	expectStatus(t, http.StatusOK, rec.Code)
@@ -85,32 +89,18 @@ func TestHealthUnhealthy(t *testing.T) {
 	if err := testView.core.DB.Close(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v0/health", nil)
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
-	if err := testView.health(c); err != nil {
+	if err := testHandler(req, rec); err != nil {
 		t.Fatal("Error:", err)
 	}
 	expectStatus(t, http.StatusInternalServerError, rec.Code)
 }
 
-func TestLogVisit(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
-	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
-	handler := testView.logVisit(testView.ping)
-	if err := handler(c); err != nil {
-		t.Fatal("Error:", err)
-	}
-	expectStatus(t, http.StatusOK, rec.Code)
-}
-
 func TestSessionAuth(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{Name: "session", Value: "123_qwerty123"})
 	rec := httptest.NewRecorder()
 	c := testSrv.NewContext(req, rec)

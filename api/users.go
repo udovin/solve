@@ -82,6 +82,13 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	)
 }
 
+func (v *View) registerSocketUserHandlers(g *echo.Group) {
+	g.GET(
+		"/users/:user", v.observeUser, v.extractUser,
+		v.extractAuthRoles,
+	)
+}
+
 func (v *View) observeUser(c echo.Context) error {
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {

@@ -49,6 +49,7 @@ func testSetup(tb testing.TB) {
 	testSrv = echo.New()
 	testView = NewView(c)
 	testView.Register(testSrv.Group("/api/v0"))
+	testView.RegisterSocket(testSrv.Group("/socket/v0"))
 }
 
 func testTeardown(tb testing.TB) {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	"github.com/labstack/gommon/log"
 	"github.com/spf13/cobra"
 
 	"github.com/udovin/solve/api"
@@ -34,6 +34,15 @@ func getConfig(cmd *cobra.Command) (config.Config, error) {
 
 func isServerError(err error) bool {
 	return err != nil && err != http.ErrServerClosed
+}
+
+func newServer(logger *log.Logger) *echo.Echo {
+	srv := echo.New()
+	srv.Logger = logger
+	srv.HideBanner, srv.HidePort = true, true
+	srv.Pre(middleware.RemoveTrailingSlash())
+	srv.Use(middleware.Recover(), middleware.Gzip(), middleware.Logger())
+	return srv
 }
 
 // serverMain starts Solve server.
@@ -80,35 +89,27 @@ func serverMain(cmd *cobra.Command, _ []string) {
 		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
 			panic(err)
 		}
-		sock := echo.New()
-		if sock.Listener, err = net.Listen("unix", file); err != nil {
+		srv := newServer(c.Logger())
+		if srv.Listener, err = net.Listen("unix", file); err != nil {
 			panic(err)
 		}
-		sock.Logger = c.Logger()
-		sock.HideBanner, sock.HidePort = true, true
-		sock.Pre(middleware.RemoveTrailingSlash())
-		sock.Use(middleware.Recover(), middleware.Gzip(), middleware.Logger())
-		v.RegisterSocket(sock.Group("/api/v0"))
+		v.RegisterSocket(srv.Group("/socket/v0"))
 		waiter.Add(1)
 		go func() {
 			defer waiter.Done()
 			defer cancel()
-			if err := sock.Start(""); isServerError(err) {
+			if err := srv.Start(""); isServerError(err) {
 				c.Logger().Error(err)
 			}
 		}()
 		defer func() {
-			if err := sock.Shutdown(context.Background()); err != nil {
+			if err := srv.Shutdown(context.Background()); err != nil {
 				c.Logger().Error(err)
 			}
 		}()
 	}
 	if cfg.Server != nil {
-		srv := echo.New()
-		srv.Logger = c.Logger()
-		srv.HideBanner, srv.HidePort = true, true
-		srv.Pre(middleware.RemoveTrailingSlash())
-		srv.Use(middleware.Recover(), middleware.Gzip(), middleware.Logger())
+		srv := newServer(c.Logger())
 		v.Register(srv.Group("/api/v0"))
 		waiter.Add(1)
 		go func() {
@@ -222,6 +223,6 @@ func main() {
 	})
 	rootCmd.AddCommand(&dbCmd)
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }

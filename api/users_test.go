@@ -9,21 +9,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/udovin/solve/models"
 )
 
 func TestUserLoginScenario(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	registerUser(t, "test", "qwerty123")
-	syncManagers(t)
-	observeUser(t, "test")
-	observeUserRoles(t, "test")
-	loginUser(t, "test", "qwerty123")
+	testRegisterUser(t, "test", "qwerty123")
+	testSyncManagers(t)
+	testGetUser(t, "test")
+	testGetUserRoles(t, "test")
+	testLoginUser(t, "test", "qwerty123")
 }
 
-func syncManagers(tb testing.TB) {
+func testSyncManagers(tb testing.TB) {
 	if err := testView.core.WithTx(
 		context.Background(),
 		func(tx *sql.Tx) error {
@@ -49,7 +47,7 @@ func syncManagers(tb testing.TB) {
 	}
 }
 
-func registerUser(tb testing.TB, login, password string) User {
+func testRegisterUser(tb testing.TB, login, password string) User {
 	data, err := json.Marshal(map[string]string{
 		"login":       login,
 		"password":    password,
@@ -62,12 +60,11 @@ func registerUser(tb testing.TB, login, password string) User {
 		tb.Fatal("Error:", err)
 	}
 	req := httptest.NewRequest(
-		http.MethodPost, "/register", bytes.NewReader(data),
+		http.MethodPost, "/api/v0/register", bytes.NewReader(data),
 	)
 	req.Header.Add("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
-	if err := testView.registerUser(c); err != nil {
+	if err := testHandler(req, rec); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	expectStatus(tb, http.StatusCreated, rec.Code)
@@ -78,7 +75,7 @@ func registerUser(tb testing.TB, login, password string) User {
 	return resp
 }
 
-func loginUser(tb testing.TB, login, password string) Session {
+func testLoginUser(tb testing.TB, login, password string) Session {
 	data, err := json.Marshal(map[string]string{
 		"login":    login,
 		"password": password,
@@ -87,13 +84,11 @@ func loginUser(tb testing.TB, login, password string) Session {
 		tb.Fatal("Error:", err)
 	}
 	req := httptest.NewRequest(
-		http.MethodPost, "/login", bytes.NewReader(data),
+		http.MethodPost, "/api/v0/login", bytes.NewReader(data),
 	)
 	req.Header.Add("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
-	handler := testView.userAuth(testView.loginAccount)
-	if err := handler(c); err != nil {
+	if err := testHandler(req, rec); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	expectStatus(tb, http.StatusCreated, rec.Code)
@@ -104,37 +99,28 @@ func loginUser(tb testing.TB, login, password string) Session {
 	return resp
 }
 
-func observeUser(tb testing.TB, login string) {
+func testGetUser(tb testing.TB, login string) User {
 	req := httptest.NewRequest(
-		http.MethodGet, fmt.Sprintf("/users/%s", login), nil,
+		http.MethodGet, fmt.Sprintf("/socket/v0/users/%s", login), nil,
 	)
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
-	c.SetParamNames("user")
-	c.SetParamValues(login)
-	handler := testView.sessionAuth(
-		testView.requireAuthRole(models.ObserveUserRole)(
-			testView.extractUser(
-				testView.extractUserRoles(testView.observeUser),
-			),
-		),
-	)
-	if err := handler(c); err != nil {
+	if err := testHandler(req, rec); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	expectStatus(tb, http.StatusOK, rec.Code)
+	var resp User
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	return resp
 }
 
-func observeUserRoles(tb testing.TB, login string) []Role {
+func testGetUserRoles(tb testing.TB, login string) []Role {
 	req := httptest.NewRequest(
-		http.MethodGet, fmt.Sprintf("/users/%s/roles", login), nil,
+		http.MethodGet, fmt.Sprintf("/socket/v0/users/%s/roles", login), nil,
 	)
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
-	c.SetParamNames("user")
-	c.SetParamValues(login)
-	handler := testView.extractUser(testView.observeUserRoles)
-	if err := handler(c); err != nil {
+	if err := testHandler(req, rec); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	expectStatus(tb, http.StatusOK, rec.Code)

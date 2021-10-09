@@ -31,7 +31,7 @@ func TestCreateDeleteRole(t *testing.T) {
 	if created.Code != "test_role" {
 		t.Fatal("Invalid code of role:", created)
 	}
-	syncManagers(t)
+	testSyncManagers(t)
 	deleted := deleteRole(t, created.ID)
 	if created != deleted {
 		t.Fatal("Invalid deleted role:", deleted)

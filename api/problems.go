@@ -20,6 +20,11 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 		v.sessionAuth,
 		v.requireAuthRole(models.ObserveProblemsRole),
 	)
+	g.POST(
+		"/problems", v.createProblem,
+		v.sessionAuth,
+		v.requireAuthRole(models.CreateProblemRole),
+	)
 	g.GET(
 		"/problems/:problem", v.observeProblem,
 		v.sessionAuth, v.extractProblem, v.extractProblemRoles,
@@ -114,6 +119,9 @@ func (v *View) createProblem(c echo.Context) error {
 	if err := form.Update(&problem); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
+	if account, ok := c.Get(authAccountKey).(models.Account); ok {
+		problem.OwnerID = models.NInt64(account.ID)
+	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
 		return v.core.Problems.CreateTx(tx, &problem)
 	}); err != nil {
@@ -172,8 +180,8 @@ func (v *View) extendProblemRoles(
 			c.Logger().Error(err)
 		}
 	}
-	authUser, ok := c.Get(authUserKey).(models.User)
-	if ok && problem.OwnerID != 0 && authUser.ID == int64(problem.OwnerID) {
+	account, ok := c.Get(authAccountKey).(models.Account)
+	if ok && problem.OwnerID != 0 && account.ID == int64(problem.OwnerID) {
 		addRole(models.UpdateProblemRole)
 		addRole(models.DeleteProblemRole)
 	}

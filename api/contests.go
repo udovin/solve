@@ -19,6 +19,11 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.sessionAuth,
 		v.requireAuthRole(models.ObserveContestsRole),
 	)
+	g.POST(
+		"/contests", v.createContest,
+		v.sessionAuth,
+		v.requireAuthRole(models.CreateContestRole),
+	)
 	g.GET(
 		"/contests/:contest", v.observeContest,
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
@@ -118,6 +123,9 @@ func (v *View) createContest(c echo.Context) error {
 	if err := form.Update(&contest); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
+	if account, ok := c.Get(authAccountKey).(models.Account); ok {
+		contest.OwnerID = models.NInt64(account.ID)
+	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
 		var err error
 		contest, err = v.core.Contests.CreateTx(tx, contest)
@@ -182,8 +190,8 @@ func (v *View) extendContestRoles(
 			c.Logger().Error(err)
 		}
 	}
-	authUser, ok := c.Get(authUserKey).(models.User)
-	if ok && contest.OwnerID != 0 && authUser.ID == int64(contest.OwnerID) {
+	account, ok := c.Get(authAccountKey).(models.Account)
+	if ok && contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
 		addRole(models.UpdateContestRole)
 		addRole(models.DeleteContestRole)
 	}

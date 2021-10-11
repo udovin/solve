@@ -98,8 +98,8 @@ func (v *View) extractSessionRoles(next echo.HandlerFunc) echo.HandlerFunc {
 				c.Logger().Error(err)
 			}
 		}
-		authUser, ok := c.Get(authUserKey).(models.User)
-		if ok && authUser.AccountID == session.AccountID {
+		account, ok := c.Get(authAccountKey).(models.Account)
+		if ok && account.ID == session.AccountID {
 			addRole(roles, models.ObserveSessionRole)
 			addRole(roles, models.DeleteSessionRole)
 		}

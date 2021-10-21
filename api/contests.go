@@ -30,9 +30,9 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.requireAuthRole(models.ObserveContestRole),
 	)
 	g.GET(
-		"/contests/:contest/problem/:problem", v.observeContestProblem,
+		"/contests/:contest/problems/:problem", v.observeContestProblem,
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
-		v.requireAuthRole(models.ObserveContestRole),
+		v.requireAuthRole(models.ObserveContestProblemsRole),
 	)
 	g.DELETE(
 		"/contests/:contest", v.deleteContest,

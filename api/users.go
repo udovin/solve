@@ -42,8 +42,8 @@ type Session struct {
 	ExpireTime int64 `json:"expire_time,omitempty"`
 }
 
-// AuthStatus represents current authorization status.
-type AuthStatus struct {
+// Status represents current authorization status.
+type Status struct {
 	User    *User    `json:"user,omitempty"`
 	Session *Session `json:"session,omitempty"`
 	Roles   []string `json:"roles"`
@@ -56,15 +56,25 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 		v.sessionAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.ObserveUserRole),
 	)
+	g.PATCH(
+		"/users/:user", v.updateUser,
+		v.sessionAuth, v.extractUser, v.extractUserRoles,
+		v.requireAuthRole(models.UpdateUserRole),
+	)
 	g.GET(
 		"/users/:user/sessions", v.observeUserSessions,
 		v.sessionAuth, v.extractUser, v.extractUserRoles,
-		v.requireAuthRole(models.ObserveUserSessionRole),
+		v.requireAuthRole(models.ObserveUserSessionsRole),
+	)
+	g.POST(
+		"/users/:user/password", v.updateUserPassword,
+		v.sessionAuth, v.extractUser, v.extractUserRoles,
+		v.requireAuthRole(models.UpdateUserPasswordRole),
 	)
 	g.GET(
-		"/auth-status", v.authStatus,
+		"/status", v.status,
 		v.sessionAuth,
-		v.requireAuthRole(models.AuthStatusRole),
+		v.requireAuthRole(models.StatusRole),
 	)
 	g.POST(
 		"/login", v.loginAccount,
@@ -89,17 +99,7 @@ func (v *View) registerSocketUserHandlers(g *echo.Group) {
 	)
 }
 
-func (v *View) observeUser(c echo.Context) error {
-	user, ok := c.Get(userKey).(models.User)
-	if !ok {
-		c.Logger().Error("user not extracted")
-		return fmt.Errorf("user not extracted")
-	}
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
-	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
-	}
+func (v *View) makeUser(c echo.Context, user models.User, roles core.RoleSet) User {
 	assign := func(field *string, value, role string) {
 		if ok, err := v.core.HasRole(roles, role); ok {
 			*field = value
@@ -137,6 +137,112 @@ func (v *View) observeUser(c echo.Context) error {
 			}
 		}
 	}
+	return resp
+}
+
+func (v *View) observeUser(c echo.Context) error {
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	if !ok {
+		c.Logger().Error("roles not extracted")
+		return fmt.Errorf("roles not extracted")
+	}
+	return c.JSON(http.StatusOK, v.makeUser(c, user, roles))
+}
+
+type updateUserForm struct {
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+	MiddleName string `json:"middle_name"`
+}
+
+func (v *View) updateUser(c echo.Context) error {
+	// user, ok := c.Get(userKey).(models.User)
+	// if !ok {
+	// 	c.Logger().Error("user not extracted")
+	// 	return fmt.Errorf("user not extracted")
+	// }
+	// roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	// if !ok {
+	// 	c.Logger().Error("roles not extracted")
+	// 	return fmt.Errorf("roles not extracted")
+	// }
+	var form updateUserForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	return c.JSON(http.StatusInternalServerError, errorResp{
+		Message: "changing user fields not available",
+	})
+	// resp := v.makeUser(c, user, roles)
+	// return c.JSON(http.StatusOK, resp)
+}
+
+type updatePasswordForm struct {
+	OldPassword string `json:"old_password"`
+	Password    string `json:"password"`
+}
+
+func (f updatePasswordForm) Update(user *models.User, users *models.UserStore) *errorResp {
+	errors := errorFields{}
+	validatePassword(errors, f.Password)
+	if len(errors) > 0 {
+		return &errorResp{
+			Message:       "passed invalid fields to form",
+			InvalidFields: errors,
+		}
+	}
+	if f.OldPassword == f.Password {
+		return &errorResp{
+			Message: "old and new passwords are the same",
+		}
+	}
+	if err := users.SetPassword(user, f.Password); err != nil {
+		return &errorResp{
+			Message: "unable to change old password",
+		}
+	}
+	return nil
+}
+
+func (v *View) updateUserPassword(c echo.Context) error {
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	var form updatePasswordForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if authUser, ok := c.Get(authUserKey).(models.User); ok && user.ID == authUser.ID {
+		if len(form.OldPassword) == 0 {
+			return c.JSON(http.StatusBadRequest, errorResp{
+				Message: "old password should not be empty",
+			})
+		}
+		if !v.core.Users.CheckPassword(user, form.OldPassword) {
+			return c.JSON(http.StatusBadRequest, errorResp{
+				Message: "entered invalid old password",
+			})
+		}
+	}
+	if err := form.Update(&user, v.core.Users); err != nil {
+		return c.JSON(http.StatusBadRequest, err)
+	}
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		return v.core.Users.UpdateTx(tx, user)
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	resp := User{ID: user.ID, Login: user.Login}
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -162,9 +268,9 @@ func (v *View) observeUserSessions(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-// authStatus returns current authorization status.
-func (v *View) authStatus(c echo.Context) error {
-	status := AuthStatus{}
+// status returns current authorization status.
+func (v *View) status(c echo.Context) error {
+	status := Status{}
 	if session, ok := c.Get(authSessionKey).(models.Session); ok {
 		status.Session = &Session{
 			ID:         session.ID,
@@ -456,7 +562,12 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 		if ok && authUser.ID == user.ID {
 			addRole(authRoles, models.ObserveUserEmailRole)
 			addRole(authRoles, models.ObserveUserMiddleNameRole)
-			addRole(authRoles, models.ObserveUserSessionRole)
+			addRole(authRoles, models.ObserveUserSessionsRole)
+			addRole(authRoles, models.UpdateUserRole)
+			addRole(authRoles, models.UpdateUserPasswordRole)
+			addRole(authRoles, models.UpdateUserFirstNameRole)
+			addRole(authRoles, models.UpdateUserLastNameRole)
+			addRole(authRoles, models.UpdateUserMiddleNameRole)
 		}
 		addRole(authRoles, models.ObserveUserFirstNameRole)
 		addRole(authRoles, models.ObserveUserLastNameRole)

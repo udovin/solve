@@ -23,22 +23,26 @@ const (
 	LogoutRole = "logout"
 	// RegisterRole represents name of role for register action.
 	RegisterRole = "register"
-	// AuthStatusRole represents name of role for auth status check.
-	AuthStatusRole = "auth_status"
-	// ObserveRoleRole represents name of role for observing role.
-	ObserveRoleRole = "observe_role"
+	// StatusRole represents name of role for status check.
+	StatusRole = "status"
+	// ObserveRolesRole represents name of role for observing roles.
+	ObserveRolesRole = "observe_roles"
 	// CreateRoleRole represents name of role for creating new role.
 	CreateRoleRole = "create_role"
 	// DeleteRoleRole represents name of role for deleting new role.
 	DeleteRoleRole = "delete_role"
-	// ObserveUserRoleRole represents name of role for observing user role.
-	ObserveUserRoleRole = "observe_user_role"
+	// ObserveRoleRolesRole represents name of role for observing role roles.
+	ObserveRoleRolesRole = "observe_role_roles"
+	// ObserveUserRolesRole represents name of role for observing user roles.
+	ObserveUserRolesRole = "observe_user_roles"
 	// CreateUserRoleRole represents name of role for attaching role to user.
 	CreateUserRoleRole = "create_user_role"
 	// DeleteUserRoleRole represents name of role for detaching role from user.
 	DeleteUserRoleRole = "delete_user_role"
 	// ObserveUserRole represents name of role for observing user.
 	ObserveUserRole = "observe_user"
+	// UpdateUserRole represents name of role for updating user.
+	UpdateUserRole = "update_user"
 	// ObserveUserEmailRole represents name of role for observing user email.
 	ObserveUserEmailRole = "observe_user_email"
 	// ObserveUserFirstNameRole represents name of role for observing
@@ -50,13 +54,27 @@ const (
 	// ObserveUserMiddleNameRole represents name of role for observing
 	// user middle name.
 	ObserveUserMiddleNameRole = "observe_user_middle_name"
-	// ObserveUserSessionRole represents name of role for observing
+	// ObserveUserSessionsRole represents name of role for observing
 	// user sessions.
-	ObserveUserSessionRole = "observe_user_session"
+	ObserveUserSessionsRole = "observe_user_sessions"
+	// UpdateUserPasswordRole represents name of role for updating
+	// user password.
+	UpdateUserPasswordRole = "update_user_password"
+	// UpdateUserFirstNameRole represents name of role for updating
+	// user first name.
+	UpdateUserFirstNameRole = "update_user_first_name"
+	// UpdateUserLastNameRole represents name of role for updating
+	// user last name.
+	UpdateUserLastNameRole = "update_user_last_name"
+	// UpdateUserMiddleNameRole represents name of role for updating
+	// user middle name.
+	UpdateUserMiddleNameRole = "update_user_middle_name"
 	// ObserveSessionRole represents role for observing session.
 	ObserveSessionRole = "observe_session"
 	// DeleteSessionRole represents role for deleting session.
 	DeleteSessionRole = "delete_session"
+	// ObserveProblemsRole represents role for observing problem list.
+	ObserveProblemsRole = "observe_problems"
 	// ObserveProblemRole represents role for observing problem.
 	ObserveProblemRole = "observe_problem"
 	// CreateProblemRole represents role for creating problem.
@@ -65,18 +83,19 @@ const (
 	UpdateProblemRole = "update_problem"
 	// DeleteProblemRole represents role for deleting problem.
 	DeleteProblemRole = "delete_problem"
-	// ObserveProblemsRole represents role for observing problem list.
-	ObserveProblemsRole = "observe_problems"
+	// ObserveContestsRole represents role for observing contest list.
+	ObserveContestsRole = "observe_contests"
 	// ObserveContestRole represents role for observing contest.
 	ObserveContestRole = "observe_contest"
+	// ObserveContestProblemsRole represents role for observing
+	// contest problems.
+	ObserveContestProblemsRole = "observe_contest_problems"
 	// CreateContestRole represents role for creating contest.
 	CreateContestRole = "create_contest"
 	// UpdateContestRole represents role for updating contest.
 	UpdateContestRole = "update_contest"
 	// DeleteContestRole represents role for deleting contest.
 	DeleteContestRole = "delete_contest"
-	// ObserveContestsRole represents role for observing contest list.
-	ObserveContestsRole = "observe_contests"
 	// GuestGroupRole represents name of role for guest group.
 	GuestGroupRole = "guest_group"
 	// UserGroupRole represents name of role for user group.
@@ -84,36 +103,43 @@ const (
 )
 
 var builtInRoles = map[string]struct{}{
-	LoginRole:                 {},
-	LogoutRole:                {},
-	RegisterRole:              {},
-	AuthStatusRole:            {},
-	ObserveRoleRole:           {},
-	CreateRoleRole:            {},
-	DeleteRoleRole:            {},
-	ObserveUserRoleRole:       {},
-	CreateUserRoleRole:        {},
-	DeleteUserRoleRole:        {},
-	ObserveUserRole:           {},
-	ObserveUserEmailRole:      {},
-	ObserveUserFirstNameRole:  {},
-	ObserveUserLastNameRole:   {},
-	ObserveUserMiddleNameRole: {},
-	ObserveUserSessionRole:    {},
-	ObserveSessionRole:        {},
-	ObserveProblemRole:        {},
-	CreateProblemRole:         {},
-	UpdateProblemRole:         {},
-	DeleteProblemRole:         {},
-	ObserveProblemsRole:       {},
-	ObserveContestRole:        {},
-	CreateContestRole:         {},
-	UpdateContestRole:         {},
-	DeleteContestRole:         {},
-	ObserveContestsRole:       {},
-	DeleteSessionRole:         {},
-	GuestGroupRole:            {},
-	UserGroupRole:             {},
+	LoginRole:                  {},
+	LogoutRole:                 {},
+	RegisterRole:               {},
+	StatusRole:                 {},
+	ObserveRolesRole:           {},
+	CreateRoleRole:             {},
+	DeleteRoleRole:             {},
+	ObserveRoleRolesRole:       {},
+	ObserveUserRolesRole:       {},
+	CreateUserRoleRole:         {},
+	DeleteUserRoleRole:         {},
+	ObserveUserRole:            {},
+	UpdateUserRole:             {},
+	ObserveUserEmailRole:       {},
+	ObserveUserFirstNameRole:   {},
+	ObserveUserLastNameRole:    {},
+	ObserveUserMiddleNameRole:  {},
+	ObserveUserSessionsRole:    {},
+	UpdateUserPasswordRole:     {},
+	UpdateUserFirstNameRole:    {},
+	UpdateUserLastNameRole:     {},
+	UpdateUserMiddleNameRole:   {},
+	ObserveSessionRole:         {},
+	ObserveProblemsRole:        {},
+	ObserveProblemRole:         {},
+	CreateProblemRole:          {},
+	UpdateProblemRole:          {},
+	DeleteProblemRole:          {},
+	ObserveContestRole:         {},
+	ObserveContestProblemsRole: {},
+	ObserveContestsRole:        {},
+	CreateContestRole:          {},
+	UpdateContestRole:          {},
+	DeleteContestRole:          {},
+	DeleteSessionRole:          {},
+	GuestGroupRole:             {},
+	UserGroupRole:              {},
 }
 
 // ObjectID return ID of role.

@@ -25,7 +25,7 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 	g.GET(
 		"/roles", v.observeRoles,
 		v.sessionAuth, v.requireAuth,
-		v.requireAuthRole(models.ObserveRoleRole),
+		v.requireAuthRole(models.ObserveRolesRole),
 	)
 	g.POST(
 		"/roles", v.createRole,
@@ -40,12 +40,12 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 	g.GET(
 		"/roles/:role/roles", v.observeRoleRoles,
 		v.sessionAuth, v.requireAuth, v.extractRole,
-		v.requireAuthRole(models.ObserveRoleRole),
+		v.requireAuthRole(models.ObserveRoleRolesRole),
 	)
 	g.GET(
 		"/users/:user/roles", v.observeUserRoles,
 		v.sessionAuth, v.requireAuth, v.extractUser,
-		v.requireAuthRole(models.ObserveUserRoleRole),
+		v.requireAuthRole(models.ObserveUserRolesRole),
 	)
 	g.POST(
 		"/users/:user/roles", v.createUserRole,

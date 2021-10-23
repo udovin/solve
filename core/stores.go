@@ -36,9 +36,6 @@ func (c *Core) SetupAllStores() error {
 	c.Users = models.NewUserStore(
 		"solve_user", "solve_user_event", salt, dialect,
 	)
-	c.UserFields = models.NewUserFieldStore(
-		"solve_user_field", "solve_user_field_event", dialect,
-	)
 	c.Contests = models.NewContestStore(
 		"solve_contest", "solve_contest_event", dialect,
 	)
@@ -63,7 +60,6 @@ func (c *Core) startStores(start func(models.Store, time.Duration)) {
 	start(c.AccountRoles, time.Second)
 	start(c.Sessions, time.Second)
 	start(c.Users, time.Second)
-	start(c.UserFields, time.Second)
 	start(c.Contests, time.Second)
 	start(c.Problems, time.Second)
 	start(c.Solutions, time.Second)

@@ -16,7 +16,11 @@ func (t *userStoreTest) prepareDB(tx *sql.Tx) error {
 			`"account_id" integer NOT NULL,` +
 			`"login" varchar(64) NOT NULL,` +
 			`"password_hash" varchar(255) NOT NULL,` +
-			`"password_salt" varchar(255) NOT NULL)`,
+			`"password_salt" varchar(255) NOT NULL,` +
+			`"email" varchar(255),` +
+			`"first_name" varchar(255),` +
+			`"last_name" varchar(255),` +
+			`"middle_name" varchar(255))`,
 	); err != nil {
 		return err
 	}
@@ -29,7 +33,11 @@ func (t *userStoreTest) prepareDB(tx *sql.Tx) error {
 			`"account_id" integer NOT NULL,` +
 			`"login" varchar(64) NOT NULL,` +
 			`"password_hash" varchar(255) NOT NULL,` +
-			`"password_salt" varchar(255) NOT NULL)`,
+			`"password_salt" varchar(255) NOT NULL,` +
+			`"email" varchar(255),` +
+			`"first_name" varchar(255),` +
+			`"last_name" varchar(255),` +
+			`"middle_name" varchar(255))`,
 	)
 	return err
 }

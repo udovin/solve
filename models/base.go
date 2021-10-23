@@ -109,6 +109,32 @@ func (v JSON) clone() JSON {
 	return c
 }
 
+// NString represents nullable string with empty value means null value.
+type NString string
+
+// Value returns value.
+func (v NString) Value() (driver.Value, error) {
+	if v == "" {
+		return nil, nil
+	}
+	return string(v), nil
+}
+
+// Scan scans value.
+func (v *NString) Scan(value interface{}) error {
+	switch x := value.(type) {
+	case nil:
+		*v = ""
+	case string:
+		*v = NString(x)
+	case []byte:
+		*v = NString(x)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
+	return nil
+}
+
 // EventType represents type of object event.
 type EventType int8
 

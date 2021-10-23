@@ -108,35 +108,10 @@ func (v *View) makeUser(c echo.Context, user models.User, roles core.RoleSet) Us
 		}
 	}
 	resp := User{ID: user.ID, Login: user.Login}
-	fields, err := v.core.UserFields.FindByUser(user.ID)
-	if err != nil {
-		c.Logger().Error(err)
-	} else {
-		for _, field := range fields {
-			switch field.Kind {
-			case models.EmailField:
-				assign(
-					&resp.Email, field.Data,
-					models.ObserveUserEmailRole,
-				)
-			case models.FirstNameField:
-				assign(
-					&resp.FirstName, field.Data,
-					models.ObserveUserFirstNameRole,
-				)
-			case models.LastNameField:
-				assign(
-					&resp.LastName, field.Data,
-					models.ObserveUserLastNameRole,
-				)
-			case models.MiddleNameField:
-				assign(
-					&resp.MiddleName, field.Data,
-					models.ObserveUserMiddleNameRole,
-				)
-			}
-		}
-	}
+	assign(&resp.Email, string(user.Email), models.ObserveUserEmailRole)
+	assign(&resp.FirstName, string(user.FirstName), models.ObserveUserFirstNameRole)
+	assign(&resp.LastName, string(user.LastName), models.ObserveUserLastNameRole)
+	assign(&resp.MiddleName, string(user.MiddleName), models.ObserveUserMiddleNameRole)
 	return resp
 }
 
@@ -216,6 +191,11 @@ func (v *View) updateUserPassword(c echo.Context) error {
 		c.Logger().Error("user not extracted")
 		return fmt.Errorf("user not extracted")
 	}
+	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	if !ok {
+		c.Logger().Error("roles not extracted")
+		return fmt.Errorf("roles not extracted")
+	}
 	var form updatePasswordForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
@@ -242,8 +222,7 @@ func (v *View) updateUserPassword(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	resp := User{ID: user.ID, Login: user.Login}
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, v.makeUser(c, user, roles))
 }
 
 func (v *View) observeUserSessions(c echo.Context) error {
@@ -341,16 +320,6 @@ func (v *View) logoutAccount(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-// registerUserForm represents form for register new user.
-type registerUserForm struct {
-	Login      string `json:"login"`
-	Email      string `json:"email"`
-	Password   string `json:"password"`
-	FirstName  string `json:"first_name"`
-	LastName   string `json:"last_name"`
-	MiddleName string `json:"middle_name"`
-}
-
 var loginRegexp = regexp.MustCompile(
 	`^[a-zA-Z]([a-zA-Z0-9_\\-])*[a-zA-Z0-9]$`,
 )
@@ -358,20 +327,6 @@ var loginRegexp = regexp.MustCompile(
 var emailRegexp = regexp.MustCompile(
 	"^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$",
 )
-
-func (f registerUserForm) Validate() *errorResp {
-	errors := errorFields{}
-	validateLogin(errors, f.Login)
-	validateEmail(errors, f.Email)
-	validatePassword(errors, f.Password)
-	if len(errors) == 0 {
-		return nil
-	}
-	return &errorResp{
-		Message:       "passed invalid fields to form",
-		InvalidFields: errors,
-	}
-}
 
 func validateLogin(errors errorFields, login string) {
 	if len(login) < 3 {
@@ -415,6 +370,57 @@ func validatePassword(errors errorFields, password string) {
 	}
 }
 
+func (f registerUserForm) validate() *errorResp {
+	errors := errorFields{}
+	validateLogin(errors, f.Login)
+	validateEmail(errors, f.Email)
+	validatePassword(errors, f.Password)
+	if len(errors) == 0 {
+		return nil
+	}
+	return &errorResp{
+		Message:       "passed invalid fields to form",
+		InvalidFields: errors,
+	}
+}
+
+// registerUserForm represents form for register new user.
+type registerUserForm struct {
+	Login      string `json:"login"`
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+	MiddleName string `json:"middle_name"`
+}
+
+func (f registerUserForm) Update(
+	user *models.User, store *models.UserStore,
+) *errorResp {
+	if err := f.validate(); err != nil {
+		return err
+	}
+	if _, err := store.GetByLogin(f.Login); err != sql.ErrNoRows {
+		if err != nil {
+			return &errorResp{Message: "unknown error"}
+		}
+		return &errorResp{
+			Message: fmt.Sprintf(
+				"user with login %q already exists", f.Login,
+			),
+		}
+	}
+	user.Login = f.Login
+	if err := store.SetPassword(user, f.Password); err != nil {
+		return &errorResp{Message: "can not set password"}
+	}
+	user.Email = models.NString(f.Email)
+	user.FirstName = models.NString(f.FirstName)
+	user.LastName = models.NString(f.LastName)
+	user.MiddleName = models.NString(f.MiddleName)
+	return nil
+}
+
 // registerUser registers user.
 func (v *View) registerUser(c echo.Context) error {
 	var form registerUserForm
@@ -422,25 +428,9 @@ func (v *View) registerUser(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	if resp := form.Validate(); resp != nil {
-		return c.JSON(http.StatusBadRequest, resp)
-	}
-	if _, err := v.core.Users.GetByLogin(form.Login); err != sql.ErrNoRows {
-		if err != nil {
-			c.Logger().Error(err)
-			return err
-		}
-		resp := errorResp{
-			Message: fmt.Sprintf(
-				"user with login %q already exists", form.Login,
-			),
-		}
-		return c.JSON(http.StatusForbidden, resp)
-	}
-	user := models.User{Login: form.Login}
-	if err := v.core.Users.SetPassword(&user, form.Password); err != nil {
-		c.Logger().Error(err)
-		return err
+	var user models.User
+	if err := form.Update(&user, v.core.Users); err != nil {
+		return c.JSON(http.StatusBadRequest, err)
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
 		account := models.Account{Kind: models.UserAccount}
@@ -448,10 +438,7 @@ func (v *View) registerUser(c echo.Context) error {
 			return err
 		}
 		user.AccountID = account.ID
-		if err := v.core.Users.CreateTx(tx, &user); err != nil {
-			return err
-		}
-		return v.registerUserFields(tx, user, form)
+		return v.core.Users.CreateTx(tx, &user)
 	}); err != nil {
 		c.Logger().Error(err)
 		return err
@@ -464,51 +451,6 @@ func (v *View) registerUser(c echo.Context) error {
 		LastName:   form.LastName,
 		MiddleName: form.MiddleName,
 	})
-}
-
-// registerUserFields creates fields for registered user.
-func (v *View) registerUserFields(
-	tx *sql.Tx, user models.User, form registerUserForm,
-) error {
-	email := models.UserField{
-		UserID: user.ID,
-		Kind:   models.EmailField,
-		Data:   form.Email,
-	}
-	if _, err := v.core.UserFields.CreateTx(tx, email); err != nil {
-		return err
-	}
-	if form.FirstName != "" {
-		field := models.UserField{
-			UserID: user.ID,
-			Kind:   models.FirstNameField,
-			Data:   form.FirstName,
-		}
-		if _, err := v.core.UserFields.CreateTx(tx, field); err != nil {
-			return err
-		}
-	}
-	if form.LastName != "" {
-		field := models.UserField{
-			UserID: user.ID,
-			Kind:   models.LastNameField,
-			Data:   form.LastName,
-		}
-		if _, err := v.core.UserFields.CreateTx(tx, field); err != nil {
-			return err
-		}
-	}
-	if form.MiddleName != "" {
-		field := models.UserField{
-			UserID: user.ID,
-			Kind:   models.MiddleNameField,
-			Data:   form.MiddleName,
-		}
-		if _, err := v.core.UserFields.CreateTx(tx, field); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {

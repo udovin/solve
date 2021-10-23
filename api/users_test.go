@@ -31,9 +31,6 @@ func testSyncManagers(tb testing.TB) {
 			if err := testView.core.Users.SyncTx(tx); err != nil {
 				return err
 			}
-			if err := testView.core.UserFields.SyncTx(tx); err != nil {
-				return err
-			}
 			if err := testView.core.Roles.SyncTx(tx); err != nil {
 				return err
 			}

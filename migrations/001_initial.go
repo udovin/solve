@@ -128,7 +128,11 @@ CREATE TABLE "solve_user"
 	"account_id" integer NOT NULL,
 	"login" integer NOT NULL,
 	"password_hash" integer NOT NULL,
-	"password_salt" TEXT NOT NULL
+	"password_salt" TEXT NOT NULL,
+	"email" VARCHAR(255),
+	"first_name" VARCHAR(255),
+	"last_name" VARCHAR(255),
+	"middle_name" VARCHAR(255)
 );
 -- models.UserEvent
 CREATE TABLE "solve_user_event"
@@ -140,7 +144,11 @@ CREATE TABLE "solve_user_event"
 	"account_id" integer NOT NULL,
 	"login" integer NOT NULL,
 	"password_hash" integer NOT NULL,
-	"password_salt" TEXT NOT NULL
+	"password_salt" TEXT NOT NULL,
+	"email" VARCHAR(255),
+	"first_name" VARCHAR(255),
+	"last_name" VARCHAR(255),
+	"middle_name" VARCHAR(255)
 );
 -- models.UserField
 CREATE TABLE "solve_user_field"

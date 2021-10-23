@@ -31,8 +31,6 @@ type Core struct {
 	Sessions *models.SessionStore
 	// Users contains user store.
 	Users *models.UserStore
-	// UserFields contains user field store.
-	UserFields *models.UserFieldStore
 	// Problems contains problems store.
 	Problems *models.ProblemStore
 	// Solutions contains solutions store.

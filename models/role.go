@@ -60,6 +60,8 @@ const (
 	// UpdateUserPasswordRole represents name of role for updating
 	// user password.
 	UpdateUserPasswordRole = "update_user_password"
+	// UpdateUserEmailRole represents name of role for updating user email.
+	UpdateUserEmailRole = "update_user_email_role"
 	// UpdateUserFirstNameRole represents name of role for updating
 	// user first name.
 	UpdateUserFirstNameRole = "update_user_first_name"
@@ -88,8 +90,11 @@ const (
 	// ObserveContestRole represents role for observing contest.
 	ObserveContestRole = "observe_contest"
 	// ObserveContestProblemsRole represents role for observing
-	// contest problems.
+	// contest problem list.
 	ObserveContestProblemsRole = "observe_contest_problems"
+	// ObserveContestProblemRole represents role for observing
+	// contest problem.
+	ObserveContestProblemRole = "observe_contest_problem"
 	// CreateContestRole represents role for creating contest.
 	CreateContestRole = "create_contest"
 	// UpdateContestRole represents role for updating contest.
@@ -122,6 +127,7 @@ var builtInRoles = map[string]struct{}{
 	ObserveUserMiddleNameRole:  {},
 	ObserveUserSessionsRole:    {},
 	UpdateUserPasswordRole:     {},
+	UpdateUserEmailRole:        {},
 	UpdateUserFirstNameRole:    {},
 	UpdateUserLastNameRole:     {},
 	UpdateUserMiddleNameRole:   {},
@@ -133,6 +139,7 @@ var builtInRoles = map[string]struct{}{
 	DeleteProblemRole:          {},
 	ObserveContestRole:         {},
 	ObserveContestProblemsRole: {},
+	ObserveContestProblemRole:  {},
 	ObserveContestsRole:        {},
 	CreateContestRole:          {},
 	UpdateContestRole:          {},

@@ -565,6 +565,7 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			addRole(authRoles, models.ObserveUserSessionsRole)
 			addRole(authRoles, models.UpdateUserRole)
 			addRole(authRoles, models.UpdateUserPasswordRole)
+			addRole(authRoles, models.UpdateUserEmailRole)
 			addRole(authRoles, models.UpdateUserFirstNameRole)
 			addRole(authRoles, models.UpdateUserLastNameRole)
 			addRole(authRoles, models.UpdateUserMiddleNameRole)

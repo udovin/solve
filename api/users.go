@@ -130,32 +130,104 @@ func (v *View) observeUser(c echo.Context) error {
 }
 
 type updateUserForm struct {
-	FirstName  string `json:"first_name"`
-	LastName   string `json:"last_name"`
-	MiddleName string `json:"middle_name"`
+	FirstName  *string `json:"first_name"`
+	LastName   *string `json:"last_name"`
+	MiddleName *string `json:"middle_name"`
+}
+
+func (f updateUserForm) Update(user *models.User) *errorResp {
+	errors := errorFields{}
+	if f.FirstName != nil && len(*f.FirstName) > 0 {
+		validateFirstName(errors, *f.FirstName)
+	}
+	if f.LastName != nil && len(*f.LastName) > 0 {
+		validateLastName(errors, *f.LastName)
+	}
+	if f.MiddleName != nil && len(*f.MiddleName) > 0 {
+		validateMiddleName(errors, *f.MiddleName)
+	}
+	if len(errors) > 0 {
+		return &errorResp{
+			Message:       "passed invalid fields to form",
+			InvalidFields: errors,
+		}
+	}
+	if f.FirstName != nil {
+		user.FirstName = models.NString(*f.FirstName)
+	}
+	if f.LastName != nil {
+		user.LastName = models.NString(*f.LastName)
+	}
+	if f.MiddleName != nil {
+		user.MiddleName = models.NString(*f.MiddleName)
+	}
+	return nil
 }
 
 func (v *View) updateUser(c echo.Context) error {
-	// user, ok := c.Get(userKey).(models.User)
-	// if !ok {
-	// 	c.Logger().Error("user not extracted")
-	// 	return fmt.Errorf("user not extracted")
-	// }
-	// roles, ok := c.Get(authRolesKey).(core.RoleSet)
-	// if !ok {
-	// 	c.Logger().Error("roles not extracted")
-	// 	return fmt.Errorf("roles not extracted")
-	// }
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	if !ok {
+		c.Logger().Error("roles not extracted")
+		return fmt.Errorf("roles not extracted")
+	}
 	var form updateUserForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	return c.JSON(http.StatusInternalServerError, errorResp{
-		Message: "changing user fields not available",
-	})
-	// resp := v.makeUser(c, user, roles)
-	// return c.JSON(http.StatusOK, resp)
+	var missingRoles []string
+	if form.FirstName != nil {
+		ok, err := v.core.HasRole(roles, models.UpdateUserFirstNameRole)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+		if !ok {
+			missingRoles = append(missingRoles, models.UpdateUserFirstNameRole)
+		}
+	}
+	if form.LastName != nil {
+		ok, err := v.core.HasRole(roles, models.UpdateUserLastNameRole)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+		if !ok {
+			missingRoles = append(missingRoles, models.UpdateUserLastNameRole)
+		}
+	}
+	if form.MiddleName != nil {
+		ok, err := v.core.HasRole(roles, models.UpdateUserMiddleNameRole)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+		if !ok {
+			missingRoles = append(missingRoles, models.UpdateUserMiddleNameRole)
+		}
+	}
+	if len(missingRoles) > 0 {
+		return c.JSON(http.StatusForbidden, errorResp{
+			Message:      "account missing roles",
+			MissingRoles: missingRoles,
+		})
+	}
+	if err := form.Update(&user); err != nil {
+		c.Logger().Warn(err)
+		return c.JSON(http.StatusBadRequest, err)
+	}
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		return v.core.Users.UpdateTx(tx, user)
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusOK, v.makeUser(c, user, roles))
 }
 
 type updatePasswordForm struct {
@@ -370,11 +442,44 @@ func validatePassword(errors errorFields, password string) {
 	}
 }
 
+func validateFirstName(errors errorFields, firstName string) {
+	if len(firstName) < 2 {
+		errors["first_name"] = errorField{Message: "first name too short (<2)"}
+	} else if len(firstName) > 32 {
+		errors["first_name"] = errorField{Message: "first name too long (>32)"}
+	}
+}
+
+func validateLastName(errors errorFields, lastName string) {
+	if len(lastName) < 2 {
+		errors["last_name"] = errorField{Message: "last name too short (<2)"}
+	} else if len(lastName) > 32 {
+		errors["last_name"] = errorField{Message: "last name too long (>32)"}
+	}
+}
+
+func validateMiddleName(errors errorFields, middleName string) {
+	if len(middleName) < 2 {
+		errors["middle_name"] = errorField{Message: "middle name too short (<2)"}
+	} else if len(middleName) > 32 {
+		errors["middle_name"] = errorField{Message: "middle name too long (>32)"}
+	}
+}
+
 func (f registerUserForm) validate() *errorResp {
 	errors := errorFields{}
 	validateLogin(errors, f.Login)
 	validateEmail(errors, f.Email)
 	validatePassword(errors, f.Password)
+	if len(f.FirstName) > 0 {
+		validateFirstName(errors, f.FirstName)
+	}
+	if len(f.LastName) > 0 {
+		validateLastName(errors, f.LastName)
+	}
+	if len(f.MiddleName) > 0 {
+		validateMiddleName(errors, f.MiddleName)
+	}
 	if len(errors) == 0 {
 		return nil
 	}

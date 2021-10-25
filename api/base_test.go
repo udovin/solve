@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 )
@@ -21,15 +22,8 @@ func (c *testClient) setCookie(req *http.Request) {
 	}
 }
 
-func (c *testClient) Register(login, password string) (User, error) {
-	data, err := json.Marshal(map[string]string{
-		"login":       login,
-		"password":    password,
-		"email":       "test@example.com",
-		"first_name":  "First",
-		"last_name":   "Last",
-		"middle_name": "Middle",
-	})
+func (c *testClient) Register(form registerUserForm) (User, error) {
+	data, err := json.Marshal(form)
 	if err != nil {
 		return User{}, err
 	}
@@ -122,6 +116,29 @@ func (c *testClient) Status() (Status, error) {
 	var resp Status
 	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 		return Status{}, err
+	}
+	return resp, nil
+}
+
+func (c *testClient) ObserveUser(login string) (User, error) {
+	req := httptest.NewRequest(
+		http.MethodGet, fmt.Sprintf("/api/v0/users/%s", login), nil,
+	)
+	c.setCookie(req)
+	rec := httptest.NewRecorder()
+	if err := testHandler(req, rec); err != nil {
+		return User{}, err
+	}
+	if rec.Code != http.StatusOK {
+		var resp errorResp
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			return User{}, err
+		}
+		return User{}, &resp
+	}
+	var resp User
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		return User{}, err
 	}
 	return resp, nil
 }

@@ -16,8 +16,8 @@ func TestUserLoginScenario(t *testing.T) {
 	defer testTeardown(t)
 	testRegisterUser(t, "test", "qwerty123")
 	testSyncManagers(t)
-	testGetUser(t, "test")
-	testGetUserRoles(t, "test")
+	testSocketObserveUser(t, "test")
+	testSocketObserveUserRoles(t, "test")
 	testLoginUser(t, "test", "qwerty123")
 }
 
@@ -96,7 +96,7 @@ func testLoginUser(tb testing.TB, login, password string) Session {
 	return resp
 }
 
-func testGetUser(tb testing.TB, login string) User {
+func testSocketObserveUser(tb testing.TB, login string) User {
 	req := httptest.NewRequest(
 		http.MethodGet, fmt.Sprintf("/socket/v0/users/%s", login), nil,
 	)
@@ -112,7 +112,7 @@ func testGetUser(tb testing.TB, login string) User {
 	return resp
 }
 
-func testGetUserRoles(tb testing.TB, login string) []Role {
+func testSocketObserveUserRoles(tb testing.TB, login string) []Role {
 	req := httptest.NewRequest(
 		http.MethodGet, fmt.Sprintf("/socket/v0/users/%s/roles", login), nil,
 	)

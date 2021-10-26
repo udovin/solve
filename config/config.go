@@ -1,9 +1,10 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"text/template"
 
 	"github.com/labstack/gommon/log"
 )
@@ -63,11 +64,15 @@ func LoadFromFile(file string) (Config, error) {
 		// By default we should use INFO level.
 		LogLevel: log.INFO,
 	}
-	bytes, err := ioutil.ReadFile(file)
+	tmpl, err := template.ParseFiles(file)
 	if err != nil {
 		return Config{}, err
 	}
-	if err := json.Unmarshal(bytes, &cfg); err != nil {
+	var buffer bytes.Buffer
+	if err := tmpl.Execute(&buffer, nil); err != nil {
+		return Config{}, err
+	}
+	if err := json.NewDecoder(&buffer).Decode(&cfg); err != nil {
 		return Config{}, err
 	}
 	return cfg, nil

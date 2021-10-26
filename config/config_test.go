@@ -73,6 +73,24 @@ func TestLoadFromInvalidFile(t *testing.T) {
 	}
 }
 
+func TestLoadFromInvalidTemplateFile(t *testing.T) {
+	file, err := ioutil.TempFile(os.TempDir(), "solve-test-")
+	if err != nil {
+		t.Error("Error: ", err)
+	}
+	_, err = file.Write([]byte(`{"server": {{ invalid }} }`))
+	if err != nil {
+		t.Fatal("Error: ", err)
+	}
+	_ = file.Close()
+	defer func() {
+		_ = os.Remove(file.Name())
+	}()
+	if _, err := LoadFromFile(file.Name()); err == nil {
+		t.Fatal("Expected error for invalid config file")
+	}
+}
+
 func TestServerAddress(t *testing.T) {
 	s := Server{Host: "localhost", Port: 8080}
 	addr := "localhost:8080"

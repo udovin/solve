@@ -267,10 +267,15 @@ func (v *View) createRoleRole(c echo.Context) error {
 				),
 			})
 		}
-		resp = append(resp, Role{
-			ID:   role.ID,
-			Code: role.Code,
-		})
+		role, err := v.core.Roles.Get(edge.ChildID)
+		if err != nil {
+			c.Logger().Error(err)
+		} else {
+			resp = append(resp, Role{
+				ID:   role.ID,
+				Code: role.Code,
+			})
+		}
 	}
 	edge := models.RoleEdge{
 		RoleID:  role.ID,
@@ -351,10 +356,15 @@ func (v *View) createUserRole(c echo.Context) error {
 				),
 			})
 		}
-		resp = append(resp, Role{
-			ID:   role.ID,
-			Code: role.Code,
-		})
+		role, err := v.core.Roles.Get(edge.RoleID)
+		if err != nil {
+			c.Logger().Error(err)
+		} else {
+			resp = append(resp, Role{
+				ID:   role.ID,
+				Code: role.Code,
+			})
+		}
 	}
 	edge := models.AccountRole{
 		AccountID: user.AccountID,
@@ -383,8 +393,16 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		id, err := strconv.ParseInt(c.Param("role"), 10, 64)
 		if err != nil {
-			c.Logger().Warn(err)
-			return err
+			role, err := v.core.Roles.GetByCode(c.Param("role"))
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return c.NoContent(http.StatusNotFound)
+				}
+				c.Logger().Error(err)
+				return err
+			}
+			c.Set(roleKey, role)
+			return next(c)
 		}
 		role, err := v.core.Roles.Get(id)
 		if err != nil {
@@ -403,8 +421,16 @@ func (v *View) extractChildRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		id, err := strconv.ParseInt(c.Param("child_role"), 10, 64)
 		if err != nil {
-			c.Logger().Warn(err)
-			return err
+			role, err := v.core.Roles.GetByCode(c.Param("child_role"))
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return c.NoContent(http.StatusNotFound)
+				}
+				c.Logger().Error(err)
+				return err
+			}
+			c.Set(childRoleKey, role)
+			return next(c)
 		}
 		role, err := v.core.Roles.Get(id)
 		if err != nil {

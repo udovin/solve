@@ -119,8 +119,6 @@ func (f createRoleForm) validate() *errorResp {
 		errors["code"] = errorField{Message: "code too long (>32)"}
 	} else if !roleCodeRegexp.MatchString(f.Code) {
 		errors["code"] = errorField{Message: "code has invalid format"}
-	} else if (models.Role{Code: f.Code}).IsBuiltIn() {
-		errors["code"] = errorField{Message: "code can not be builtin"}
 	}
 	if len(errors) == 0 {
 		return nil
@@ -131,11 +129,21 @@ func (f createRoleForm) validate() *errorResp {
 	}
 }
 
-func (f createRoleForm) Update(role *models.Role) *errorResp {
+func (f createRoleForm) Update(
+	role *models.Role, roles *models.RoleStore,
+) *errorResp {
 	if err := f.validate(); err != nil {
 		return err
 	}
 	role.Code = f.Code
+	if _, err := roles.GetByCode(role.Code); err != sql.ErrNoRows {
+		if err != nil {
+			return &errorResp{Message: "unknown error"}
+		}
+		return &errorResp{
+			Message: fmt.Sprintf("role %q already exists", role.Code),
+		}
+	}
 	return nil
 }
 
@@ -146,7 +154,7 @@ func (v *View) createRole(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 	var role models.Role
-	if resp := form.Update(&role); resp != nil {
+	if resp := form.Update(&role, v.core.Roles); resp != nil {
 		return c.JSON(http.StatusBadRequest, resp)
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {

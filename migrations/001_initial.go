@@ -317,6 +317,8 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.CreateRoleRole,
 		models.DeleteRoleRole,
 		models.ObserveRoleRolesRole,
+		models.CreateRoleRoleRole,
+		models.DeleteRoleRoleRole,
 		models.ObserveUserRolesRole,
 		models.CreateUserRoleRole,
 		models.DeleteUserRoleRole,

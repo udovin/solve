@@ -42,14 +42,24 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 		v.sessionAuth, v.requireAuth, v.extractRole,
 		v.requireAuthRole(models.ObserveRoleRolesRole),
 	)
+	g.POST(
+		"/roles/:role/roles/:child_role", v.createRoleRole,
+		v.sessionAuth, v.requireAuth, v.extractRole, v.extractChildRole,
+		v.requireAuthRole(models.CreateRoleRoleRole),
+	)
+	g.DELETE(
+		"/roles/:role/roles/:child_role", v.deleteRoleRole,
+		v.sessionAuth, v.requireAuth, v.extractRole, v.extractChildRole,
+		v.requireAuthRole(models.DeleteRoleRoleRole),
+	)
 	g.GET(
 		"/users/:user/roles", v.observeUserRoles,
 		v.sessionAuth, v.requireAuth, v.extractUser,
 		v.requireAuthRole(models.ObserveUserRolesRole),
 	)
 	g.POST(
-		"/users/:user/roles", v.createUserRole,
-		v.sessionAuth, v.requireAuth, v.extractUser,
+		"/users/:user/roles/:role", v.createUserRole,
+		v.sessionAuth, v.requireAuth, v.extractUser, v.extractRole,
 		v.requireAuthRole(models.CreateUserRoleRole),
 	)
 	g.DELETE(
@@ -71,13 +81,21 @@ func (v *View) registerSocketRoleHandlers(g *echo.Group) {
 		"/roles/:role/roles", v.observeRoleRoles,
 		v.extractRole,
 	)
+	g.POST(
+		"/roles/:role/roles/:child_role", v.createRoleRole,
+		v.extractRole, v.extractChildRole,
+	)
+	g.DELETE(
+		"/roles/:role/roles/:child_role", v.deleteRoleRole,
+		v.extractRole, v.extractChildRole,
+	)
 	g.GET(
 		"/users/:user/roles", v.observeUserRoles,
 		v.extractUser,
 	)
 	g.POST(
-		"/users/:user/roles", v.createUserRole,
-		v.extractUser,
+		"/users/:user/roles/:role", v.createUserRole,
+		v.extractUser, v.extractRole,
 	)
 	g.DELETE(
 		"/users/:user/roles/:role", v.deleteUserRole,
@@ -224,6 +242,60 @@ func (v *View) observeRoleRoles(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+func (v *View) createRoleRole(c echo.Context) error {
+	role, ok := c.Get(roleKey).(models.Role)
+	if !ok {
+		c.Logger().Error("role not extracted")
+		return fmt.Errorf("role not extracted")
+	}
+	childRole, ok := c.Get(childRoleKey).(models.Role)
+	if !ok {
+		c.Logger().Error("child role not extracted")
+		return fmt.Errorf("child role not extracted")
+	}
+	edges, err := v.core.RoleEdges.FindByRole(role.ID)
+	if err != nil {
+		return err
+	}
+	var resp []Role
+	for _, edge := range edges {
+		if edge.ChildID == childRole.ID {
+			return c.JSON(http.StatusBadRequest, &errorResp{
+				Message: fmt.Sprintf(
+					"role %q already has child %q",
+					role.Code, childRole.Code,
+				),
+			})
+		}
+		resp = append(resp, Role{
+			ID:   role.ID,
+			Code: role.Code,
+		})
+	}
+	edge := models.RoleEdge{
+		RoleID:  role.ID,
+		ChildID: childRole.ID,
+	}
+	if err := v.core.WithTx(c.Request().Context(),
+		func(tx *sql.Tx) (err error) {
+			edge, err = v.core.RoleEdges.CreateTx(tx, edge)
+			return err
+		},
+	); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	resp = append(resp, Role{
+		ID:   childRole.ID,
+		Code: childRole.Code,
+	})
+	return c.JSON(http.StatusCreated, resp)
+}
+
+func (v *View) deleteRoleRole(c echo.Context) error {
+	return errNotImplemented
+}
+
 func (v *View) observeUserRoles(c echo.Context) error {
 	user, ok := c.Get(userKey).(models.User)
 	if !ok {
@@ -255,7 +327,52 @@ func (v *View) observeUserRoles(c echo.Context) error {
 }
 
 func (v *View) createUserRole(c echo.Context) error {
-	return errNotImplemented
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	role, ok := c.Get(roleKey).(models.Role)
+	if !ok {
+		c.Logger().Error("role not extracted")
+		return fmt.Errorf("role not extracted")
+	}
+	edges, err := v.core.AccountRoles.FindByAccount(user.AccountID)
+	if err != nil {
+		return err
+	}
+	var resp []Role
+	for _, edge := range edges {
+		if edge.RoleID == role.ID {
+			return c.JSON(http.StatusBadRequest, &errorResp{
+				Message: fmt.Sprintf(
+					"user %q already has role %q",
+					user.Login, role.Code,
+				),
+			})
+		}
+		resp = append(resp, Role{
+			ID:   role.ID,
+			Code: role.Code,
+		})
+	}
+	edge := models.AccountRole{
+		AccountID: user.AccountID,
+		RoleID:    role.ID,
+	}
+	if err := v.core.WithTx(c.Request().Context(),
+		func(tx *sql.Tx) (err error) {
+			return v.core.AccountRoles.CreateTx(tx, &edge)
+		},
+	); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	resp = append(resp, Role{
+		ID:   role.ID,
+		Code: role.Code,
+	})
+	return c.JSON(http.StatusCreated, resp)
 }
 
 func (v *View) deleteUserRole(c echo.Context) error {
@@ -278,6 +395,26 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 			return err
 		}
 		c.Set(roleKey, role)
+		return next(c)
+	}
+}
+
+func (v *View) extractChildRole(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		id, err := strconv.ParseInt(c.Param("child_role"), 10, 64)
+		if err != nil {
+			c.Logger().Warn(err)
+			return err
+		}
+		role, err := v.core.Roles.Get(id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return c.NoContent(http.StatusNotFound)
+			}
+			c.Logger().Error(err)
+			return err
+		}
+		c.Set(childRoleKey, role)
 		return next(c)
 	}
 }

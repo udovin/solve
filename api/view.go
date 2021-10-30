@@ -62,6 +62,7 @@ const (
 	authRolesKey   = "auth_roles"
 	authUserKey    = "auth_user"
 	roleKey        = "role"
+	childRoleKey   = "child_role"
 	userKey        = "user"
 	sessionKey     = "session"
 	sessionCookie  = "session"

@@ -33,6 +33,10 @@ const (
 	DeleteRoleRole = "delete_role"
 	// ObserveRoleRolesRole represents name of role for observing role roles.
 	ObserveRoleRolesRole = "observe_role_roles"
+	// CreateRoleRoleRole represents name of role for creating role role.
+	CreateRoleRoleRole = "create_role_role"
+	// DeleteRoleRoleRole represents name of role for deleting role role.
+	DeleteRoleRoleRole = "delete_role_role"
 	// ObserveUserRolesRole represents name of role for observing user roles.
 	ObserveUserRolesRole = "observe_user_roles"
 	// CreateUserRoleRole represents name of role for attaching role to user.
@@ -61,7 +65,7 @@ const (
 	// user password.
 	UpdateUserPasswordRole = "update_user_password"
 	// UpdateUserEmailRole represents name of role for updating user email.
-	UpdateUserEmailRole = "update_user_email_role"
+	UpdateUserEmailRole = "update_user_email"
 	// UpdateUserFirstNameRole represents name of role for updating
 	// user first name.
 	UpdateUserFirstNameRole = "update_user_first_name"
@@ -116,6 +120,8 @@ var builtInRoles = map[string]struct{}{
 	CreateRoleRole:             {},
 	DeleteRoleRole:             {},
 	ObserveRoleRolesRole:       {},
+	CreateRoleRoleRole:         {},
+	DeleteRoleRoleRole:         {},
 	ObserveUserRolesRole:       {},
 	CreateUserRoleRole:         {},
 	DeleteUserRoleRole:         {},

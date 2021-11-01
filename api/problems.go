@@ -38,7 +38,8 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 }
 
 type Problem struct {
-	ID int64 `json:"id"`
+	ID    int64  `json:"id"`
+	Title string `json:"title"`
 }
 
 type problemSorter []Problem
@@ -75,7 +76,8 @@ func (v *View) observeProblems(c echo.Context) error {
 		problemRoles := v.extendProblemRoles(c, roles, problem)
 		if ok, err := v.core.HasRole(problemRoles, models.ObserveProblemRole); ok && err == nil {
 			resp.Problems = append(resp.Problems, Problem{
-				ID: problem.ID,
+				ID:    problem.ID,
+				Title: problem.Title,
 			})
 		}
 	}
@@ -90,15 +92,30 @@ func (v *View) observeProblem(c echo.Context) error {
 		return fmt.Errorf("problem not extracted")
 	}
 	resp := Problem{
-		ID: problem.ID,
+		ID:    problem.ID,
+		Title: problem.Title,
 	}
 	return c.JSON(http.StatusOK, resp)
 }
 
 type createProblemForm struct {
+	Title string `json:"title"`
 }
 
 func (f createProblemForm) validate() *errorResp {
+	errors := errorFields{}
+	if len(f.Title) < 4 {
+		errors["title"] = errorField{Message: "title is too short"}
+	}
+	if len(f.Title) > 64 {
+		errors["title"] = errorField{Message: "title is too long"}
+	}
+	if len(errors) > 0 {
+		return &errorResp{
+			Message:       "form has invalid fields",
+			InvalidFields: errors,
+		}
+	}
 	return nil
 }
 
@@ -106,6 +123,7 @@ func (f createProblemForm) Update(problem *models.Problem) *errorResp {
 	if err := f.validate(); err != nil {
 		return err
 	}
+	problem.Title = f.Title
 	return nil
 }
 
@@ -129,7 +147,8 @@ func (v *View) createProblem(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusCreated, Problem{
-		ID: problem.ID,
+		ID:    problem.ID,
+		Title: problem.Title,
 	})
 }
 
@@ -146,7 +165,8 @@ func (v *View) deleteProblem(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, Problem{
-		ID: problem.ID,
+		ID:    problem.ID,
+		Title: problem.Title,
 	})
 }
 
@@ -182,10 +202,10 @@ func (v *View) extendProblemRoles(
 	}
 	account, ok := c.Get(authAccountKey).(models.Account)
 	if ok && problem.OwnerID != 0 && account.ID == int64(problem.OwnerID) {
+		addRole(models.ObserveProblemRole)
 		addRole(models.UpdateProblemRole)
 		addRole(models.DeleteProblemRole)
 	}
-	addRole(models.ObserveProblemRole)
 	return problemRoles
 }
 

@@ -42,7 +42,8 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 }
 
 type Contest struct {
-	ID int64 `json:"id"`
+	ID    int64  `json:"id"`
+	Title string `json:"title"`
 }
 
 type contestSorter []Contest
@@ -79,7 +80,8 @@ func (v *View) observeContests(c echo.Context) error {
 		contestRoles := v.extendContestRoles(c, roles, contest)
 		if ok, err := v.core.HasRole(contestRoles, models.ObserveContestRole); ok && err == nil {
 			resp.Contests = append(resp.Contests, Contest{
-				ID: contest.ID,
+				ID:    contest.ID,
+				Title: contest.Title,
 			})
 		}
 	}
@@ -94,15 +96,30 @@ func (v *View) observeContest(c echo.Context) error {
 		return fmt.Errorf("contest not extracted")
 	}
 	resp := Contest{
-		ID: contest.ID,
+		ID:    contest.ID,
+		Title: contest.Title,
 	}
 	return c.JSON(http.StatusOK, resp)
 }
 
 type createContestForm struct {
+	Title string `json:"title"`
 }
 
 func (f createContestForm) validate() *errorResp {
+	errors := errorFields{}
+	if len(f.Title) < 4 {
+		errors["title"] = errorField{Message: "title is too short"}
+	}
+	if len(f.Title) > 64 {
+		errors["title"] = errorField{Message: "title is too long"}
+	}
+	if len(errors) > 0 {
+		return &errorResp{
+			Message:       "form has invalid fields",
+			InvalidFields: errors,
+		}
+	}
 	return nil
 }
 
@@ -110,6 +127,7 @@ func (f createContestForm) Update(contest *models.Contest) *errorResp {
 	if err := f.validate(); err != nil {
 		return err
 	}
+	contest.Title = f.Title
 	return nil
 }
 
@@ -135,7 +153,8 @@ func (v *View) createContest(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusCreated, Contest{
-		ID: contest.ID,
+		ID:    contest.ID,
+		Title: contest.Title,
 	})
 }
 
@@ -152,7 +171,8 @@ func (v *View) deleteContest(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, Contest{
-		ID: contest.ID,
+		ID:    contest.ID,
+		Title: contest.Title,
 	})
 }
 
@@ -192,10 +212,10 @@ func (v *View) extendContestRoles(
 	}
 	account, ok := c.Get(authAccountKey).(models.Account)
 	if ok && contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
+		addRole(models.ObserveContestRole)
 		addRole(models.UpdateContestRole)
 		addRole(models.DeleteContestRole)
 	}
-	addRole(models.ObserveContestRole)
 	return contestRoles
 }
 

@@ -150,31 +150,13 @@ CREATE TABLE "solve_user_event"
 	"last_name" VARCHAR(255),
 	"middle_name" VARCHAR(255)
 );
--- models.UserField
-CREATE TABLE "solve_user_field"
-(
-	"id" integer PRIMARY KEY,
-	"user_id" integer NOT NULL,
-	"kind" integer NOT NULL,
-	"data" TEXT NOT NULL
-);
--- models.UserFieldEvent
-CREATE TABLE "solve_user_field_event"
-(
-	"event_id" integer PRIMARY KEY,
-	"event_type" int8 NOT NULL,
-	"event_time" bigint NOT NULL,
-	"id" integer NOT NULL,
-	"user_id" integer NOT NULL,
-	"kind" integer NOT NULL,
-	"data" TEXT NOT NULL
-);
 -- models.Contest
 CREATE TABLE "solve_contest"
 (
 	"id" integer PRIMARY KEY,
 	"owner_id" integer,
-	"config" blob
+	"config" blob NOT NULL,
+	"title" VARCHAR(255)
 );
 -- models.ContestEvent
 CREATE TABLE "solve_contest_event"
@@ -184,14 +166,16 @@ CREATE TABLE "solve_contest_event"
 	"event_time" bigint NOT NULL,
 	"id" integer NOT NULL,
 	"owner_id" integer,
-	"config" blob
+	"config" blob NOT NULL,
+	"title" VARCHAR(255)
 );
 -- models.Problem
 CREATE TABLE "solve_problem"
 (
 	"id" integer PRIMARY KEY,
 	"owner_id" integer,
-	"config" blob
+	"config" blob NOT NULL,
+	"title" VARCHAR(255) NOT NULL
 );
 -- models.ProblemEvent
 CREATE TABLE "solve_problem_event"
@@ -201,7 +185,8 @@ CREATE TABLE "solve_problem_event"
 	"event_time" bigint NOT NULL,
 	"id" integer NOT NULL,
 	"owner_id" integer,
-	"config" blob
+	"config" blob NOT NULL,
+	"title" VARCHAR(255) NOT NULL
 );
 -- models.Solution
 CREATE TABLE "solve_solution"
@@ -224,8 +209,8 @@ CREATE TABLE "solve_solution_event"
 CREATE TABLE "solve_contest_problem"
 (
 	"id" integer PRIMARY KEY,
-	"contest_id" bigint NOT NULL,
-	"problem_id" bigint NOT NULL,
+	"contest_id" integer NOT NULL,
+	"problem_id" integer NOT NULL,
 	"code" VARCHAR(32) NOT NULL
 );
 -- models.ContestProblemEvent
@@ -235,8 +220,8 @@ CREATE TABLE "solve_contest_problem_event"
 	"event_type" int8 NOT NULL,
 	"event_time" bigint NOT NULL,
 	"id" integer NOT NULL,
-	"contest_id" bigint NOT NULL,
-	"problem_id" bigint NOT NULL,
+	"contest_id" integer NOT NULL,
+	"problem_id" integer NOT NULL,
 	"code" VARCHAR(32) NOT NULL
 );
 -- models.Visit
@@ -269,8 +254,6 @@ DROP TABLE IF EXISTS "solve_contest_event";
 DROP TABLE IF EXISTS "solve_contest";
 DROP TABLE IF EXISTS "solve_session_event";
 DROP TABLE IF EXISTS "solve_session";
-DROP TABLE IF EXISTS "solve_user_field_event";
-DROP TABLE IF EXISTS "solve_user_field";
 DROP TABLE IF EXISTS "solve_user_event";
 DROP TABLE IF EXISTS "solve_user";
 DROP TABLE IF EXISTS "solve_account_role_event";
@@ -308,7 +291,7 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		})
 		return err
 	}
-	for _, role := range []string{
+	allRoles := []string{
 		models.LoginRole,
 		models.LogoutRole,
 		models.RegisterRole,
@@ -348,9 +331,18 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.UpdateContestRole,
 		models.DeleteContestRole,
 		models.ObserveContestsRole,
+	}
+	allGroups := []string{
 		models.GuestGroupRole,
 		models.UserGroupRole,
-	} {
+		"admin_group",
+	}
+	for _, role := range allRoles {
+		if err := create(role); err != nil {
+			return err
+		}
+	}
+	for _, role := range allGroups {
 		if err := create(role); err != nil {
 			return err
 		}
@@ -376,6 +368,11 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.ObserveContestsRole,
 	} {
 		if err := join(role, models.UserGroupRole); err != nil {
+			return err
+		}
+	}
+	for _, role := range allRoles {
+		if err := join(role, "admin_group"); err != nil {
 			return err
 		}
 	}

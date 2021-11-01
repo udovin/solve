@@ -16,7 +16,8 @@ func (t *contestStoreTest) prepareDB(tx *sql.Tx) error {
 		`CREATE TABLE "contest" (` +
 			`"id" integer PRIMARY KEY,` +
 			`"owner_id" integer,` +
-			`"config" text NOT NULL)`,
+			`"config" text NOT NULL,` +
+			`"title" VARCHAR(255) NOT NULL)`,
 	); err != nil {
 		log.Println("Error", err)
 		return err
@@ -28,7 +29,8 @@ func (t *contestStoreTest) prepareDB(tx *sql.Tx) error {
 			`"event_time" bigint NOT NULL,` +
 			`"id" integer NOT NULL,` +
 			`"owner_id" integer,` +
-			`"config" text NOT NULL)`,
+			`"config" text NOT NULL,` +
+			`"title" VARCHAR(255) NOT NULL)`,
 	)
 	return err
 }

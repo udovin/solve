@@ -11,6 +11,7 @@ type Problem struct {
 	ID      int64  `db:"id"`
 	OwnerID NInt64 `db:"owner_id"`
 	Config  JSON   `db:"config"`
+	Title   string `db:"title"`
 }
 
 // ObjectID return ID of problem.

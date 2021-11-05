@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -114,7 +115,19 @@ type errorResponse struct {
 
 // Error returns response error message.
 func (r errorResponse) Error() string {
-	return r.Message
+	var result strings.Builder
+	result.WriteString(r.Message)
+	if len(r.MissingRoles) > 0 {
+		result.WriteString(" (missing roles: ")
+		for i, role := range r.MissingRoles {
+			if i > 0 {
+				result.WriteString(", ")
+			}
+			result.WriteString(role)
+		}
+		result.WriteRune(')')
+	}
+	return result.String()
 }
 
 // sessionAuth tries to authorize account by session.

@@ -71,12 +71,6 @@ func newTestClient() *testClient {
 	return &testClient{}
 }
 
-func (c *testClient) setCookie(req *http.Request) {
-	for _, cookie := range c.cookies {
-		req.AddCookie(cookie)
-	}
-}
-
 func (c *testClient) Register(form registerUserForm) (User, error) {
 	data, err := json.Marshal(form)
 	if err != nil {
@@ -115,87 +109,109 @@ func (c *testClient) Login(login, password string) (Session, error) {
 	req := httptest.NewRequest(
 		http.MethodPost, "/api/v0/login", bytes.NewReader(data),
 	)
-	c.setCookie(req)
-	req.Header.Add("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	if err := testHandler(req, rec); err != nil {
-		return Session{}, err
-	}
-	if rec.Code != http.StatusCreated {
-		var resp errorResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-			return Session{}, err
-		}
-		return Session{}, &resp
-	}
 	var resp Session
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		return Session{}, err
-	}
-	c.cookies = rec.Result().Cookies()
-	return resp, nil
+	err = c.doRequest(req, http.StatusCreated, &resp)
+	return resp, err
 }
 
 func (c *testClient) Logout() error {
 	req := httptest.NewRequest(http.MethodPost, "/api/v0/logout", nil)
-	c.setCookie(req)
-	rec := httptest.NewRecorder()
-	if err := testHandler(req, rec); err != nil {
-		return err
-	}
-	if rec.Code != http.StatusOK {
-		var resp errorResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-			return err
-		}
-		return &resp
-	}
-	c.cookies = rec.Result().Cookies()
-	return nil
+	err := c.doRequest(req, http.StatusOK, nil)
+	return err
 }
 
 func (c *testClient) Status() (Status, error) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v0/status", nil)
-	c.setCookie(req)
-	rec := httptest.NewRecorder()
-	if err := testHandler(req, rec); err != nil {
-		return Status{}, err
-	}
-	if rec.Code != http.StatusOK {
-		var resp errorResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-			return Status{}, err
-		}
-		return Status{}, &resp
-	}
 	var resp Status
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		return Status{}, err
-	}
-	return resp, nil
+	err := c.doRequest(req, http.StatusOK, &resp)
+	return resp, err
 }
 
 func (c *testClient) ObserveUser(login string) (User, error) {
 	req := httptest.NewRequest(
 		http.MethodGet, fmt.Sprintf("/api/v0/users/%s", login), nil,
 	)
-	c.setCookie(req)
+	var resp User
+	err := c.doRequest(req, http.StatusOK, &resp)
+	return resp, err
+}
+
+func (c *testClient) ObserveContests() (Contests, error) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v0/contests", nil)
+	var resp Contests
+	err := c.doRequest(req, http.StatusOK, &resp)
+	return resp, err
+}
+
+func (c *testClient) ObserveContest(id int) (Contests, error) {
+	req := httptest.NewRequest(
+		http.MethodGet, fmt.Sprintf("/api/v0/contests/%d", id), nil,
+	)
+	var resp Contests
+	err := c.doRequest(req, http.StatusOK, &resp)
+	return resp, err
+}
+
+func (c *testClient) CreateContest(form createContestForm) (Contest, error) {
+	data, err := json.Marshal(form)
+	if err != nil {
+		return Contest{}, err
+	}
+	req := httptest.NewRequest(
+		http.MethodPost, "/api/v0/contests", bytes.NewReader(data),
+	)
+	var resp Contest
+	err = c.doRequest(req, http.StatusCreated, &resp)
+	return resp, err
+}
+
+func (c *testClient) doRequest(req *http.Request, code int, resp interface{}) error {
+	req.Header.Add("Content-Type", "application/json")
+	for _, cookie := range c.cookies {
+		req.AddCookie(cookie)
+	}
 	rec := httptest.NewRecorder()
 	if err := testHandler(req, rec); err != nil {
-		return User{}, err
+		return err
 	}
-	if rec.Code != http.StatusOK {
+	if rec.Code != code {
 		var resp errorResponse
 		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-			return User{}, err
+			return err
 		}
-		return User{}, &resp
+		return &resp
 	}
-	var resp User
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		return User{}, err
+	c.cookies = append(c.cookies, rec.Result().Cookies()...)
+	if resp != nil {
+		return json.NewDecoder(rec.Body).Decode(resp)
 	}
-	return resp, nil
+	return nil
+}
+
+func testSocketCreateUserRole(login string, role string) ([]Role, error) {
+	req := httptest.NewRequest(
+		http.MethodPost,
+		fmt.Sprintf("/socket/v0/users/%s/roles/%s", login, role), nil,
+	)
+	var resp []Role
+	err := doSocketRequest(req, http.StatusCreated, &resp)
+	return resp, err
+}
+
+func doSocketRequest(req *http.Request, code int, resp interface{}) error {
+	req.Header.Add("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	if err := testHandler(req, rec); err != nil {
+		return err
+	}
+	if rec.Code != code {
+		var resp errorResponse
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			return err
+		}
+		return &resp
+	}
+	return json.NewDecoder(rec.Body).Decode(resp)
 }
 
 func TestPing(t *testing.T) {

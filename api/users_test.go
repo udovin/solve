@@ -10,18 +10,20 @@ import (
 	"testing"
 )
 
+var testRegisterUser = registerUserForm{
+	Login:      "test",
+	Password:   "qwerty123",
+	FirstName:  "First",
+	LastName:   "Last",
+	MiddleName: "Middle",
+	Email:      "text@example.com",
+}
+
 func TestUserSimpleScenario(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 	client := newTestClient()
-	if _, err := client.Register(registerUserForm{
-		Login:      "test",
-		Password:   "qwerty123",
-		FirstName:  "First",
-		LastName:   "Last",
-		MiddleName: "Middle",
-		Email:      "text@example.com",
-	}); err != nil {
+	if _, err := client.Register(testRegisterUser); err != nil {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)

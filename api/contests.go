@@ -42,8 +42,9 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 }
 
 type Contest struct {
-	ID    int64  `json:"id"`
-	Title string `json:"title"`
+	ID          int64    `json:"id"`
+	Title       string   `json:"title"`
+	Permissions []string `json:"permissions,omitempty"`
 }
 
 type contestSorter []Contest
@@ -64,8 +65,16 @@ type Contests struct {
 	Contests []Contest `json:"contests"`
 }
 
-func makeContest(contest models.Contest) Contest {
+func makeContest(contest models.Contest, roles core.RoleSet, core *core.Core) Contest {
 	resp := Contest{ID: contest.ID, Title: contest.Title}
+	if roles != nil {
+		if ok, err := core.HasRole(roles, models.UpdateContestRole); err == nil && ok {
+			resp.Permissions = append(resp.Permissions, models.UpdateContestRole)
+		}
+		if ok, err := core.HasRole(roles, models.DeleteContestRole); err == nil && ok {
+			resp.Permissions = append(resp.Permissions, models.DeleteContestRole)
+		}
+	}
 	return resp
 }
 
@@ -84,7 +93,7 @@ func (v *View) observeContests(c echo.Context) error {
 	for _, contest := range contests {
 		contestRoles := v.extendContestRoles(c, roles, contest)
 		if ok, err := v.core.HasRole(contestRoles, models.ObserveContestRole); ok && err == nil {
-			resp.Contests = append(resp.Contests, makeContest(contest))
+			resp.Contests = append(resp.Contests, makeContest(contest, contestRoles, v.core))
 		}
 	}
 	sort.Sort(contestSorter(resp.Contests))
@@ -97,7 +106,12 @@ func (v *View) observeContest(c echo.Context) error {
 		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
-	return c.JSON(http.StatusOK, makeContest(contest))
+	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	if !ok {
+		c.Logger().Error("roles not extracted")
+		return fmt.Errorf("roles not extracted")
+	}
+	return c.JSON(http.StatusOK, makeContest(contest, roles, v.core))
 }
 
 type createContestForm struct {
@@ -150,7 +164,7 @@ func (v *View) createContest(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeContest(contest))
+	return c.JSON(http.StatusCreated, makeContest(contest, nil, nil))
 }
 
 func (v *View) deleteContest(c echo.Context) error {
@@ -165,7 +179,7 @@ func (v *View) deleteContest(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusOK, makeContest(contest))
+	return c.JSON(http.StatusOK, makeContest(contest, nil, nil))
 }
 
 func (v *View) observeContestProblem(c echo.Context) error {

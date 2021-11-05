@@ -91,7 +91,7 @@ func (c *testClient) Register(form registerUserForm) (User, error) {
 		return User{}, err
 	}
 	if rec.Code != http.StatusCreated {
-		var resp errorResp
+		var resp errorResponse
 		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 			return User{}, err
 		}
@@ -122,7 +122,7 @@ func (c *testClient) Login(login, password string) (Session, error) {
 		return Session{}, err
 	}
 	if rec.Code != http.StatusCreated {
-		var resp errorResp
+		var resp errorResponse
 		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 			return Session{}, err
 		}
@@ -144,7 +144,7 @@ func (c *testClient) Logout() error {
 		return err
 	}
 	if rec.Code != http.StatusOK {
-		var resp errorResp
+		var resp errorResponse
 		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 			return err
 		}
@@ -162,7 +162,7 @@ func (c *testClient) Status() (Status, error) {
 		return Status{}, err
 	}
 	if rec.Code != http.StatusOK {
-		var resp errorResp
+		var resp errorResponse
 		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 			return Status{}, err
 		}
@@ -185,7 +185,7 @@ func (c *testClient) ObserveUser(login string) (User, error) {
 		return User{}, err
 	}
 	if rec.Code != http.StatusOK {
-		var resp errorResp
+		var resp errorResponse
 		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 			return User{}, err
 		}

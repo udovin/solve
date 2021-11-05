@@ -135,7 +135,7 @@ type updateUserForm struct {
 	MiddleName *string `json:"middle_name"`
 }
 
-func (f updateUserForm) Update(user *models.User) *errorResp {
+func (f updateUserForm) Update(user *models.User) *errorResponse {
 	errors := errorFields{}
 	if f.FirstName != nil && len(*f.FirstName) > 0 {
 		validateFirstName(errors, *f.FirstName)
@@ -147,7 +147,7 @@ func (f updateUserForm) Update(user *models.User) *errorResp {
 		validateMiddleName(errors, *f.MiddleName)
 	}
 	if len(errors) > 0 {
-		return &errorResp{
+		return &errorResponse{
 			Message:       "passed invalid fields to form",
 			InvalidFields: errors,
 		}
@@ -212,7 +212,7 @@ func (v *View) updateUser(c echo.Context) error {
 		}
 	}
 	if len(missingRoles) > 0 {
-		return c.JSON(http.StatusForbidden, errorResp{
+		return c.JSON(http.StatusForbidden, errorResponse{
 			Message:      "account missing roles",
 			MissingRoles: missingRoles,
 		})
@@ -235,22 +235,22 @@ type updatePasswordForm struct {
 	Password    string `json:"password"`
 }
 
-func (f updatePasswordForm) Update(user *models.User, users *models.UserStore) *errorResp {
+func (f updatePasswordForm) Update(user *models.User, users *models.UserStore) *errorResponse {
 	errors := errorFields{}
 	validatePassword(errors, f.Password)
 	if len(errors) > 0 {
-		return &errorResp{
+		return &errorResponse{
 			Message:       "passed invalid fields to form",
 			InvalidFields: errors,
 		}
 	}
 	if f.OldPassword == f.Password {
-		return &errorResp{
+		return &errorResponse{
 			Message: "old and new passwords are the same",
 		}
 	}
 	if err := users.SetPassword(user, f.Password); err != nil {
-		return &errorResp{
+		return &errorResponse{
 			Message: "unable to change old password",
 		}
 	}
@@ -275,12 +275,12 @@ func (v *View) updateUserPassword(c echo.Context) error {
 	}
 	if authUser, ok := c.Get(authUserKey).(models.User); ok && user.ID == authUser.ID {
 		if len(form.OldPassword) == 0 {
-			return c.JSON(http.StatusBadRequest, errorResp{
+			return c.JSON(http.StatusBadRequest, errorResponse{
 				Message: "old password should not be empty",
 			})
 		}
 		if !v.core.Users.CheckPassword(user, form.OldPassword) {
-			return c.JSON(http.StatusBadRequest, errorResp{
+			return c.JSON(http.StatusBadRequest, errorResponse{
 				Message: "entered invalid old password",
 			})
 		}
@@ -466,7 +466,7 @@ func validateMiddleName(errors errorFields, middleName string) {
 	}
 }
 
-func (f registerUserForm) validate() *errorResp {
+func (f registerUserForm) validate() *errorResponse {
 	errors := errorFields{}
 	validateLogin(errors, f.Login)
 	validateEmail(errors, f.Email)
@@ -483,7 +483,7 @@ func (f registerUserForm) validate() *errorResp {
 	if len(errors) == 0 {
 		return nil
 	}
-	return &errorResp{
+	return &errorResponse{
 		Message:       "passed invalid fields to form",
 		InvalidFields: errors,
 	}
@@ -501,15 +501,15 @@ type registerUserForm struct {
 
 func (f registerUserForm) Update(
 	user *models.User, store *models.UserStore,
-) *errorResp {
+) *errorResponse {
 	if err := f.validate(); err != nil {
 		return err
 	}
 	if _, err := store.GetByLogin(f.Login); err != sql.ErrNoRows {
 		if err != nil {
-			return &errorResp{Message: "unknown error"}
+			return &errorResponse{Message: "unknown error"}
 		}
-		return &errorResp{
+		return &errorResponse{
 			Message: fmt.Sprintf(
 				"user with login %q already exists", f.Login,
 			),
@@ -517,7 +517,7 @@ func (f registerUserForm) Update(
 	}
 	user.Login = f.Login
 	if err := store.SetPassword(user, f.Password); err != nil {
-		return &errorResp{Message: "can not set password"}
+		return &errorResponse{Message: "can not set password"}
 	}
 	user.Email = models.NString(f.Email)
 	user.FirstName = models.NString(f.FirstName)
@@ -565,7 +565,7 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 			user, err := v.core.Users.GetByLogin(c.Param("user"))
 			if err != nil {
 				if err == sql.ErrNoRows {
-					resp := errorResp{Message: "user not found"}
+					resp := errorResponse{Message: "user not found"}
 					return c.JSON(http.StatusNotFound, resp)
 				}
 				c.Logger().Error(err)
@@ -577,7 +577,7 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 		user, err := v.core.Users.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResp{Message: "user not found"}
+				resp := errorResponse{Message: "user not found"}
 				return c.JSON(http.StatusNotFound, resp)
 			}
 			c.Logger().Error(err)

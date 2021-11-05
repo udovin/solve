@@ -129,7 +129,7 @@ var roleCodeRegexp = regexp.MustCompile(
 	`^[a-zA-Z]([a-zA-Z0-9_\\-])*[a-zA-Z0-9]$`,
 )
 
-func (f createRoleForm) validate() *errorResp {
+func (f createRoleForm) validate() *errorResponse {
 	errors := errorFields{}
 	if len(f.Code) < 3 {
 		errors["code"] = errorField{Message: "code too short (<3)"}
@@ -141,7 +141,7 @@ func (f createRoleForm) validate() *errorResp {
 	if len(errors) == 0 {
 		return nil
 	}
-	return &errorResp{
+	return &errorResponse{
 		Message:       "passed invalid fields to form",
 		InvalidFields: errors,
 	}
@@ -149,16 +149,16 @@ func (f createRoleForm) validate() *errorResp {
 
 func (f createRoleForm) Update(
 	role *models.Role, roles *models.RoleStore,
-) *errorResp {
+) *errorResponse {
 	if err := f.validate(); err != nil {
 		return err
 	}
 	role.Code = f.Code
 	if _, err := roles.GetByCode(role.Code); err != sql.ErrNoRows {
 		if err != nil {
-			return &errorResp{Message: "unknown error"}
+			return &errorResponse{Message: "unknown error"}
 		}
-		return &errorResp{
+		return &errorResponse{
 			Message: fmt.Sprintf("role %q already exists", role.Code),
 		}
 	}
@@ -196,7 +196,7 @@ func (v *View) deleteRole(c echo.Context) error {
 		return fmt.Errorf("role not extracted")
 	}
 	if role.IsBuiltIn() {
-		return c.JSON(http.StatusBadRequest, errorResp{
+		return c.JSON(http.StatusBadRequest, errorResponse{
 			Message: "unable to delete builtin role",
 		})
 	}
@@ -260,7 +260,7 @@ func (v *View) createRoleRole(c echo.Context) error {
 	var resp []Role
 	for _, edge := range edges {
 		if edge.ChildID == childRole.ID {
-			return c.JSON(http.StatusBadRequest, &errorResp{
+			return c.JSON(http.StatusBadRequest, &errorResponse{
 				Message: fmt.Sprintf(
 					"role %q already has child %q",
 					role.Code, childRole.Code,
@@ -349,7 +349,7 @@ func (v *View) createUserRole(c echo.Context) error {
 	var resp []Role
 	for _, edge := range edges {
 		if edge.RoleID == role.ID {
-			return c.JSON(http.StatusBadRequest, &errorResp{
+			return c.JSON(http.StatusBadRequest, &errorResponse{
 				Message: fmt.Sprintf(
 					"user %q already has role %q",
 					user.Login, role.Code,

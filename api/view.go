@@ -103,7 +103,7 @@ type errorField struct {
 
 type errorFields map[string]errorField
 
-type errorResp struct {
+type errorResponse struct {
 	// Message.
 	Message string `json:"message"`
 	// MissingRoles.
@@ -113,7 +113,7 @@ type errorResp struct {
 }
 
 // Error returns response error message.
-func (r errorResp) Error() string {
+func (r errorResponse) Error() string {
 	return r.Message
 }
 
@@ -147,7 +147,9 @@ func (v *View) sessionAuth(next echo.HandlerFunc) echo.HandlerFunc {
 			return err
 		}
 		if account.Kind != models.UserAccount {
-			resp := errorResp{Message: "only user account supported"}
+			resp := errorResponse{
+				Message: "only user account supported",
+			}
 			return c.JSON(http.StatusNotImplemented, resp)
 		}
 		user, err := v.core.Users.GetByAccount(session.AccountID)
@@ -183,14 +185,18 @@ func (v *View) userAuth(next echo.HandlerFunc) echo.HandlerFunc {
 		user, err := v.core.Users.GetByLogin(form.Login)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResp{Message: "user not found"}
+				resp := errorResponse{
+					Message: "user not found",
+				}
 				return c.JSON(http.StatusForbidden, resp)
 			}
 			c.Logger().Error(err)
 			return err
 		}
 		if !v.core.Users.CheckPassword(user, form.Password) {
-			resp := errorResp{Message: "user not found"}
+			resp := errorResponse{
+				Message: "user not found",
+			}
 			return c.JSON(http.StatusForbidden, resp)
 		}
 		account, err := v.core.Accounts.Get(user.AccountID)
@@ -214,7 +220,9 @@ func (v *View) userAuth(next echo.HandlerFunc) echo.HandlerFunc {
 func (v *View) requireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		if _, ok := c.Get(authAccountKey).(models.Account); !ok {
-			resp := errorResp{Message: "auth required"}
+			resp := errorResponse{
+				Message: "auth required",
+			}
 			return c.JSON(http.StatusForbidden, resp)
 		}
 		return next(c)
@@ -250,7 +258,9 @@ func (v *View) extractAuthRoles(next echo.HandlerFunc) echo.HandlerFunc {
 func (v *View) requireAuthRole(codes ...string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		nextWrap := func(c echo.Context) error {
-			resp := errorResp{Message: "account missing roles"}
+			resp := errorResponse{
+				Message: "account missing roles",
+			}
 			roles, ok := c.Get(authRolesKey).(core.RoleSet)
 			if !ok {
 				resp.MissingRoles = codes

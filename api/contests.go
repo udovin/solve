@@ -104,7 +104,7 @@ type createContestForm struct {
 	Title string `json:"title"`
 }
 
-func (f createContestForm) validate() *errorResp {
+func (f createContestForm) validate() *errorResponse {
 	errors := errorFields{}
 	if len(f.Title) < 4 {
 		errors["title"] = errorField{Message: "title is too short"}
@@ -113,7 +113,7 @@ func (f createContestForm) validate() *errorResp {
 		errors["title"] = errorField{Message: "title is too long"}
 	}
 	if len(errors) > 0 {
-		return &errorResp{
+		return &errorResponse{
 			Message:       "form has invalid fields",
 			InvalidFields: errors,
 		}
@@ -121,7 +121,7 @@ func (f createContestForm) validate() *errorResp {
 	return nil
 }
 
-func (f createContestForm) Update(contest *models.Contest) *errorResp {
+func (f createContestForm) Update(contest *models.Contest) *errorResponse {
 	if err := f.validate(); err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 		contest, err := v.core.Contests.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResp{Message: "contest not found"}
+				resp := errorResponse{Message: "contest not found"}
 				return c.JSON(http.StatusNotFound, resp)
 			}
 			c.Logger().Error(err)

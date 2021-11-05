@@ -102,7 +102,7 @@ type createProblemForm struct {
 	Title string `json:"title"`
 }
 
-func (f createProblemForm) validate() *errorResp {
+func (f createProblemForm) validate() *errorResponse {
 	errors := errorFields{}
 	if len(f.Title) < 4 {
 		errors["title"] = errorField{Message: "title is too short"}
@@ -111,7 +111,7 @@ func (f createProblemForm) validate() *errorResp {
 		errors["title"] = errorField{Message: "title is too long"}
 	}
 	if len(errors) > 0 {
-		return &errorResp{
+		return &errorResponse{
 			Message:       "form has invalid fields",
 			InvalidFields: errors,
 		}
@@ -119,7 +119,7 @@ func (f createProblemForm) validate() *errorResp {
 	return nil
 }
 
-func (f createProblemForm) Update(problem *models.Problem) *errorResp {
+func (f createProblemForm) Update(problem *models.Problem) *errorResponse {
 	if err := f.validate(); err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 		problem, err := v.core.Problems.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResp{Message: "problem not found"}
+				resp := errorResponse{Message: "problem not found"}
 				return c.JSON(http.StatusNotFound, resp)
 			}
 			c.Logger().Error(err)

@@ -60,6 +60,13 @@ type Problems struct {
 	Problems []Problem `json:"problems"`
 }
 
+func makeProblem(problem models.Problem) Problem {
+	return Problem{
+		ID:    problem.ID,
+		Title: problem.Title,
+	}
+}
+
 func (v *View) observeProblems(c echo.Context) error {
 	roles, ok := c.Get(authRolesKey).(core.RoleSet)
 	if !ok {
@@ -75,10 +82,7 @@ func (v *View) observeProblems(c echo.Context) error {
 	for _, problem := range problems {
 		problemRoles := v.extendProblemRoles(c, roles, problem)
 		if ok, err := v.core.HasRole(problemRoles, models.ObserveProblemRole); ok && err == nil {
-			resp.Problems = append(resp.Problems, Problem{
-				ID:    problem.ID,
-				Title: problem.Title,
-			})
+			resp.Problems = append(resp.Problems, makeProblem(problem))
 		}
 	}
 	sort.Sort(problemSorter(resp.Problems))
@@ -91,11 +95,7 @@ func (v *View) observeProblem(c echo.Context) error {
 		c.Logger().Error("problem not extracted")
 		return fmt.Errorf("problem not extracted")
 	}
-	resp := Problem{
-		ID:    problem.ID,
-		Title: problem.Title,
-	}
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, makeProblem(problem))
 }
 
 type createProblemForm struct {
@@ -146,10 +146,7 @@ func (v *View) createProblem(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusCreated, Problem{
-		ID:    problem.ID,
-		Title: problem.Title,
-	})
+	return c.JSON(http.StatusCreated, makeProblem(problem))
 }
 
 func (v *View) deleteProblem(c echo.Context) error {
@@ -164,10 +161,7 @@ func (v *View) deleteProblem(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusOK, Problem{
-		ID:    problem.ID,
-		Title: problem.Title,
-	})
+	return c.JSON(http.StatusOK, makeProblem(problem))
 }
 
 func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {

@@ -64,6 +64,11 @@ type Contests struct {
 	Contests []Contest `json:"contests"`
 }
 
+func makeContest(contest models.Contest) Contest {
+	resp := Contest{ID: contest.ID, Title: contest.Title}
+	return resp
+}
+
 func (v *View) observeContests(c echo.Context) error {
 	roles, ok := c.Get(authRolesKey).(core.RoleSet)
 	if !ok {
@@ -79,10 +84,7 @@ func (v *View) observeContests(c echo.Context) error {
 	for _, contest := range contests {
 		contestRoles := v.extendContestRoles(c, roles, contest)
 		if ok, err := v.core.HasRole(contestRoles, models.ObserveContestRole); ok && err == nil {
-			resp.Contests = append(resp.Contests, Contest{
-				ID:    contest.ID,
-				Title: contest.Title,
-			})
+			resp.Contests = append(resp.Contests, makeContest(contest))
 		}
 	}
 	sort.Sort(contestSorter(resp.Contests))
@@ -95,11 +97,7 @@ func (v *View) observeContest(c echo.Context) error {
 		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
-	resp := Contest{
-		ID:    contest.ID,
-		Title: contest.Title,
-	}
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, makeContest(contest))
 }
 
 type createContestForm struct {
@@ -152,10 +150,7 @@ func (v *View) createContest(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusCreated, Contest{
-		ID:    contest.ID,
-		Title: contest.Title,
-	})
+	return c.JSON(http.StatusCreated, makeContest(contest))
 }
 
 func (v *View) deleteContest(c echo.Context) error {
@@ -170,10 +165,7 @@ func (v *View) deleteContest(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusOK, Contest{
-		ID:    contest.ID,
-		Title: contest.Title,
-	})
+	return c.JSON(http.StatusOK, makeContest(contest))
 }
 
 func (v *View) observeContestProblem(c echo.Context) error {

@@ -99,9 +99,9 @@ func (v *View) registerSocketUserHandlers(g *echo.Group) {
 	)
 }
 
-func (v *View) makeUser(c echo.Context, user models.User, roles core.RoleSet) User {
+func makeUser(c echo.Context, user models.User, roles core.RoleSet, core *core.Core) User {
 	assign := func(field *string, value, role string) {
-		if ok, err := v.core.HasRole(roles, role); ok {
+		if ok, err := core.HasRole(roles, role); ok {
 			*field = value
 		} else if err != nil {
 			c.Logger().Error(err)
@@ -126,7 +126,7 @@ func (v *View) observeUser(c echo.Context) error {
 		c.Logger().Error("roles not extracted")
 		return fmt.Errorf("roles not extracted")
 	}
-	return c.JSON(http.StatusOK, v.makeUser(c, user, roles))
+	return c.JSON(http.StatusOK, makeUser(c, user, roles, v.core))
 }
 
 type updateUserForm struct {
@@ -227,7 +227,7 @@ func (v *View) updateUser(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusOK, v.makeUser(c, user, roles))
+	return c.JSON(http.StatusOK, makeUser(c, user, roles, v.core))
 }
 
 type updatePasswordForm struct {
@@ -294,7 +294,7 @@ func (v *View) updateUserPassword(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusOK, v.makeUser(c, user, roles))
+	return c.JSON(http.StatusOK, makeUser(c, user, roles, v.core))
 }
 
 func (v *View) observeUserSessions(c echo.Context) error {

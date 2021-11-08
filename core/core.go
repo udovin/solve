@@ -10,7 +10,6 @@ import (
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/config"
-	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/models"
 )
 
@@ -119,14 +118,4 @@ func (c *Core) StartTask(task func(ctx context.Context)) {
 		defer c.waiter.Done()
 		task(c.context)
 	}()
-}
-
-// GetDialect returns SQL dialect from database driver.
-func GetDialect(driver config.DBDriver) db.Dialect {
-	switch driver {
-	case config.PostgresDriver:
-		return db.Postgres
-	default:
-		return db.SQLite
-	}
 }

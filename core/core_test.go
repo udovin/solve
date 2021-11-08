@@ -8,7 +8,6 @@ import (
 
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
-	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/migrations"
 	"github.com/udovin/solve/models"
 )
@@ -154,14 +153,5 @@ func TestCore_Roles_NoRows(t *testing.T) {
 	}
 	if _, err := c.GetAccountRoles(0); err != nil {
 		t.Fatal("Error:", err)
-	}
-}
-
-func TestGetDriver(t *testing.T) {
-	if v := core.GetDialect(config.SQLiteDriver); v != db.SQLite {
-		t.Fatalf("Expected %q, got %q", db.SQLite, v)
-	}
-	if v := core.GetDialect(config.PostgresDriver); v != db.Postgres {
-		t.Fatalf("Expected %q, got %q", db.Postgres, v)
 	}
 }

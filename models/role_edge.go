@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -137,7 +138,7 @@ func (s *RoleEdgeStore) onUpdateObject(o db.Object) {
 
 // NewRoleEdgeStore creates a new instance of RoleEdgeStore.
 func NewRoleEdgeStore(
-	table, eventTable string, dialect db.Dialect,
+	table, eventTable string, dialect gosql.Dialect,
 ) *RoleEdgeStore {
 	impl := &RoleEdgeStore{}
 	impl.baseStore = makeBaseStore(

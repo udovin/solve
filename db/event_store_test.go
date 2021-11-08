@@ -76,7 +76,7 @@ func testTeardown(tb testing.TB, removes []string) {
 func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
 	testSetup(t, cfg, creates)
 	defer testTeardown(t, removes)
-	store := NewEventStore(testEvent{}, "id", "test_event", SQLite)
+	store := NewEventStore(testEvent{}, "id", "test_event", gosql.SQLiteDialect)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -130,7 +130,7 @@ func TestSQLiteEventStore(t *testing.T) {
 func TestEventStoreClosed(t *testing.T) {
 	testSetup(t, sqliteConfig, sqliteCreateTables)
 	defer testTeardown(t, sqliteDropTables)
-	store := NewEventStore(testEvent{}, "id", "test_event", SQLite)
+	store := NewEventStore(testEvent{}, "id", "test_event", gosql.SQLiteDialect)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)

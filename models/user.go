@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -181,7 +182,7 @@ func (s *UserStore) onUpdateObject(o db.Object) {
 
 // NewUserStore creates new instance of user store.
 func NewUserStore(
-	table, eventTable, salt string, dialect db.Dialect,
+	table, eventTable, salt string, dialect gosql.Dialect,
 ) *UserStore {
 	impl := &UserStore{salt: salt}
 	impl.baseStore = makeBaseStore(

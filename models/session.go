@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -179,7 +180,7 @@ func (s *SessionStore) onUpdateObject(o db.Object) {
 
 // NewSessionStore creates a new instance of SessionStore.
 func NewSessionStore(
-	table, eventTable string, dialect db.Dialect,
+	table, eventTable string, dialect gosql.Dialect,
 ) *SessionStore {
 	impl := &SessionStore{}
 	impl.baseStore = makeBaseStore(

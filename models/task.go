@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -225,7 +226,7 @@ func (s *TaskStore) onUpdateObject(o db.Object) {
 
 // NewTaskStore creates a new instance of TaskStore.
 func NewTaskStore(
-	table, eventTable string, dialect db.Dialect,
+	table, eventTable string, dialect gosql.Dialect,
 ) *TaskStore {
 	impl := &TaskStore{}
 	impl.baseStore = makeBaseStore(

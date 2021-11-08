@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -124,7 +125,7 @@ func (s *ContestStore) onUpdateObject(o db.Object) {
 
 // NewContestStore creates a new instance of ContestStore.
 func NewContestStore(
-	table, eventTable string, dialect db.Dialect,
+	table, eventTable string, dialect gosql.Dialect,
 ) *ContestStore {
 	impl := &ContestStore{}
 	impl.baseStore = makeBaseStore(

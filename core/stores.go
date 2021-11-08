@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/models"
 )
 
@@ -15,7 +14,7 @@ func (c *Core) SetupAllStores() error {
 	if err != nil {
 		return err
 	}
-	dialect := db.SQLite
+	dialect := c.DB.Dialect()
 	c.Tasks = models.NewTaskStore(
 		"solve_task", "solve_task_event", dialect,
 	)

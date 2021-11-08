@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -31,7 +32,7 @@ func (t *roleEdgeStoreTest) prepareDB(tx *sql.Tx) error {
 }
 
 func (t *roleEdgeStoreTest) newStore() Store {
-	return NewRoleEdgeStore("role_edge", "role_edge_event", db.SQLite)
+	return NewRoleEdgeStore("role_edge", "role_edge_event", gosql.SQLiteDialect)
 }
 
 func (t *roleEdgeStoreTest) newObject() db.Object {

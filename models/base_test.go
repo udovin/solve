@@ -195,7 +195,7 @@ func newTestStore() *testStore {
 	impl.baseStore = makeBaseStore(
 		testObject{}, impl.table,
 		testObjectEvent{}, impl.eventTable,
-		impl, db.SQLite,
+		impl, gosql.SQLiteDialect,
 	)
 	return impl
 }
@@ -374,7 +374,7 @@ func TestBaseStore_InitTx(t *testing.T) {
 	store.baseStore = makeBaseStore(
 		testObject{}, store.table,
 		testObjectEvent{}, store.eventTable,
-		store, db.SQLite,
+		store, gosql.SQLiteDialect,
 	)
 	tx, err := testDB.Begin()
 	if err != nil {

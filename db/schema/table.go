@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/udovin/solve/db"
+	"github.com/udovin/gosql"
 )
 
 // Type represents type of column.
@@ -35,19 +35,19 @@ const (
 )
 
 // int64BuildSQL returns SQL string for Int64 column.
-func (c Column) int64BuildSQL(d db.Dialect) (string, error) {
+func (c Column) int64BuildSQL(d gosql.Dialect) (string, error) {
 	typeName := "bigint"
 	if c.PrimaryKey {
-		if d == db.SQLite {
+		if d == gosql.SQLiteDialect {
 			// SQLite does not support bigint primary keys.
 			typeName = "integer"
 		}
-		if d == db.Postgres && c.AutoIncrement {
+		if d == gosql.PostgresDialect && c.AutoIncrement {
 			// Postgres has special type for autoincrement columns.
 			typeName = "bigserial"
 		}
 		typeName += suffixPrimaryKey
-		if c.AutoIncrement && d == db.SQLite {
+		if c.AutoIncrement && d == gosql.SQLiteDialect {
 			// AutoIncrement columns for SQLite should be marked
 			// as autoincrement using following keyword.
 			typeName += " AUTOINCREMENT"
@@ -59,7 +59,7 @@ func (c Column) int64BuildSQL(d db.Dialect) (string, error) {
 }
 
 // BuildSQL returns SQL in specified dialect.
-func (c Column) BuildSQL(d db.Dialect) (string, error) {
+func (c Column) BuildSQL(d gosql.Dialect) (string, error) {
 	switch c.Type {
 	case Int64:
 		return c.int64BuildSQL(d)
@@ -71,7 +71,7 @@ func (c Column) BuildSQL(d db.Dialect) (string, error) {
 		return fmt.Sprintf("%q %s", c.Name, typeName), nil
 	case JSON:
 		typeName := "blob"
-		if d == db.Postgres {
+		if d == gosql.PostgresDialect {
 			// Postgres has special types for JSON: json and jsonb.
 			// We prefer jsonb over json because it is more efficient.
 			typeName = "jsonb"
@@ -92,7 +92,7 @@ type Table struct {
 }
 
 // BuildCreateSQL returns create SQL query in specified dialect.
-func (t Table) BuildCreateSQL(d db.Dialect) (string, error) {
+func (t Table) BuildCreateSQL(d gosql.Dialect) (string, error) {
 	var query strings.Builder
 	query.WriteString(fmt.Sprintf("CREATE TABLE %q(", t.Name))
 	for i, column := range t.Columns {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -64,7 +65,7 @@ func (s *VisitStore) CreateTx(tx *sql.Tx, visit Visit) (Visit, error) {
 }
 
 // NewVisitStore creates a new instance of ViewStore.
-func NewVisitStore(table string, dialect db.Dialect) *VisitStore {
+func NewVisitStore(table string, dialect gosql.Dialect) *VisitStore {
 	return &VisitStore{
 		events: db.NewEventStore(Visit{}, "id", table, dialect),
 	}

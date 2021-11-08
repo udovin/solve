@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"reflect"
 	"testing"
+
+	"github.com/udovin/gosql"
 )
 
 type testExtraObject struct {
@@ -50,7 +52,7 @@ func testSetupObjectStore(t testing.TB, store ObjectStore) []testObject {
 func TestObjectStore(t *testing.T) {
 	testSetup(t, sqliteConfig, sqliteCreateTables)
 	defer testTeardown(t, sqliteDropTables)
-	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
+	store := NewObjectStore(testObject{}, "id", "test_object", gosql.SQLiteDialect)
 	objects := testSetupObjectStore(t, store)
 	tx, err := testDB.Begin()
 	if err != nil {
@@ -99,7 +101,7 @@ func TestObjectStore(t *testing.T) {
 func TestObjectStoreClosed(t *testing.T) {
 	testSetup(t, sqliteConfig, sqliteCreateTables)
 	defer testTeardown(t, sqliteDropTables)
-	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
+	store := NewObjectStore(testObject{}, "id", "test_object", gosql.SQLiteDialect)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -127,7 +129,7 @@ func TestObjectStoreClosed(t *testing.T) {
 func TestObjectStoreLoadObjectsFail(t *testing.T) {
 	testSetup(t, sqliteConfig, sqliteCreateTables)
 	defer testTeardown(t, sqliteDropTables)
-	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
+	store := NewObjectStore(testObject{}, "id", "test_object", gosql.SQLiteDialect)
 	objects := testSetupObjectStore(t, store)
 	tx, err := testDB.Begin()
 	if err != nil {
@@ -155,7 +157,7 @@ func TestObjectStoreLoadObjectsFail(t *testing.T) {
 func TestObjectStoreFindObjectsFail(t *testing.T) {
 	testSetup(t, sqliteConfig, sqliteCreateTables)
 	defer testTeardown(t, sqliteDropTables)
-	store := NewObjectStore(testObject{}, "id", "test_object", SQLite)
+	store := NewObjectStore(testObject{}, "id", "test_object", gosql.SQLiteDialect)
 	objects := testSetupObjectStore(t, store)
 	tx, err := testDB.Begin()
 	if err != nil {

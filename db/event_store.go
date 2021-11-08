@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+
+	"github.com/udovin/gosql"
 )
 
 // Event represents an event from store.
@@ -48,7 +50,7 @@ type eventStore struct {
 	typ     reflect.Type
 	id      string
 	table   string
-	dialect Dialect
+	dialect gosql.Dialect
 }
 
 // LastEventID returns last event ID or sql.ErrNoRows
@@ -99,7 +101,7 @@ func (s *eventStore) CreateEvent(tx *sql.Tx, event Event) (Event, error) {
 }
 
 // NewEventStore creates a new store for events of specified type.
-func NewEventStore(event Event, id, table string, dialect Dialect) EventStore {
+func NewEventStore(event Event, id, table string, dialect gosql.Dialect) EventStore {
 	return &eventStore{
 		typ:     reflect.TypeOf(event),
 		id:      id,

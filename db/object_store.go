@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+
+	"github.com/udovin/gosql"
 )
 
 // Object represents an object from store.
@@ -51,7 +53,7 @@ type objectStore struct {
 	typ     reflect.Type
 	id      string
 	table   string
-	dialect Dialect
+	dialect gosql.Dialect
 }
 
 func (s *objectStore) LoadObjects(tx *sql.Tx) (ObjectReader, error) {
@@ -119,7 +121,7 @@ func (s *objectStore) DeleteObject(tx *sql.Tx, id int64) error {
 
 // NewObjectStore creates a new store for objects of specified type.
 func NewObjectStore(
-	object Object, id, table string, dialect Dialect,
+	object Object, id, table string, dialect gosql.Dialect,
 ) ObjectStore {
 	return &objectStore{
 		typ:     reflect.TypeOf(object),

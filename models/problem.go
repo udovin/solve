@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -122,7 +123,7 @@ func (s *ProblemStore) onUpdateObject(o db.Object) {
 
 // NewProblemStore creates a new instance of ProblemStore.
 func NewProblemStore(
-	table, eventTable string, dialect db.Dialect,
+	table, eventTable string, dialect gosql.Dialect,
 ) *ProblemStore {
 	impl := &ProblemStore{}
 	impl.baseStore = makeBaseStore(

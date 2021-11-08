@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -221,7 +222,7 @@ type baseStore struct {
 	events   db.EventStore
 	consumer db.EventConsumer
 	impl     baseStoreImpl
-	dialect  db.Dialect
+	dialect  gosql.Dialect
 	mutex    sync.RWMutex
 }
 
@@ -306,7 +307,7 @@ func (s *baseStore) createObjectEvent(
 
 func (s *baseStore) lockStore(tx *sql.Tx) error {
 	switch s.dialect {
-	case db.SQLite:
+	case gosql.SQLiteDialect:
 		return nil
 	default:
 		_, err := tx.Exec(fmt.Sprintf("LOCK TABLE %q", s.table))
@@ -331,7 +332,7 @@ func (s *baseStore) consumeEvent(e db.Event) error {
 func makeBaseStore(
 	object db.Object, table string,
 	event ObjectEvent, eventTable string,
-	impl baseStoreImpl, dialect db.Dialect,
+	impl baseStoreImpl, dialect gosql.Dialect,
 ) baseStore {
 	return baseStore{
 		table:   table,

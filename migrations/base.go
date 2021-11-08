@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
 )
@@ -39,13 +40,13 @@ const migrationTable = "solve_db_migration"
 func Apply(c *core.Core) error {
 	// Prepare database.
 	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
-		return setupDB(tx, db.SQLite)
+		return setupDB(tx, c.DB.Dialect())
 	}); err != nil {
 		return err
 	}
 	// Prepare migration store.
 	store := db.NewObjectStore(
-		migration{}, "id", migrationTable, db.SQLite,
+		migration{}, "id", migrationTable, c.DB.Dialect(),
 	)
 	for _, m := range migrations {
 		if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
@@ -73,13 +74,13 @@ func Apply(c *core.Core) error {
 func Unapply(c *core.Core) error {
 	// Prepare database.
 	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
-		return setupDB(tx, db.SQLite)
+		return setupDB(tx, c.DB.Dialect())
 	}); err != nil {
 		return err
 	}
 	// Prepare migration store.
 	store := db.NewObjectStore(
-		migration{}, "id", migrationTable, db.SQLite,
+		migration{}, "id", migrationTable, c.DB.Dialect(),
 	)
 	for i := len(migrations) - 1; i >= 0; i-- {
 		m := migrations[i]
@@ -134,9 +135,9 @@ func isApplied(s db.ObjectROStore, tx *sql.Tx, name string) (bool, error) {
 }
 
 // setupDB creates migrations table if it does not exists.
-func setupDB(tx *sql.Tx, dialect db.Dialect) error {
+func setupDB(tx *sql.Tx, dialect gosql.Dialect) error {
 	switch dialect {
-	case db.SQLite:
+	case gosql.SQLiteDialect:
 		_, err := tx.Exec(fmt.Sprintf(
 			`CREATE TABLE IF NOT EXISTS %q (`+
 				`"id" INTEGER PRIMARY KEY,`+
@@ -144,7 +145,7 @@ func setupDB(tx *sql.Tx, dialect db.Dialect) error {
 			migrationTable,
 		))
 		return err
-	case db.Postgres:
+	case gosql.PostgresDialect:
 		_, err := tx.Exec(fmt.Sprintf(
 			`CREATE TABLE IF NOT EXISTS %q (`+
 				`"id" SERIAL NOT NULL `+

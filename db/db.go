@@ -6,29 +6,9 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/udovin/gosql"
 )
-
-// Dialect represents SQL dialect.
-type Dialect int
-
-const (
-	// SQLite represents SQLite.
-	SQLite Dialect = 1
-	// Postgres represents Postgres.
-	Postgres Dialect = 2
-)
-
-// String returns string representation of dialect.
-func (d Dialect) String() string {
-	switch d {
-	case SQLite:
-		return "SQLite"
-	case Postgres:
-		return "Postgres"
-	default:
-		return fmt.Sprintf("Dialect(%d)", d)
-	}
-}
 
 func cloneRow(row interface{}) reflect.Value {
 	clone := reflect.New(reflect.TypeOf(row)).Elem()
@@ -146,12 +126,12 @@ func prepareInsert(
 }
 
 func insertRow(
-	tx *sql.Tx, row interface{}, id, table string, dialect Dialect,
+	tx *sql.Tx, row interface{}, id, table string, dialect gosql.Dialect,
 ) (interface{}, error) {
 	clone := cloneRow(row)
 	cols, keys, vals, idPtr := prepareInsert(clone, id)
 	switch dialect {
-	case Postgres:
+	case gosql.PostgresDialect:
 		rows := tx.QueryRow(
 			fmt.Sprintf(
 				"INSERT INTO %q (%s) VALUES (%s) RETURNING %q",

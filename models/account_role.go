@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -135,7 +136,7 @@ func (s *AccountRoleStore) onUpdateObject(o db.Object) {
 
 // NewAccountRoleStore creates a new instance of AccountRoleStore.
 func NewAccountRoleStore(
-	table, eventTable string, dialect db.Dialect,
+	table, eventTable string, dialect gosql.Dialect,
 ) *AccountRoleStore {
 	impl := &AccountRoleStore{}
 	impl.baseStore = makeBaseStore(

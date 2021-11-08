@@ -1,10 +1,11 @@
 package config
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/udovin/gosql"
 
 	// Register SQL drivers
 	_ "github.com/lib/pq"
@@ -20,17 +21,6 @@ const (
 	// PostgresDriver represents Postgres driver.
 	PostgresDriver DBDriver = "postgres"
 )
-
-// DB stores configuration for database connection.
-type DB struct {
-	// Driver contains database driver name.
-	Driver DBDriver `json:"driver"`
-	// Options contains options for database driver.
-	//
-	// For SQLiteDriver field should contains SQLiteOptions.
-	// For PostgresDriver field should contains PostgresOptions.
-	Options interface{} `json:"options"`
-}
 
 // SQLiteOptions stores SQLite connection options.
 type SQLiteOptions struct {
@@ -52,75 +42,87 @@ type PostgresOptions struct {
 	Name string `json:"name"`
 }
 
+// DB stores configuration for database connection.
+type DB struct {
+	// Options contains options for database driver.
+	//
+	// For SQLiteDriver field should contains SQLiteOptions.
+	// For PostgresDriver field should contains PostgresOptions.
+	Options interface{}
+}
+
 // UnmarshalJSON parses JSON to create appropriate connection configuration.
 func (c *DB) UnmarshalJSON(bytes []byte) error {
-	var g struct {
-		Driver DBDriver `json:"driver"`
-		// Options will be parsed after detecting driver name.
+	var cfg struct {
+		Driver  DBDriver        `json:"driver"`
 		Options json.RawMessage `json:"options"`
 	}
-	if err := json.Unmarshal(bytes, &g); err != nil {
+	if err := json.Unmarshal(bytes, &cfg); err != nil {
 		return err
 	}
-	switch g.Driver {
+	switch cfg.Driver {
 	case SQLiteDriver:
 		var options SQLiteOptions
-		if err := json.Unmarshal(g.Options, &options); err != nil {
+		if err := json.Unmarshal(cfg.Options, &options); err != nil {
 			return err
 		}
 		c.Options = options
 	case PostgresDriver:
 		var options PostgresOptions
-		if err := json.Unmarshal(g.Options, &options); err != nil {
+		if err := json.Unmarshal(cfg.Options, &options); err != nil {
 			return err
 		}
 		c.Options = options
 	default:
-		return fmt.Errorf("driver '%s' is not supported", g.Driver)
+		return fmt.Errorf("driver %q is not supported", cfg.Driver)
 	}
-	c.Driver = g.Driver
 	return nil
 }
 
-func createSQLiteDB(opts SQLiteOptions) (*sql.DB, error) {
-	return fixCreateSQLiteDB(
-		sql.Open("sqlite3", fmt.Sprintf("file:%s", opts.Path)),
-	)
+func (c DB) MarshalJSON() ([]byte, error) {
+	cfg := struct {
+		Driver  DBDriver    `json:"driver"`
+		Options interface{} `json:"options"`
+	}{
+		Options: c.Options,
+	}
+	switch t := c.Options.(type) {
+	case SQLiteOptions:
+		cfg.Driver = SQLiteDriver
+	case PostgresOptions:
+		cfg.Driver = PostgresDriver
+	default:
+		return nil, fmt.Errorf("options of type %T is not supported", t)
+	}
+	return json.Marshal(cfg)
 }
 
-func fixCreateSQLiteDB(db *sql.DB, err error) (*sql.DB, error) {
-	if err != nil {
-		return nil, err
-	}
-	// This can increase writes performance.
-	if _, err = db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		// Dont forget to close connection on failure.
-		_ = db.Close()
-		return nil, err
-	}
-	db.SetMaxOpenConns(1)
-	return db, nil
+func createSQLiteDB(opts SQLiteOptions) (*gosql.DB, error) {
+	return (gosql.SQLiteConfig{
+		Path: opts.Path,
+	}).NewDB()
 }
 
-func createPostgresDB(opts PostgresOptions) (*sql.DB, error) {
+func createPostgresDB(opts PostgresOptions) (*gosql.DB, error) {
 	password, err := opts.Password.Secret()
 	if err != nil {
 		return nil, err
 	}
-	db, err := sql.Open("postgres", fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=require",
-		opts.Host, opts.Port, opts.User, password, opts.Name,
-	))
-	return db, err
+	return (gosql.PostgresConfig{
+		Hosts:    []string{fmt.Sprintf("%s:%d", opts.Host, opts.Port)},
+		User:     opts.User,
+		Password: password,
+		Name:     opts.Name,
+	}).NewDB()
 }
 
 // Create creates database connection using current configuration.
-func (c *DB) Create() (*sql.DB, error) {
-	switch t := c.Options.(type) {
+func (c *DB) Create() (*gosql.DB, error) {
+	switch v := c.Options.(type) {
 	case SQLiteOptions:
-		return createSQLiteDB(t)
+		return createSQLiteDB(v)
 	case PostgresOptions:
-		return createPostgresDB(t)
+		return createPostgresDB(v)
 	default:
 		return nil, errors.New("unsupported database config type")
 	}

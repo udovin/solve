@@ -8,6 +8,7 @@ import (
 
 	"github.com/labstack/gommon/log"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/models"
@@ -45,8 +46,8 @@ type Core struct {
 	context context.Context
 	cancel  context.CancelFunc
 	waiter  sync.WaitGroup
-	// db stores database connection.
-	DB *sql.DB
+	// DB stores database connection.
+	DB *gosql.DB
 	// logger contains logger.
 	logger *log.Logger
 }
@@ -118,11 +119,6 @@ func (c *Core) StartTask(task func(ctx context.Context)) {
 		defer c.waiter.Done()
 		task(c.context)
 	}()
-}
-
-// Dialect returns dialect of core DB.
-func (c *Core) Dialect() db.Dialect {
-	return GetDialect(c.Config.DB.Driver)
 }
 
 // GetDialect returns SQL dialect from database driver.

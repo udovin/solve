@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/db"
 )
 
-var testDB *sql.DB
+var testDB *gosql.DB
 
 func testSetup(tb testing.TB) {
 	cfg := config.DB{
-		Driver:  config.SQLiteDriver,
-		Options: config.SQLiteOptions{Path: "?mode=memory"},
+		Options: config.SQLiteOptions{Path: ":memory:"},
 	}
 	var err error
 	testDB, err = cfg.Create()

@@ -21,8 +21,7 @@ func TestLoadFromFile(t *testing.T) {
 			Port: 4242,
 		},
 		DB: DB{
-			Driver:  SQLiteDriver,
-			Options: SQLiteOptions{Path: "?mode=memory"},
+			Options: SQLiteOptions{Path: ":memory:"},
 		},
 		LogLevel: log.INFO,
 	}

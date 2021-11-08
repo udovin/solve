@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/config"
 )
 
@@ -20,7 +21,7 @@ type testEvent struct {
 	C int `db:"c"`
 }
 
-var testDB *sql.DB
+var testDB *gosql.DB
 
 var sqliteCreateTables = []string{
 	`CREATE TABLE "test_object"
@@ -47,8 +48,7 @@ var sqliteDropTables = []string{
 }
 
 var sqliteConfig = config.DB{
-	Driver:  config.SQLiteDriver,
-	Options: config.SQLiteOptions{Path: "?mode=memory"},
+	Options: config.SQLiteOptions{Path: ":memory:"},
 }
 
 func testSetup(tb testing.TB, cfg config.DB, creates []string) {

@@ -39,13 +39,13 @@ const migrationTable = "solve_db_migration"
 func Apply(c *core.Core) error {
 	// Prepare database.
 	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
-		return setupDB(tx, c.Dialect())
+		return setupDB(tx, db.SQLite)
 	}); err != nil {
 		return err
 	}
 	// Prepare migration store.
 	store := db.NewObjectStore(
-		migration{}, "id", migrationTable, c.Dialect(),
+		migration{}, "id", migrationTable, db.SQLite,
 	)
 	for _, m := range migrations {
 		if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
@@ -73,13 +73,13 @@ func Apply(c *core.Core) error {
 func Unapply(c *core.Core) error {
 	// Prepare database.
 	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
-		return setupDB(tx, c.Dialect())
+		return setupDB(tx, db.SQLite)
 	}); err != nil {
 		return err
 	}
 	// Prepare migration store.
 	store := db.NewObjectStore(
-		migration{}, "id", migrationTable, c.Dialect(),
+		migration{}, "id", migrationTable, db.SQLite,
 	)
 	for i := len(migrations) - 1; i >= 0; i-- {
 		m := migrations[i]

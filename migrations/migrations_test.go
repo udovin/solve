@@ -10,7 +10,6 @@ import (
 
 var testCfg = config.Config{
 	DB: config.DB{
-		Driver:  config.SQLiteDriver,
 		Options: config.SQLiteOptions{Path: ":memory:"},
 	},
 	Security: config.Security{

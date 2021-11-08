@@ -24,7 +24,6 @@ var (
 func testSetup(tb testing.TB) {
 	cfg := config.Config{
 		DB: config.DB{
-			Driver:  config.SQLiteDriver,
 			Options: config.SQLiteOptions{Path: ":memory:"},
 		},
 		Security: config.Security{
@@ -41,6 +40,9 @@ func testSetup(tb testing.TB) {
 	if err := c.SetupAllStores(); err != nil {
 		tb.Fatal("Error:", err)
 	}
+	if err := migrations.Unapply(c); err != nil {
+		tb.Fatal("Error:", err)
+	}
 	if err := migrations.Apply(c); err != nil {
 		tb.Fatal("Error:", err)
 	}
@@ -54,6 +56,7 @@ func testSetup(tb testing.TB) {
 }
 
 func testTeardown(tb testing.TB) {
+	_ = migrations.Unapply(testView.core)
 	testView.core.Stop()
 }
 

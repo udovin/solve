@@ -15,7 +15,6 @@ import (
 
 var testCfg = config.Config{
 	DB: config.DB{
-		Driver:  config.SQLiteDriver,
 		Options: config.SQLiteOptions{Path: ":memory:"},
 	},
 	Security: config.Security{
@@ -54,15 +53,12 @@ func TestNewCore_Failure(t *testing.T) {
 	if _, err := core.NewCore(cfg); err == nil {
 		t.Fatal("Expected error while creating core")
 	}
-	cfg.DB = config.DB{
-		Driver: config.SQLiteDriver,
-	}
+	cfg.DB = config.DB{}
 	if _, err := core.NewCore(cfg); err == nil {
 		t.Fatal("Expected error while creating core")
 	}
 	cfg.DB = config.DB{
-		Driver:  config.SQLiteDriver,
-		Options: config.SQLiteOptions{Path: "?mode=memory"},
+		Options: config.SQLiteOptions{Path: ":memory:"},
 	}
 	cfg.Security = config.Security{
 		PasswordSalt: config.Secret{

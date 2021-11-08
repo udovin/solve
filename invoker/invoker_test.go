@@ -14,7 +14,6 @@ var testInvoker *Invoker
 func testSetup(tb testing.TB) {
 	cfg := config.Config{
 		DB: config.DB{
-			Driver:  config.SQLiteDriver,
 			Options: config.SQLiteOptions{Path: ":memory:"},
 		},
 		Invoker: &config.Invoker{},

@@ -19,8 +19,7 @@ var (
 	testConfigFile *os.File
 	testConfig     = config.Config{
 		DB: config.DB{
-			Driver:  config.SQLiteDriver,
-			Options: config.SQLiteOptions{Path: ":memory:?cache=shared"},
+			Options: config.SQLiteOptions{Path: ":memory:"},
 		},
 		SocketFile: fmt.Sprintf("/tmp/test-solve-%d.sock", rand.Int63()),
 		Server:     &config.Server{},

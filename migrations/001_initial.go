@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/db/schema"
 	"github.com/udovin/solve/models"
 )
 
@@ -13,114 +14,130 @@ func (m *m001) Name() string {
 	return "001_initial"
 }
 
+var m001Tables = []schema.Table{
+	{
+		Name: "solve_task",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "status", Type: schema.Int64},
+			{Name: "kind", Type: schema.Int64},
+			{Name: "config", Type: schema.JSON},
+			{Name: "state", Type: schema.JSON},
+			{Name: "expire_time", Type: schema.Int64},
+		},
+	},
+	{
+		Name: "solve_task_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_type", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "id", Type: schema.Int64},
+			{Name: "status", Type: schema.Int64},
+			{Name: "kind", Type: schema.Int64},
+			{Name: "config", Type: schema.JSON},
+			{Name: "state", Type: schema.JSON},
+			{Name: "expire_time", Type: schema.Int64},
+		},
+	},
+	{
+		Name: "solve_role",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "code", Type: schema.String},
+		},
+	},
+	{
+		Name: "solve_role_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_type", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "id", Type: schema.Int64},
+			{Name: "code", Type: schema.String},
+		},
+	},
+	{
+		Name: "solve_role_edge",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "role_id", Type: schema.Int64},
+			{Name: "child_id", Type: schema.Int64},
+		},
+	},
+	{
+		Name: "solve_role_edge_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_type", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "id", Type: schema.Int64},
+			{Name: "role_id", Type: schema.Int64},
+			{Name: "child_id", Type: schema.Int64},
+		},
+	},
+	{
+		Name: "solve_account",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "kind", Type: schema.Int64},
+		},
+	},
+	{
+		Name: "solve_account_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_type", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "id", Type: schema.Int64},
+			{Name: "kind", Type: schema.Int64},
+		},
+	},
+	{
+		Name: "solve_account_role",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "account_id", Type: schema.Int64},
+			{Name: "role_id", Type: schema.Int64},
+		},
+	},
+	{
+		Name: "solve_account_role_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_type", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "id", Type: schema.Int64},
+			{Name: "account_id", Type: schema.Int64},
+			{Name: "role_id", Type: schema.Int64},
+		},
+	},
+	{
+		Name: "solve_session",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "account_id", Type: schema.Int64},
+			{Name: "secret", Type: schema.String},
+			{Name: "create_time", Type: schema.Int64},
+			{Name: "expire_time", Type: schema.Int64},
+		},
+	},
+	{
+		Name: "solve_session_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_type", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "id", Type: schema.Int64},
+			{Name: "account_id", Type: schema.Int64},
+			{Name: "secret", Type: schema.String},
+			{Name: "create_time", Type: schema.Int64},
+			{Name: "expire_time", Type: schema.Int64},
+		},
+	},
+}
+
 const m001Apply = `
--- models.Task
-CREATE TABLE "solve_task" (
-	"id" integer PRIMARY KEY,
-	"status" integer NOT NULL,
-	"kind" integer NOT NULL,
-	"config" blob,
-	"state" blob,
-	"expire_time" bigint
-);
--- models.TaskEvent
-CREATE TABLE "solve_task_event"
-(
-	"event_id" integer PRIMARY KEY,
-	"event_type" int8 NOT NULL,
-	"event_time" bigint NOT NULL,
-	"id" integer NOT NULL,
-	"status" integer NOT NULL,
-	"kind" integer NOT NULL,
-	"config" blob,
-	"state" blob,
-	"expire_time" bigint
-);
--- models.Role
-CREATE TABLE "solve_role"
-(
-	"id" integer PRIMARY KEY,
-	"code" varchar(255) NOT NULL
-);
--- models.RoleEvent
-CREATE TABLE "solve_role_event"
-(
-	"event_id" integer PRIMARY KEY,
-	"event_type" int8 NOT NULL,
-	"event_time" bigint NOT NULL,
-	"id" integer NOT NULL,
-	"code" varchar(255) NOT NULL
-);
--- models.RoleEdge
-CREATE TABLE "solve_role_edge"
-(
-	"id" integer PRIMARY KEY,
-	"role_id" integer NOT NULL,
-	"child_id" integer NOT NULL
-);
--- models.RoleEdgeEvent
-CREATE TABLE "solve_role_edge_event"
-(
-	"event_id" integer PRIMARY KEY,
-	"event_type" int8 NOT NULL,
-	"event_time" bigint NOT NULL,
-	"id" integer NOT NULL,
-	"role_id" integer NOT NULL,
-	"child_id" integer NOT NULL
-);
--- models.Account
-CREATE TABLE "solve_account"
-(
-    "id" integer PRIMARY KEY,
-    "kind" integer NOT NULL
-);
--- models.AccountEvent
-CREATE TABLE "solve_account_event"
-(
-	"event_id" integer PRIMARY KEY,
-	"event_type" int8 NOT NULL,
-	"event_time" bigint NOT NULL,
-	"id" integer NOT NULL,
-	"kind" integer NOT NULL
-);
--- models.AccountRole
-CREATE TABLE "solve_account_role"
-(
-	"id" integer PRIMARY KEY,
-	"account_id" integer NOT NULL,
-	"role_id" integer NOT NULL
-);
--- models.AccountRoleEvent
-CREATE TABLE "solve_account_role_event"
-(
-	"event_id" integer PRIMARY KEY,
-	"event_type" int8 NOT NULL,
-	"event_time" bigint NOT NULL,
-	"id" integer NOT NULL,
-	"account_id" integer NOT NULL,
-	"role_id" integer NOT NULL
-);
--- models.Session
-CREATE TABLE "solve_session"
-(
-	"id" integer PRIMARY KEY,
-	"account_id" integer NOT NULL,
-	"secret" VARCHAR(56) NOT NULL,
-	"create_time" bigint NOT NULL,
-	"expire_time" bigint NOT NULL
-);
--- models.SessionEvent
-CREATE TABLE "solve_session_event"
-(
-	"event_id" integer PRIMARY KEY,
-	"event_type" int8 NOT NULL,
-	"event_time" bigint NOT NULL,
-	"id" integer NOT NULL,
-	"account_id" integer NOT NULL,
-	"secret" VARCHAR(56) NOT NULL,
-	"create_time" bigint NOT NULL,
-	"expire_time" bigint NOT NULL
-);
 -- models.User
 CREATE TABLE "solve_user"
 (
@@ -269,6 +286,15 @@ DROP TABLE IF EXISTS "solve_task";
 `
 
 func (m *m001) Apply(c *core.Core, tx *sql.Tx) error {
+	for _, table := range m001Tables {
+		query, err := table.BuildCreateSQL(c.DB.Dialect())
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(query); err != nil {
+			return err
+		}
+	}
 	if _, err := tx.Exec(m001Apply); err != nil {
 		return err
 	}

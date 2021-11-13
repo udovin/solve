@@ -40,6 +40,8 @@ type PostgresOptions struct {
 	Password Secret `json:"password"`
 	// Name contains name of database.
 	Name string `json:"name"`
+	// SSLMode contains sslmode configuration.
+	SSLMode string `json:"sslmode"`
 }
 
 // DB stores configuration for database connection.
@@ -113,6 +115,7 @@ func createPostgresDB(opts PostgresOptions) (*gosql.DB, error) {
 		User:     opts.User,
 		Password: password,
 		Name:     opts.Name,
+		SSLMode:  opts.SSLMode,
 	}).NewDB()
 }
 

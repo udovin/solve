@@ -60,7 +60,8 @@ func TestPostgresMigrations(t *testing.T) {
 					Type: config.DataSecret,
 					Data: "postgres",
 				},
-				Name: "postgres",
+				Name:    "postgres",
+				SSLMode: "disable",
 			},
 		},
 		Security: config.Security{

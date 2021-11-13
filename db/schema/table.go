@@ -108,3 +108,13 @@ func (t Table) BuildCreateSQL(d gosql.Dialect) (string, error) {
 	query.WriteRune(')')
 	return query.String(), nil
 }
+
+func (t Table) BuildDropSQL(d gosql.Dialect, strict bool) (string, error) {
+	var query strings.Builder
+	query.WriteString("DROP TABLE ")
+	if !strict {
+		query.WriteString("IF EXISTS ")
+	}
+	query.WriteString(fmt.Sprintf("%q", t.Name))
+	return query.String(), nil
+}

@@ -9,6 +9,8 @@ jobs:
         image: postgres
         env:
           POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -33,7 +35,7 @@ jobs:
       run: |
         go test -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...
       env:
-        POSTGRES_HOST: postgres
+        POSTGRES_HOST: localhost
         POSTGRES_PORT: 5432
     - name: Upload to Codecov
       if: success() || failure()

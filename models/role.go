@@ -100,6 +100,12 @@ const (
 	// ObserveContestProblemRole represents role for observing
 	// contest problem.
 	ObserveContestProblemRole = "observe_contest_problem"
+	// CreateContestProblemRole represents role for creating
+	// contest problem.
+	CreateContestProblemRole = "create_contest_problem"
+	// DeleteContestProblemRole represents role for deleting
+	// contest problem.
+	DeleteContestProblemRole = "delete_contest_problem"
 	// CreateContestRole represents role for creating contest.
 	CreateContestRole = "create_contest"
 	// UpdateContestRole represents role for updating contest.
@@ -147,6 +153,8 @@ var builtInRoles = map[string]struct{}{
 	ObserveContestRole:         {},
 	ObserveContestProblemsRole: {},
 	ObserveContestProblemRole:  {},
+	CreateContestProblemRole:   {},
+	DeleteContestProblemRole:   {},
 	ObserveContestsRole:        {},
 	CreateContestRole:          {},
 	UpdateContestRole:          {},

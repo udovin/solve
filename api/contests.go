@@ -29,15 +29,30 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.ObserveContestRole),
 	)
-	g.GET(
-		"/contests/:contest/problems/:problem", v.observeContestProblem,
-		v.sessionAuth, v.extractContest, v.extractContestRoles,
-		v.requireAuthRole(models.ObserveContestProblemsRole),
-	)
 	g.DELETE(
 		"/contests/:contest", v.deleteContest,
 		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.DeleteContestRole),
+	)
+	g.GET(
+		"/contests/:contest/problems", v.observeContestProblems,
+		v.sessionAuth, v.extractContest, v.extractContestRoles,
+		v.requireAuthRole(models.ObserveContestProblemsRole),
+	)
+	g.GET(
+		"/contests/:contest/problems/:problem", v.observeContestProblem,
+		v.sessionAuth, v.extractContest, v.extractContestProblem, v.extractContestRoles,
+		v.requireAuthRole(models.ObserveContestProblemRole),
+	)
+	g.POST(
+		"/contests/:contest/problems", v.createContestProblem,
+		v.sessionAuth, v.extractContest, v.extractContestRoles,
+		v.requireAuthRole(models.CreateContestProblemRole),
+	)
+	g.DELETE(
+		"/contests/:contest/problems/:problem", v.deleteContestProblem,
+		v.sessionAuth, v.extractContest, v.extractContestProblem, v.extractContestRoles,
+		v.requireAuthRole(models.DeleteContestProblemRole),
 	)
 }
 
@@ -45,6 +60,20 @@ type Contest struct {
 	ID          int64    `json:"id"`
 	Title       string   `json:"title"`
 	Permissions []string `json:"permissions,omitempty"`
+}
+
+type Contests struct {
+	Contests []Contest `json:"contests"`
+}
+
+type ContestProblem struct {
+	Problem
+	ContestID int64  `json:"contest_id"`
+	Code      string `json:"code"`
+}
+
+type ContestProblems struct {
+	Problems []ContestProblem `json:"problems"`
 }
 
 type contestSorter []Contest
@@ -59,10 +88,6 @@ func (v contestSorter) Less(i, j int) bool {
 
 func (v contestSorter) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
-}
-
-type Contests struct {
-	Contests []Contest `json:"contests"`
 }
 
 func makeContest(contest models.Contest, roles core.RoleSet, core *core.Core) Contest {
@@ -182,8 +207,127 @@ func (v *View) deleteContest(c echo.Context) error {
 	return c.JSON(http.StatusOK, makeContest(contest, nil, nil))
 }
 
+func (v *View) observeContestProblems(c echo.Context) error {
+	contest, ok := c.Get(contestKey).(models.Contest)
+	if !ok {
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
+	}
+	problems, err := v.core.ContestProblems.FindByContest(contest.ID)
+	if err != nil {
+		return err
+	}
+	resp := ContestProblems{}
+	for _, contestProblem := range problems {
+		problem, err := v.core.Problems.Get(contestProblem.ProblemID)
+		if err != nil {
+			return err
+		}
+		resp.Problems = append(resp.Problems, ContestProblem{
+			ContestID: contestProblem.ContestID,
+			Code:      contestProblem.Code,
+			Problem:   makeProblem(problem),
+		})
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
 func (v *View) observeContestProblem(c echo.Context) error {
-	return fmt.Errorf("not implemented")
+	contestProblem, ok := c.Get(contestProblemKey).(models.ContestProblem)
+	if !ok {
+		c.Logger().Error("contest problem not extracted")
+		return fmt.Errorf("contest problem not extracted")
+	}
+	problem, err := v.core.Problems.Get(contestProblem.ProblemID)
+	if err != nil {
+		return err
+	}
+	resp := ContestProblem{
+		ContestID: contestProblem.ContestID,
+		Code:      contestProblem.Code,
+		Problem:   makeProblem(problem),
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
+type createContestProblemForm struct {
+	Code      string `json:"code"`
+	ProblemID int64  `json:"problem_id"`
+}
+
+func (f createContestProblemForm) validate() *errorResponse {
+	errors := errorFields{}
+	if len(f.Code) == 0 {
+		errors["code"] = errorField{Message: "code is empty"}
+	}
+	if len(f.Code) > 4 {
+		errors["code"] = errorField{Message: "code is too long"}
+	}
+	if len(errors) > 0 {
+		return &errorResponse{
+			Message:       "form has invalid fields",
+			InvalidFields: errors,
+		}
+	}
+	return nil
+}
+
+func (f createContestProblemForm) Update(problem *models.ContestProblem) *errorResponse {
+	if err := f.validate(); err != nil {
+		return err
+	}
+	problem.Code = f.Code
+	problem.ProblemID = f.ProblemID
+	return nil
+}
+
+func (v *View) createContestProblem(c echo.Context) error {
+	contest, ok := c.Get(contestKey).(models.Contest)
+	if !ok {
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
+	}
+	var form createContestProblemForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	var contestProblem models.ContestProblem
+	if err := form.Update(&contestProblem); err != nil {
+		return c.JSON(http.StatusBadRequest, err)
+	}
+	contestProblem.ContestID = contest.ID
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		var err error
+		contestProblem, err = v.core.ContestProblems.CreateTx(
+			tx, contestProblem,
+		)
+		return err
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusCreated, makeContest(contest, nil, nil))
+}
+
+func (v *View) deleteContestProblem(c echo.Context) error {
+	contestProblem, ok := c.Get(contestProblemKey).(models.ContestProblem)
+	if !ok {
+		c.Logger().Error("contest problem not extracted")
+		return fmt.Errorf("contest problem not extracted")
+	}
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		return v.core.ContestProblems.DeleteTx(tx, contestProblem.ID)
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	resp := ContestProblem{
+		ContestID: contestProblem.ContestID,
+		Code:      contestProblem.Code,
+		Problem:   Problem{ID: contestProblem.ProblemID},
+	}
+	return c.JSON(http.StatusOK, resp)
 }
 
 func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
@@ -203,6 +347,41 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 			return err
 		}
 		c.Set(contestKey, contest)
+		return next(c)
+	}
+}
+
+func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		code := c.Param("code")
+		if len(code) == 0 {
+			resp := errorResponse{Message: "empty problem code"}
+			return c.JSON(http.StatusNotFound, resp)
+		}
+		contest, ok := c.Get(contestKey).(models.Contest)
+		if !ok {
+			c.Logger().Error("contest not extracted")
+			return fmt.Errorf("contest not extracted")
+		}
+		problems, err := v.core.ContestProblems.FindByContest(contest.ID)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+		pos := -1
+		for i, problem := range problems {
+			if problem.Code == code {
+				pos = i
+				break
+			}
+		}
+		if pos == -1 {
+			resp := errorResponse{
+				Message: fmt.Sprintf("problem %q does not exists", code),
+			}
+			return c.JSON(http.StatusNotFound, resp)
+		}
+		c.Set(contestProblemKey, problems[pos])
 		return next(c)
 	}
 }

@@ -18,7 +18,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_task",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "status", Type: schema.Int64},
 			{Name: "kind", Type: schema.Int64},
 			{Name: "config", Type: schema.JSON},
@@ -29,7 +29,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_task_event",
 		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
@@ -43,14 +43,14 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_role",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "code", Type: schema.String},
 		},
 	},
 	{
 		Name: "solve_role_event",
 		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
@@ -60,7 +60,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_role_edge",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "role_id", Type: schema.Int64},
 			{Name: "child_id", Type: schema.Int64},
 		},
@@ -68,7 +68,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_role_edge_event",
 		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
@@ -79,14 +79,14 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_account",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "kind", Type: schema.Int64},
 		},
 	},
 	{
 		Name: "solve_account_event",
 		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
@@ -96,7 +96,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_account_role",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "account_id", Type: schema.Int64},
 			{Name: "role_id", Type: schema.Int64},
 		},
@@ -104,7 +104,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_account_role_event",
 		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
@@ -115,7 +115,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_session",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "account_id", Type: schema.Int64},
 			{Name: "secret", Type: schema.String},
 			{Name: "create_time", Type: schema.Int64},
@@ -125,7 +125,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_session_event",
 		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
@@ -138,7 +138,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_user",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "account_id", Type: schema.Int64},
 			{Name: "login", Type: schema.String},
 			{Name: "password_hash", Type: schema.String},
@@ -152,7 +152,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_user_event",
 		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
@@ -169,7 +169,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_contest",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "config", Type: schema.JSON},
 			{Name: "title", Type: schema.String},
@@ -178,7 +178,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_contest_event",
 		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
@@ -190,7 +190,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_problem",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "config", Type: schema.JSON},
 			{Name: "title", Type: schema.String},
@@ -199,7 +199,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_problem_event",
 		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
@@ -211,7 +211,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_solution",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "problem_id", Type: schema.Int64},
 			{Name: "author_id", Type: schema.Int64},
 		},
@@ -219,7 +219,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_solution_event",
 		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
@@ -230,7 +230,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_contest_problem",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "contest_id", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},
 			{Name: "code", Type: schema.String},
@@ -239,7 +239,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_contest_problem_event",
 		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
@@ -251,7 +251,7 @@ var m001Tables = []schema.Table{
 	{
 		Name: "solve_visit",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "time", Type: schema.Int64},
 			{Name: "account_id", Type: schema.Int64, Nullable: true},
 			{Name: "session_id", Type: schema.Int64, Nullable: true},

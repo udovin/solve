@@ -8,7 +8,7 @@ import (
 	"github.com/udovin/gosql"
 
 	// Register SQL drivers
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/stdlib"
 	_ "github.com/mattn/go-sqlite3"
 )
 

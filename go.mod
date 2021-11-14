@@ -12,7 +12,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/cobra v1.2.1
-	github.com/udovin/gosql v0.0.0-20211114164701-bc2c15a1a544
+	github.com/udovin/gosql v0.0.0-20211114174240-24803fbccf5d
 	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
 	golang.org/x/sys v0.0.0-20211113001501-0c823b97ae02 // indirect

@@ -324,8 +324,8 @@ github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
-github.com/udovin/gosql v0.0.0-20211114164701-bc2c15a1a544 h1:2UkSkIPd4Gl9s10p1eTS5i8ofKTEl0vSGjzfmPZ2fJk=
-github.com/udovin/gosql v0.0.0-20211114164701-bc2c15a1a544/go.mod h1:si8UxxqiJX97VyxtIpeXiGT23HCBEYdMqgY1t0ctbbY=
+github.com/udovin/gosql v0.0.0-20211114174240-24803fbccf5d h1:wr1lEAPM4gXgWboTraF/KyuTXY/Q/JesTy6RYGusb8w=
+github.com/udovin/gosql v0.0.0-20211114174240-24803fbccf5d/go.mod h1:si8UxxqiJX97VyxtIpeXiGT23HCBEYdMqgY1t0ctbbY=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasttemplate v1.0.1/go.mod h1:UQGH1tvbgY+Nz5t2n7tXsz52dQxojPUpymEIMZ47gx8=

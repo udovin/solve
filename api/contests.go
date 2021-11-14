@@ -90,14 +90,22 @@ func (v contestSorter) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
 }
 
+var contestPermissions = []string{
+	models.UpdateContestRole,
+	models.DeleteContestRole,
+	models.ObserveContestProblemsRole,
+	models.ObserveContestProblemRole,
+	models.CreateContestProblemRole,
+	models.DeleteContestProblemRole,
+}
+
 func makeContest(contest models.Contest, roles core.RoleSet, core *core.Core) Contest {
 	resp := Contest{ID: contest.ID, Title: contest.Title}
 	if roles != nil {
-		if ok, err := core.HasRole(roles, models.UpdateContestRole); err == nil && ok {
-			resp.Permissions = append(resp.Permissions, models.UpdateContestRole)
-		}
-		if ok, err := core.HasRole(roles, models.DeleteContestRole); err == nil && ok {
-			resp.Permissions = append(resp.Permissions, models.DeleteContestRole)
+		for _, permission := range contestPermissions {
+			if ok, err := core.HasRole(roles, permission); err == nil && ok {
+				resp.Permissions = append(resp.Permissions, permission)
+			}
 		}
 	}
 	return resp
@@ -272,9 +280,16 @@ func (f createContestProblemForm) validate() *errorResponse {
 	return nil
 }
 
-func (f createContestProblemForm) Update(problem *models.ContestProblem) *errorResponse {
+func (f createContestProblemForm) Update(
+	problem *models.ContestProblem, problems *models.ProblemStore,
+) *errorResponse {
 	if err := f.validate(); err != nil {
 		return err
+	}
+	if _, err := problems.Get(f.ProblemID); err != nil {
+		return &errorResponse{Message: fmt.Sprintf(
+			"problem %d does not exists", f.ProblemID,
+		)}
 	}
 	problem.Code = f.Code
 	problem.ProblemID = f.ProblemID
@@ -293,7 +308,7 @@ func (v *View) createContestProblem(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 	var contestProblem models.ContestProblem
-	if err := form.Update(&contestProblem); err != nil {
+	if err := form.Update(&contestProblem, v.core.Problems); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
 	contestProblem.ContestID = contest.ID
@@ -400,6 +415,10 @@ func (v *View) extendContestRoles(
 		addRole(models.ObserveContestRole)
 		addRole(models.UpdateContestRole)
 		addRole(models.DeleteContestRole)
+		addRole(models.ObserveContestProblemsRole)
+		addRole(models.ObserveContestProblemRole)
+		addRole(models.CreateContestProblemRole)
+		addRole(models.DeleteContestProblemRole)
 	}
 	return contestRoles
 }

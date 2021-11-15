@@ -10,10 +10,6 @@ import (
 
 // SetupAllStores prepares all stores.
 func (c *Core) SetupAllStores() error {
-	salt, err := c.Config.Security.PasswordSalt.Secret()
-	if err != nil {
-		return err
-	}
 	dialect := c.DB.Dialect()
 	c.Tasks = models.NewTaskStore(
 		"solve_task", "solve_task_event", dialect,
@@ -33,9 +29,15 @@ func (c *Core) SetupAllStores() error {
 	c.Sessions = models.NewSessionStore(
 		"solve_session", "solve_session_event", dialect,
 	)
-	c.Users = models.NewUserStore(
-		"solve_user", "solve_user_event", salt, dialect,
-	)
+	if c.Config.Security != nil {
+		salt, err := c.Config.Security.PasswordSalt.Secret()
+		if err != nil {
+			return err
+		}
+		c.Users = models.NewUserStore(
+			"solve_user", "solve_user_event", salt, dialect,
+		)
+	}
 	c.Contests = models.NewContestStore(
 		"solve_contest", "solve_contest_event", dialect,
 	)
@@ -93,7 +95,7 @@ func (c *Core) runStoreLoop(
 	s models.Store, d time.Duration, errs chan<- error,
 ) {
 	defer c.waiter.Done()
-	err := c.WithTx(c.context, s.InitTx)
+	err := s.InitTx(c.DB)
 	errs <- err
 	if err != nil {
 		return
@@ -105,7 +107,7 @@ func (c *Core) runStoreLoop(
 		case <-c.context.Done():
 			return
 		case <-ticker.C:
-			if err := c.WithTx(c.context, s.SyncTx); err != nil {
+			if err := s.SyncTx(c.DB); err != nil {
 				log.Println("Error:", err)
 			}
 		}

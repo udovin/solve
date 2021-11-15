@@ -546,11 +546,11 @@ type StoreTester struct {
 func (s *StoreTester) Test(t testing.TB) {
 	s.prepareDB(t)
 	master := s.helper.newStore()
-	if err := withTestTx(master.InitTx); err != nil {
+	if err := master.InitTx(testDB); err != nil {
 		t.Fatal("Error:", err)
 	}
 	objects := s.createObjects(t, master)
-	if err := withTestTx(master.SyncTx); err != nil {
+	if err := master.SyncTx(testDB); err != nil {
 		t.Fatal("Error:", err)
 	}
 	for _, object := range objects {
@@ -567,7 +567,7 @@ func (s *StoreTester) Test(t testing.TB) {
 			t.Fatal("Error:", err)
 		}
 	}
-	if err := withTestTx(master.SyncTx); err != nil {
+	if err := master.SyncTx(testDB); err != nil {
 		t.Fatal("Error:", err)
 	}
 	for _, object := range objects {
@@ -577,7 +577,7 @@ func (s *StoreTester) Test(t testing.TB) {
 			t.Fatal("Error:", err)
 		}
 	}
-	if err := withTestTx(master.SyncTx); err != nil {
+	if err := master.SyncTx(testDB); err != nil {
 		t.Fatal("Error:", err)
 	}
 	s.testFailedTx(t, master)

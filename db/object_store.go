@@ -29,10 +29,10 @@ type ObjectReader interface {
 // ObjectROStore represents read-only store for objects.
 type ObjectROStore interface {
 	// LoadObjects should load objects from store.
-	LoadObjects(tx *sql.Tx) (ObjectReader, error)
+	LoadObjects(tx gosql.WeakTx) (ObjectReader, error)
 	// FindObjects should bind objects with specified expression.
 	FindObjects(
-		tx *sql.Tx, where string, args ...interface{},
+		tx gosql.WeakTx, where string, args ...interface{},
 	) (ObjectReader, error)
 }
 
@@ -41,12 +41,12 @@ type ObjectStore interface {
 	ObjectROStore
 	// CreateObject should create a new object and return copy
 	// that has correct ObjectID.
-	CreateObject(tx *sql.Tx, object Object) (Object, error)
+	CreateObject(tx gosql.WeakTx, object Object) (Object, error)
 	// UpdateObject should update object with specified ObjectID and
 	// return copy with updated fields.
-	UpdateObject(tx *sql.Tx, object Object) (Object, error)
+	UpdateObject(tx gosql.WeakTx, object Object) (Object, error)
 	// DeleteObject should delete existing object from the store.
-	DeleteObject(tx *sql.Tx, id int64) error
+	DeleteObject(tx gosql.WeakTx, id int64) error
 }
 
 type objectStore struct {
@@ -56,7 +56,7 @@ type objectStore struct {
 	dialect gosql.Dialect
 }
 
-func (s *objectStore) LoadObjects(tx *sql.Tx) (ObjectReader, error) {
+func (s *objectStore) LoadObjects(tx gosql.WeakTx) (ObjectReader, error) {
 	rows, err := tx.Query(
 		fmt.Sprintf(
 			"SELECT %s FROM %q ORDER BY %q",
@@ -73,7 +73,7 @@ func (s *objectStore) LoadObjects(tx *sql.Tx) (ObjectReader, error) {
 }
 
 func (s *objectStore) FindObjects(
-	tx *sql.Tx, where string, args ...interface{},
+	tx gosql.WeakTx, where string, args ...interface{},
 ) (ObjectReader, error) {
 	rows, err := tx.Query(
 		fmt.Sprintf(
@@ -91,7 +91,7 @@ func (s *objectStore) FindObjects(
 	return &objectReader{typ: s.typ, rows: rows}, nil
 }
 
-func (s *objectStore) CreateObject(tx *sql.Tx, object Object) (Object, error) {
+func (s *objectStore) CreateObject(tx gosql.WeakTx, object Object) (Object, error) {
 	typ := reflect.TypeOf(object)
 	if typ.Name() != s.typ.Name() || typ.PkgPath() != s.typ.PkgPath() {
 		return nil, fmt.Errorf("expected %v type", s.typ)
@@ -103,7 +103,7 @@ func (s *objectStore) CreateObject(tx *sql.Tx, object Object) (Object, error) {
 	return row.(Object), nil
 }
 
-func (s *objectStore) UpdateObject(tx *sql.Tx, object Object) (Object, error) {
+func (s *objectStore) UpdateObject(tx gosql.WeakTx, object Object) (Object, error) {
 	typ := reflect.TypeOf(object)
 	if typ.Name() != s.typ.Name() || typ.PkgPath() != s.typ.PkgPath() {
 		return nil, fmt.Errorf("expected %v type", s.typ)
@@ -115,7 +115,7 @@ func (s *objectStore) UpdateObject(tx *sql.Tx, object Object) (Object, error) {
 	return row.(Object), nil
 }
 
-func (s *objectStore) DeleteObject(tx *sql.Tx, id int64) error {
+func (s *objectStore) DeleteObject(tx gosql.WeakTx, id int64) error {
 	return deleteRow(tx, id, s.id, s.table)
 }
 

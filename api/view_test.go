@@ -26,7 +26,7 @@ func testSetup(tb testing.TB) {
 		DB: config.DB{
 			Options: config.SQLiteOptions{Path: ":memory:"},
 		},
-		Security: config.Security{
+		Security: &config.Security{
 			PasswordSalt: config.Secret{
 				Type: config.DataSecret,
 				Data: "qwerty123",

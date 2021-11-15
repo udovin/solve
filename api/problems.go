@@ -3,7 +3,10 @@ package api
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path"
 	"sort"
 	"strconv"
 
@@ -20,11 +23,13 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 		v.sessionAuth,
 		v.requireAuthRole(models.ObserveProblemsRole),
 	)
-	g.POST(
-		"/problems", v.createProblem,
-		v.sessionAuth,
-		v.requireAuthRole(models.CreateProblemRole),
-	)
+	if v.core.Config.Storage != nil {
+		g.POST(
+			"/problems", v.createProblem,
+			v.sessionAuth,
+			v.requireAuthRole(models.CreateProblemRole),
+		)
+	}
 	g.GET(
 		"/problems/:problem", v.observeProblem,
 		v.sessionAuth, v.extractProblem, v.extractProblemRoles,
@@ -141,7 +146,30 @@ func (v *View) createProblem(c echo.Context) error {
 		problem.OwnerID = models.NInt64(account.ID)
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.Problems.CreateTx(tx, &problem)
+		file, err := c.FormFile("package")
+		if err != nil {
+			return err
+		}
+		src, err := file.Open()
+		if err != nil {
+			return err
+		}
+		defer func() {
+			_ = src.Close()
+		}()
+		if err := v.core.Problems.CreateTx(tx, &problem); err != nil {
+			return err
+		}
+		dst, err := os.Create(path.Join(
+			v.core.Config.Storage.ProblemsDir,
+			fmt.Sprintf("%d.zip", problem.ID),
+		))
+		if err != nil {
+			return err
+		}
+		defer dst.Close()
+		_, err = io.Copy(dst, src)
+		return err
 	}); err != nil {
 		c.Logger().Error(err)
 		return err
@@ -172,6 +200,12 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 			return err
 		}
 		problem, err := v.core.Problems.Get(id)
+		if err == sql.ErrNoRows {
+			if err := v.core.Problems.SyncTx(v.core.DB); err != nil {
+				return err
+			}
+			problem, err = v.core.Problems.Get(id)
+		}
 		if err != nil {
 			if err == sql.ErrNoRows {
 				resp := errorResponse{Message: "problem not found"}

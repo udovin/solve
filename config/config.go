@@ -19,8 +19,10 @@ type Config struct {
 	Server *Server `json:"server"`
 	// Invoker contains invoker config.
 	Invoker *Invoker `json:"invoker"`
+	// Storage contains configuration for storage.
+	Storage *Storage `json:"storage"`
 	// Security contains security config.
-	Security Security `json:"security"`
+	Security *Security `json:"security"`
 	// LogLevel contains level of logging.
 	//
 	// You can use following values:
@@ -53,8 +55,14 @@ type Security struct {
 
 // Invoker contains invoker config.
 type Invoker struct {
+	// Threads contains amount of parallel workers.
+	Threads int `json:"threads"`
+}
+
+// Storage contains storage config.
+type Storage struct {
+	// ProblemsDir contains path to problems directory.
 	ProblemsDir string `json:"problems_dir"`
-	Threads     int    `json:"threads"`
 }
 
 // LoadFromFile loads configuration from json file.

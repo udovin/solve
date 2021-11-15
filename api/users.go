@@ -51,6 +51,9 @@ type Status struct {
 
 // registerUserHandlers registers handlers for user management.
 func (v *View) registerUserHandlers(g *echo.Group) {
+	if v.core.Users == nil {
+		return
+	}
 	g.GET(
 		"/users/:user", v.observeUser,
 		v.sessionAuth, v.extractUser, v.extractUserRoles,
@@ -93,6 +96,9 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 }
 
 func (v *View) registerSocketUserHandlers(g *echo.Group) {
+	if v.core.Users == nil {
+		return
+	}
 	g.GET(
 		"/users/:user", v.observeUser, v.extractUser,
 		v.extractAuthRoles,

@@ -24,7 +24,7 @@ var (
 		SocketFile: fmt.Sprintf("/tmp/test-solve-%d.sock", rand.Int63()),
 		Server:     &config.Server{},
 		Invoker:    &config.Invoker{},
-		Security: config.Security{
+		Security: &config.Security{
 			PasswordSalt: config.Secret{
 				Type: config.DataSecret,
 				Data: "qwerty123",

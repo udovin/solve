@@ -33,9 +33,9 @@ type EventReader interface {
 type EventROStore interface {
 	// LastEventID should return last event ID or sql.ErrNoRows
 	// if there is no events.
-	LastEventID(tx *sql.Tx) (int64, error)
+	LastEventID(tx gosql.WeakTx) (int64, error)
 	// LoadEvents should load events from store in specified range.
-	LoadEvents(tx *sql.Tx, begin, end int64) (EventReader, error)
+	LoadEvents(tx gosql.WeakTx, begin, end int64) (EventReader, error)
 }
 
 // EventStore represents persistent store for events.
@@ -43,7 +43,7 @@ type EventStore interface {
 	EventROStore
 	// CreateEvent should create a new event and return copy
 	// that has correct EventID.
-	CreateEvent(tx *sql.Tx, event Event) (Event, error)
+	CreateEvent(tx gosql.WeakTx, event Event) (Event, error)
 }
 
 type eventStore struct {
@@ -55,7 +55,7 @@ type eventStore struct {
 
 // LastEventID returns last event ID or sql.ErrNoRows
 // if there is no events.
-func (s *eventStore) LastEventID(tx *sql.Tx) (int64, error) {
+func (s *eventStore) LastEventID(tx gosql.WeakTx) (int64, error) {
 	row := tx.QueryRow(
 		fmt.Sprintf("SELECT max(%q) FROM %q", s.id, s.table),
 	)
@@ -70,7 +70,7 @@ func (s *eventStore) LastEventID(tx *sql.Tx) (int64, error) {
 }
 
 func (s *eventStore) LoadEvents(
-	tx *sql.Tx, begin, end int64,
+	tx gosql.WeakTx, begin, end int64,
 ) (EventReader, error) {
 	rows, err := tx.Query(
 		fmt.Sprintf(
@@ -88,7 +88,7 @@ func (s *eventStore) LoadEvents(
 	return &eventReader{typ: s.typ, rows: rows}, nil
 }
 
-func (s *eventStore) CreateEvent(tx *sql.Tx, event Event) (Event, error) {
+func (s *eventStore) CreateEvent(tx gosql.WeakTx, event Event) (Event, error) {
 	typ := reflect.TypeOf(event)
 	if typ.Name() != s.typ.Name() || typ.PkgPath() != s.typ.PkgPath() {
 		return nil, fmt.Errorf("expected %v type", s.typ)

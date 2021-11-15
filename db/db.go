@@ -126,7 +126,7 @@ func prepareInsert(
 }
 
 func insertRow(
-	tx *sql.Tx, row interface{}, id, table string, dialect gosql.Dialect,
+	tx gosql.WeakTx, row interface{}, id, table string, dialect gosql.Dialect,
 ) (interface{}, error) {
 	clone := cloneRow(row)
 	cols, keys, vals, idPtr := prepareInsert(clone, id)
@@ -201,7 +201,7 @@ func prepareUpdate(value reflect.Value, id string) (string, []interface{}) {
 }
 
 func updateRow(
-	tx *sql.Tx, row interface{}, id, table string,
+	tx gosql.WeakTx, row interface{}, id, table string,
 ) (interface{}, error) {
 	clone := cloneRow(row)
 	sets, vals := prepareUpdate(clone, id)
@@ -226,7 +226,7 @@ func updateRow(
 }
 
 func deleteRow(
-	tx *sql.Tx, idValue int64, id, table string,
+	tx gosql.WeakTx, idValue int64, id, table string,
 ) error {
 	res, err := tx.Exec(
 		fmt.Sprintf(

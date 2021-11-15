@@ -16,7 +16,7 @@ var testCfg = config.Config{
 	DB: config.DB{
 		Options: config.SQLiteOptions{Path: ":memory:"},
 	},
-	Security: config.Security{
+	Security: &config.Security{
 		PasswordSalt: config.Secret{
 			Type: config.DataSecret,
 			Data: "qwerty123",
@@ -59,7 +59,7 @@ func TestNewCore_Failure(t *testing.T) {
 	cfg.DB = config.DB{
 		Options: config.SQLiteOptions{Path: ":memory:"},
 	}
-	cfg.Security = config.Security{
+	cfg.Security = &config.Security{
 		PasswordSalt: config.Secret{
 			Type: config.DataSecret,
 			Data: "qwerty123",
@@ -142,7 +142,7 @@ func TestCore_Roles_NoRows(t *testing.T) {
 	}); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := c.WithTx(context.Background(), c.Roles.SyncTx); err != nil {
+	if err := c.Roles.SyncTx(c.DB); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if _, err := c.GetGuestRoles(); err != sql.ErrNoRows {

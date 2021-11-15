@@ -7,6 +7,8 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"github.com/udovin/gosql"
 )
 
 // EventConsumer represents consumer for events.
@@ -14,7 +16,7 @@ type EventConsumer interface {
 	// BeginEventID should return smallest ID of next possibly consumed event.
 	BeginEventID() int64
 	// ConsumeEvents should consume new events.
-	ConsumeEvents(tx *sql.Tx, fn func(Event) error) error
+	ConsumeEvents(tx gosql.WeakTx, fn func(Event) error) error
 }
 
 // eventGap represents a gap in event sequence.
@@ -41,7 +43,7 @@ func (c *eventConsumer) BeginEventID() int64 {
 }
 
 // ConsumeEvents consumes new events from event store.
-func (c *eventConsumer) ConsumeEvents(tx *sql.Tx, fn func(Event) error) error {
+func (c *eventConsumer) ConsumeEvents(tx gosql.WeakTx, fn func(Event) error) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if err := c.loadGapsChanges(tx, fn); err != nil {
@@ -64,7 +66,7 @@ const eventGapSkipWindow = 5000
 const eventGapSkipTimeout = 5 * time.Minute
 
 func (c *eventConsumer) loadGapsChanges(
-	tx *sql.Tx, fn func(Event) error,
+	tx gosql.WeakTx, fn func(Event) error,
 ) error {
 	window := c.endID - eventGapSkipWindow
 	timeout := time.Now().Add(-eventGapSkipTimeout)
@@ -81,7 +83,7 @@ func (c *eventConsumer) loadGapsChanges(
 }
 
 func (c *eventConsumer) loadGapChanges(
-	tx *sql.Tx, it *list.Element, fn func(Event) error,
+	tx gosql.WeakTx, it *list.Element, fn func(Event) error,
 	window int64, timeout time.Time,
 ) error {
 	gap := it.Value.(eventGap)
@@ -139,7 +141,7 @@ func (c *eventConsumer) loadGapChanges(
 }
 
 func (c *eventConsumer) loadNewChanges(
-	tx *sql.Tx, fn func(Event) error,
+	tx gosql.WeakTx, fn func(Event) error,
 ) error {
 	rows, err := c.store.LoadEvents(tx, c.endID, math.MaxInt64)
 	if err != nil {

@@ -212,8 +212,8 @@ type baseStoreImpl interface {
 
 // Store represents cached store.
 type Store interface {
-	InitTx(tx *sql.Tx) error
-	SyncTx(tx *sql.Tx) error
+	InitTx(tx gosql.WeakTx) error
+	SyncTx(tx gosql.WeakTx) error
 }
 
 type baseStore struct {
@@ -226,7 +226,7 @@ type baseStore struct {
 	mutex    sync.RWMutex
 }
 
-func (s *baseStore) InitTx(tx *sql.Tx) error {
+func (s *baseStore) InitTx(tx gosql.WeakTx) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if err := s.initEvents(tx); err != nil {
@@ -237,7 +237,7 @@ func (s *baseStore) InitTx(tx *sql.Tx) error {
 
 const eventGapSkipWindow = 25000
 
-func (s *baseStore) initEvents(tx *sql.Tx) error {
+func (s *baseStore) initEvents(tx gosql.WeakTx) error {
 	beginID, err := s.events.LastEventID(tx)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -256,7 +256,7 @@ func (s *baseStore) initEvents(tx *sql.Tx) error {
 	})
 }
 
-func (s *baseStore) initObjects(tx *sql.Tx) error {
+func (s *baseStore) initObjects(tx gosql.WeakTx) error {
 	rows, err := s.objects.LoadObjects(tx)
 	if err != nil && err != sql.ErrNoRows {
 		return err
@@ -271,13 +271,25 @@ func (s *baseStore) initObjects(tx *sql.Tx) error {
 	return rows.Err()
 }
 
-func (s *baseStore) SyncTx(tx *sql.Tx) error {
+func (s *baseStore) SyncTx(tx gosql.WeakTx) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.consumer.ConsumeEvents(tx, s.consumeEvent)
 }
 
 func (s *baseStore) createObjectEvent(
+	tx gosql.WeakTx, event ObjectEvent,
+) (ObjectEvent, error) {
+	if err := gosql.WithEnsuredTx(tx, func(tx *sql.Tx) (err error) {
+		event, err = s.createObjectEventTx(tx, event)
+		return
+	}); err != nil {
+		return nil, err
+	}
+	return event, nil
+}
+
+func (s *baseStore) createObjectEventTx(
 	tx *sql.Tx, event ObjectEvent,
 ) (ObjectEvent, error) {
 	switch object := event.Object(); event.EventType() {

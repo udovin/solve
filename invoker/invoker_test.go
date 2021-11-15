@@ -17,7 +17,7 @@ func testSetup(tb testing.TB) {
 			Options: config.SQLiteOptions{Path: ":memory:"},
 		},
 		Invoker: &config.Invoker{},
-		Security: config.Security{
+		Security: &config.Security{
 			PasswordSalt: config.Secret{
 				Type: config.DataSecret,
 				Data: "qwerty123",

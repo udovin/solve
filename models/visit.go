@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -56,7 +55,7 @@ func (s *VisitStore) MakeFromContext(c echo.Context) Visit {
 }
 
 // CreateTx creates a new visit in the events.
-func (s *VisitStore) CreateTx(tx *sql.Tx, visit Visit) (Visit, error) {
+func (s *VisitStore) CreateTx(tx gosql.WeakTx, visit Visit) (Visit, error) {
 	event, err := s.events.CreateEvent(tx, visit)
 	if err != nil {
 		return Visit{}, err

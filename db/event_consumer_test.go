@@ -7,6 +7,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/udovin/gosql"
 )
 
 type mockEvent struct {
@@ -33,7 +35,7 @@ type mockEventStore struct {
 	events []Event
 }
 
-func (s *mockEventStore) LastEventID(tx *sql.Tx) (int64, error) {
+func (s *mockEventStore) LastEventID(tx gosql.WeakTx) (int64, error) {
 	return 0, nil
 }
 
@@ -52,7 +54,7 @@ func (e eventSorter) Swap(i, j int) {
 }
 
 func (s *mockEventStore) LoadEvents(
-	tx *sql.Tx, begin, end int64,
+	tx gosql.WeakTx, begin, end int64,
 ) (EventReader, error) {
 	var events []Event
 	for _, event := range s.events {

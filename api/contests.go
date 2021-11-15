@@ -111,6 +111,19 @@ func makeContest(contest models.Contest, roles core.RoleSet, core *core.Core) Co
 	return resp
 }
 
+func makeContestProblem(
+	contestProblem models.ContestProblem, problems *models.ProblemStore,
+) ContestProblem {
+	resp := ContestProblem{
+		ContestID: contestProblem.ContestID,
+		Code:      contestProblem.Code,
+	}
+	if problem, err := problems.Get(contestProblem.ProblemID); err == nil {
+		resp.Problem = makeProblem(problem)
+	}
+	return resp
+}
+
 func (v *View) observeContests(c echo.Context) error {
 	roles, ok := c.Get(authRolesKey).(core.RoleSet)
 	if !ok {
@@ -226,36 +239,25 @@ func (v *View) observeContestProblems(c echo.Context) error {
 		return err
 	}
 	resp := ContestProblems{}
-	for _, contestProblem := range problems {
-		problem, err := v.core.Problems.Get(contestProblem.ProblemID)
-		if err != nil {
-			return err
-		}
-		resp.Problems = append(resp.Problems, ContestProblem{
-			ContestID: contestProblem.ContestID,
-			Code:      contestProblem.Code,
-			Problem:   makeProblem(problem),
-		})
+	for _, problem := range problems {
+		resp.Problems = append(
+			resp.Problems,
+			makeContestProblem(problem, v.core.Problems),
+		)
 	}
 	return c.JSON(http.StatusOK, resp)
 }
 
 func (v *View) observeContestProblem(c echo.Context) error {
-	contestProblem, ok := c.Get(contestProblemKey).(models.ContestProblem)
+	problem, ok := c.Get(contestProblemKey).(models.ContestProblem)
 	if !ok {
 		c.Logger().Error("contest problem not extracted")
 		return fmt.Errorf("contest problem not extracted")
 	}
-	problem, err := v.core.Problems.Get(contestProblem.ProblemID)
-	if err != nil {
-		return err
-	}
-	resp := ContestProblem{
-		ContestID: contestProblem.ContestID,
-		Code:      contestProblem.Code,
-		Problem:   makeProblem(problem),
-	}
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(
+		http.StatusOK,
+		makeContestProblem(problem, v.core.Problems),
+	)
 }
 
 type createContestProblemForm struct {
@@ -307,42 +309,43 @@ func (v *View) createContestProblem(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	var contestProblem models.ContestProblem
-	if err := form.Update(&contestProblem, v.core.Problems); err != nil {
+	var problem models.ContestProblem
+	if err := form.Update(&problem, v.core.Problems); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	contestProblem.ContestID = contest.ID
+	problem.ContestID = contest.ID
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
 		var err error
-		contestProblem, err = v.core.ContestProblems.CreateTx(
-			tx, contestProblem,
+		problem, err = v.core.ContestProblems.CreateTx(
+			tx, problem,
 		)
 		return err
 	}); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeContest(contest, nil, nil))
+	return c.JSON(
+		http.StatusCreated,
+		makeContestProblem(problem, v.core.Problems),
+	)
 }
 
 func (v *View) deleteContestProblem(c echo.Context) error {
-	contestProblem, ok := c.Get(contestProblemKey).(models.ContestProblem)
+	problem, ok := c.Get(contestProblemKey).(models.ContestProblem)
 	if !ok {
 		c.Logger().Error("contest problem not extracted")
 		return fmt.Errorf("contest problem not extracted")
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.ContestProblems.DeleteTx(tx, contestProblem.ID)
+		return v.core.ContestProblems.DeleteTx(tx, problem.ID)
 	}); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
-	resp := ContestProblem{
-		ContestID: contestProblem.ContestID,
-		Code:      contestProblem.Code,
-		Problem:   Problem{ID: contestProblem.ProblemID},
-	}
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(
+		http.StatusOK,
+		makeContestProblem(problem, v.core.Problems),
+	)
 }
 
 func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
@@ -353,6 +356,12 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 			return err
 		}
 		contest, err := v.core.Contests.Get(id)
+		if err == sql.ErrNoRows {
+			if err := v.core.Contests.SyncTx(v.core.DB); err != nil {
+				return err
+			}
+			contest, err = v.core.Contests.Get(id)
+		}
 		if err != nil {
 			if err == sql.ErrNoRows {
 				resp := errorResponse{Message: "contest not found"}

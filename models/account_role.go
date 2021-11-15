@@ -78,7 +78,7 @@ func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
 }
 
 // CreateTx creates account role and returns copy with valid ID.
-func (s *AccountRoleStore) CreateTx(tx *sql.Tx, role *AccountRole) error {
+func (s *AccountRoleStore) CreateTx(tx gosql.WeakTx, role *AccountRole) error {
 	event, err := s.createObjectEvent(tx, AccountRoleEvent{
 		makeBaseEvent(CreateEvent), *role,
 	})
@@ -90,7 +90,7 @@ func (s *AccountRoleStore) CreateTx(tx *sql.Tx, role *AccountRole) error {
 }
 
 // UpdateTx updates account role with specified ID.
-func (s *AccountRoleStore) UpdateTx(tx *sql.Tx, role AccountRole) error {
+func (s *AccountRoleStore) UpdateTx(tx gosql.WeakTx, role AccountRole) error {
 	_, err := s.createObjectEvent(tx, AccountRoleEvent{
 		makeBaseEvent(UpdateEvent),
 		role,
@@ -99,7 +99,7 @@ func (s *AccountRoleStore) UpdateTx(tx *sql.Tx, role AccountRole) error {
 }
 
 // DeleteTx deletes account role with specified ID.
-func (s *AccountRoleStore) DeleteTx(tx *sql.Tx, id int64) error {
+func (s *AccountRoleStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, AccountRoleEvent{
 		makeBaseEvent(DeleteEvent),
 		AccountRole{ID: id},

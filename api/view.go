@@ -85,12 +85,8 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 				visit.SessionID = models.NInt64(session.ID)
 			}
 			visit.Status = c.Response().Status
-			if err := v.core.WithTx(
-				c.Request().Context(),
-				func(tx *sql.Tx) error {
-					_, err := v.core.Visits.CreateTx(tx, visit)
-					return err
-				},
+			if _, err := v.core.Visits.CreateTx(
+				v.core.DB, visit,
 			); err != nil {
 				c.Logger().Error(err)
 			}
@@ -305,7 +301,7 @@ func (v *View) getSessionByCookie(
 ) (models.Session, error) {
 	session, err := v.core.Sessions.GetByCookie(value)
 	if err == sql.ErrNoRows {
-		if err := v.core.WithTx(ctx, v.core.Sessions.SyncTx); err != nil {
+		if err := v.core.Sessions.SyncTx(v.core.DB); err != nil {
 			return models.Session{}, err
 		}
 		session, err = v.core.Sessions.GetByCookie(value)

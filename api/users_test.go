@@ -100,6 +100,9 @@ func testSyncManagers(tb testing.TB) {
 			if err := testView.core.AccountRoles.SyncTx(tx); err != nil {
 				return err
 			}
+			if err := testView.core.Contests.SyncTx(tx); err != nil {
+				return err
+			}
 			return nil
 		},
 	); err != nil {

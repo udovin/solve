@@ -146,11 +146,11 @@ func (c *testClient) ObserveContests() (Contests, error) {
 	return resp, err
 }
 
-func (c *testClient) ObserveContest(id int) (Contests, error) {
+func (c *testClient) ObserveContest(id int64) (Contest, error) {
 	req := httptest.NewRequest(
 		http.MethodGet, fmt.Sprintf("/api/v0/contests/%d", id), nil,
 	)
-	var resp Contests
+	var resp Contest
 	err := c.doRequest(req, http.StatusOK, &resp)
 	return resp, err
 }

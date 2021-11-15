@@ -30,12 +30,14 @@ func TestContestSimpleScenario(t *testing.T) {
 	if _, err := client.Login("test", "qwerty123"); err != nil {
 		t.Fatal("Error:", err)
 	}
-	contests, err := client.ObserveContests()
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	if len(contests.Contests) > 0 {
-		t.Fatal("Contests list should be empty")
+	{
+		contests, err := client.ObserveContests()
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		if len(contests.Contests) != 0 {
+			t.Fatal("Contests list should be empty")
+		}
 	}
 	contest, err := client.CreateContest(testCreateContest)
 	if err != nil {
@@ -46,5 +48,27 @@ func TestContestSimpleScenario(t *testing.T) {
 	}
 	if contest.Title != "Test contest" {
 		t.Fatal("Invalid title:", contest.Title)
+	}
+	testSyncManagers(t)
+	{
+		contests, err := client.ObserveContests()
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		if len(contests.Contests) != 1 {
+			t.Fatal("Contests list should not be empty")
+		}
+	}
+	{
+		created, err := client.ObserveContest(contest.ID)
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		if created.ID != contest.ID {
+			t.Fatal("Invalid contest ID:", created.ID)
+		}
+		if created.Title != contest.Title {
+			t.Fatal("Invalid title:", created.Title)
+		}
 	}
 }

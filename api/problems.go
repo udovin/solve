@@ -104,7 +104,7 @@ func (v *View) observeProblem(c echo.Context) error {
 }
 
 type createProblemForm struct {
-	Title string `json:"title"`
+	Title string `form:"title"`
 }
 
 func (f createProblemForm) validate() *errorResponse {

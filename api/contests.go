@@ -314,6 +314,26 @@ func (v *View) createContestProblem(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err)
 	}
 	problem.ContestID = contest.ID
+	{
+		problems, err := v.core.ContestProblems.FindByContest(contest.ID)
+		if err != nil {
+			return err
+		}
+		for _, contestProblem := range problems {
+			if problem.Code == contestProblem.Code {
+				resp := errorResponse{Message: fmt.Sprintf(
+					"problem with code %q already exists", problem.Code,
+				)}
+				return c.JSON(http.StatusBadRequest, resp)
+			}
+			if problem.ProblemID == contestProblem.ProblemID {
+				resp := errorResponse{Message: fmt.Sprintf(
+					"problem %d already exists", problem.ProblemID,
+				)}
+				return c.JSON(http.StatusBadRequest, resp)
+			}
+		}
+	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
 		var err error
 		problem, err = v.core.ContestProblems.CreateTx(
@@ -377,7 +397,7 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		code := c.Param("code")
+		code := c.Param("problem")
 		if len(code) == 0 {
 			resp := errorResponse{Message: "empty problem code"}
 			return c.JSON(http.StatusNotFound, resp)

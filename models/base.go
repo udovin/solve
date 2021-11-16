@@ -28,6 +28,24 @@ func (m indexInt64) Delete(key, value int64) {
 	}
 }
 
+type pairInt64 [2]int64
+
+type indexPairInt64 map[pairInt64]map[int64]struct{}
+
+func (m indexPairInt64) Create(key pairInt64, value int64) {
+	if _, ok := m[key]; !ok {
+		m[key] = map[int64]struct{}{}
+	}
+	m[key][value] = struct{}{}
+}
+
+func (m indexPairInt64) Delete(key pairInt64, value int64) {
+	delete(m[key], value)
+	if len(m[key]) == 0 {
+		delete(m, key)
+	}
+}
+
 // NInt64 represents nullable int64 with zero value means null value.
 type NInt64 int64
 

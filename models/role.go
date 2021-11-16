@@ -244,7 +244,7 @@ func (s *RoleStore) GetByCode(code string) (Role, error) {
 }
 
 // CreateTx creates role and returns copy with valid ID.
-func (s *RoleStore) CreateTx(tx *sql.Tx, role Role) (Role, error) {
+func (s *RoleStore) CreateTx(tx gosql.WeakTx, role Role) (Role, error) {
 	event, err := s.createObjectEvent(tx, RoleEvent{
 		makeBaseEvent(CreateEvent),
 		role,
@@ -256,7 +256,7 @@ func (s *RoleStore) CreateTx(tx *sql.Tx, role Role) (Role, error) {
 }
 
 // UpdateTx updates role with specified ID.
-func (s *RoleStore) UpdateTx(tx *sql.Tx, role Role) error {
+func (s *RoleStore) UpdateTx(tx gosql.WeakTx, role Role) error {
 	_, err := s.createObjectEvent(tx, RoleEvent{
 		makeBaseEvent(UpdateEvent),
 		role,
@@ -265,7 +265,7 @@ func (s *RoleStore) UpdateTx(tx *sql.Tx, role Role) error {
 }
 
 // DeleteTx deletes role with specified ID.
-func (s *RoleStore) DeleteTx(tx *sql.Tx, id int64) error {
+func (s *RoleStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, RoleEvent{
 		makeBaseEvent(DeleteEvent),
 		Role{ID: id},

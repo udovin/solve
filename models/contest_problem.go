@@ -83,7 +83,7 @@ func (s *ContestProblemStore) FindByContest(
 
 // CreateTx creates problem and returns copy with valid ID.
 func (s *ContestProblemStore) CreateTx(
-	tx *sql.Tx, problem ContestProblem,
+	tx gosql.WeakTx, problem ContestProblem,
 ) (ContestProblem, error) {
 	event, err := s.createObjectEvent(tx, ContestProblemEvent{
 		makeBaseEvent(CreateEvent),
@@ -97,7 +97,7 @@ func (s *ContestProblemStore) CreateTx(
 
 // UpdateTx updates problem with specified ID.
 func (s *ContestProblemStore) UpdateTx(
-	tx *sql.Tx, problem ContestProblem,
+	tx gosql.WeakTx, problem ContestProblem,
 ) error {
 	_, err := s.createObjectEvent(tx, ContestProblemEvent{
 		makeBaseEvent(UpdateEvent),
@@ -107,7 +107,7 @@ func (s *ContestProblemStore) UpdateTx(
 }
 
 // DeleteTx deletes problem with specified ID.
-func (s *ContestProblemStore) DeleteTx(tx *sql.Tx, id int64) error {
+func (s *ContestProblemStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, ContestProblemEvent{
 		makeBaseEvent(DeleteEvent),
 		ContestProblem{ID: id},
@@ -135,9 +135,7 @@ func (s *ContestProblemStore) onDeleteObject(o db.Object) {
 func (s *ContestProblemStore) onUpdateObject(o db.Object) {
 	problem := o.(ContestProblem)
 	if old, ok := s.problems[problem.ID]; ok {
-		if old.ContestID != problem.ContestID {
-			s.byContest.Delete(old.ContestID, old.ID)
-		}
+		s.onDeleteObject(old)
 	}
 	s.onCreateObject(o)
 }

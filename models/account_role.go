@@ -127,9 +127,7 @@ func (s *AccountRoleStore) onDeleteObject(o db.Object) {
 func (s *AccountRoleStore) onUpdateObject(o db.Object) {
 	role := o.(AccountRole)
 	if old, ok := s.roles[role.ID]; ok {
-		if old.AccountID != role.AccountID {
-			s.byAccount.Delete(old.AccountID, old.ID)
-		}
+		s.onDeleteObject(old)
 	}
 	s.onCreateObject(o)
 }

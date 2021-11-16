@@ -51,7 +51,7 @@ type ContestStore struct {
 
 // CreateTx creates contest and returns copy with valid ID.
 func (s *ContestStore) CreateTx(
-	tx *sql.Tx, contest Contest,
+	tx gosql.WeakTx, contest Contest,
 ) (Contest, error) {
 	event, err := s.createObjectEvent(tx, ContestEvent{
 		makeBaseEvent(CreateEvent),
@@ -64,7 +64,7 @@ func (s *ContestStore) CreateTx(
 }
 
 // UpdateTx updates contest with specified ID.
-func (s *ContestStore) UpdateTx(tx *sql.Tx, contest Contest) error {
+func (s *ContestStore) UpdateTx(tx gosql.WeakTx, contest Contest) error {
 	_, err := s.createObjectEvent(tx, ContestEvent{
 		makeBaseEvent(UpdateEvent),
 		contest,
@@ -73,7 +73,7 @@ func (s *ContestStore) UpdateTx(tx *sql.Tx, contest Contest) error {
 }
 
 // DeleteTx deletes contest with specified ID.
-func (s *ContestStore) DeleteTx(tx *sql.Tx, id int64) error {
+func (s *ContestStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, ContestEvent{
 		makeBaseEvent(DeleteEvent),
 		Contest{ID: id},
@@ -120,6 +120,10 @@ func (s *ContestStore) onDeleteObject(o db.Object) {
 }
 
 func (s *ContestStore) onUpdateObject(o db.Object) {
+	contest := o.(Contest)
+	if old, ok := s.contests[contest.ID]; ok {
+		s.onDeleteObject(old)
+	}
 	s.onCreateObject(o)
 }
 

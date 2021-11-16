@@ -50,7 +50,7 @@ type ProblemStore struct {
 }
 
 // CreateTx creates problem and returns copy with valid ID.
-func (s *ProblemStore) CreateTx(tx *sql.Tx, problem *Problem) error {
+func (s *ProblemStore) CreateTx(tx gosql.WeakTx, problem *Problem) error {
 	event, err := s.createObjectEvent(tx, ProblemEvent{
 		makeBaseEvent(CreateEvent), *problem,
 	})
@@ -62,7 +62,7 @@ func (s *ProblemStore) CreateTx(tx *sql.Tx, problem *Problem) error {
 }
 
 // UpdateTx updates problem with specified ID.
-func (s *ProblemStore) UpdateTx(tx *sql.Tx, problem Problem) error {
+func (s *ProblemStore) UpdateTx(tx gosql.WeakTx, problem Problem) error {
 	_, err := s.createObjectEvent(tx, ProblemEvent{
 		makeBaseEvent(UpdateEvent),
 		problem,
@@ -71,7 +71,7 @@ func (s *ProblemStore) UpdateTx(tx *sql.Tx, problem Problem) error {
 }
 
 // DeleteTx deletes problem with specified ID.
-func (s *ProblemStore) DeleteTx(tx *sql.Tx, id int64) error {
+func (s *ProblemStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, ProblemEvent{
 		makeBaseEvent(DeleteEvent),
 		Problem{ID: id},

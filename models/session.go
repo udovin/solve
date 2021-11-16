@@ -121,7 +121,7 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 
 // CreateTx creates session and returns new session with valid ID.
 func (s *SessionStore) CreateTx(
-	tx *sql.Tx, session Session,
+	tx gosql.WeakTx, session Session,
 ) (Session, error) {
 	event, err := s.createObjectEvent(tx, SessionEvent{
 		makeBaseEvent(CreateEvent),
@@ -134,7 +134,7 @@ func (s *SessionStore) CreateTx(
 }
 
 // UpdateTx updates session with specified ID.
-func (s *SessionStore) UpdateTx(tx *sql.Tx, session Session) error {
+func (s *SessionStore) UpdateTx(tx gosql.WeakTx, session Session) error {
 	_, err := s.createObjectEvent(tx, SessionEvent{
 		makeBaseEvent(UpdateEvent),
 		session,
@@ -143,7 +143,7 @@ func (s *SessionStore) UpdateTx(tx *sql.Tx, session Session) error {
 }
 
 // DeleteTx deletes session with specified ID.
-func (s *SessionStore) DeleteTx(tx *sql.Tx, id int64) error {
+func (s *SessionStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, SessionEvent{
 		makeBaseEvent(DeleteEvent),
 		Session{ID: id},

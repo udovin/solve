@@ -139,7 +139,7 @@ func (s *TaskStore) FindByStatus(status TaskStatus) ([]Task, error) {
 }
 
 // CreateTx creates task and returns copy with valid ID.
-func (s *TaskStore) CreateTx(tx *sql.Tx, task Task) (Task, error) {
+func (s *TaskStore) CreateTx(tx gosql.WeakTx, task Task) (Task, error) {
 	event, err := s.createObjectEvent(tx, TaskEvent{
 		makeBaseEvent(CreateEvent),
 		task,
@@ -151,7 +151,7 @@ func (s *TaskStore) CreateTx(tx *sql.Tx, task Task) (Task, error) {
 }
 
 // UpdateTx updates task.
-func (s *TaskStore) UpdateTx(tx *sql.Tx, task Task) error {
+func (s *TaskStore) UpdateTx(tx gosql.WeakTx, task Task) error {
 	_, err := s.createObjectEvent(tx, TaskEvent{
 		makeBaseEvent(UpdateEvent),
 		task,
@@ -160,7 +160,7 @@ func (s *TaskStore) UpdateTx(tx *sql.Tx, task Task) error {
 }
 
 // DeleteTx deletes action.
-func (s *TaskStore) DeleteTx(tx *sql.Tx, id int64) error {
+func (s *TaskStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, TaskEvent{
 		makeBaseEvent(DeleteEvent),
 		Task{ID: id},
@@ -171,7 +171,18 @@ func (s *TaskStore) DeleteTx(tx *sql.Tx, id int64) error {
 // PopQueuedTx pops queued action from the events and sets running status.
 //
 // Note that events is not synchronized after tasks is popped.
-func (s *TaskStore) PopQueuedTx(tx *sql.Tx) (Task, error) {
+func (s *TaskStore) PopQueuedTx(tx gosql.WeakTx) (Task, error) {
+	var task Task
+	if err := gosql.WithEnsuredTx(tx, func(tx *sql.Tx) (err error) {
+		task, err = s.popQueuedTx(tx)
+		return
+	}); err != nil {
+		return Task{}, err
+	}
+	return task, nil
+}
+
+func (s *TaskStore) popQueuedTx(tx *sql.Tx) (Task, error) {
 	if err := s.lockStore(tx); err != nil {
 		return Task{}, err
 	}

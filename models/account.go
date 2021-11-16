@@ -67,7 +67,7 @@ func (s *AccountStore) Get(id int64) (Account, error) {
 }
 
 // CreateTx creates account and returns copy with valid ID.
-func (s *AccountStore) CreateTx(tx *sql.Tx, account *Account) error {
+func (s *AccountStore) CreateTx(tx gosql.WeakTx, account *Account) error {
 	event, err := s.createObjectEvent(tx, AccountEvent{
 		makeBaseEvent(CreateEvent), *account,
 	})
@@ -79,7 +79,7 @@ func (s *AccountStore) CreateTx(tx *sql.Tx, account *Account) error {
 }
 
 // UpdateTx updates account with specified ID.
-func (s *AccountStore) UpdateTx(tx *sql.Tx, account Account) error {
+func (s *AccountStore) UpdateTx(tx gosql.WeakTx, account Account) error {
 	_, err := s.createObjectEvent(tx, AccountEvent{
 		makeBaseEvent(UpdateEvent),
 		account,
@@ -88,7 +88,7 @@ func (s *AccountStore) UpdateTx(tx *sql.Tx, account Account) error {
 }
 
 // DeleteTx deletes account with specified ID.
-func (s *AccountStore) DeleteTx(tx *sql.Tx, id int64) error {
+func (s *AccountStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, AccountEvent{
 		makeBaseEvent(DeleteEvent),
 		Account{ID: id},
@@ -111,6 +111,10 @@ func (s *AccountStore) onDeleteObject(o db.Object) {
 }
 
 func (s *AccountStore) onUpdateObject(o db.Object) {
+	account := o.(Account)
+	if old, ok := s.accounts[account.ID]; ok {
+		s.onDeleteObject(old)
+	}
 	s.onCreateObject(o)
 }
 

@@ -96,7 +96,7 @@ func (s *UserStore) GetByAccount(id int64) (User, error) {
 }
 
 // CreateTx creates user and returns copy with valid ID.
-func (s *UserStore) CreateTx(tx *sql.Tx, user *User) error {
+func (s *UserStore) CreateTx(tx gosql.WeakTx, user *User) error {
 	event, err := s.createObjectEvent(tx, UserEvent{
 		makeBaseEvent(CreateEvent), *user,
 	})
@@ -108,7 +108,7 @@ func (s *UserStore) CreateTx(tx *sql.Tx, user *User) error {
 }
 
 // UpdateTx updates user with specified ID.
-func (s *UserStore) UpdateTx(tx *sql.Tx, user User) error {
+func (s *UserStore) UpdateTx(tx gosql.WeakTx, user User) error {
 	_, err := s.createObjectEvent(tx, UserEvent{
 		makeBaseEvent(UpdateEvent),
 		user,
@@ -117,7 +117,7 @@ func (s *UserStore) UpdateTx(tx *sql.Tx, user User) error {
 }
 
 // DeleteTx deletes user with specified ID.
-func (s *UserStore) DeleteTx(tx *sql.Tx, id int64) error {
+func (s *UserStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, UserEvent{
 		makeBaseEvent(DeleteEvent),
 		User{ID: id},

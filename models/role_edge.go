@@ -79,7 +79,7 @@ func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
 
 // CreateTx creates role edge and returns copy with valid ID.
 func (s *RoleEdgeStore) CreateTx(
-	tx *sql.Tx, edge RoleEdge,
+	tx gosql.WeakTx, edge RoleEdge,
 ) (RoleEdge, error) {
 	event, err := s.createObjectEvent(tx, RoleEdgeEvent{
 		makeBaseEvent(CreateEvent),
@@ -92,7 +92,7 @@ func (s *RoleEdgeStore) CreateTx(
 }
 
 // UpdateTx updates role edge with specified ID.
-func (s *RoleEdgeStore) UpdateTx(tx *sql.Tx, edge RoleEdge) error {
+func (s *RoleEdgeStore) UpdateTx(tx gosql.WeakTx, edge RoleEdge) error {
 	_, err := s.createObjectEvent(tx, RoleEdgeEvent{
 		makeBaseEvent(UpdateEvent),
 		edge,
@@ -101,7 +101,7 @@ func (s *RoleEdgeStore) UpdateTx(tx *sql.Tx, edge RoleEdge) error {
 }
 
 // DeleteTx deletes role edge with specified ID.
-func (s *RoleEdgeStore) DeleteTx(tx *sql.Tx, id int64) error {
+func (s *RoleEdgeStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, RoleEdgeEvent{
 		makeBaseEvent(DeleteEvent),
 		RoleEdge{ID: id},

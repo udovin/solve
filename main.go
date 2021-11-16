@@ -75,6 +75,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	var waiter sync.WaitGroup
 	defer waiter.Wait()
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 	waiter.Add(1)
 	go func() {

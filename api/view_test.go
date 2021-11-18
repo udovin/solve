@@ -191,12 +191,12 @@ func (c *testClient) doRequest(req *http.Request, code int, resp interface{}) er
 	return nil
 }
 
-func testSocketCreateUserRole(login string, role string) ([]Role, error) {
+func testSocketCreateUserRole(login string, role string) (Roles, error) {
 	req := httptest.NewRequest(
 		http.MethodPost,
 		fmt.Sprintf("/socket/v0/users/%s/roles/%s", login, role), nil,
 	)
-	var resp []Role
+	var resp Roles
 	err := doSocketRequest(req, http.StatusCreated, &resp)
 	return resp, err
 }

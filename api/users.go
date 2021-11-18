@@ -32,16 +32,6 @@ type User struct {
 	MiddleName string `json:"middle_name,omitempty"`
 }
 
-// Session represents session.
-type Session struct {
-	// ID contains session ID.
-	ID int64 `json:"id"`
-	// CreateTime contains session create time.
-	CreateTime int64 `json:"create_time,omitempty"`
-	// ExpireTime contains session expire time.
-	ExpireTime int64 `json:"expire_time,omitempty"`
-}
-
 // Status represents current authorization status.
 type Status struct {
 	User    *User    `json:"user,omitempty"`
@@ -314,9 +304,9 @@ func (v *View) observeUserSessions(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	var resp []Session
+	var resp Sessions
 	for _, session := range sessions {
-		resp = append(resp, Session{
+		resp.Sessions = append(resp.Sessions, Session{
 			ID:         session.ID,
 			ExpireTime: session.ExpireTime,
 			CreateTime: session.CreateTime,

@@ -110,7 +110,7 @@ func testSyncManagers(tb testing.TB) {
 	}
 }
 
-func testSocketObserveUserRoles(tb testing.TB, login string) []Role {
+func testSocketObserveUserRoles(tb testing.TB, login string) Roles {
 	req := httptest.NewRequest(
 		http.MethodGet, fmt.Sprintf("/socket/v0/users/%s/roles", login), nil,
 	)
@@ -119,7 +119,7 @@ func testSocketObserveUserRoles(tb testing.TB, login string) []Role {
 		tb.Fatal("Error:", err)
 	}
 	expectStatus(tb, http.StatusOK, rec.Code)
-	var resp []Role
+	var resp Roles
 	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 		tb.Fatal("Error:", err)
 	}

@@ -12,6 +12,21 @@ import (
 	"github.com/udovin/solve/models"
 )
 
+// Session represents session.
+type Session struct {
+	// ID contains session ID.
+	ID int64 `json:"id"`
+	// CreateTime contains session create time.
+	CreateTime int64 `json:"create_time,omitempty"`
+	// ExpireTime contains session expire time.
+	ExpireTime int64 `json:"expire_time,omitempty"`
+}
+
+// Sessions represents sessions response.
+type Sessions struct {
+	Sessions []Session `json:"sessions"`
+}
+
 // registerSessionHandlers registers handlers for session management.
 func (v *View) registerSessionHandlers(g *echo.Group) {
 	g.GET(

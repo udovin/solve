@@ -20,6 +20,11 @@ type Role struct {
 	Code string `json:"code"`
 }
 
+// Roles represents roles response.
+type Roles struct {
+	Roles []Role `json:"roles"`
+}
+
 // registerUserHandlers registers handlers for user management.
 func (v *View) registerRoleHandlers(g *echo.Group) {
 	g.GET(
@@ -106,14 +111,14 @@ func (v *View) registerSocketRoleHandlers(g *echo.Group) {
 var errNotImplemented = fmt.Errorf("not implemented")
 
 func (v *View) observeRoles(c echo.Context) error {
-	var resp []Role
+	var resp Roles
 	roles, err := v.core.Roles.All()
 	if err != nil {
 		c.Logger().Error(err)
 		return err
 	}
 	for _, role := range roles {
-		resp = append(resp, Role{
+		resp.Roles = append(resp.Roles, Role{
 			ID:   role.ID,
 			Code: role.Code,
 		})
@@ -223,7 +228,7 @@ func (v *View) observeRoleRoles(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	var resp []Role
+	var resp Roles
 	for _, edge := range edges {
 		role, err := v.core.Roles.Get(edge.ChildID)
 		if err != nil {
@@ -234,7 +239,7 @@ func (v *View) observeRoleRoles(c echo.Context) error {
 			c.Logger().Error(err)
 			return err
 		}
-		resp = append(resp, Role{
+		resp.Roles = append(resp.Roles, Role{
 			ID:   role.ID,
 			Code: role.Code,
 		})
@@ -257,7 +262,7 @@ func (v *View) createRoleRole(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	var resp []Role
+	var resp Roles
 	for _, edge := range edges {
 		if edge.ChildID == childRole.ID {
 			return c.JSON(http.StatusBadRequest, &errorResponse{
@@ -271,7 +276,7 @@ func (v *View) createRoleRole(c echo.Context) error {
 		if err != nil {
 			c.Logger().Error(err)
 		} else {
-			resp = append(resp, Role{
+			resp.Roles = append(resp.Roles, Role{
 				ID:   role.ID,
 				Code: role.Code,
 			})
@@ -290,7 +295,7 @@ func (v *View) createRoleRole(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	resp = append(resp, Role{
+	resp.Roles = append(resp.Roles, Role{
 		ID:   childRole.ID,
 		Code: childRole.Code,
 	})
@@ -312,7 +317,7 @@ func (v *View) observeUserRoles(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	var resp []Role
+	var resp Roles
 	for _, edge := range edges {
 		role, err := v.core.Roles.Get(edge.RoleID)
 		if err != nil {
@@ -323,7 +328,7 @@ func (v *View) observeUserRoles(c echo.Context) error {
 			c.Logger().Error(err)
 			return err
 		}
-		resp = append(resp, Role{
+		resp.Roles = append(resp.Roles, Role{
 			ID:   role.ID,
 			Code: role.Code,
 		})
@@ -346,7 +351,7 @@ func (v *View) createUserRole(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	var resp []Role
+	var resp Roles
 	for _, edge := range edges {
 		if edge.RoleID == role.ID {
 			return c.JSON(http.StatusBadRequest, &errorResponse{
@@ -360,7 +365,7 @@ func (v *View) createUserRole(c echo.Context) error {
 		if err != nil {
 			c.Logger().Error(err)
 		} else {
-			resp = append(resp, Role{
+			resp.Roles = append(resp.Roles, Role{
 				ID:   role.ID,
 				Code: role.Code,
 			})
@@ -378,7 +383,7 @@ func (v *View) createUserRole(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	resp = append(resp, Role{
+	resp.Roles = append(resp.Roles, Role{
 		ID:   role.ID,
 		Code: role.Code,
 	})

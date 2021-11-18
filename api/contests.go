@@ -421,7 +421,8 @@ func (v *View) observeContestParticipants(c echo.Context) error {
 }
 
 type createContestParticipantForm struct {
-	UserID *int64 `json:"user_id"`
+	UserID    *int64  `json:"user_id"`
+	UserLogin *string `json:"user_login"`
 }
 
 func (f createContestParticipantForm) Update(
@@ -431,7 +432,15 @@ func (f createContestParticipantForm) Update(
 		user, err := core.Users.Get(*f.UserID)
 		if err != nil {
 			return &errorResponse{Message: fmt.Sprintf(
-				"user %d does not exists", *f.UserID,
+				"user with id %d does not exists", *f.UserID,
+			)}
+		}
+		participant.AccountID = user.AccountID
+	} else if f.UserLogin != nil {
+		user, err := core.Users.GetByLogin(*f.UserLogin)
+		if err != nil {
+			return &errorResponse{Message: fmt.Sprintf(
+				"user %q does not exists", *f.UserLogin,
 			)}
 		}
 		participant.AccountID = user.AccountID
@@ -445,6 +454,11 @@ func (f createContestParticipantForm) Update(
 }
 
 func (v *View) createContestParticipant(c echo.Context) error {
+	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	if !ok {
+		c.Logger().Error("roles not extracted")
+		return fmt.Errorf("roles not extracted")
+	}
 	contest, ok := c.Get(contestKey).(models.Contest)
 	if !ok {
 		c.Logger().Error("contest not extracted")
@@ -468,7 +482,7 @@ func (v *View) createContestParticipant(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusCreated,
-		makeContestParticipant(c, participant, nil, nil),
+		makeContestParticipant(c, participant, roles, v.core),
 	)
 }
 
@@ -605,24 +619,29 @@ func (v *View) extendContestRoles(
 	c echo.Context, roles core.RoleSet, contest models.Contest,
 ) core.RoleSet {
 	contestRoles := roles.Clone()
+	if contest.ID == 0 {
+		return contestRoles
+	}
 	addRole := func(code string) {
 		if err := v.core.AddRole(contestRoles, code); err != nil {
 			c.Logger().Error(err)
 		}
 	}
 	account, ok := c.Get(authAccountKey).(models.Account)
-	if ok && contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
-		addRole(models.ObserveContestRole)
-		addRole(models.UpdateContestRole)
-		addRole(models.DeleteContestRole)
-		addRole(models.ObserveContestProblemsRole)
-		addRole(models.ObserveContestProblemRole)
-		addRole(models.CreateContestProblemRole)
-		addRole(models.DeleteContestProblemRole)
-		addRole(models.ObserveContestParticipantsRole)
-		addRole(models.ObserveContestParticipantRole)
-		addRole(models.CreateContestParticipantRole)
-		addRole(models.DeleteContestParticipantRole)
+	if ok {
+		if contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
+			addRole(models.ObserveContestRole)
+			addRole(models.UpdateContestRole)
+			addRole(models.DeleteContestRole)
+			addRole(models.ObserveContestProblemsRole)
+			addRole(models.ObserveContestProblemRole)
+			addRole(models.CreateContestProblemRole)
+			addRole(models.DeleteContestProblemRole)
+			addRole(models.ObserveContestParticipantsRole)
+			addRole(models.ObserveContestParticipantRole)
+			addRole(models.CreateContestParticipantRole)
+			addRole(models.DeleteContestParticipantRole)
+		}
 		participants, err := v.core.ContestParticipants.
 			FindByContestAccount(contest.ID, account.ID)
 		if err != nil {

@@ -623,6 +623,16 @@ func (v *View) extendContestRoles(
 		addRole(models.ObserveContestParticipantRole)
 		addRole(models.CreateContestParticipantRole)
 		addRole(models.DeleteContestParticipantRole)
+		participants, err := v.core.ContestParticipants.
+			FindByContestAccount(contest.ID, account.ID)
+		if err != nil {
+			c.Logger().Error(err)
+		} else if len(participants) > 0 {
+			addRole(models.ObserveContestRole)
+			// TODO(iudovin): Add support of start time.
+			addRole(models.ObserveContestProblemsRole)
+			addRole(models.ObserveContestProblemRole)
+		}
 	}
 	return contestRoles
 }

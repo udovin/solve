@@ -57,19 +57,20 @@ func NewView(core *core.Core) *View {
 }
 
 const (
-	authAccountKey    = "auth_account"
-	authSessionKey    = "auth_session"
-	authVisitKey      = "auth_visit"
-	authRolesKey      = "auth_roles"
-	authUserKey       = "auth_user"
-	roleKey           = "role"
-	childRoleKey      = "child_role"
-	userKey           = "user"
-	sessionKey        = "session"
-	sessionCookie     = "session"
-	contestKey        = "contest"
-	contestProblemKey = "contest_problem"
-	problemKey        = "problem"
+	authAccountKey        = "auth_account"
+	authSessionKey        = "auth_session"
+	authVisitKey          = "auth_visit"
+	authRolesKey          = "auth_roles"
+	authUserKey           = "auth_user"
+	roleKey               = "role"
+	childRoleKey          = "child_role"
+	userKey               = "user"
+	sessionKey            = "session"
+	sessionCookie         = "session"
+	contestKey            = "contest"
+	contestProblemKey     = "contest_problem"
+	contestParticipantKey = "contest_participant"
+	problemKey            = "problem"
 )
 
 // logVisit saves visit to visit store.

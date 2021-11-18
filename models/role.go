@@ -106,6 +106,18 @@ const (
 	// DeleteContestProblemRole represents role for deleting
 	// contest problem.
 	DeleteContestProblemRole = "delete_contest_problem"
+	// ObserveContestParticipantsRole represents role for observing
+	// contest participant list.
+	ObserveContestParticipantsRole = "observe_contest_participants"
+	// ObserveContestParticipantRole represents role for observing
+	// contest participant.
+	ObserveContestParticipantRole = "observe_contest_participant"
+	// CreateContestProblemRole represents role for creating
+	// contest participant.
+	CreateContestParticipantRole = "create_contest_participant"
+	// DeleteContestParticipantRole represents role for deleting
+	// contest participant.
+	DeleteContestParticipantRole = "delete_contest_participant"
 	// CreateContestRole represents role for creating contest.
 	CreateContestRole = "create_contest"
 	// UpdateContestRole represents role for updating contest.
@@ -119,49 +131,53 @@ const (
 )
 
 var builtInRoles = map[string]struct{}{
-	LoginRole:                  {},
-	LogoutRole:                 {},
-	RegisterRole:               {},
-	StatusRole:                 {},
-	ObserveRolesRole:           {},
-	CreateRoleRole:             {},
-	DeleteRoleRole:             {},
-	ObserveRoleRolesRole:       {},
-	CreateRoleRoleRole:         {},
-	DeleteRoleRoleRole:         {},
-	ObserveUserRolesRole:       {},
-	CreateUserRoleRole:         {},
-	DeleteUserRoleRole:         {},
-	ObserveUserRole:            {},
-	UpdateUserRole:             {},
-	ObserveUserEmailRole:       {},
-	ObserveUserFirstNameRole:   {},
-	ObserveUserLastNameRole:    {},
-	ObserveUserMiddleNameRole:  {},
-	ObserveUserSessionsRole:    {},
-	UpdateUserPasswordRole:     {},
-	UpdateUserEmailRole:        {},
-	UpdateUserFirstNameRole:    {},
-	UpdateUserLastNameRole:     {},
-	UpdateUserMiddleNameRole:   {},
-	ObserveSessionRole:         {},
-	ObserveProblemsRole:        {},
-	ObserveProblemRole:         {},
-	CreateProblemRole:          {},
-	UpdateProblemRole:          {},
-	DeleteProblemRole:          {},
-	ObserveContestRole:         {},
-	ObserveContestProblemsRole: {},
-	ObserveContestProblemRole:  {},
-	CreateContestProblemRole:   {},
-	DeleteContestProblemRole:   {},
-	ObserveContestsRole:        {},
-	CreateContestRole:          {},
-	UpdateContestRole:          {},
-	DeleteContestRole:          {},
-	DeleteSessionRole:          {},
-	GuestGroupRole:             {},
-	UserGroupRole:              {},
+	LoginRole:                      {},
+	LogoutRole:                     {},
+	RegisterRole:                   {},
+	StatusRole:                     {},
+	ObserveRolesRole:               {},
+	CreateRoleRole:                 {},
+	DeleteRoleRole:                 {},
+	ObserveRoleRolesRole:           {},
+	CreateRoleRoleRole:             {},
+	DeleteRoleRoleRole:             {},
+	ObserveUserRolesRole:           {},
+	CreateUserRoleRole:             {},
+	DeleteUserRoleRole:             {},
+	ObserveUserRole:                {},
+	UpdateUserRole:                 {},
+	ObserveUserEmailRole:           {},
+	ObserveUserFirstNameRole:       {},
+	ObserveUserLastNameRole:        {},
+	ObserveUserMiddleNameRole:      {},
+	ObserveUserSessionsRole:        {},
+	UpdateUserPasswordRole:         {},
+	UpdateUserEmailRole:            {},
+	UpdateUserFirstNameRole:        {},
+	UpdateUserLastNameRole:         {},
+	UpdateUserMiddleNameRole:       {},
+	ObserveSessionRole:             {},
+	ObserveProblemsRole:            {},
+	ObserveProblemRole:             {},
+	CreateProblemRole:              {},
+	UpdateProblemRole:              {},
+	DeleteProblemRole:              {},
+	ObserveContestRole:             {},
+	ObserveContestProblemsRole:     {},
+	ObserveContestProblemRole:      {},
+	CreateContestProblemRole:       {},
+	DeleteContestProblemRole:       {},
+	ObserveContestParticipantsRole: {},
+	ObserveContestParticipantRole:  {},
+	CreateContestParticipantRole:   {},
+	DeleteContestParticipantRole:   {},
+	ObserveContestsRole:            {},
+	CreateContestRole:              {},
+	UpdateContestRole:              {},
+	DeleteContestRole:              {},
+	DeleteSessionRole:              {},
+	GuestGroupRole:                 {},
+	UserGroupRole:                  {},
 }
 
 // ObjectID return ID of role.

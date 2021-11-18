@@ -52,6 +52,7 @@ func (e ContestParticipantEvent) WithObject(o db.Object) ObjectEvent {
 type ContestParticipantStore struct {
 	baseStore
 	participants     map[int64]ContestParticipant
+	byContest        indexInt64
 	byContestAccount indexPairInt64
 }
 
@@ -66,6 +67,20 @@ func (s *ContestParticipantStore) Get(id int64) (ContestParticipant, error) {
 		return participant.Clone(), nil
 	}
 	return ContestParticipant{}, sql.ErrNoRows
+}
+
+func (s *ContestParticipantStore) FindByContest(
+	contestID int64,
+) ([]ContestParticipant, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	var participants []ContestParticipant
+	for id := range s.byContest[contestID] {
+		if participant, ok := s.participants[id]; ok {
+			participants = append(participants, participant.Clone())
+		}
+	}
+	return participants, nil
 }
 
 // FindByContestAccount returns participants by contest and account.
@@ -120,17 +135,20 @@ func (s *ContestParticipantStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 
 func (s *ContestParticipantStore) reset() {
 	s.participants = map[int64]ContestParticipant{}
+	s.byContest = indexInt64{}
 	s.byContestAccount = indexPairInt64{}
 }
 
 func (s *ContestParticipantStore) onCreateObject(o db.Object) {
 	participant := o.(ContestParticipant)
 	s.participants[participant.ID] = participant
+	s.byContest.Create(participant.ContestID, participant.ID)
 	s.byContestAccount.Create(participant.contestAccountKey(), participant.ID)
 }
 
 func (s *ContestParticipantStore) onDeleteObject(o db.Object) {
 	participant := o.(ContestParticipant)
+	s.byContest.Delete(participant.ContestID, participant.ID)
 	s.byContestAccount.Delete(participant.contestAccountKey(), participant.ID)
 	delete(s.participants, participant.ID)
 }

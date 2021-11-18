@@ -54,6 +54,21 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.sessionAuth, v.extractContest, v.extractContestProblem, v.extractContestRoles,
 		v.requireAuthRole(models.DeleteContestProblemRole),
 	)
+	g.GET(
+		"/contests/:contest/participants", v.observeContestParticipants,
+		v.sessionAuth, v.extractContest, v.extractContestRoles,
+		v.requireAuthRole(models.ObserveContestParticipantsRole),
+	)
+	g.POST(
+		"/contests/:contest/participants", v.createContestParticipant,
+		v.sessionAuth, v.extractContest, v.extractContestRoles,
+		v.requireAuthRole(models.CreateContestParticipantRole),
+	)
+	g.DELETE(
+		"/contests/:contest/participants/:participant", v.deleteContestParticipant,
+		v.sessionAuth, v.extractContest, v.extractContestParticipant, v.extractContestRoles,
+		v.requireAuthRole(models.DeleteContestParticipantRole),
+	)
 }
 
 type Contest struct {
@@ -94,9 +109,11 @@ var contestPermissions = []string{
 	models.UpdateContestRole,
 	models.DeleteContestRole,
 	models.ObserveContestProblemsRole,
-	models.ObserveContestProblemRole,
 	models.CreateContestProblemRole,
 	models.DeleteContestProblemRole,
+	models.ObserveContestParticipantsRole,
+	models.CreateContestParticipantRole,
+	models.DeleteContestParticipantRole,
 }
 
 func makeContest(contest models.Contest, roles core.RoleSet, core *core.Core) Contest {
@@ -368,6 +385,133 @@ func (v *View) deleteContestProblem(c echo.Context) error {
 	)
 }
 
+type ContestParticipant struct {
+	ID        int64 `json:"id"`
+	User      *User `json:"user"`
+	ContestID int64 `json:"contest_id"`
+}
+
+type ContestParticipants struct {
+	Participants []ContestParticipant `json:"participants"`
+}
+
+func (v *View) observeContestParticipants(c echo.Context) error {
+	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	if !ok {
+		c.Logger().Error("roles not extracted")
+		return fmt.Errorf("roles not extracted")
+	}
+	contest, ok := c.Get(contestKey).(models.Contest)
+	if !ok {
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
+	}
+	participants, err := v.core.ContestParticipants.FindByContest(contest.ID)
+	if err != nil {
+		return err
+	}
+	var resp ContestParticipants
+	for _, participant := range participants {
+		resp.Participants = append(
+			resp.Participants,
+			makeContestParticipant(c, participant, roles, v.core),
+		)
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
+type createContestParticipantForm struct {
+	UserID *int64 `json:"user_id"`
+}
+
+func (f createContestParticipantForm) Update(
+	participant *models.ContestParticipant, core *core.Core,
+) *errorResponse {
+	if f.UserID != nil {
+		user, err := core.Users.Get(*f.UserID)
+		if err != nil {
+			return &errorResponse{Message: fmt.Sprintf(
+				"user %d does not exists", *f.UserID,
+			)}
+		}
+		participant.AccountID = user.AccountID
+	}
+	if participant.AccountID == 0 {
+		return &errorResponse{
+			Message: "participant account is not specified",
+		}
+	}
+	return nil
+}
+
+func (v *View) createContestParticipant(c echo.Context) error {
+	contest, ok := c.Get(contestKey).(models.Contest)
+	if !ok {
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
+	}
+	var form createContestParticipantForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	var participant models.ContestParticipant
+	if err := form.Update(&participant, v.core); err != nil {
+		return c.JSON(http.StatusBadRequest, err)
+	}
+	participant.ContestID = contest.ID
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		return v.core.ContestParticipants.CreateTx(tx, &participant)
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(
+		http.StatusCreated,
+		makeContestParticipant(c, participant, nil, nil),
+	)
+}
+
+func (v *View) deleteContestParticipant(c echo.Context) error {
+	participant, ok := c.Get(contestParticipantKey).(models.ContestParticipant)
+	if !ok {
+		c.Logger().Error("contest participant not extracted")
+		return fmt.Errorf("contest participant not extracted")
+	}
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		return v.core.ContestParticipants.DeleteTx(tx, participant.ID)
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(
+		http.StatusOK,
+		makeContestParticipant(c, participant, nil, nil),
+	)
+}
+
+func makeContestParticipant(
+	c echo.Context, participant models.ContestParticipant,
+	roles core.RoleSet, core *core.Core,
+) ContestParticipant {
+	resp := ContestParticipant{
+		ID:        participant.ID,
+		ContestID: participant.ContestID,
+	}
+	if core != nil {
+		if account, err := core.Accounts.Get(participant.AccountID); err == nil {
+			switch account.Kind {
+			case models.UserAccount:
+				if user, err := core.Users.GetByAccount(account.ID); err == nil {
+					userResp := makeUser(c, user, roles, core)
+					resp.User = &userResp
+				}
+			}
+		}
+	}
+	return resp
+}
+
 func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		id, err := strconv.ParseInt(c.Param("contest"), 10, 64)
@@ -430,6 +574,33 @@ func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+func (v *View) extractContestParticipant(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		id, err := strconv.ParseInt(c.Param("participant"), 10, 64)
+		if err != nil {
+			c.Logger().Warn(err)
+			return err
+		}
+		participant, err := v.core.ContestParticipants.Get(id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				resp := errorResponse{Message: "participant not found"}
+				return c.JSON(http.StatusNotFound, resp)
+			}
+			c.Logger().Error(err)
+			return err
+		}
+		if contest, ok := c.Get(contestKey).(models.Contest); ok {
+			if contest.ID != participant.ContestID {
+				resp := errorResponse{Message: "participant not found"}
+				return c.JSON(http.StatusNotFound, resp)
+			}
+		}
+		c.Set(contestParticipantKey, participant)
+		return next(c)
+	}
+}
+
 func (v *View) extendContestRoles(
 	c echo.Context, roles core.RoleSet, contest models.Contest,
 ) core.RoleSet {
@@ -448,6 +619,10 @@ func (v *View) extendContestRoles(
 		addRole(models.ObserveContestProblemRole)
 		addRole(models.CreateContestProblemRole)
 		addRole(models.DeleteContestProblemRole)
+		addRole(models.ObserveContestParticipantsRole)
+		addRole(models.ObserveContestParticipantRole)
+		addRole(models.CreateContestParticipantRole)
+		addRole(models.DeleteContestParticipantRole)
 	}
 	return contestRoles
 }

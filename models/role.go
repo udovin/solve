@@ -118,6 +118,21 @@ const (
 	// DeleteContestParticipantRole represents role for deleting
 	// contest participant.
 	DeleteContestParticipantRole = "delete_contest_participant"
+	// ObserveContestSolutionsRole represents role for observing
+	// contest solution list.
+	ObserveContestSolutionsRole = "observe_contest_solutions"
+	// ObserveContestSolutionRole represents role for observing
+	// contest solution.
+	ObserveContestSolutionRole = "observe_contest_solution"
+	// CreateContestSolutionRole represents role for creating
+	// contest solution.
+	CreateContestSolutionRole = "create_contest_solution"
+	// UpdateContestSolutionRole represents role for updating
+	// contest solution.
+	UpdateContestSolutionRole = "update_contest_solution"
+	// DeleteContestSolutionRole represents role for deleting
+	// contest solution.
+	DeleteContestSolutionRole = "delete_contest_solution"
 	// CreateContestRole represents role for creating contest.
 	CreateContestRole = "create_contest"
 	// UpdateContestRole represents role for updating contest.
@@ -171,6 +186,11 @@ var builtInRoles = map[string]struct{}{
 	ObserveContestParticipantRole:  {},
 	CreateContestParticipantRole:   {},
 	DeleteContestParticipantRole:   {},
+	ObserveContestSolutionsRole:    {},
+	ObserveContestSolutionRole:     {},
+	CreateContestSolutionRole:      {},
+	UpdateContestSolutionRole:      {},
+	DeleteContestSolutionRole:      {},
 	ObserveContestsRole:            {},
 	CreateContestRole:              {},
 	UpdateContestRole:              {},

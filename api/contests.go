@@ -54,6 +54,20 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.sessionAuth, v.extractContest, v.extractContestProblem, v.extractContestRoles,
 		v.requireAuthRole(models.DeleteContestProblemRole),
 	)
+	g.POST(
+		"/contests/:contest/problems/:problem/submit", v.submitContestProblemSolution,
+		v.sessionAuth, v.extractContest, v.extractContestProblem, v.extractContestRoles,
+		v.requireAuthRole(models.CreateContestSolutionRole),
+	)
+	g.GET(
+		"/contests/:contest/solutions", v.observeContestSolutions,
+		v.sessionAuth, v.extractContest, v.extractContestRoles,
+		v.requireAuthRole(models.ObserveContestSolutionsRole),
+	)
+	g.GET(
+		"/contests/:contest/solutions/:solution", v.observeContestSolution,
+		v.sessionAuth, v.extractContest, v.extractContestRoles,
+	)
 	g.GET(
 		"/contests/:contest/participants", v.observeContestParticipants,
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
@@ -502,6 +516,18 @@ func (v *View) deleteContestParticipant(c echo.Context) error {
 		http.StatusOK,
 		makeContestParticipant(c, participant, nil, nil),
 	)
+}
+
+func (v *View) observeContestSolutions(c echo.Context) error {
+	return errNotImplemented
+}
+
+func (v *View) observeContestSolution(c echo.Context) error {
+	return errNotImplemented
+}
+
+func (v *View) submitContestProblemSolution(c echo.Context) error {
+	return errNotImplemented
 }
 
 func makeContestParticipant(

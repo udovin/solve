@@ -11,10 +11,10 @@ import (
 type ContestProblem struct {
 	// ID contains ID of role.
 	ID int64 `db:"id"`
-	// ContestID contains ID of contest.
-	ContestID int64 `db:"contest_id"`
 	// ProblemID contains ID of problem.
 	ProblemID int64 `db:"problem_id"`
+	// ContestID contains ID of contest.
+	ContestID int64 `db:"contest_id"`
 	// Code contains code of problem.
 	Code string `db:"code"`
 }

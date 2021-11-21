@@ -36,7 +36,9 @@ func (t *contestSolutionStoreTest) prepareDB(tx *sql.Tx) error {
 }
 
 func (t *contestSolutionStoreTest) newStore() Store {
-	return NewContestSolutionStore("contest_solution", "contest_solution_event", gosql.SQLiteDialect)
+	return NewContestSolutionStore(
+		"contest_solution", "contest_solution_event", gosql.SQLiteDialect,
+	)
 }
 
 func (t *contestSolutionStoreTest) newObject() db.Object {
@@ -46,7 +48,9 @@ func (t *contestSolutionStoreTest) newObject() db.Object {
 func (t *contestSolutionStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return s.(*ContestSolutionStore).CreateTx(tx, o.(ContestSolution))
+	solution := o.(ContestSolution)
+	err := s.(*ContestSolutionStore).CreateTx(tx, &solution)
+	return solution, err
 }
 
 func (t *contestSolutionStoreTest) updateObject(

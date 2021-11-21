@@ -48,17 +48,16 @@ type SolutionStore struct {
 }
 
 // CreateTx creates solution and returns copy with valid ID.
-func (s *SolutionStore) CreateTx(
-	tx gosql.WeakTx, solution Solution,
-) (Solution, error) {
+func (s *SolutionStore) CreateTx(tx gosql.WeakTx, solution *Solution) error {
 	event, err := s.createObjectEvent(tx, SolutionEvent{
 		makeBaseEvent(CreateEvent),
-		solution,
+		*solution,
 	})
 	if err != nil {
-		return Solution{}, err
+		return err
 	}
-	return event.Object().(Solution), nil
+	*solution = event.Object().(Solution)
+	return nil
 }
 
 // UpdateTx updates solution with specified ID.

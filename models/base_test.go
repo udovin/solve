@@ -92,19 +92,20 @@ func (s *testStore) Get(id int64) (testObject, error) {
 }
 
 func (s *testStore) CreateTx(
-	tx *sql.Tx, object testObject,
-) (testObject, error) {
+	tx gosql.WeakTx, object *testObject,
+) error {
 	event, err := s.createObjectEvent(tx, testObjectEvent{
 		makeBaseEvent(CreateEvent),
-		object,
+		*object,
 	})
 	if err != nil {
-		return testObject{}, err
+		return err
 	}
-	return event.Object().(testObject), nil
+	*object = event.Object().(testObject)
+	return nil
 }
 
-func (s *testStore) UpdateTx(tx *sql.Tx, object testObject) error {
+func (s *testStore) UpdateTx(tx gosql.WeakTx, object testObject) error {
 	_, err := s.createObjectEvent(tx, testObjectEvent{
 		makeBaseEvent(UpdateEvent),
 		object,
@@ -112,7 +113,7 @@ func (s *testStore) UpdateTx(tx *sql.Tx, object testObject) error {
 	return err
 }
 
-func (s *testStore) DeleteTx(tx *sql.Tx, id int64) error {
+func (s *testStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, testObjectEvent{
 		makeBaseEvent(DeleteEvent),
 		testObject{ID: id},
@@ -234,7 +235,7 @@ func createTestObject(t testing.TB, s *testStore, o testObject) testObject {
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	if o, err = s.CreateTx(tx, o); err != nil {
+	if err := s.CreateTx(tx, &o); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -632,16 +633,20 @@ func BenchmarkBaseStore_CreateTx(b *testing.B) {
 	defer testTeardown(b)
 	store := newTestStore()
 	migrateTestStore(b, store)
+	if err := store.InitTx(testDB); err != nil {
+		b.Fatal("Error: ", err)
+	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := withTestTx(func(tx *sql.Tx) error {
-			bytes, err := json.Marshal(i + 1)
-			if err != nil {
-				return err
-			}
-			_, err = store.CreateTx(tx, testObject{JSON: bytes})
-			return err
-		}); err != nil {
+		bytes, err := json.Marshal(i + 1)
+		if err != nil {
+			b.Fatal("Error: ", err)
+		}
+		obj := testObject{JSON: bytes}
+		if err := store.CreateTx(testDB, &obj); err != nil {
+			b.Fatal("Error: ", err)
+		}
+		if err := store.SyncTx(testDB); err != nil {
 			b.Fatal("Error: ", err)
 		}
 	}

@@ -70,6 +70,7 @@ const (
 	contestKey            = "contest"
 	contestProblemKey     = "contest_problem"
 	contestParticipantKey = "contest_participant"
+	contestSolutionKey    = "contest_solution"
 	problemKey            = "problem"
 )
 

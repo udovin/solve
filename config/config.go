@@ -63,6 +63,8 @@ type Invoker struct {
 type Storage struct {
 	// ProblemsDir contains path to problems directory.
 	ProblemsDir string `json:"problems_dir"`
+	// SolutionsDir contains path to solutions directory.
+	SolutionsDir string `json:"solutions_dir"`
 }
 
 // LoadFromFile loads configuration from json file.

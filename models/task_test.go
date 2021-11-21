@@ -49,7 +49,9 @@ func (t *taskStoreTest) newObject() db.Object {
 func (t *taskStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return s.(*TaskStore).CreateTx(tx, o.(Task))
+	task := o.(Task)
+	err := s.(*TaskStore).CreateTx(tx, &task)
+	return task, err
 }
 
 func (t *taskStoreTest) updateObject(

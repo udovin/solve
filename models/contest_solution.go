@@ -86,16 +86,17 @@ func (s *ContestSolutionStore) FindByContest(
 
 // CreateTx creates solution and returns copy with valid ID.
 func (s *ContestSolutionStore) CreateTx(
-	tx gosql.WeakTx, solution ContestSolution,
-) (ContestSolution, error) {
+	tx gosql.WeakTx, solution *ContestSolution,
+) error {
 	event, err := s.createObjectEvent(tx, ContestSolutionEvent{
 		makeBaseEvent(CreateEvent),
-		solution,
+		*solution,
 	})
 	if err != nil {
-		return ContestSolution{}, err
+		return err
 	}
-	return event.Object().(ContestSolution), nil
+	*solution = event.Object().(ContestSolution)
+	return nil
 }
 
 // UpdateTx updates solution with specified ID.

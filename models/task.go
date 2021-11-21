@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -67,6 +68,11 @@ func (t TaskKind) MarshalText() ([]byte, error) {
 	return []byte(t.String()), nil
 }
 
+// JudgeSolutionConfig represets config for JudgeSolution.
+type JudgeSolutionConfig struct {
+	SolutionID int64 `json:"solution_id"`
+}
+
 // Task represents async task.
 type Task struct {
 	ID         int64      `db:"id"`
@@ -87,6 +93,15 @@ func (o Task) Clone() Task {
 	o.Config = o.Config.clone()
 	o.State = o.State.clone()
 	return o
+}
+
+func (o *Task) SetConfig(data interface{}) error {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	o.Config = raw
+	return nil
 }
 
 // TaskEvent represents task event.
@@ -139,15 +154,16 @@ func (s *TaskStore) FindByStatus(status TaskStatus) ([]Task, error) {
 }
 
 // CreateTx creates task and returns copy with valid ID.
-func (s *TaskStore) CreateTx(tx gosql.WeakTx, task Task) (Task, error) {
+func (s *TaskStore) CreateTx(tx gosql.WeakTx, task *Task) error {
 	event, err := s.createObjectEvent(tx, TaskEvent{
 		makeBaseEvent(CreateEvent),
-		task,
+		*task,
 	})
 	if err != nil {
-		return Task{}, err
+		return err
 	}
-	return event.Object().(Task), nil
+	*task = event.Object().(Task)
+	return nil
 }
 
 // UpdateTx updates task.

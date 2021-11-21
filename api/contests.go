@@ -3,12 +3,16 @@ package api
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path"
 	"sort"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 )
@@ -526,8 +530,99 @@ func (v *View) observeContestSolution(c echo.Context) error {
 	return errNotImplemented
 }
 
+type ContestSolution struct {
+	ID          int64               `json:"id"`
+	ContestID   int64               `json:"contest_id"`
+	Problem     *Problem            `json:"problem"`
+	Participant *ContestParticipant `json:"participant,omitempty"`
+}
+
 func (v *View) submitContestProblemSolution(c echo.Context) error {
-	return errNotImplemented
+	problem, ok := c.Get(contestProblemKey).(models.ContestProblem)
+	if !ok {
+		return fmt.Errorf("contest problem not extracted")
+	}
+	contest, ok := c.Get(contestKey).(models.Contest)
+	if !ok {
+		return fmt.Errorf("contest not extracted")
+	}
+	account, ok := c.Get(authAccountKey).(models.Account)
+	if !ok {
+		return fmt.Errorf("account not extracted")
+	}
+	participants, err := v.core.ContestParticipants.
+		FindByContestAccount(contest.ID, account.ID)
+	if err != nil {
+		return err
+	}
+	if len(participants) == 0 {
+		resp := errorResponse{Message: "participant not found"}
+		return c.JSON(http.StatusForbidden, resp)
+	}
+	solution := models.Solution{
+		ProblemID: problem.ProblemID,
+		AuthorID:  account.ID,
+	}
+	contestSolution := models.ContestSolution{
+		ContestID:     contest.ID,
+		ParticipantID: participants[0].ID,
+		ProblemID:     problem.ID,
+	}
+	if err := gosql.WithTx(v.core.DB, func(tx *sql.Tx) error {
+		file, err := c.FormFile("file")
+		if err != nil {
+			return err
+		}
+		src, err := file.Open()
+		if err != nil {
+			return err
+		}
+		defer func() {
+			_ = src.Close()
+		}()
+		if err := v.core.Solutions.CreateTx(tx, &solution); err != nil {
+			return err
+		}
+		contestSolution.SolutionID = solution.ID
+		if err := v.core.ContestSolutions.CreateTx(
+			tx, &contestSolution,
+		); err != nil {
+			return err
+		}
+		task := models.Task{Kind: models.JudgeSolution}
+		if err := task.SetConfig(models.JudgeSolutionConfig{
+			SolutionID: solution.ID,
+		}); err != nil {
+			return err
+		}
+		if err := v.core.Tasks.CreateTx(tx, &task); err != nil {
+			return err
+		}
+		dst, err := os.Create(path.Join(
+			v.core.Config.Storage.SolutionsDir,
+			fmt.Sprintf("%d.txt", solution.ID),
+		))
+		if err != nil {
+			return err
+		}
+		defer dst.Close()
+		_, err = io.Copy(dst, src)
+		return err
+	}, gosql.WithContext(c.Request().Context())); err != nil {
+		return err
+	}
+	return c.JSON(
+		http.StatusCreated,
+		makeContestSolution(contestSolution),
+	)
+}
+
+func makeContestSolution(solution models.ContestSolution) ContestSolution {
+	resp := ContestSolution{
+		ID:        solution.ID,
+		ContestID: solution.ContestID,
+	}
+	return resp
 }
 
 func makeContestParticipant(
@@ -663,7 +758,7 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 				return c.JSON(http.StatusNotFound, resp)
 			}
 		}
-		c.Set(contestParticipantKey, solution)
+		c.Set(contestSolutionKey, solution)
 		return next(c)
 	}
 }

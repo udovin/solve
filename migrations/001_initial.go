@@ -268,6 +268,29 @@ var m001Tables = []schema.Table{
 		},
 	},
 	{
+		Name: "solve_contest_solution",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "solution_id", Type: schema.Int64},
+			{Name: "contest_id", Type: schema.Int64},
+			{Name: "participant_id", Type: schema.Int64},
+			{Name: "problem_id", Type: schema.Int64},
+		},
+	},
+	{
+		Name: "solve_contest_solution_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_type", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "id", Type: schema.Int64},
+			{Name: "solution_id", Type: schema.Int64},
+			{Name: "contest_id", Type: schema.Int64},
+			{Name: "participant_id", Type: schema.Int64},
+			{Name: "problem_id", Type: schema.Int64},
+		},
+	},
+	{
 		Name: "solve_visit",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},

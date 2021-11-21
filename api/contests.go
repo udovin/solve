@@ -66,7 +66,7 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/contests/:contest/solutions/:solution", v.observeContestSolution,
-		v.sessionAuth, v.extractContest, v.extractContestRoles,
+		v.sessionAuth, v.extractContest, v.extractContestSolution, v.extractContestRoles,
 	)
 	g.GET(
 		"/contests/:contest/participants", v.observeContestParticipants,
@@ -637,6 +637,33 @@ func (v *View) extractContestParticipant(next echo.HandlerFunc) echo.HandlerFunc
 			}
 		}
 		c.Set(contestParticipantKey, participant)
+		return next(c)
+	}
+}
+
+func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		id, err := strconv.ParseInt(c.Param("solution"), 10, 64)
+		if err != nil {
+			c.Logger().Warn(err)
+			return err
+		}
+		solution, err := v.core.ContestSolutions.Get(id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				resp := errorResponse{Message: "solution not found"}
+				return c.JSON(http.StatusNotFound, resp)
+			}
+			c.Logger().Error(err)
+			return err
+		}
+		if contest, ok := c.Get(contestKey).(models.Contest); ok {
+			if contest.ID != solution.ContestID {
+				resp := errorResponse{Message: "solution not found"}
+				return c.JSON(http.StatusNotFound, resp)
+			}
+		}
+		c.Set(contestParticipantKey, solution)
 		return next(c)
 	}
 }

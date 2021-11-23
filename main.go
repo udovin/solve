@@ -127,7 +127,9 @@ func serverMain(cmd *cobra.Command, _ []string) {
 		}()
 	}
 	if cfg.Invoker != nil {
-		invoker.New(c).Start()
+		if err := invoker.New(c).Start(); err != nil {
+			panic(err)
+		}
 	}
 	<-ctx.Done()
 }

@@ -95,8 +95,25 @@ func (o Task) Clone() Task {
 	return o
 }
 
-func (o *Task) SetConfig(data interface{}) error {
-	raw, err := json.Marshal(data)
+func (o Task) ScanConfig(config interface{}) error {
+	return json.Unmarshal(o.Config, config)
+}
+
+func (o *Task) SetConfig(config interface{}) error {
+	raw, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	o.Config = raw
+	return nil
+}
+
+func (o Task) ScanState(state interface{}) error {
+	return json.Unmarshal(o.Config, state)
+}
+
+func (o *Task) SetState(state interface{}) error {
+	raw, err := json.Marshal(state)
 	if err != nil {
 		return err
 	}

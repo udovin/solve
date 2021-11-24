@@ -1,6 +1,6 @@
 FROM golang:alpine AS build
 
-RUN apk add --no-cache git gcc libc-dev
+RUN apk add --no-cache git gcc libc-dev musl-dev curl
 
 COPY . /go/src/github.com/udovin/solve
 

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/labstack/gommon/log"
@@ -37,7 +37,7 @@ func TestLoadFromFile(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	_, err = LoadFromFile(path.Join(os.TempDir(), "solve-test-deleted"))
+	_, err = LoadFromFile(filepath.Join(os.TempDir(), "solve-test-deleted"))
 	if err == nil {
 		t.Fatal("Expected error for config from deleted file")
 	}

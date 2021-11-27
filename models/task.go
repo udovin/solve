@@ -90,8 +90,8 @@ func (o Task) ObjectID() int64 {
 
 // Clone create copy of task.
 func (o Task) Clone() Task {
-	o.Config = o.Config.clone()
-	o.State = o.State.clone()
+	o.Config = o.Config.Clone()
+	o.State = o.State.Clone()
 	return o
 }
 

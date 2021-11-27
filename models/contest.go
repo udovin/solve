@@ -22,7 +22,7 @@ func (o Contest) ObjectID() int64 {
 
 // Clone creates copy of contest.
 func (o Contest) Clone() Contest {
-	o.Config = o.Config.clone()
+	o.Config = o.Config.Clone()
 	return o
 }
 

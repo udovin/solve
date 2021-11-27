@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 
@@ -45,7 +45,8 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/contests/:contest/problems/:problem", v.observeContestProblem,
-		v.sessionAuth, v.extractContest, v.extractContestProblem, v.extractContestRoles,
+		v.sessionAuth, v.extractContest, v.extractContestProblem,
+		v.extractContestRoles,
 		v.requireAuthRole(models.ObserveContestProblemRole),
 	)
 	g.POST(
@@ -55,12 +56,14 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.DELETE(
 		"/contests/:contest/problems/:problem", v.deleteContestProblem,
-		v.sessionAuth, v.extractContest, v.extractContestProblem, v.extractContestRoles,
+		v.sessionAuth, v.extractContest, v.extractContestProblem,
+		v.extractContestRoles,
 		v.requireAuthRole(models.DeleteContestProblemRole),
 	)
 	g.POST(
-		"/contests/:contest/problems/:problem/submit", v.submitContestProblemSolution,
-		v.sessionAuth, v.extractContest, v.extractContestProblem, v.extractContestRoles,
+		"/contests/:contest/problems/:problem/submit",
+		v.submitContestProblemSolution, v.sessionAuth, v.extractContest,
+		v.extractContestProblem, v.extractContestRoles,
 		v.requireAuthRole(models.CreateContestSolutionRole),
 	)
 	g.GET(
@@ -70,7 +73,9 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/contests/:contest/solutions/:solution", v.observeContestSolution,
-		v.sessionAuth, v.extractContest, v.extractContestSolution, v.extractContestRoles,
+		v.sessionAuth, v.extractContest, v.extractContestSolution,
+		v.extractContestSolutionRoles,
+		v.requireAuthRole(models.ObserveContestSolutionRole),
 	)
 	g.GET(
 		"/contests/:contest/participants", v.observeContestParticipants,
@@ -120,6 +125,20 @@ func (v contestSorter) Less(i, j int) bool {
 }
 
 func (v contestSorter) Swap(i, j int) {
+	v[i], v[j] = v[j], v[i]
+}
+
+type contestSolutionSorter []ContestSolution
+
+func (v contestSolutionSorter) Len() int {
+	return len(v)
+}
+
+func (v contestSolutionSorter) Less(i, j int) bool {
+	return v[i].ID > v[j].ID
+}
+
+func (v contestSolutionSorter) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
 }
 
@@ -522,12 +541,47 @@ func (v *View) deleteContestParticipant(c echo.Context) error {
 	)
 }
 
+// ContestSolutions represents contest solutions response.
+type ContestSolutions struct {
+	Solutions []ContestSolution `json:"solutions"`
+}
+
 func (v *View) observeContestSolutions(c echo.Context) error {
-	return errNotImplemented
+	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	if !ok {
+		c.Logger().Error("roles not extracted")
+		return fmt.Errorf("roles not extracted")
+	}
+	contest, ok := c.Get(contestKey).(models.Contest)
+	if !ok {
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
+	}
+	solutions, err := v.core.ContestSolutions.FindByContest(contest.ID)
+	if err != nil {
+		return err
+	}
+	var resp ContestSolutions
+	for _, solution := range solutions {
+		solutionRoles := v.extendContestSolutionRoles(c, roles, solution)
+		if ok, err := v.core.HasRole(
+			solutionRoles, models.ObserveContestSolutionRole,
+		); ok && err == nil {
+			resp.Solutions = append(
+				resp.Solutions, makeContestSolution(solution, v.core),
+			)
+		}
+	}
+	sort.Sort(contestSolutionSorter(resp.Solutions))
+	return c.JSON(http.StatusOK, resp)
 }
 
 func (v *View) observeContestSolution(c echo.Context) error {
 	return errNotImplemented
+}
+
+type SolutionReport struct {
+	Verdict string `json:"verdict"`
 }
 
 type ContestSolution struct {
@@ -535,6 +589,7 @@ type ContestSolution struct {
 	ContestID   int64               `json:"contest_id"`
 	Problem     *Problem            `json:"problem"`
 	Participant *ContestParticipant `json:"participant,omitempty"`
+	Report      *SolutionReport     `json:"report"`
 }
 
 func (v *View) submitContestProblemSolution(c echo.Context) error {
@@ -598,7 +653,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		if err := v.core.Tasks.CreateTx(tx, &task); err != nil {
 			return err
 		}
-		dst, err := os.Create(path.Join(
+		dst, err := os.Create(filepath.Join(
 			v.core.Config.Storage.SolutionsDir,
 			fmt.Sprintf("%d.txt", solution.ID),
 		))
@@ -613,14 +668,22 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusCreated,
-		makeContestSolution(contestSolution),
+		makeContestSolution(contestSolution, v.core),
 	)
 }
 
-func makeContestSolution(solution models.ContestSolution) ContestSolution {
+func makeContestSolution(solution models.ContestSolution, core *core.Core) ContestSolution {
 	resp := ContestSolution{
 		ID:        solution.ID,
 		ContestID: solution.ContestID,
+	}
+	if baseSolution, err := core.Solutions.Get(solution.SolutionID); err == nil {
+		if report, err := baseSolution.GetReport(); err == nil {
+			reportResp := SolutionReport{
+				Verdict: report.Verdict.String(),
+			}
+			resp.Report = &reportResp
+		}
 	}
 	return resp
 }
@@ -789,6 +852,11 @@ func (v *View) extendContestRoles(
 			addRole(models.ObserveContestParticipantRole)
 			addRole(models.CreateContestParticipantRole)
 			addRole(models.DeleteContestParticipantRole)
+			addRole(models.ObserveContestSolutionsRole)
+			addRole(models.ObserveContestSolutionRole)
+			addRole(models.CreateContestSolutionRole)
+			addRole(models.UpdateContestSolutionRole)
+			addRole(models.DeleteContestSolutionRole)
 		}
 		participants, err := v.core.ContestParticipants.
 			FindByContestAccount(contest.ID, account.ID)
@@ -804,12 +872,38 @@ func (v *View) extendContestRoles(
 	return contestRoles
 }
 
+func (v *View) extendContestSolutionRoles(
+	c echo.Context, roles core.RoleSet, solution models.ContestSolution,
+) core.RoleSet {
+	solutionRoles := roles.Clone()
+	if solution.ID == 0 {
+		return solutionRoles
+	}
+	addRole := func(code string) {
+		if err := v.core.AddRole(solutionRoles, code); err != nil {
+			c.Logger().Error(err)
+		}
+	}
+	account, ok := c.Get(authAccountKey).(models.Account)
+	if ok {
+		participants, err := v.core.ContestParticipants.
+			FindByContestAccount(solution.ContestID, account.ID)
+		if err != nil {
+			c.Logger().Error(err)
+		} else if len(participants) > 0 {
+			addRole(models.ObserveContestSolutionRole)
+			addRole(models.CreateContestSolutionRole)
+		}
+	}
+	return solutionRoles
+}
+
 func (v *View) extractContestRoles(next echo.HandlerFunc) echo.HandlerFunc {
 	nextWrap := func(c echo.Context) error {
 		contest, ok := c.Get(contestKey).(models.Contest)
 		if !ok {
-			c.Logger().Error("session not extracted")
-			return fmt.Errorf("session not extracted")
+			c.Logger().Error("contest not extracted")
+			return fmt.Errorf("contest not extracted")
 		}
 		roles, ok := c.Get(authRolesKey).(core.RoleSet)
 		if !ok {
@@ -820,4 +914,22 @@ func (v *View) extractContestRoles(next echo.HandlerFunc) echo.HandlerFunc {
 		return next(c)
 	}
 	return v.extractAuthRoles(nextWrap)
+}
+
+func (v *View) extractContestSolutionRoles(next echo.HandlerFunc) echo.HandlerFunc {
+	nextWrap := func(c echo.Context) error {
+		solution, ok := c.Get(contestSolutionKey).(models.ContestSolution)
+		if !ok {
+			c.Logger().Error("solution not extracted")
+			return fmt.Errorf("solution not extracted")
+		}
+		roles, ok := c.Get(authRolesKey).(core.RoleSet)
+		if !ok {
+			c.Logger().Error("roles not extracted")
+			return fmt.Errorf("roles not extracted")
+		}
+		c.Set(authRolesKey, v.extendContestSolutionRoles(c, roles, solution))
+		return next(c)
+	}
+	return v.extractContestRoles(nextWrap)
 }

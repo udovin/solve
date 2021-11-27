@@ -502,7 +502,7 @@ func TestJSON_UnmarshalJSON(t *testing.T) {
 
 func TestJSON_clone(t *testing.T) {
 	a := JSON(`{"hello": "world"}`)
-	b := a.clone()
+	b := a.Clone()
 	if string(a) != string(b) {
 		t.Fatalf("Expected %s, got %s", a, b)
 	}
@@ -511,7 +511,7 @@ func TestJSON_clone(t *testing.T) {
 		t.Fatalf("Update should modify only one copy")
 	}
 	var c JSON = nil
-	if d := c.clone(); !reflect.DeepEqual(c, d) {
+	if d := c.Clone(); !reflect.DeepEqual(c, d) {
 		t.Fatalf("Expected %v, got %v", c, d)
 	}
 }

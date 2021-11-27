@@ -396,12 +396,16 @@ func (v *View) deleteUserRole(c echo.Context) error {
 
 func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		id, err := strconv.ParseInt(c.Param("role"), 10, 64)
+		code := c.Param("role")
+		id, err := strconv.ParseInt(code, 10, 64)
 		if err != nil {
-			role, err := v.core.Roles.GetByCode(c.Param("role"))
+			role, err := v.core.Roles.GetByCode(code)
 			if err != nil {
 				if err == sql.ErrNoRows {
-					return c.NoContent(http.StatusNotFound)
+					resp := errorResponse{
+						Message: fmt.Sprintf("role %q not found", code),
+					}
+					return c.JSON(http.StatusNotFound, resp)
 				}
 				c.Logger().Error(err)
 				return err
@@ -412,7 +416,10 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 		role, err := v.core.Roles.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return c.NoContent(http.StatusNotFound)
+				resp := errorResponse{
+					Message: fmt.Sprintf("role %d not found", id),
+				}
+				return c.JSON(http.StatusNotFound, resp)
 			}
 			c.Logger().Error(err)
 			return err
@@ -424,12 +431,16 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) extractChildRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		id, err := strconv.ParseInt(c.Param("child_role"), 10, 64)
+		code := c.Param("child_role")
+		id, err := strconv.ParseInt(code, 10, 64)
 		if err != nil {
-			role, err := v.core.Roles.GetByCode(c.Param("child_role"))
+			role, err := v.core.Roles.GetByCode(code)
 			if err != nil {
 				if err == sql.ErrNoRows {
-					return c.NoContent(http.StatusNotFound)
+					resp := errorResponse{
+						Message: fmt.Sprintf("role %q not found", code),
+					}
+					return c.JSON(http.StatusNotFound, resp)
 				}
 				c.Logger().Error(err)
 				return err
@@ -440,7 +451,10 @@ func (v *View) extractChildRole(next echo.HandlerFunc) echo.HandlerFunc {
 		role, err := v.core.Roles.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return c.NoContent(http.StatusNotFound)
+				resp := errorResponse{
+					Message: fmt.Sprintf("role %d not found", id),
+				}
+				return c.JSON(http.StatusNotFound, resp)
 			}
 			c.Logger().Error(err)
 			return err

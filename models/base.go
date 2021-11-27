@@ -119,7 +119,7 @@ func (v *JSON) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-func (v JSON) clone() JSON {
+func (v JSON) Clone() JSON {
 	if v == nil {
 		return nil
 	}

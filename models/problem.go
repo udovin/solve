@@ -22,7 +22,7 @@ func (o Problem) ObjectID() int64 {
 
 // Clone creates copy of problem.
 func (o Problem) Clone() Problem {
-	o.Config = o.Config.clone()
+	o.Config = o.Config.Clone()
 	return o
 }
 

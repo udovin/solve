@@ -2,16 +2,83 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
+
+type Verdict int
+
+const (
+	// Accepted means that solution is correct.
+	Accepted Verdict = 1
+	// Rejected means that solutios is rejected.
+	Rejected Verdict = 2
+	// CompilationError means that solution can not compiled.
+	CompilationError Verdict = 3
+	// TimeLimitExceeded means that solution uses more time than allowed.
+	TimeLimitExceeded Verdict = 4
+	// MemoryLimitExceeded means that solution uses more memory than allowed.
+	MemoryLimitExceeded Verdict = 5
+	// RuntimeError means that solution runs incorrectly.
+	RuntimeError Verdict = 6
+	// WrongAnswer means that solution is incorrect.
+	WrongAnswer Verdict = 7
+	// PresentationError means that solution output is incorrect.
+	PresentationError Verdict = 8
+)
+
+func (v Verdict) String() string {
+	switch v {
+	case Accepted:
+		return "accepted"
+	case Rejected:
+		return "rejected"
+	case CompilationError:
+		return "compilation_error"
+	case TimeLimitExceeded:
+		return "time_limit_exceeded"
+	case MemoryLimitExceeded:
+		return "memory_limit_exceeded"
+	case RuntimeError:
+		return "runtime_error"
+	case WrongAnswer:
+		return "wrong_answer"
+	case PresentationError:
+		return "presentation_error"
+	default:
+		return fmt.Sprintf("Verdict(%d)", v)
+	}
+}
+
+type UsageReport struct {
+	Time   int64 `json:"time"`
+	Memory int64 `json:"memory"`
+}
+
+type TestReport struct {
+	Verdict  Verdict     `json:"verdict"`
+	Usage    UsageReport `json:"usage"`
+	CheckLog string      `json:"check_log"`
+	Points   *float64    `json:"points"`
+}
+
+type SolutionReport struct {
+	Verdict    Verdict      `json:"verdict"`
+	Usage      UsageReport  `json:"usage"`
+	CompileLog string       `json:"compile_log"`
+	Tests      []TestReport `json:"tests"`
+	Points     *float64     `json:"points"`
+}
 
 // Solution represents a solution.
 type Solution struct {
 	ID        int64 `db:"id"`
 	ProblemID int64 `db:"problem_id"`
 	AuthorID  int64 `db:"author_id"`
+	Report    JSON  `db:"report"`
 }
 
 // ObjectID return ID of solution.
@@ -21,7 +88,25 @@ func (o Solution) ObjectID() int64 {
 
 // Clone creates copy of solution.
 func (o Solution) Clone() Solution {
+	o.Report = o.Report.Clone()
 	return o
+}
+
+// GetReport returns solution report.
+func (o Solution) GetReport() (*SolutionReport, error) {
+	var report *SolutionReport
+	err := json.Unmarshal(o.Report, &report)
+	return report, err
+}
+
+// SetReport sets serialized report to solution.
+func (o *Solution) SetReport(report *SolutionReport) error {
+	raw, err := json.Marshal(report)
+	if err != nil {
+		return err
+	}
+	o.Report = raw
+	return nil
 }
 
 // SolutionEvent represents a solution event.
@@ -50,8 +135,7 @@ type SolutionStore struct {
 // CreateTx creates solution and returns copy with valid ID.
 func (s *SolutionStore) CreateTx(tx gosql.WeakTx, solution *Solution) error {
 	event, err := s.createObjectEvent(tx, SolutionEvent{
-		makeBaseEvent(CreateEvent),
-		*solution,
+		makeBaseEvent(CreateEvent), *solution,
 	})
 	if err != nil {
 		return err
@@ -63,8 +147,7 @@ func (s *SolutionStore) CreateTx(tx gosql.WeakTx, solution *Solution) error {
 // UpdateTx updates solution with specified ID.
 func (s *SolutionStore) UpdateTx(tx gosql.WeakTx, solution Solution) error {
 	_, err := s.createObjectEvent(tx, SolutionEvent{
-		makeBaseEvent(UpdateEvent),
-		solution,
+		makeBaseEvent(UpdateEvent), solution,
 	})
 	return err
 }
@@ -72,8 +155,7 @@ func (s *SolutionStore) UpdateTx(tx gosql.WeakTx, solution Solution) error {
 // DeleteTx deletes solution with specified ID.
 func (s *SolutionStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, SolutionEvent{
-		makeBaseEvent(DeleteEvent),
-		Solution{ID: id},
+		makeBaseEvent(DeleteEvent), Solution{ID: id},
 	})
 	return err
 }

@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 
@@ -160,7 +160,7 @@ func (v *View) createProblem(c echo.Context) error {
 		if err := v.core.Problems.CreateTx(tx, &problem); err != nil {
 			return err
 		}
-		dst, err := os.Create(path.Join(
+		dst, err := os.Create(filepath.Join(
 			v.core.Config.Storage.ProblemsDir,
 			fmt.Sprintf("%d.zip", problem.ID),
 		))

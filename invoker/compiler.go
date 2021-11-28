@@ -72,14 +72,18 @@ func (c *compiler) Compile(ctx context.Context, source, target, log string) erro
 		User:   "root",
 		Init:   true,
 		Cwd:    c.CompileCwd,
-		Stdout: nil,
-		Stderr: nil,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	}
 	if err := container.Run(&process); err != nil {
 		return fmt.Errorf("unable to start compiler: %w", err)
 	}
-	if _, err := process.Wait(); err != nil {
+	if state, err := process.Wait(); err != nil {
 		return fmt.Errorf("unable to wait compiler: %w", err)
+	} else {
+		println("ExitCode:", state.ExitCode())
+		println("Exited:", state.Exited())
+		println("String:", state.String())
 	}
 	if err := copyFile(filepath.Join(rootfs, c.CompileLogPath), log); err != nil {
 		return err
@@ -123,8 +127,8 @@ func (c *compiler) Execute(ctx context.Context, binary, input, output string) er
 		User:   "root",
 		Init:   true,
 		Cwd:    c.ExecuteCwd,
-		Stdout: nil,
-		Stderr: nil,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	}
 	if err := container.Run(&process); err != nil {
 		return fmt.Errorf("unable to start compiler: %w", err)
@@ -239,22 +243,22 @@ func defaultRootlessConfig(id string) *configs.Config {
 		Hostname:   "runc",
 		Mounts: []*configs.Mount{
 			{
+				Device:      "proc",
 				Source:      "proc",
 				Destination: "/proc",
-				Device:      "proc",
 				Flags:       defaultMountFlags,
 			},
 			{
+				Device:      "tmpfs",
 				Source:      "tmpfs",
 				Destination: "/dev",
-				Device:      "tmpfs",
 				Flags:       unix.MS_NOSUID | unix.MS_STRICTATIME,
 				Data:        "mode=755,size=65536k",
 			},
 			{
+				Device:      "devpts",
 				Source:      "devpts",
 				Destination: "/dev/pts",
-				Device:      "devpts",
 				Flags:       unix.MS_NOSUID | unix.MS_NOEXEC,
 				Data:        "newinstance,ptmxmode=0666,mode=0620",
 			},
@@ -266,14 +270,14 @@ func defaultRootlessConfig(id string) *configs.Config {
 				Flags:       defaultMountFlags,
 			},
 			{
+				Device:      "mqueue",
 				Source:      "mqueue",
 				Destination: "/dev/mqueue",
-				Device:      "mqueue",
 				Flags:       defaultMountFlags,
 			},
 			{
-				Source:      "/sys",
 				Device:      "bind",
+				Source:      "/sys",
 				Destination: "/sys",
 				Flags:       defaultMountFlags | unix.MS_RDONLY | unix.MS_BIND | unix.MS_REC,
 			},

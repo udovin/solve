@@ -255,9 +255,9 @@ func defaultRootlessConfig(id string) *configs.Config {
 		Devices:         specconv.AllowedDevices,
 		NoNewPrivileges: true,
 		NoNewKeyring:    true,
-		// NoPivotRoot:     true,
-		Readonlyfs: false,
-		Hostname:   "runc",
+		NoPivotRoot:     true,
+		Readonlyfs:      false,
+		Hostname:        "runc",
 		Mounts: []*configs.Mount{
 			{
 				Device:      "proc",

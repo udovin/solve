@@ -251,7 +251,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 		if err != nil {
 			s.core.Logger().Error("Unable to read compile logs: ", err)
 		}
-		report.CompileLog = strings.ToValidUTF8(compileLog, "")
+		report.CompileLog = compileLog
 		report.Verdict = models.CompilationError
 		return err
 	} else {
@@ -259,7 +259,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 		if err != nil {
 			s.core.Logger().Error("Unable to read compile logs: ", err)
 		}
-		report.CompileLog = strings.ToValidUTF8(compileLog, "")
+		report.CompileLog = compileLog
 	}
 	return fmt.Errorf("not implemented")
 }
@@ -275,7 +275,7 @@ func readFile(name string, limit int) (string, error) {
 		return "", err
 	}
 	if read > limit {
-		return string(bytes[:limit]) + "...", nil
+		return strings.ToValidUTF8(string(bytes[:limit]), "") + "...", nil
 	}
-	return string(bytes), nil
+	return strings.ToValidUTF8(string(bytes[:read]), ""), nil
 }

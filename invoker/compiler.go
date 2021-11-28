@@ -45,9 +45,9 @@ func (c *compiler) Compile(ctx context.Context, source, target, log string) erro
 	if err := pkg.ExtractTarGz(c.ImagePath, rootfs); err != nil {
 		return err
 	}
-	defer func() {
-		_ = os.RemoveAll(rootfs)
-	}()
+	// defer func() {
+	// 	_ = os.RemoveAll(rootfs)
+	// }()
 	sourcePath := filepath.Join(rootfs, c.CompileSourcePath)
 	if err := copyFileRec(source, sourcePath); err != nil {
 		return err
@@ -96,9 +96,9 @@ func (c *compiler) Execute(ctx context.Context, binary, input, output string) er
 	if err := pkg.ExtractTarGz(c.ImagePath, rootfs); err != nil {
 		return err
 	}
-	defer func() {
-		_ = os.RemoveAll(rootfs)
-	}()
+	// defer func() {
+	// 	_ = os.RemoveAll(rootfs)
+	// }()
 	binaryPath := filepath.Join(rootfs, c.ExecuteBinaryPath)
 	if err := copyFileRec(binary, binaryPath); err != nil {
 		return err

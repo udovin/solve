@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -262,5 +263,5 @@ func readFile(name string, limit int) (string, error) {
 	if read > limit {
 		return string(bytes[:limit]) + "...", nil
 	}
-	return string(bytes), nil
+	return strings.ToValidUTF8(string(bytes), ""), nil
 }

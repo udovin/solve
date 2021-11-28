@@ -214,6 +214,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	tempSolutionPath := filepath.Join(tempDir, "solution.txt")
 	tempCompileLogPath := filepath.Join(tempDir, "compile_log.txt")
 	compier := compiler{
+		Logger:            s.core.Logger(),
 		Factory:           s.factory,
 		ImagePath:         compierPath,
 		CompileArgs:       []string{"dosbox", "-conf", "/dosbox_compile.conf"},
@@ -230,9 +231,10 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	if err := compier.Compile(
 		ctx, solutionPath, tempSolutionPath, tempCompileLogPath,
 	); err != nil {
+		s.core.Logger().Error("Unable to compile: ", err)
 		compileLog, err := readFile(tempCompileLogPath, 1024)
 		if err != nil {
-			s.core.Logger().Error(err)
+			s.core.Logger().Error("Unable to read compile logs: ", err)
 		}
 		report.CompileLog = compileLog
 		report.Verdict = models.CompilationError
@@ -240,7 +242,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	} else {
 		compileLog, err := readFile(tempCompileLogPath, 1024)
 		if err != nil {
-			s.core.Logger().Error(err)
+			s.core.Logger().Error("Unable to read compile logs: ", err)
 		}
 		report.CompileLog = compileLog
 	}

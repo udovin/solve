@@ -2,14 +2,15 @@ package invoker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 
 	"github.com/gofrs/uuid"
+	"github.com/labstack/gommon/log"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
@@ -22,6 +23,7 @@ import (
 )
 
 type compiler struct {
+	Logger            *log.Logger
 	Factory           libcontainer.Factory
 	ImagePath         string
 	CompileArgs       []string
@@ -49,7 +51,7 @@ func (c *compiler) Compile(ctx context.Context, source, target, log string) erro
 	// 	_ = os.RemoveAll(rootfs)
 	// }()
 	sourcePath := filepath.Join(rootfs, c.CompileSourcePath)
-	if err := copyFileRec(source, sourcePath); err != nil {
+	if err := c.copyFileRec(source, sourcePath); err != nil {
 		return err
 	}
 	cwdPath := filepath.Join(rootfs, c.CompileCwd)
@@ -78,17 +80,32 @@ func (c *compiler) Compile(ctx context.Context, source, target, log string) erro
 	if err := container.Run(&process); err != nil {
 		return fmt.Errorf("unable to start compiler: %w", err)
 	}
+	{
+		state, err := container.OCIState()
+		c.Logger.Info("Container error: ", err)
+		stateRaw, _ := json.Marshal(state)
+		c.Logger.Info("Container state: ", string(stateRaw))
+	}
 	if state, err := process.Wait(); err != nil {
 		return fmt.Errorf("unable to wait compiler: %w", err)
 	} else {
-		println("ExitCode:", state.ExitCode())
-		println("Exited:", state.Exited())
-		println("String:", state.String())
+		c.Logger.Info("ExitCode: ", state.ExitCode())
+		c.Logger.Info("Exited: ", state.Exited())
+		c.Logger.Info("String: ", state.String())
 	}
-	if err := copyFile(filepath.Join(rootfs, c.CompileLogPath), log); err != nil {
-		return err
+	{
+		state, err := container.OCIState()
+		c.Logger.Info("Container error: ", err)
+		stateRaw, _ := json.Marshal(state)
+		c.Logger.Info("Container state: ", string(stateRaw))
 	}
-	return copyFile(filepath.Join(rootfs, c.CompileTargetPath), target)
+	if err := c.copyFile(filepath.Join(rootfs, c.CompileLogPath), log); err != nil {
+		return fmt.Errorf("unable to copy compile log: %w", err)
+	}
+	if err := c.copyFile(filepath.Join(rootfs, c.CompileTargetPath), target); err != nil {
+		return fmt.Errorf("unable to copy binary: %w", err)
+	}
+	return nil
 }
 
 // Execute executes compiled solution with specified input file.
@@ -104,7 +121,7 @@ func (c *compiler) Execute(ctx context.Context, binary, input, output string) er
 	// 	_ = os.RemoveAll(rootfs)
 	// }()
 	binaryPath := filepath.Join(rootfs, c.ExecuteBinaryPath)
-	if err := copyFileRec(binary, binaryPath); err != nil {
+	if err := c.copyFileRec(binary, binaryPath); err != nil {
 		return err
 	}
 	cwdPath := filepath.Join(rootfs, c.ExecuteCwd)
@@ -162,21 +179,21 @@ func makeTempDir() (string, error) {
 	return "", fmt.Errorf("unable to create temp directory")
 }
 
-func copyFileRec(source, target string) error {
+func (c *compiler) copyFileRec(source, target string) error {
 	if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
 		return err
 	}
-	return copyFile(source, target)
+	return c.copyFile(source, target)
 }
 
-func copyFile(source, target string) error {
+func (c *compiler) copyFile(source, target string) error {
 	r, err := os.Open(source)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err := r.Close(); err != nil {
-			log.Println("Error:", err)
+			c.Logger.Warn(err)
 		}
 	}()
 	w, err := os.Create(target)
@@ -185,7 +202,7 @@ func copyFile(source, target string) error {
 	}
 	defer func() {
 		if err := w.Close(); err != nil {
-			log.Println("Error:", err)
+			c.Logger.Warn(err)
 		}
 	}()
 	if _, err := io.Copy(w, r); err != nil {

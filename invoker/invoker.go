@@ -93,7 +93,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	defer func() {
 		if r := recover(); r != nil {
 			task.Status = models.Failed
-			s.core.Logger().Error("Task panic:", r)
+			s.core.Logger().Error("Task panic: ", r)
 			panic(r)
 		}
 		ctx, cancel := context.WithDeadline(context.Background(), time.Unix(task.ExpireTime, 0))
@@ -101,7 +101,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 		if err := s.core.WithTx(ctx, func(tx *sql.Tx) error {
 			return s.core.Tasks.UpdateTx(tx, task)
 		}); err != nil {
-			s.core.Logger().Error("Error:", err)
+			s.core.Logger().Error("Error: ", err)
 		}
 	}()
 	var waiter sync.WaitGroup
@@ -124,7 +124,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 				default:
 				}
 				if time.Now().After(time.Unix(task.ExpireTime, 0)) {
-					s.core.Logger().Error("Task expired:", task.ID)
+					s.core.Logger().Error("Task expired: ", task.ID)
 					return
 				}
 				clone := task
@@ -132,7 +132,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 					clone.ExpireTime = time.Now().Add(5 * time.Second).Unix()
 					return s.core.Tasks.UpdateTx(tx, clone)
 				}); err != nil {
-					s.core.Logger().Warn("Unable to ping task:", err)
+					s.core.Logger().Warn("Unable to ping task: ", err)
 				} else {
 					task.ExpireTime = clone.ExpireTime
 				}
@@ -196,6 +196,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 			s.core.Logger().Error(err)
 			return
 		}
+		s.core.Logger().Info("Report: ", string(solution.Report))
 		if err := s.core.Solutions.UpdateTx(s.core.DB, solution); err != nil {
 			s.core.Logger().Error(err)
 			return
@@ -250,7 +251,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 		if err != nil {
 			s.core.Logger().Error("Unable to read compile logs: ", err)
 		}
-		report.CompileLog = compileLog
+		report.CompileLog = strings.ToValidUTF8(compileLog, "")
 		report.Verdict = models.CompilationError
 		return err
 	} else {
@@ -258,7 +259,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 		if err != nil {
 			s.core.Logger().Error("Unable to read compile logs: ", err)
 		}
-		report.CompileLog = compileLog
+		report.CompileLog = strings.ToValidUTF8(compileLog, "")
 	}
 	return fmt.Errorf("not implemented")
 }
@@ -276,5 +277,5 @@ func readFile(name string, limit int) (string, error) {
 	if read > limit {
 		return string(bytes[:limit]) + "...", nil
 	}
-	return strings.ToValidUTF8(string(bytes), ""), nil
+	return string(bytes), nil
 }

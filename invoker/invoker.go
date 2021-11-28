@@ -162,12 +162,25 @@ func (s *Invoker) onTask(ctx context.Context, task models.Task) error {
 	}
 }
 
+func (s *Invoker) getSolution(id int64) (models.Solution, error) {
+	solution, err := s.core.Solutions.Get(id)
+	if err == sql.ErrNoRows {
+		if err := s.core.Solutions.SyncTx(s.core.DB); err != nil {
+			return models.Solution{}, fmt.Errorf(
+				"unable to sync solutions: %w", err,
+			)
+		}
+		solution, err = s.core.Solutions.Get(id)
+	}
+	return solution, err
+}
+
 func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	var taskConfig models.JudgeSolutionConfig
 	if err := task.ScanConfig(&taskConfig); err != nil {
 		return fmt.Errorf("unable to scan task config: %w", err)
 	}
-	solution, err := s.core.Solutions.Get(taskConfig.SolutionID)
+	solution, err := s.getSolution(taskConfig.SolutionID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch task solution: %w", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/labstack/gommon/log"
@@ -36,6 +37,8 @@ type compiler struct {
 	ExecuteCwd        string
 	ExecuteEnv        []string
 	ExecuteBinaryPath string
+	ExecuteInputPath  string
+	ExecuteOutputPath string
 }
 
 // Compile compiles source file into executable file.
@@ -74,8 +77,8 @@ func (c *compiler) Compile(ctx context.Context, source, target, log string) erro
 		User:   "root",
 		Init:   true,
 		Cwd:    c.CompileCwd,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Stdout: nil,
+		Stderr: nil,
 	}
 	if err := container.Run(&process); err != nil {
 		return fmt.Errorf("unable to start compiler: %w", err)
@@ -108,8 +111,19 @@ func (c *compiler) Compile(ctx context.Context, source, target, log string) erro
 	return nil
 }
 
+type exitCodeError struct {
+	*os.ProcessState
+}
+
+func (e exitCodeError) Error() string {
+	return e.ProcessState.String()
+}
+
 // Execute executes compiled solution with specified input file.
-func (c *compiler) Execute(ctx context.Context, binary, input, output string) error {
+func (c *compiler) Execute(
+	ctx context.Context, binary, input, output string,
+	timeLimit time.Duration, memoryLimit int64,
+) error {
 	rootfs, err := makeTempDir()
 	if err != nil {
 		return err
@@ -122,6 +136,10 @@ func (c *compiler) Execute(ctx context.Context, binary, input, output string) er
 	// }()
 	binaryPath := filepath.Join(rootfs, c.ExecuteBinaryPath)
 	if err := c.copyFileRec(binary, binaryPath); err != nil {
+		return err
+	}
+	inputPath := filepath.Join(rootfs, c.ExecuteInputPath)
+	if err := c.copyFileRec(input, inputPath); err != nil {
 		return err
 	}
 	cwdPath := filepath.Join(rootfs, c.ExecuteCwd)
@@ -144,14 +162,32 @@ func (c *compiler) Execute(ctx context.Context, binary, input, output string) er
 		User:   "root",
 		Init:   true,
 		Cwd:    c.ExecuteCwd,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Stdout: nil,
+		Stderr: nil,
 	}
 	if err := container.Run(&process); err != nil {
 		return fmt.Errorf("unable to start compiler: %w", err)
 	}
-	if _, err := process.Wait(); err != nil {
+	runCtx, cancel := context.WithTimeout(ctx, timeLimit)
+	defer cancel()
+	go func() {
+		<-runCtx.Done()
+		if err := process.Signal(os.Kill); err != nil {
+			c.Logger.Warn("Unable to kill process:", err)
+		}
+	}()
+	state, err := process.Wait()
+	if err != nil {
+		if err := runCtx.Err(); err != nil {
+			return err
+		}
 		return fmt.Errorf("unable to wait compiler: %w", err)
+	}
+	if state.ExitCode() != 0 {
+		return exitCodeError{state}
+	}
+	if err := c.copyFile(filepath.Join(rootfs, c.ExecuteOutputPath), output); err != nil {
+		return fmt.Errorf("unable to copy output: %w", err)
 	}
 	return nil
 }

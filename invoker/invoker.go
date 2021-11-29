@@ -3,7 +3,9 @@ package invoker
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +17,7 @@ import (
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg"
+	"github.com/udovin/solve/pkg/polygon"
 )
 
 // Invoker represents manager for asynchronous actions (invocations).
@@ -242,6 +245,8 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 		ExecuteCwd:        "/home/solution",
 		ExecuteEnv:        defaultEnv,
 		ExecuteBinaryPath: "/home/solution/SOLUTION.EXE",
+		ExecuteInputPath:  "/home/solution/input.txt",
+		ExecuteOutputPath: "/home/solution/OUTPUT.TXT",
 	}
 	if err := compier.Compile(
 		ctx, solutionPath, tempSolutionPath, tempCompileLogPath,
@@ -261,7 +266,71 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 		}
 		report.CompileLog = compileLog
 	}
-	return fmt.Errorf("not implemented")
+	pkg, err := polygon.ReadProblem(tempProblemPath)
+	if err != nil {
+		return fmt.Errorf("unable to parse package: %w", err)
+	}
+	for _, testSet := range pkg.TestSets {
+		for i, test := range testSet.Tests {
+			if test.Method != "manual" {
+				report.Tests = append(report.Tests, models.TestReport{
+					Verdict:  models.Rejected,
+					CheckLog: fmt.Sprintf("Unsupported test: %q", test.Method),
+				})
+				continue
+			}
+			testInput := fmt.Sprintf(testSet.InputPathPattern, i+1)
+			testAnswer := fmt.Sprintf(testSet.AnswerPathPattern, i+1)
+			inputPath := filepath.Join(tempProblemPath, testInput)
+			answerPath := filepath.Join(tempProblemPath, testAnswer)
+			tempOutputPath := filepath.Join(tempDir, fmt.Sprintf("output-%d.txt", len(report.Tests)))
+			err := compier.Execute(
+				ctx, tempSolutionPath, inputPath, tempOutputPath,
+				5*time.Second, 128*1024*1024,
+			)
+			if err == nil {
+				message, ok, err := compareFiles(tempOutputPath, answerPath)
+				if err != nil {
+					report.Tests = append(report.Tests, models.TestReport{
+						Verdict:  models.Rejected,
+						CheckLog: fmt.Sprintf("unable to compare files: %w", err),
+					})
+				} else if ok {
+					report.Tests = append(report.Tests, models.TestReport{
+						Verdict:  models.Accepted,
+						CheckLog: message,
+					})
+				} else {
+					report.Tests = append(report.Tests, models.TestReport{
+						Verdict:  models.Rejected,
+						CheckLog: message,
+					})
+				}
+			} else if errors.Is(err, context.DeadlineExceeded) {
+				report.Tests = append(report.Tests, models.TestReport{
+					Verdict: models.TimeLimitExceeded,
+				})
+			} else if state, ok := err.(exitCodeError); ok {
+				report.Tests = append(report.Tests, models.TestReport{
+					Verdict:  models.RuntimeError,
+					CheckLog: fmt.Sprintf("Exit code: %d", state.ExitCode()),
+				})
+			} else {
+				report.Tests = append(report.Tests, models.TestReport{
+					Verdict:  models.Rejected,
+					CheckLog: fmt.Sprint("Unknown error: %w", err),
+				})
+			}
+		}
+	}
+	report.Verdict = models.Accepted
+	for _, test := range report.Tests {
+		if test.Verdict != models.Accepted {
+			report.Verdict = models.PartiallyAccepted
+			break
+		}
+	}
+	return nil
 }
 
 func readFile(name string, limit int) (string, error) {
@@ -278,4 +347,36 @@ func readFile(name string, limit int) (string, error) {
 		return strings.ToValidUTF8(string(bytes[:limit]), "") + "...", nil
 	}
 	return strings.ToValidUTF8(string(bytes[:read]), ""), nil
+}
+
+func compareFiles(outputPath, answerPath string) (string, bool, error) {
+	output, err := ioutil.ReadFile(outputPath)
+	if err != nil {
+		return "", false, err
+	}
+	answer, err := ioutil.ReadFile(answerPath)
+	if err != nil {
+		return "", false, err
+	}
+	outputStr := string(output)
+	outputStr = strings.ReplaceAll(outputStr, "\n", "")
+	outputStr = strings.ReplaceAll(outputStr, "\r", "")
+	outputStr = strings.ReplaceAll(outputStr, "\t", "")
+	outputStr = strings.ReplaceAll(outputStr, " ", "")
+	answerStr := string(answer)
+	answerStr = strings.ReplaceAll(answerStr, "\n", "")
+	answerStr = strings.ReplaceAll(answerStr, "\r", "")
+	answerStr = strings.ReplaceAll(answerStr, "\t", "")
+	answerStr = strings.ReplaceAll(answerStr, " ", "")
+	if outputStr == answerStr {
+		return "ok", true, nil
+	} else {
+		if len(output) > 100 {
+			output = output[:100]
+		}
+		if len(answer) > 100 {
+			answer = answer[:100]
+		}
+		return fmt.Sprintf("expected %q, got %q", string(answer), string(output)), false, nil
+	}
 }

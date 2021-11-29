@@ -28,6 +28,8 @@ const (
 	WrongAnswer Verdict = 7
 	// PresentationError means that solution output is incorrect.
 	PresentationError Verdict = 8
+	// PartiallyAccepted means that solution is partially accepted.
+	PartiallyAccepted Verdict = 9
 )
 
 func (v Verdict) String() string {
@@ -48,6 +50,8 @@ func (v Verdict) String() string {
 		return "wrong_answer"
 	case PresentationError:
 		return "presentation_error"
+	case PartiallyAccepted:
+		return "partially_accepted"
 	default:
 		return fmt.Sprintf("Verdict(%d)", v)
 	}

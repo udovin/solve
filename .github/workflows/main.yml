@@ -43,6 +43,50 @@ jobs:
         CODECOV_TOKEN: ${{secrets.CODECOV_TOKEN}}
       run: |
         curl -s https://codecov.io/bash | bash
+  benchmark:
+    name: Benchmark Repository
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+    - name: Set up Go 1.16
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+      id: go
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+    - name: Get dependencies
+      run: |
+        go get -v -t -d ./...
+        if [ -f Gopkg.toml ]; then
+          curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+          dep ensure
+        fi
+    - name: Run benchmark
+      run: go test -bench=. ./... | tee bench.txt
+    - name: Download previous benchmark data
+      uses: actions/cache@v1
+      with:
+        path: ./cache
+        key: ${{ runner.os }}-benchmark
+    - name: Store benchmark result
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        tool: 'go'
+        output-file-path: bench.txt
+        external-data-json-path: ./cache/benchmark-data.json
+        fail-on-alert: true
   docker:
     name: Build Docker image
     runs-on: ubuntu-latest

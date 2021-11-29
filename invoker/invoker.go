@@ -293,7 +293,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 				if err != nil {
 					report.Tests = append(report.Tests, models.TestReport{
 						Verdict:  models.Rejected,
-						CheckLog: fmt.Sprintf("unable to compare files: %w", err),
+						CheckLog: fmt.Sprintf("unable to compare files: %s", err.Error()),
 					})
 				} else if ok {
 					report.Tests = append(report.Tests, models.TestReport{

@@ -271,14 +271,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 		return fmt.Errorf("unable to parse package: %w", err)
 	}
 	for _, testSet := range pkg.TestSets {
-		for i, test := range testSet.Tests {
-			if test.Method != "manual" {
-				report.Tests = append(report.Tests, models.TestReport{
-					Verdict:  models.Rejected,
-					CheckLog: fmt.Sprintf("Unsupported test: %q", test.Method),
-				})
-				continue
-			}
+		for i := range testSet.Tests {
 			testInput := fmt.Sprintf(testSet.InputPathPattern, i+1)
 			testAnswer := fmt.Sprintf(testSet.AnswerPathPattern, i+1)
 			inputPath := filepath.Join(tempProblemPath, testInput)

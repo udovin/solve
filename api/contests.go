@@ -592,8 +592,15 @@ func (v *View) observeContestSolution(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+type TestReport struct {
+	Verdict  string `json:"verdict"`
+	CheckLog string `json:"check_log,omitempty"`
+}
+
 type SolutionReport struct {
-	Verdict string `json:"verdict"`
+	Verdict    string       `json:"verdict"`
+	Tests      []TestReport `json:"tests,omitempty"`
+	CompileLog string       `json:"compile_log,omitempty"`
 }
 
 type ContestSolution struct {
@@ -697,7 +704,14 @@ func makeContestSolution(c echo.Context, solution models.ContestSolution, roles 
 	if baseSolution, err := core.Solutions.Get(solution.SolutionID); err == nil {
 		if report, err := baseSolution.GetReport(); err == nil {
 			reportResp := SolutionReport{
-				Verdict: report.Verdict.String(),
+				Verdict:    report.Verdict.String(),
+				CompileLog: report.CompileLog,
+			}
+			for _, test := range report.Tests {
+				reportResp.Tests = append(reportResp.Tests, TestReport{
+					Verdict:  test.Verdict.String(),
+					CheckLog: test.CheckLog,
+				})
 			}
 			resp.Report = &reportResp
 		}
@@ -892,6 +906,7 @@ func (v *View) extendContestRoles(
 			// TODO(iudovin): Add support of start time.
 			addRole(models.ObserveContestProblemsRole)
 			addRole(models.ObserveContestProblemRole)
+			addRole(models.ObserveContestSolutionsRole)
 		}
 	}
 	return contestRoles

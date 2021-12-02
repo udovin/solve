@@ -30,12 +30,12 @@ type Sessions struct {
 // registerSessionHandlers registers handlers for session management.
 func (v *View) registerSessionHandlers(g *echo.Group) {
 	g.GET(
-		"/sessions/:session", v.observeSession,
+		"/v0/sessions/:session", v.observeSession,
 		v.sessionAuth, v.requireAuth, v.extractSession, v.extractSessionRoles,
 		v.requireAuthRole(models.ObserveSessionRole),
 	)
 	g.DELETE(
-		"/sessions/:session", v.deleteSession,
+		"/v0/sessions/:session", v.deleteSession,
 		v.sessionAuth, v.requireAuth, v.extractSession, v.extractSessionRoles,
 		v.requireAuthRole(models.DeleteSessionRole),
 	)

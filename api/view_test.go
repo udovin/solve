@@ -51,8 +51,8 @@ func testSetup(tb testing.TB) {
 	}
 	testSrv = echo.New()
 	testView = NewView(c)
-	testView.Register(testSrv.Group("/api/v0"))
-	testView.RegisterSocket(testSrv.Group("/socket/v0"))
+	testView.Register(testSrv.Group("/api"))
+	testView.RegisterSocket(testSrv.Group("/socket"))
 }
 
 func testTeardown(tb testing.TB) {
@@ -220,7 +220,7 @@ func doSocketRequest(req *http.Request, code int, resp interface{}) error {
 func TestPing(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/ping", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/ping", nil)
 	rec := httptest.NewRecorder()
 	if err := testHandler(req, rec); err != nil {
 		t.Fatal("Error:", err)
@@ -231,7 +231,7 @@ func TestPing(t *testing.T) {
 func TestHealth(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	rec := httptest.NewRecorder()
 	if err := testHandler(req, rec); err != nil {
 		t.Fatal("Error:", err)
@@ -245,7 +245,7 @@ func TestHealthUnhealthy(t *testing.T) {
 	if err := testView.core.DB.Close(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	rec := httptest.NewRecorder()
 	if err := testHandler(req, rec); err != nil {
 		t.Fatal("Error:", err)

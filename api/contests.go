@@ -19,76 +19,76 @@ import (
 
 func (v *View) registerContestHandlers(g *echo.Group) {
 	g.GET(
-		"/contests", v.observeContests,
+		"/v0/contests", v.observeContests,
 		v.sessionAuth,
 		v.requireAuthRole(models.ObserveContestsRole),
 	)
 	g.POST(
-		"/contests", v.createContest,
+		"/v0/contests", v.createContest,
 		v.sessionAuth,
 		v.requireAuthRole(models.CreateContestRole),
 	)
 	g.GET(
-		"/contests/:contest", v.observeContest,
+		"/v0/contests/:contest", v.observeContest,
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.ObserveContestRole),
 	)
 	g.DELETE(
-		"/contests/:contest", v.deleteContest,
+		"/v0/contests/:contest", v.deleteContest,
 		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.DeleteContestRole),
 	)
 	g.GET(
-		"/contests/:contest/problems", v.observeContestProblems,
+		"/v0/contests/:contest/problems", v.observeContestProblems,
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.ObserveContestProblemsRole),
 	)
 	g.GET(
-		"/contests/:contest/problems/:problem", v.observeContestProblem,
+		"/v0/contests/:contest/problems/:problem", v.observeContestProblem,
 		v.sessionAuth, v.extractContest, v.extractContestProblem,
 		v.extractContestRoles,
 		v.requireAuthRole(models.ObserveContestProblemRole),
 	)
 	g.POST(
-		"/contests/:contest/problems", v.createContestProblem,
+		"/v0/contests/:contest/problems", v.createContestProblem,
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.CreateContestProblemRole),
 	)
 	g.DELETE(
-		"/contests/:contest/problems/:problem", v.deleteContestProblem,
+		"/v0/contests/:contest/problems/:problem", v.deleteContestProblem,
 		v.sessionAuth, v.extractContest, v.extractContestProblem,
 		v.extractContestRoles,
 		v.requireAuthRole(models.DeleteContestProblemRole),
 	)
 	g.POST(
-		"/contests/:contest/problems/:problem/submit",
+		"/v0/contests/:contest/problems/:problem/submit",
 		v.submitContestProblemSolution, v.sessionAuth, v.extractContest,
 		v.extractContestProblem, v.extractContestRoles,
 		v.requireAuthRole(models.CreateContestSolutionRole),
 	)
 	g.GET(
-		"/contests/:contest/solutions", v.observeContestSolutions,
+		"/v0/contests/:contest/solutions", v.observeContestSolutions,
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.ObserveContestSolutionsRole),
 	)
 	g.GET(
-		"/contests/:contest/solutions/:solution", v.observeContestSolution,
+		"/v0/contests/:contest/solutions/:solution", v.observeContestSolution,
 		v.sessionAuth, v.extractContest, v.extractContestSolution,
 		v.extractContestSolutionRoles,
 		v.requireAuthRole(models.ObserveContestSolutionRole),
 	)
 	g.GET(
-		"/contests/:contest/participants", v.observeContestParticipants,
+		"/v0/contests/:contest/participants", v.observeContestParticipants,
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.ObserveContestParticipantsRole),
 	)
 	g.POST(
-		"/contests/:contest/participants", v.createContestParticipant,
+		"/v0/contests/:contest/participants", v.createContestParticipant,
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.CreateContestParticipantRole),
 	)
 	g.DELETE(
-		"/contests/:contest/participants/:participant", v.deleteContestParticipant,
+		"/v0/contests/:contest/participants/:participant", v.deleteContestParticipant,
 		v.sessionAuth, v.extractContest, v.extractContestParticipant, v.extractContestRoles,
 		v.requireAuthRole(models.DeleteContestParticipantRole),
 	)
@@ -907,6 +907,7 @@ func (v *View) extendContestRoles(
 			addRole(models.ObserveContestProblemsRole)
 			addRole(models.ObserveContestProblemRole)
 			addRole(models.ObserveContestSolutionsRole)
+			addRole(models.CreateContestSolutionRole)
 		}
 	}
 	return contestRoles
@@ -931,8 +932,12 @@ func (v *View) extendContestSolutionRoles(
 		if err != nil {
 			c.Logger().Error(err)
 		} else if len(participants) > 0 {
-			addRole(models.ObserveContestSolutionRole)
-			addRole(models.CreateContestSolutionRole)
+			for _, participant := range participants {
+				if solution.ParticipantID != 0 &&
+					participant.ID == solution.ParticipantID {
+					addRole(models.ObserveContestSolutionRole)
+				}
+			}
 		}
 	}
 	return solutionRoles

@@ -45,42 +45,42 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 		return
 	}
 	g.GET(
-		"/users/:user", v.observeUser,
+		"/v0/users/:user", v.observeUser,
 		v.sessionAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.ObserveUserRole),
 	)
 	g.PATCH(
-		"/users/:user", v.updateUser,
+		"/v0/users/:user", v.updateUser,
 		v.sessionAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.UpdateUserRole),
 	)
 	g.GET(
-		"/users/:user/sessions", v.observeUserSessions,
+		"/v0/users/:user/sessions", v.observeUserSessions,
 		v.sessionAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.ObserveUserSessionsRole),
 	)
 	g.POST(
-		"/users/:user/password", v.updateUserPassword,
+		"/v0/users/:user/password", v.updateUserPassword,
 		v.sessionAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.UpdateUserPasswordRole),
 	)
 	g.GET(
-		"/status", v.status,
+		"/v0/status", v.status,
 		v.sessionAuth,
 		v.requireAuthRole(models.StatusRole),
 	)
 	g.POST(
-		"/login", v.loginAccount,
+		"/v0/login", v.loginAccount,
 		v.userAuth, v.requireAuth,
 		v.requireAuthRole(models.LoginRole),
 	)
 	g.POST(
-		"/logout", v.logoutAccount,
+		"/v0/logout", v.logoutAccount,
 		v.sessionAuth, v.requireAuth,
 		v.requireAuthRole(models.LogoutRole),
 	)
 	g.POST(
-		"/register", v.registerUser,
+		"/v0/register", v.registerUser,
 		v.requireAuthRole(models.RegisterRole),
 	)
 }
@@ -90,7 +90,7 @@ func (v *View) registerSocketUserHandlers(g *echo.Group) {
 		return
 	}
 	g.GET(
-		"/users/:user", v.observeUser, v.extractUser,
+		"/v0/users/:user", v.observeUser, v.extractUser,
 		v.extractAuthRoles,
 	)
 }

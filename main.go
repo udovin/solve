@@ -94,7 +94,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 		if srv.Listener, err = net.Listen("unix", file); err != nil {
 			panic(err)
 		}
-		v.RegisterSocket(srv.Group("/socket/v0"))
+		v.RegisterSocket(srv.Group("/socket"))
 		waiter.Add(1)
 		go func() {
 			defer waiter.Done()
@@ -111,7 +111,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	}
 	if cfg.Server != nil {
 		srv := newServer(c.Logger())
-		v.Register(srv.Group("/api/v0"))
+		v.Register(srv.Group("/api"))
 		waiter.Add(1)
 		go func() {
 			defer waiter.Done()

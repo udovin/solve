@@ -28,47 +28,47 @@ type Roles struct {
 // registerUserHandlers registers handlers for user management.
 func (v *View) registerRoleHandlers(g *echo.Group) {
 	g.GET(
-		"/roles", v.observeRoles,
+		"/v0/roles", v.observeRoles,
 		v.sessionAuth, v.requireAuth,
 		v.requireAuthRole(models.ObserveRolesRole),
 	)
 	g.POST(
-		"/roles", v.createRole,
+		"/v0/roles", v.createRole,
 		v.sessionAuth, v.requireAuth,
 		v.requireAuthRole(models.CreateRoleRole),
 	)
 	g.DELETE(
-		"/roles/:role", v.deleteRole,
+		"/v0/roles/:role", v.deleteRole,
 		v.sessionAuth, v.requireAuth, v.extractRole,
 		v.requireAuthRole(models.DeleteRoleRole),
 	)
 	g.GET(
-		"/roles/:role/roles", v.observeRoleRoles,
+		"/v0/roles/:role/roles", v.observeRoleRoles,
 		v.sessionAuth, v.requireAuth, v.extractRole,
 		v.requireAuthRole(models.ObserveRoleRolesRole),
 	)
 	g.POST(
-		"/roles/:role/roles/:child_role", v.createRoleRole,
+		"/v0/roles/:role/roles/:child_role", v.createRoleRole,
 		v.sessionAuth, v.requireAuth, v.extractRole, v.extractChildRole,
 		v.requireAuthRole(models.CreateRoleRoleRole),
 	)
 	g.DELETE(
-		"/roles/:role/roles/:child_role", v.deleteRoleRole,
+		"/v0/roles/:role/roles/:child_role", v.deleteRoleRole,
 		v.sessionAuth, v.requireAuth, v.extractRole, v.extractChildRole,
 		v.requireAuthRole(models.DeleteRoleRoleRole),
 	)
 	g.GET(
-		"/users/:user/roles", v.observeUserRoles,
+		"/v0/users/:user/roles", v.observeUserRoles,
 		v.sessionAuth, v.requireAuth, v.extractUser,
 		v.requireAuthRole(models.ObserveUserRolesRole),
 	)
 	g.POST(
-		"/users/:user/roles/:role", v.createUserRole,
+		"/v0/users/:user/roles/:role", v.createUserRole,
 		v.sessionAuth, v.requireAuth, v.extractUser, v.extractRole,
 		v.requireAuthRole(models.CreateUserRoleRole),
 	)
 	g.DELETE(
-		"/users/:user/roles/:role", v.deleteUserRole,
+		"/v0/users/:user/roles/:role", v.deleteUserRole,
 		v.sessionAuth, v.requireAuth, v.extractUser, v.extractRole,
 		v.requireAuthRole(models.DeleteUserRoleRole),
 	)
@@ -76,34 +76,34 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 
 // registerUserHandlers registers handlers for user management.
 func (v *View) registerSocketRoleHandlers(g *echo.Group) {
-	g.GET("/roles", v.observeRoles)
-	g.POST("/roles", v.createRole)
+	g.GET("/v0/roles", v.observeRoles)
+	g.POST("/v0/roles", v.createRole)
 	g.DELETE(
-		"/roles/:role", v.deleteRole,
+		"/v0/roles/:role", v.deleteRole,
 		v.extractRole,
 	)
 	g.GET(
-		"/roles/:role/roles", v.observeRoleRoles,
+		"/v0/roles/:role/roles", v.observeRoleRoles,
 		v.extractRole,
 	)
 	g.POST(
-		"/roles/:role/roles/:child_role", v.createRoleRole,
+		"/v0/roles/:role/roles/:child_role", v.createRoleRole,
 		v.extractRole, v.extractChildRole,
 	)
 	g.DELETE(
-		"/roles/:role/roles/:child_role", v.deleteRoleRole,
+		"/v0/roles/:role/roles/:child_role", v.deleteRoleRole,
 		v.extractRole, v.extractChildRole,
 	)
 	g.GET(
-		"/users/:user/roles", v.observeUserRoles,
+		"/v0/users/:user/roles", v.observeUserRoles,
 		v.extractUser,
 	)
 	g.POST(
-		"/users/:user/roles/:role", v.createUserRole,
+		"/v0/users/:user/roles/:role", v.createUserRole,
 		v.extractUser, v.extractRole,
 	)
 	g.DELETE(
-		"/users/:user/roles/:role", v.deleteUserRole,
+		"/v0/users/:user/roles/:role", v.deleteUserRole,
 		v.extractUser, v.extractRole,
 	)
 }

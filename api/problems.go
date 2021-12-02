@@ -19,24 +19,24 @@ import (
 // registerProblemHandlers registers handlers for problem management.
 func (v *View) registerProblemHandlers(g *echo.Group) {
 	g.GET(
-		"/problems", v.observeProblems,
+		"/v0/problems", v.observeProblems,
 		v.sessionAuth,
 		v.requireAuthRole(models.ObserveProblemsRole),
 	)
 	if v.core.Config.Storage != nil {
 		g.POST(
-			"/problems", v.createProblem,
+			"/v0/problems", v.createProblem,
 			v.sessionAuth,
 			v.requireAuthRole(models.CreateProblemRole),
 		)
 	}
 	g.GET(
-		"/problems/:problem", v.observeProblem,
+		"/v0/problems/:problem", v.observeProblem,
 		v.sessionAuth, v.extractProblem, v.extractProblemRoles,
 		v.requireAuthRole(models.ObserveProblemRole),
 	)
 	g.DELETE(
-		"/problems/:problem", v.deleteProblem,
+		"/v0/problems/:problem", v.deleteProblem,
 		v.sessionAuth, v.requireAuth, v.extractProblem, v.extractProblemRoles,
 		v.requireAuthRole(models.DeleteProblemRole),
 	)

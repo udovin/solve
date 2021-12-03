@@ -18,8 +18,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"golang.org/x/sys/unix"
 
-	"github.com/udovin/solve/pkg"
-
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
 )
 
@@ -43,27 +41,36 @@ type compiler struct {
 
 // Compile compiles source file into executable file.
 func (c *compiler) Compile(ctx context.Context, source, target, log string) error {
-	rootfs, err := makeTempDir()
+	rootfsBase, err := makeTempDir()
 	if err != nil {
 		return err
 	}
-	if err := pkg.ExtractTarGz(c.ImagePath, rootfs); err != nil {
+	// defer func() {
+	// 	_ = os.RemoveAll(rootfsBase)
+	// }()
+	rootfsUpper := filepath.Join(rootfsBase, "upper")
+	if err := os.Mkdir(rootfsUpper, os.ModePerm); err != nil {
 		return err
 	}
-	// defer func() {
-	// 	_ = os.RemoveAll(rootfs)
-	// }()
-	sourcePath := filepath.Join(rootfs, c.CompileSourcePath)
+	rootfsWork := filepath.Join(rootfsBase, "work")
+	if err := os.Mkdir(rootfsWork, os.ModePerm); err != nil {
+		return err
+	}
+	rootfsMerge := filepath.Join(rootfsBase, "merge")
+	if err := os.Mkdir(rootfsMerge, os.ModePerm); err != nil {
+		return err
+	}
+	sourcePath := filepath.Join(rootfsUpper, c.CompileSourcePath)
 	if err := c.copyFileRec(source, sourcePath); err != nil {
 		return err
 	}
-	cwdPath := filepath.Join(rootfs, c.CompileCwd)
+	cwdPath := filepath.Join(rootfsUpper, c.CompileCwd)
 	if err := os.MkdirAll(cwdPath, os.ModePerm); err != nil {
 		return err
 	}
-	containerID := "solve-" + filepath.Base(rootfs)
-	containerConfig := defaultRootlessConfig(containerID)
-	containerConfig.Rootfs = rootfs
+	containerID := "solve-" + filepath.Base(rootfsBase)
+	containerConfig := defaultRootlessConfig(containerID, c.ImagePath, rootfsUpper, rootfsWork)
+	containerConfig.Rootfs = rootfsMerge
 	container, err := c.Factory.Create(containerID, containerConfig)
 	if err != nil {
 		return err
@@ -102,10 +109,10 @@ func (c *compiler) Compile(ctx context.Context, source, target, log string) erro
 		stateRaw, _ := json.Marshal(state)
 		c.Logger.Info("Container state: ", string(stateRaw))
 	}
-	if err := c.copyFile(filepath.Join(rootfs, c.CompileLogPath), log); err != nil {
+	if err := c.copyFile(filepath.Join(rootfsUpper, c.CompileLogPath), log); err != nil {
 		return fmt.Errorf("unable to copy compile log: %w", err)
 	}
-	if err := c.copyFile(filepath.Join(rootfs, c.CompileTargetPath), target); err != nil {
+	if err := c.copyFile(filepath.Join(rootfsUpper, c.CompileTargetPath), target); err != nil {
 		return fmt.Errorf("unable to copy binary: %w", err)
 	}
 	return nil
@@ -124,31 +131,40 @@ func (c *compiler) Execute(
 	ctx context.Context, binary, input, output string,
 	timeLimit time.Duration, memoryLimit int64,
 ) error {
-	rootfs, err := makeTempDir()
+	rootfsBase, err := makeTempDir()
 	if err != nil {
 		return err
 	}
-	if err := pkg.ExtractTarGz(c.ImagePath, rootfs); err != nil {
+	// defer func() {
+	// 	_ = os.RemoveAll(rootfsBase)
+	// }()
+	rootfsUpper := filepath.Join(rootfsBase, "upper")
+	if err := os.Mkdir(rootfsUpper, os.ModePerm); err != nil {
 		return err
 	}
-	// defer func() {
-	// 	_ = os.RemoveAll(rootfs)
-	// }()
-	binaryPath := filepath.Join(rootfs, c.ExecuteBinaryPath)
+	rootfsWork := filepath.Join(rootfsBase, "work")
+	if err := os.Mkdir(rootfsWork, os.ModePerm); err != nil {
+		return err
+	}
+	rootfsMerge := filepath.Join(rootfsBase, "merge")
+	if err := os.Mkdir(rootfsMerge, os.ModePerm); err != nil {
+		return err
+	}
+	binaryPath := filepath.Join(rootfsUpper, c.ExecuteBinaryPath)
 	if err := c.copyFileRec(binary, binaryPath); err != nil {
 		return err
 	}
-	inputPath := filepath.Join(rootfs, c.ExecuteInputPath)
+	inputPath := filepath.Join(rootfsUpper, c.ExecuteInputPath)
 	if err := c.copyFileRec(input, inputPath); err != nil {
 		return err
 	}
-	cwdPath := filepath.Join(rootfs, c.ExecuteCwd)
+	cwdPath := filepath.Join(rootfsUpper, c.ExecuteCwd)
 	if err := os.MkdirAll(cwdPath, os.ModePerm); err != nil {
 		return err
 	}
-	containerID := "solve-" + filepath.Base(rootfs)
-	containerConfig := defaultRootlessConfig(containerID)
-	containerConfig.Rootfs = rootfs
+	containerID := "solve-" + filepath.Base(rootfsBase)
+	containerConfig := defaultRootlessConfig(containerID, c.ImagePath, rootfsUpper, rootfsWork)
+	containerConfig.Rootfs = rootfsMerge
 	container, err := c.Factory.Create(containerID, containerConfig)
 	if err != nil {
 		return err
@@ -186,7 +202,7 @@ func (c *compiler) Execute(
 	if state.ExitCode() != 0 {
 		return exitCodeError{state}
 	}
-	if err := c.copyFile(filepath.Join(rootfs, c.ExecuteOutputPath), output); err != nil {
+	if err := c.copyFile(filepath.Join(rootfsUpper, c.ExecuteOutputPath), output); err != nil {
 		return fmt.Errorf("unable to copy output: %w", err)
 	}
 	return nil
@@ -254,7 +270,7 @@ func configDevices() (devices []*devices.Rule) {
 	return devices
 }
 
-func defaultRootlessConfig(id string) *configs.Config {
+func defaultRootlessConfig(id, lower, upper, work string) *configs.Config {
 	defaultMountFlags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
 	caps := []string{
 		"CAP_AUDIT_WRITE",
@@ -291,10 +307,16 @@ func defaultRootlessConfig(id string) *configs.Config {
 		Devices:         specconv.AllowedDevices,
 		NoNewPrivileges: true,
 		NoNewKeyring:    true,
-		NoPivotRoot:     true,
+		NoPivotRoot:     false,
 		Readonlyfs:      false,
 		Hostname:        "runc",
 		Mounts: []*configs.Mount{
+			{
+				Device:      "overlay",
+				Source:      "overlay",
+				Destination: "/",
+				Data:        fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work),
+			},
 			{
 				Device:      "proc",
 				Source:      "proc",

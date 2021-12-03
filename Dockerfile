@@ -12,4 +12,8 @@ FROM alpine
 
 COPY --from=build /go/src/github.com/udovin/solve/solve /bin/solve
 
+RUN addgroup -S solve -g 1000 && adduser -S solve -G solve -u 1000
+
+USER solve
+
 ENTRYPOINT ["/bin/solve"]

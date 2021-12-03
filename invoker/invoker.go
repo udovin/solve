@@ -231,10 +231,14 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	)
 	tempSolutionPath := filepath.Join(tempDir, "solution.txt")
 	tempCompileLogPath := filepath.Join(tempDir, "compile_log.txt")
+	tempImagePath := filepath.Join(tempDir, "rootfs")
+	if err := pkg.ExtractTarGz(compierPath, tempImagePath); err != nil {
+		return err
+	}
 	compier := compiler{
 		Logger:            s.core.Logger(),
 		Factory:           s.factory,
-		ImagePath:         compierPath,
+		ImagePath:         tempImagePath,
 		CompileArgs:       []string{"dosbox", "-conf", "/dosbox_compile.conf"},
 		CompileCwd:        "/home/solution",
 		CompileEnv:        defaultEnv,

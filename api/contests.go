@@ -754,7 +754,8 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 		id, err := strconv.ParseInt(c.Param("contest"), 10, 64)
 		if err != nil {
 			c.Logger().Warn(err)
-			return err
+			resp := errorResponse{Message: "invalid contest ID"}
+			return c.JSON(http.StatusBadRequest, resp)
 		}
 		contest, err := v.core.Contests.Get(id)
 		if err == sql.ErrNoRows {
@@ -816,7 +817,8 @@ func (v *View) extractContestParticipant(next echo.HandlerFunc) echo.HandlerFunc
 		id, err := strconv.ParseInt(c.Param("participant"), 10, 64)
 		if err != nil {
 			c.Logger().Warn(err)
-			return err
+			resp := errorResponse{Message: "invalid participant ID"}
+			return c.JSON(http.StatusBadRequest, resp)
 		}
 		participant, err := v.core.ContestParticipants.Get(id)
 		if err != nil {
@@ -843,9 +845,19 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 		id, err := strconv.ParseInt(c.Param("solution"), 10, 64)
 		if err != nil {
 			c.Logger().Warn(err)
-			return err
+			resp := errorResponse{Message: "invalid solution ID"}
+			return c.JSON(http.StatusBadRequest, resp)
 		}
 		solution, err := v.core.ContestSolutions.Get(id)
+		if err == sql.ErrNoRows {
+			if err := v.core.ContestSolutions.SyncTx(v.core.DB); err != nil {
+				return err
+			}
+			if err := v.core.Solutions.SyncTx(v.core.DB); err != nil {
+				return err
+			}
+			solution, err = v.core.ContestSolutions.Get(id)
+		}
 		if err != nil {
 			if err == sql.ErrNoRows {
 				resp := errorResponse{Message: "solution not found"}

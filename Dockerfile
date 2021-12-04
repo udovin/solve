@@ -16,4 +16,6 @@ RUN addgroup -S solve -g 1000 && adduser -S solve -G solve -u 1000
 
 USER solve
 
+VOLUME ["/tmp"]
+
 ENTRYPOINT ["/bin/solve"]

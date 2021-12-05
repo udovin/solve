@@ -28,6 +28,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerSessionHandlers(g)
 	v.registerContestHandlers(g)
 	v.registerProblemHandlers(g)
+	v.registerSolutionHandlers(g)
 }
 
 func (v *View) RegisterSocket(g *echo.Group) {
@@ -72,6 +73,7 @@ const (
 	contestParticipantKey = "contest_participant"
 	contestSolutionKey    = "contest_solution"
 	problemKey            = "problem"
+	solutionKey           = "solution"
 )
 
 // logVisit saves visit to visit store.

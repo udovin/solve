@@ -8,7 +8,7 @@ require (
 	github.com/labstack/echo/v4 v4.6.1
 	github.com/labstack/gommon v0.3.1
 	github.com/mattn/go-sqlite3 v1.14.9
-	github.com/opencontainers/runc v1.0.2
+	github.com/opencontainers/runc v1.0.3
 	github.com/spf13/cobra v1.2.1
 	github.com/udovin/gosql v0.0.0-20211115195900-d2324955b2f6
 	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871

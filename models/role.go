@@ -10,11 +10,11 @@ import (
 // Role represents a role.
 type Role struct {
 	// ID contains ID of role.
-	ID int64 `db:"id" json:"id"`
+	ID int64 `db:"id"`
 	// Code contains role code.
 	//
 	// Code should be unique for all roles in the events.
-	Code string `db:"code" json:"code"`
+	Code string `db:"code"`
 }
 
 const (

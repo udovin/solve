@@ -57,6 +57,9 @@ func (c *Core) SetupAllStores() error {
 	c.ContestSolutions = models.NewContestSolutionStore(
 		"solve_contest_solution", "solve_contest_solution_event", dialect,
 	)
+	// c.Compilers = models.NewCompilerStore(
+	// 	c.DB, "solve_compiler", "solve_compiler_event",
+	// )
 	c.Visits = models.NewVisitStore("solve_visit", dialect)
 	return nil
 }
@@ -75,6 +78,7 @@ func (c *Core) startStores(start func(models.Store, time.Duration)) {
 	start(c.ContestProblems, time.Second)
 	start(c.ContestParticipants, time.Second)
 	start(c.ContestSolutions, time.Second)
+	start(c.Compilers, time.Second)
 }
 
 func (c *Core) startStoreLoops() error {

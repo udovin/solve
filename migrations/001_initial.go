@@ -430,6 +430,7 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.ObserveUserRole,
 		models.ObserveProblemsRole,
 		models.ObserveContestsRole,
+		models.ObserveSolutionsRole,
 	} {
 		if err := join(role, models.GuestGroupRole); err != nil {
 			return err
@@ -442,6 +443,7 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.ObserveUserRole,
 		models.ObserveProblemsRole,
 		models.ObserveContestsRole,
+		models.ObserveSolutionsRole,
 	} {
 		if err := join(role, models.UserGroupRole); err != nil {
 			return err

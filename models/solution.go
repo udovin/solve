@@ -58,23 +58,25 @@ func (v Verdict) String() string {
 }
 
 type UsageReport struct {
-	Time   int64 `json:"time"`
-	Memory int64 `json:"memory"`
+	Time   int64 `json:"time,omitempty"`
+	Memory int64 `json:"memory,omitempty"`
 }
 
 type TestReport struct {
 	Verdict  Verdict     `json:"verdict"`
 	Usage    UsageReport `json:"usage"`
 	CheckLog string      `json:"check_log"`
-	Points   *float64    `json:"points"`
+	Points   *float64    `json:"points,omitempty"`
+	Input    string      `json:"input,omitempty"`
+	Output   string      `json:"output,omitempty"`
 }
 
 type SolutionReport struct {
 	Verdict    Verdict      `json:"verdict"`
 	Usage      UsageReport  `json:"usage"`
 	CompileLog string       `json:"compile_log"`
-	Tests      []TestReport `json:"tests"`
-	Points     *float64     `json:"points"`
+	Tests      []TestReport `json:"tests,omitempty"`
+	Points     *float64     `json:"points,omitempty"`
 }
 
 // Solution represents a solution.

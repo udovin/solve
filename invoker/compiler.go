@@ -45,9 +45,9 @@ func (c *compiler) Compile(ctx context.Context, source, target, log string) erro
 	if err != nil {
 		return err
 	}
-	// defer func() {
-	// 	_ = os.RemoveAll(rootfsBase)
-	// }()
+	defer func() {
+		_ = os.RemoveAll(rootfsBase)
+	}()
 	rootfsUpper := filepath.Join(rootfsBase, "upper")
 	if err := os.Mkdir(rootfsUpper, os.ModePerm); err != nil {
 		return err
@@ -135,9 +135,9 @@ func (c *compiler) Execute(
 	if err != nil {
 		return err
 	}
-	// defer func() {
-	// 	_ = os.RemoveAll(rootfsBase)
-	// }()
+	defer func() {
+		_ = os.RemoveAll(rootfsBase)
+	}()
 	rootfsUpper := filepath.Join(rootfsBase, "upper")
 	if err := os.Mkdir(rootfsUpper, os.ModePerm); err != nil {
 		return err

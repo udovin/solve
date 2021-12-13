@@ -12,6 +12,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 )
@@ -533,14 +534,14 @@ func (v *View) registerUser(c echo.Context) error {
 	if err := form.Update(&user, v.core.Users); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+	if err := gosql.WithTx(v.core.DB, func(tx *sql.Tx) error {
 		account := models.Account{Kind: models.UserAccount}
 		if err := v.core.Accounts.CreateTx(tx, &account); err != nil {
 			return err
 		}
 		user.AccountID = account.ID
 		return v.core.Users.CreateTx(tx, &user)
-	}); err != nil {
+	}, gosql.WithContext(c.Request().Context())); err != nil {
 		c.Logger().Error(err)
 		return err
 	}

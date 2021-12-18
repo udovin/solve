@@ -28,12 +28,11 @@ func ExtractZip(source, target string) (errRes error) {
 			_ = os.RemoveAll(target)
 		}
 	}()
-	pathPrefix := filepath.Clean(target) + string(filepath.Separator)
 	for _, file := range archive.File {
-		path := filepath.Join(target, file.Name)
-		if !strings.HasPrefix(path, pathPrefix) {
+		if strings.Contains(file.Name, "..") {
 			return fmt.Errorf("illegal file path: %q", file.Name)
 		}
+		path := filepath.Join(target, file.Name)
 		if file.FileInfo().IsDir() {
 			if err := os.Mkdir(path, file.Mode()); err != nil {
 				return err
@@ -93,7 +92,6 @@ func ExtractTarGz(source, target string) (errRes error) {
 	archive := tar.NewReader(reader)
 	links := map[string]string{}
 	symlinks := map[string]string{}
-	pathPrefix := filepath.Clean(target) + string(filepath.Separator)
 	for {
 		header, err := archive.Next()
 		if err == io.EOF {
@@ -105,10 +103,10 @@ func ExtractTarGz(source, target string) (errRes error) {
 		if header == nil {
 			continue
 		}
-		path := filepath.Join(target, header.Name)
-		if !strings.HasPrefix(path, pathPrefix) {
+		if strings.Contains(header.Name, "..") {
 			return fmt.Errorf("illegal file path: %q", header.Name)
 		}
+		path := filepath.Join(target, header.Name)
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if err := os.Mkdir(

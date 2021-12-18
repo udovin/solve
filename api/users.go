@@ -57,7 +57,7 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/v0/users/:user/sessions", v.observeUserSessions,
-		v.sessionAuth, v.requireAuth, v.extractUser, v.extractUserRoles,
+		v.sessionAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.ObserveUserSessionsRole),
 	)
 	g.POST(

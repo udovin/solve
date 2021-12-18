@@ -52,17 +52,17 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	)
 	g.PATCH(
 		"/v0/users/:user", v.updateUser,
-		v.sessionAuth, v.extractUser, v.extractUserRoles,
+		v.sessionAuth, v.requireAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.UpdateUserRole),
 	)
 	g.GET(
 		"/v0/users/:user/sessions", v.observeUserSessions,
-		v.sessionAuth, v.extractUser, v.extractUserRoles,
+		v.sessionAuth, v.requireAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.ObserveUserSessionsRole),
 	)
 	g.POST(
 		"/v0/users/:user/password", v.updateUserPassword,
-		v.sessionAuth, v.extractUser, v.extractUserRoles,
+		v.sessionAuth, v.requireAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.UpdateUserPasswordRole),
 	)
 	g.GET(

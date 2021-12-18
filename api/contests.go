@@ -25,7 +25,7 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.POST(
 		"/v0/contests", v.createContest,
-		v.sessionAuth,
+		v.sessionAuth, v.requireAuth,
 		v.requireAuthRole(models.CreateContestRole),
 	)
 	g.GET(
@@ -51,19 +51,19 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.POST(
 		"/v0/contests/:contest/problems", v.createContestProblem,
-		v.sessionAuth, v.extractContest, v.extractContestRoles,
+		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.CreateContestProblemRole),
 	)
 	g.DELETE(
 		"/v0/contests/:contest/problems/:problem", v.deleteContestProblem,
-		v.sessionAuth, v.extractContest, v.extractContestProblem,
-		v.extractContestRoles,
+		v.sessionAuth, v.requireAuth, v.extractContest,
+		v.extractContestProblem, v.extractContestRoles,
 		v.requireAuthRole(models.DeleteContestProblemRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/problems/:problem/submit",
-		v.submitContestProblemSolution, v.sessionAuth, v.extractContest,
-		v.extractContestProblem, v.extractContestRoles,
+		v.submitContestProblemSolution, v.sessionAuth, v.requireAuth,
+		v.extractContest, v.extractContestProblem, v.extractContestRoles,
 		v.requireAuthRole(models.CreateContestSolutionRole),
 	)
 	g.GET(
@@ -84,12 +84,13 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.POST(
 		"/v0/contests/:contest/participants", v.createContestParticipant,
-		v.sessionAuth, v.extractContest, v.extractContestRoles,
+		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.CreateContestParticipantRole),
 	)
 	g.DELETE(
-		"/v0/contests/:contest/participants/:participant", v.deleteContestParticipant,
-		v.sessionAuth, v.extractContest, v.extractContestParticipant, v.extractContestRoles,
+		"/v0/contests/:contest/participants/:participant",
+		v.deleteContestParticipant, v.sessionAuth, v.requireAuth,
+		v.extractContest, v.extractContestParticipant, v.extractContestRoles,
 		v.requireAuthRole(models.DeleteContestParticipantRole),
 	)
 }

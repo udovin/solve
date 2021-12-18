@@ -29,7 +29,7 @@ type Roles struct {
 func (v *View) registerRoleHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/roles", v.observeRoles,
-		v.sessionAuth, v.requireAuth,
+		v.sessionAuth,
 		v.requireAuthRole(models.ObserveRolesRole),
 	)
 	g.POST(
@@ -44,7 +44,7 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/v0/roles/:role/roles", v.observeRoleRoles,
-		v.sessionAuth, v.requireAuth, v.extractRole,
+		v.sessionAuth, v.extractRole,
 		v.requireAuthRole(models.ObserveRoleRolesRole),
 	)
 	g.POST(
@@ -59,7 +59,7 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/v0/users/:user/roles", v.observeUserRoles,
-		v.sessionAuth, v.requireAuth, v.extractUser,
+		v.sessionAuth, v.extractUser,
 		v.requireAuthRole(models.ObserveUserRolesRole),
 	)
 	g.POST(

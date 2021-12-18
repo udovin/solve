@@ -293,6 +293,21 @@ var m001Tables = []schema.Table{
 		},
 	},
 	{
+		Name: "solve_compiler",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+		},
+	},
+	{
+		Name: "solve_compiler_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_type", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "id", Type: schema.Int64},
+		},
+	},
+	{
 		Name: "solve_visit",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -387,6 +402,11 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.CreateProblemRole,
 		models.UpdateProblemRole,
 		models.DeleteProblemRole,
+		models.ObserveCompilersRole,
+		models.ObserveCompilerRole,
+		models.CreateCompilerRole,
+		models.UpdateCompilerRole,
+		models.DeleteCompilerRole,
 		models.ObserveSolutionsRole,
 		models.ObserveSolutionRole,
 		models.ObserveContestRole,

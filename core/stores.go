@@ -57,9 +57,9 @@ func (c *Core) SetupAllStores() error {
 	c.ContestSolutions = models.NewContestSolutionStore(
 		"solve_contest_solution", "solve_contest_solution_event", dialect,
 	)
-	// c.Compilers = models.NewCompilerStore(
-	// 	c.DB, "solve_compiler", "solve_compiler_event",
-	// )
+	c.Compilers = models.NewCompilerStore(
+		c.DB, "solve_compiler", "solve_compiler_event",
+	)
 	c.Visits = models.NewVisitStore("solve_visit", dialect)
 	return nil
 }

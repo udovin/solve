@@ -21,7 +21,7 @@ jobs:
       uses: actions/setup-go@v2
       with:
         stable: false
-        go-version: 1.18-beta1
+        go-version: 1.18.0-beta1
       id: go
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
@@ -64,7 +64,7 @@ jobs:
       uses: actions/setup-go@v2
       with:
         stable: false
-        go-version: 1.18-beta1
+        go-version: 1.18.0-beta1
       id: go
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1

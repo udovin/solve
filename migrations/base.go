@@ -3,11 +3,11 @@ package migrations
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
+	"github.com/udovin/solve/db/schema"
 )
 
 // Migration represents database migration.
@@ -34,19 +34,17 @@ func (o migration) ObjectID() int64 {
 	return o.ID
 }
 
-const migrationTable = "solve_db_migration"
+const migrationTableName = "solve_db_migration"
 
 // Apply applies all migrations to the specified core.
 func Apply(c *core.Core) error {
 	// Prepare database.
-	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
-		return setupDB(tx, c.DB.Dialect())
-	}); err != nil {
+	if err := setupDB(c.DB); err != nil {
 		return err
 	}
 	// Prepare migration store.
 	store := db.NewObjectStore(
-		migration{}, "id", migrationTable, c.DB.Dialect(),
+		migration{}, "id", migrationTableName, c.DB.Dialect(),
 	)
 	for _, m := range migrations {
 		if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
@@ -73,14 +71,12 @@ func Apply(c *core.Core) error {
 // Unapply rollbacks all applied migrations for specified core.
 func Unapply(c *core.Core) error {
 	// Prepare database.
-	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
-		return setupDB(tx, c.DB.Dialect())
-	}); err != nil {
+	if err := setupDB(c.DB); err != nil {
 		return err
 	}
 	// Prepare migration store.
 	store := db.NewObjectStore(
-		migration{}, "id", migrationTable, c.DB.Dialect(),
+		migration{}, "id", migrationTableName, c.DB.Dialect(),
 	)
 	for i := len(migrations) - 1; i >= 0; i-- {
 		m := migrations[i]
@@ -134,27 +130,20 @@ func isApplied(s db.ObjectROStore, tx *sql.Tx, name string) (bool, error) {
 	return rows.Next(), nil
 }
 
+var mirgationTable = schema.Table{
+	Name: migrationTableName,
+	Columns: []schema.Column{
+		{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+		{Name: "name", Type: schema.String},
+	},
+}
+
 // setupDB creates migrations table if it does not exists.
-func setupDB(tx *sql.Tx, dialect gosql.Dialect) error {
-	switch dialect {
-	case gosql.SQLiteDialect:
-		_, err := tx.Exec(fmt.Sprintf(
-			`CREATE TABLE IF NOT EXISTS %q (`+
-				`"id" INTEGER PRIMARY KEY,`+
-				`"name" VARCHAR(255) NOT NULL)`,
-			migrationTable,
-		))
+func setupDB(db *gosql.DB) error {
+	query, err := mirgationTable.BuildCreateSQL(db.Dialect(), false)
+	if err != nil {
 		return err
-	case gosql.PostgresDialect:
-		_, err := tx.Exec(fmt.Sprintf(
-			`CREATE TABLE IF NOT EXISTS %q (`+
-				`"id" SERIAL NOT NULL `+
-				`CONSTRAINT %q PRIMARY KEY, `+
-				`"name" VARCHAR(255) NOT NULL)`,
-			migrationTable, migrationTable+"_pk",
-		))
-		return err
-	default:
-		return fmt.Errorf("unsupported dialect %q", dialect)
 	}
+	_, err = db.Exec(query)
+	return err
 }

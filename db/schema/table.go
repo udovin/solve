@@ -92,12 +92,16 @@ type Table struct {
 }
 
 // BuildCreateSQL returns create SQL query in specified dialect.
-func (t Table) BuildCreateSQL(d gosql.Dialect) (string, error) {
+func (t Table) BuildCreateSQL(d gosql.Dialect, strict bool) (string, error) {
 	var query strings.Builder
-	query.WriteString(fmt.Sprintf("CREATE TABLE %q(", t.Name))
+	query.WriteString("CREATE TABLE ")
+	if !strict {
+		query.WriteString("IF NOT EXISTS ")
+	}
+	query.WriteString(fmt.Sprintf("%q (", t.Name))
 	for i, column := range t.Columns {
 		if i > 0 {
-			query.WriteRune(',')
+			query.WriteString(", ")
 		}
 		sql, err := column.BuildSQL(d)
 		if err != nil {

@@ -186,6 +186,10 @@ func dbUnapplyMain(cmd *cobra.Command, _ []string) {
 	}
 }
 
+func versionMain(cmd *cobra.Command, _ []string) {
+	println("solve version:", core.Version)
+}
+
 // main is a main entry point.
 //
 // Solve is divided into two main parts:
@@ -225,6 +229,11 @@ func main() {
 		Short: "Rolls back all applied migrations",
 	})
 	rootCmd.AddCommand(&dbCmd)
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "version",
+		Run:   versionMain,
+		Short: "Prints information about version",
+	})
 	if err := rootCmd.Execute(); err != nil {
 		panic(err)
 	}

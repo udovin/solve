@@ -313,7 +313,7 @@ var m001Tables = []schema.Table{
 
 func (m *m001) Apply(c *core.Core, tx *sql.Tx) error {
 	for _, table := range m001Tables {
-		query, err := table.BuildCreateSQL(c.DB.Dialect())
+		query, err := table.BuildCreateSQL(c.DB.Dialect(), false)
 		if err != nil {
 			return err
 		}

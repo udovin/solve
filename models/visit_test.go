@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/udovin/gosql"
 )
 
 func TestVisit(t *testing.T) {
@@ -26,7 +25,7 @@ func TestVisit(t *testing.T) {
 }
 
 func TestVisitStore(t *testing.T) {
-	store := NewVisitStore("visit", gosql.SQLiteDialect)
+	store := NewVisitStore(testDB, "visit")
 	req := httptest.NewRequest(http.MethodGet, "/text?q=123", nil)
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	ctx := echo.New().NewContext(req, httptest.NewRecorder())

@@ -180,11 +180,11 @@ func (s *SessionStore) onUpdateObject(o db.Object) {
 
 // NewSessionStore creates a new instance of SessionStore.
 func NewSessionStore(
-	table, eventTable string, dialect gosql.Dialect,
+	db *gosql.DB, table, eventTable string,
 ) *SessionStore {
 	impl := &SessionStore{}
 	impl.baseStore = makeBaseStore(
-		Session{}, table, SessionEvent{}, eventTable, impl, dialect,
+		db, Session{}, table, SessionEvent{}, eventTable, impl,
 	)
 	return impl
 }

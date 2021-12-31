@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -34,7 +33,7 @@ func (t *contestProblemStoreTest) prepareDB(tx *sql.Tx) error {
 }
 
 func (t *contestProblemStoreTest) newStore() Store {
-	return NewContestProblemStore("contest_problem", "contest_problem_event", gosql.SQLiteDialect)
+	return NewContestProblemStore(testDB, "contest_problem", "contest_problem_event")
 }
 
 func (t *contestProblemStoreTest) newObject() db.Object {

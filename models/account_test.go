@@ -5,7 +5,6 @@ import (
 	"log"
 	"testing"
 
-	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -33,7 +32,7 @@ func (t *accountStoreTest) prepareDB(tx *sql.Tx) error {
 }
 
 func (t *accountStoreTest) newStore() Store {
-	return NewAccountStore("account", "account_event", gosql.SQLiteDialect)
+	return NewAccountStore(testDB, "account", "account_event")
 }
 
 func (t *accountStoreTest) newObject() db.Object {

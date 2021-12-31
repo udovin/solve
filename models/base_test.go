@@ -194,9 +194,9 @@ func newTestStore() *testStore {
 		eventTable: "test_object_event",
 	}
 	impl.baseStore = makeBaseStore(
-		testObject{}, impl.table,
+		testDB, testObject{}, impl.table,
 		testObjectEvent{}, impl.eventTable,
-		impl, gosql.SQLiteDialect,
+		impl,
 	)
 	return impl
 }
@@ -373,9 +373,9 @@ func TestBaseStore_InitTx(t *testing.T) {
 		eventTable: "invalid_object_event",
 	}
 	store.baseStore = makeBaseStore(
-		testObject{}, store.table,
+		testDB, testObject{}, store.table,
 		testObjectEvent{}, store.eventTable,
-		store, gosql.SQLiteDialect,
+		store,
 	)
 	tx, err := testDB.Begin()
 	if err != nil {

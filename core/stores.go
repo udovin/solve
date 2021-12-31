@@ -10,24 +10,23 @@ import (
 
 // SetupAllStores prepares all stores.
 func (c *Core) SetupAllStores() error {
-	dialect := c.DB.Dialect()
 	c.Tasks = models.NewTaskStore(
-		"solve_task", "solve_task_event", dialect,
+		c.DB, "solve_task", "solve_task_event",
 	)
 	c.Roles = models.NewRoleStore(
-		"solve_role", "solve_role_event", dialect,
+		c.DB, "solve_role", "solve_role_event",
 	)
 	c.RoleEdges = models.NewRoleEdgeStore(
-		"solve_role_edge", "solve_role_edge_event", dialect,
+		c.DB, "solve_role_edge", "solve_role_edge_event",
 	)
 	c.Accounts = models.NewAccountStore(
-		"solve_account", "solve_account_event", dialect,
+		c.DB, "solve_account", "solve_account_event",
 	)
 	c.AccountRoles = models.NewAccountRoleStore(
-		"solve_account_role", "solve_account_role_event", dialect,
+		c.DB, "solve_account_role", "solve_account_role_event",
 	)
 	c.Sessions = models.NewSessionStore(
-		"solve_session", "solve_session_event", dialect,
+		c.DB, "solve_session", "solve_session_event",
 	)
 	if c.Config.Security != nil {
 		salt, err := c.Config.Security.PasswordSalt.Secret()
@@ -35,29 +34,28 @@ func (c *Core) SetupAllStores() error {
 			return err
 		}
 		c.Users = models.NewUserStore(
-			"solve_user", "solve_user_event", salt, dialect,
+			c.DB, "solve_user", "solve_user_event", salt,
 		)
 	}
 	c.Contests = models.NewContestStore(
-		"solve_contest", "solve_contest_event", dialect,
+		c.DB, "solve_contest", "solve_contest_event",
 	)
 	c.Problems = models.NewProblemStore(
-		"solve_problem", "solve_problem_event", dialect,
+		c.DB, "solve_problem", "solve_problem_event",
 	)
 	c.Solutions = models.NewSolutionStore(
-		"solve_solution", "solve_solution_event", dialect,
+		c.DB, "solve_solution", "solve_solution_event",
 	)
 	c.ContestProblems = models.NewContestProblemStore(
-		"solve_contest_problem", "solve_contest_problem_event", dialect,
+		c.DB, "solve_contest_problem", "solve_contest_problem_event",
 	)
 	c.ContestParticipants = models.NewContestParticipantStore(
-		"solve_contest_participant", "solve_contest_participant_event",
-		dialect,
+		c.DB, "solve_contest_participant", "solve_contest_participant_event",
 	)
 	c.ContestSolutions = models.NewContestSolutionStore(
-		"solve_contest_solution", "solve_contest_solution_event", dialect,
+		c.DB, "solve_contest_solution", "solve_contest_solution_event",
 	)
-	c.Visits = models.NewVisitStore("solve_visit", dialect)
+	c.Visits = models.NewVisitStore(c.DB, "solve_visit")
 	return nil
 }
 

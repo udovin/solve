@@ -208,11 +208,11 @@ func (s *SolutionStore) onUpdateObject(o db.Object) {
 
 // NewSolutionStore creates a new instance of SolutionStore.
 func NewSolutionStore(
-	table, eventTable string, dialect gosql.Dialect,
+	db *gosql.DB, table, eventTable string,
 ) *SolutionStore {
 	impl := &SolutionStore{}
 	impl.baseStore = makeBaseStore(
-		Solution{}, table, SolutionEvent{}, eventTable, impl, dialect,
+		db, Solution{}, table, SolutionEvent{}, eventTable, impl,
 	)
 	return impl
 }

@@ -142,11 +142,11 @@ func (s *ContestProblemStore) onUpdateObject(o db.Object) {
 
 // NewContestProblemStore creates a new instance of ContestProblemStore.
 func NewContestProblemStore(
-	table, eventTable string, dialect gosql.Dialect,
+	db *gosql.DB, table, eventTable string,
 ) *ContestProblemStore {
 	impl := &ContestProblemStore{}
 	impl.baseStore = makeBaseStore(
-		ContestProblem{}, table, ContestProblemEvent{}, eventTable, impl, dialect,
+		db, ContestProblem{}, table, ContestProblemEvent{}, eventTable, impl,
 	)
 	return impl
 }

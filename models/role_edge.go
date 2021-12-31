@@ -138,11 +138,11 @@ func (s *RoleEdgeStore) onUpdateObject(o db.Object) {
 
 // NewRoleEdgeStore creates a new instance of RoleEdgeStore.
 func NewRoleEdgeStore(
-	table, eventTable string, dialect gosql.Dialect,
+	db *gosql.DB, table, eventTable string,
 ) *RoleEdgeStore {
 	impl := &RoleEdgeStore{}
 	impl.baseStore = makeBaseStore(
-		RoleEdge{}, table, RoleEdgeEvent{}, eventTable, impl, dialect,
+		db, RoleEdge{}, table, RoleEdgeEvent{}, eventTable, impl,
 	)
 	return impl
 }

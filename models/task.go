@@ -270,11 +270,11 @@ func (s *TaskStore) onUpdateObject(o db.Object) {
 
 // NewTaskStore creates a new instance of TaskStore.
 func NewTaskStore(
-	table, eventTable string, dialect gosql.Dialect,
+	db *gosql.DB, table, eventTable string,
 ) *TaskStore {
 	impl := &TaskStore{}
 	impl.baseStore = makeBaseStore(
-		Task{}, table, TaskEvent{}, eventTable, impl, dialect,
+		db, Task{}, table, TaskEvent{}, eventTable, impl,
 	)
 	return impl
 }

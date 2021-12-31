@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -37,7 +36,7 @@ func (t *contestStoreTest) prepareDB(tx *sql.Tx) error {
 }
 
 func (t *contestStoreTest) newStore() Store {
-	return NewContestStore("contest", "contest_event", gosql.SQLiteDialect)
+	return NewContestStore(testDB, "contest", "contest_event")
 }
 
 func (t *contestStoreTest) newObject() db.Object {

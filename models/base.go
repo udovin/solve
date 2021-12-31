@@ -235,13 +235,18 @@ type Store interface {
 }
 
 type baseStore struct {
+	db       *gosql.DB
 	table    string
 	objects  db.ObjectStore
 	events   db.EventStore
 	consumer db.EventConsumer
 	impl     baseStoreImpl
-	dialect  gosql.Dialect
 	mutex    sync.RWMutex
+}
+
+// DB returns store database.
+func (s *baseStore) DB() *gosql.DB {
+	return s.db
 }
 
 func (s *baseStore) InitTx(tx gosql.WeakTx) error {
@@ -336,7 +341,7 @@ func (s *baseStore) createObjectEventTx(
 }
 
 func (s *baseStore) lockStore(tx *sql.Tx) error {
-	switch s.dialect {
+	switch s.db.Dialect() {
 	case gosql.SQLiteDialect:
 		return nil
 	default:
@@ -360,15 +365,20 @@ func (s *baseStore) consumeEvent(e db.Event) error {
 }
 
 func makeBaseStore(
+	dbConn *gosql.DB,
 	object db.Object, table string,
 	event ObjectEvent, eventTable string,
-	impl baseStoreImpl, dialect gosql.Dialect,
+	impl baseStoreImpl,
 ) baseStore {
 	return baseStore{
-		table:   table,
-		objects: db.NewObjectStore(object, "id", table, dialect),
-		events:  db.NewEventStore(event, "event_id", eventTable, dialect),
-		impl:    impl,
-		dialect: dialect,
+		db:    dbConn,
+		table: table,
+		objects: db.NewObjectStore(
+			object, "id", table, dbConn.Dialect(),
+		),
+		events: db.NewEventStore(
+			event, "event_id", eventTable, dbConn.Dialect(),
+		),
+		impl: impl,
 	}
 }

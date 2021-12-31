@@ -344,11 +344,11 @@ func (s *RoleStore) onUpdateObject(o db.Object) {
 
 // NewRoleStore creates a new instance of RoleStore.
 func NewRoleStore(
-	table, eventTable string, dialect gosql.Dialect,
+	db *gosql.DB, table, eventTable string,
 ) *RoleStore {
 	impl := &RoleStore{}
 	impl.baseStore = makeBaseStore(
-		Role{}, table, RoleEvent{}, eventTable, impl, dialect,
+		db, Role{}, table, RoleEvent{}, eventTable, impl,
 	)
 	return impl
 }

@@ -182,11 +182,11 @@ func (s *UserStore) onUpdateObject(o db.Object) {
 
 // NewUserStore creates new instance of user store.
 func NewUserStore(
-	table, eventTable, salt string, dialect gosql.Dialect,
+	db *gosql.DB, table, eventTable, salt string,
 ) *UserStore {
 	impl := &UserStore{salt: salt}
 	impl.baseStore = makeBaseStore(
-		User{}, table, UserEvent{}, eventTable, impl, dialect,
+		db, User{}, table, UserEvent{}, eventTable, impl,
 	)
 	return impl
 }

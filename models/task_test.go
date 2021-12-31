@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
 
@@ -39,7 +38,7 @@ func (t *taskStoreTest) prepareDB(tx *sql.Tx) error {
 }
 
 func (t *taskStoreTest) newStore() Store {
-	return NewTaskStore("task", "task_event", gosql.SQLiteDialect)
+	return NewTaskStore(testDB, "task", "task_event")
 }
 
 func (t *taskStoreTest) newObject() db.Object {

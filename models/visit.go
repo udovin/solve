@@ -37,6 +37,7 @@ func (o Visit) EventTime() time.Time {
 
 // VisitStore represents visit store.
 type VisitStore struct {
+	db     *gosql.DB
 	events db.EventStore
 }
 
@@ -64,8 +65,9 @@ func (s *VisitStore) CreateTx(tx gosql.WeakTx, visit Visit) (Visit, error) {
 }
 
 // NewVisitStore creates a new instance of ViewStore.
-func NewVisitStore(table string, dialect gosql.Dialect) *VisitStore {
+func NewVisitStore(dbConn *gosql.DB, table string) *VisitStore {
 	return &VisitStore{
-		events: db.NewEventStore(Visit{}, "id", table, dialect),
+		db:     dbConn,
+		events: db.NewEventStore(Visit{}, "id", table, dbConn.Dialect()),
 	}
 }

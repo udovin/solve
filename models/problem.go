@@ -123,11 +123,11 @@ func (s *ProblemStore) onUpdateObject(o db.Object) {
 
 // NewProblemStore creates a new instance of ProblemStore.
 func NewProblemStore(
-	table, eventTable string, dialect gosql.Dialect,
+	db *gosql.DB, table, eventTable string,
 ) *ProblemStore {
 	impl := &ProblemStore{}
 	impl.baseStore = makeBaseStore(
-		Problem{}, table, ProblemEvent{}, eventTable, impl, dialect,
+		db, Problem{}, table, ProblemEvent{}, eventTable, impl,
 	)
 	return impl
 }

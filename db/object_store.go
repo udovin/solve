@@ -32,7 +32,7 @@ type ObjectROStore interface {
 	LoadObjects(tx gosql.WeakTx) (ObjectReader, error)
 	// FindObjects should bind objects with specified expression.
 	FindObjects(
-		tx gosql.WeakTx, where string, args ...interface{},
+		tx gosql.WeakTx, where string, args ...any,
 	) (ObjectReader, error)
 }
 
@@ -73,7 +73,7 @@ func (s *objectStore) LoadObjects(tx gosql.WeakTx) (ObjectReader, error) {
 }
 
 func (s *objectStore) FindObjects(
-	tx gosql.WeakTx, where string, args ...interface{},
+	tx gosql.WeakTx, where string, args ...any,
 ) (ObjectReader, error) {
 	rows, err := tx.Query(
 		fmt.Sprintf(
@@ -142,7 +142,7 @@ func (r *objectReader) Next() bool {
 	if !r.rows.Next() {
 		return false
 	}
-	var v interface{}
+	var v any
 	v, r.err = scanRow(r.typ, r.rows)
 	if r.err == nil {
 		r.object = v.(Object)

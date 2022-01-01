@@ -10,7 +10,7 @@ import (
 	"github.com/udovin/gosql"
 )
 
-func cloneRow(row interface{}) reflect.Value {
+func cloneRow(row any) reflect.Value {
 	clone := reflect.New(reflect.TypeOf(row)).Elem()
 	var recursive func(row, clone reflect.Value)
 	recursive = func(row, clone reflect.Value) {
@@ -27,9 +27,9 @@ func cloneRow(row interface{}) reflect.Value {
 	return clone
 }
 
-func scanRow(typ reflect.Type, rows *sql.Rows) (interface{}, error) {
+func scanRow(typ reflect.Type, rows *sql.Rows) (any, error) {
 	value := reflect.New(typ).Elem()
-	var fields []interface{}
+	var fields []any
 	var recursive func(reflect.Value)
 	recursive = func(v reflect.Value) {
 		t := v.Type()
@@ -92,10 +92,10 @@ func prepareSelect(typ reflect.Type) string {
 
 func prepareInsert(
 	value reflect.Value, id string,
-) (string, string, []interface{}, *int64) {
+) (string, string, []any, *int64) {
 	var cols strings.Builder
 	var keys strings.Builder
-	var vals []interface{}
+	var vals []any
 	var idPtr *int64
 	var it int
 	var recursive func(reflect.Value)
@@ -126,8 +126,8 @@ func prepareInsert(
 }
 
 func insertRow(
-	tx gosql.WeakTx, row interface{}, id, table string, dialect gosql.Dialect,
-) (interface{}, error) {
+	tx gosql.WeakTx, row any, id, table string, dialect gosql.Dialect,
+) (any, error) {
 	clone := cloneRow(row)
 	cols, keys, vals, idPtr := prepareInsert(clone, id)
 	switch dialect {
@@ -169,10 +169,10 @@ func insertRow(
 	return clone.Interface(), nil
 }
 
-func prepareUpdate(value reflect.Value, id string) (string, []interface{}) {
+func prepareUpdate(value reflect.Value, id string) (string, []any) {
 	var sets strings.Builder
-	var vals []interface{}
-	var idValue interface{}
+	var vals []any
+	var idValue any
 	var it int
 	var recursive func(reflect.Value)
 	recursive = func(v reflect.Value) {
@@ -201,8 +201,8 @@ func prepareUpdate(value reflect.Value, id string) (string, []interface{}) {
 }
 
 func updateRow(
-	tx gosql.WeakTx, row interface{}, id, table string,
-) (interface{}, error) {
+	tx gosql.WeakTx, row any, id, table string,
+) (any, error) {
 	clone := cloneRow(row)
 	sets, vals := prepareUpdate(clone, id)
 	res, err := tx.Exec(

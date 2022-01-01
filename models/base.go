@@ -12,6 +12,11 @@ import (
 	"github.com/udovin/solve/db"
 )
 
+// Cloner represents object that can be cloned.
+type Cloner[T any] interface {
+	Clone() T
+}
+
 type indexInt64 map[int64]map[int64]struct{}
 
 func (m indexInt64) Create(key, value int64) {
@@ -58,7 +63,7 @@ func (v NInt64) Value() (driver.Value, error) {
 }
 
 // Scan scans value.
-func (v *NInt64) Scan(value interface{}) error {
+func (v *NInt64) Scan(value any) error {
 	switch x := value.(type) {
 	case nil:
 		*v = 0
@@ -69,6 +74,11 @@ func (v *NInt64) Scan(value interface{}) error {
 	}
 	return nil
 }
+
+var (
+	_ driver.Valuer = NInt64(0)
+	_ sql.Scanner   = (*NInt64)(nil)
+)
 
 // JSON represents json value.
 type JSON []byte
@@ -84,7 +94,7 @@ func (v JSON) Value() (driver.Value, error) {
 }
 
 // Scan scans value.
-func (v *JSON) Scan(value interface{}) error {
+func (v *JSON) Scan(value any) error {
 	switch data := value.(type) {
 	case nil:
 		*v = nil
@@ -128,6 +138,11 @@ func (v JSON) Clone() JSON {
 	return c
 }
 
+var (
+	_ driver.Valuer = JSON{}
+	_ sql.Scanner   = (*JSON)(nil)
+)
+
 // NString represents nullable string with empty value means null value.
 type NString string
 
@@ -140,7 +155,7 @@ func (v NString) Value() (driver.Value, error) {
 }
 
 // Scan scans value.
-func (v *NString) Scan(value interface{}) error {
+func (v *NString) Scan(value any) error {
 	switch x := value.(type) {
 	case nil:
 		*v = ""
@@ -153,6 +168,11 @@ func (v *NString) Scan(value interface{}) error {
 	}
 	return nil
 }
+
+var (
+	_ driver.Valuer = NString("")
+	_ sql.Scanner   = (*NString)(nil)
+)
 
 // EventType represents type of object event.
 type EventType int8

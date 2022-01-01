@@ -140,9 +140,9 @@ func (e TaskEvent) WithObject(o db.Object) ObjectEvent {
 
 // TaskStore represents store for tasks.
 type TaskStore struct {
-	baseStore
+	baseStore[Task, TaskEvent]
 	tasks    map[int64]Task
-	byStatus indexInt64
+	byStatus index[int64]
 }
 
 // Get returns task by id.
@@ -243,29 +243,26 @@ func (s *TaskStore) popQueuedTx(tx *sql.Tx) (Task, error) {
 
 func (s *TaskStore) reset() {
 	s.tasks = map[int64]Task{}
-	s.byStatus = indexInt64{}
+	s.byStatus = makeIndex[int64]()
 }
 
-func (s *TaskStore) onCreateObject(o db.Object) {
-	task := o.(Task)
+func (s *TaskStore) onCreateObject(task Task) {
 	s.tasks[task.ID] = task
 	s.byStatus.Create(int64(task.Status), task.ID)
 }
 
-func (s *TaskStore) onDeleteObject(o db.Object) {
-	task := o.(Task)
+func (s *TaskStore) onDeleteObject(task Task) {
 	s.byStatus.Delete(int64(task.Status), task.ID)
 	delete(s.tasks, task.ID)
 }
 
-func (s *TaskStore) onUpdateObject(o db.Object) {
-	task := o.(Task)
+func (s *TaskStore) onUpdateObject(task Task) {
 	if old, ok := s.tasks[task.ID]; ok {
 		if old.Status != task.Status {
 			s.byStatus.Delete(int64(old.Status), old.ID)
 		}
 	}
-	s.onCreateObject(o)
+	s.onCreateObject(task)
 }
 
 // NewTaskStore creates a new instance of TaskStore.
@@ -273,8 +270,8 @@ func NewTaskStore(
 	db *gosql.DB, table, eventTable string,
 ) *TaskStore {
 	impl := &TaskStore{}
-	impl.baseStore = makeBaseStore(
-		db, Task{}, table, TaskEvent{}, eventTable, impl,
+	impl.baseStore = makeBaseStore[Task, TaskEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

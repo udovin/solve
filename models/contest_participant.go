@@ -50,10 +50,10 @@ func (e ContestParticipantEvent) WithObject(o db.Object) ObjectEvent {
 
 // ContestParticipantStore represents a participant store.
 type ContestParticipantStore struct {
-	baseStore
+	baseStore[ContestParticipant, ContestParticipantEvent]
 	participants     map[int64]ContestParticipant
-	byContest        indexInt64
-	byContestAccount indexPairInt64
+	byContest        index[int64]
+	byContestAccount index[pairInt64]
 }
 
 // Get returns participant by ID.
@@ -135,30 +135,27 @@ func (s *ContestParticipantStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 
 func (s *ContestParticipantStore) reset() {
 	s.participants = map[int64]ContestParticipant{}
-	s.byContest = indexInt64{}
-	s.byContestAccount = indexPairInt64{}
+	s.byContest = makeIndex[int64]()
+	s.byContestAccount = makeIndex[pairInt64]()
 }
 
-func (s *ContestParticipantStore) onCreateObject(o db.Object) {
-	participant := o.(ContestParticipant)
+func (s *ContestParticipantStore) onCreateObject(participant ContestParticipant) {
 	s.participants[participant.ID] = participant
 	s.byContest.Create(participant.ContestID, participant.ID)
 	s.byContestAccount.Create(participant.contestAccountKey(), participant.ID)
 }
 
-func (s *ContestParticipantStore) onDeleteObject(o db.Object) {
-	participant := o.(ContestParticipant)
+func (s *ContestParticipantStore) onDeleteObject(participant ContestParticipant) {
 	s.byContest.Delete(participant.ContestID, participant.ID)
 	s.byContestAccount.Delete(participant.contestAccountKey(), participant.ID)
 	delete(s.participants, participant.ID)
 }
 
-func (s *ContestParticipantStore) onUpdateObject(o db.Object) {
-	participant := o.(ContestParticipant)
+func (s *ContestParticipantStore) onUpdateObject(participant ContestParticipant) {
 	if old, ok := s.participants[participant.ID]; ok {
 		s.onDeleteObject(old)
 	}
-	s.onCreateObject(o)
+	s.onCreateObject(participant)
 }
 
 // NewContestParticipantStore creates a new instance of
@@ -167,10 +164,8 @@ func NewContestParticipantStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestParticipantStore {
 	impl := &ContestParticipantStore{}
-	impl.baseStore = makeBaseStore(
-		db, ContestParticipant{}, table,
-		ContestParticipantEvent{}, eventTable,
-		impl,
+	impl.baseStore = makeBaseStore[ContestParticipant, ContestParticipantEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

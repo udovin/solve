@@ -45,7 +45,7 @@ func (e ContestEvent) WithObject(o db.Object) ObjectEvent {
 
 // ContestStore represents store for contests.
 type ContestStore struct {
-	baseStore
+	baseStore[Contest, ContestEvent]
 	contests map[int64]Contest
 }
 
@@ -109,22 +109,19 @@ func (s *ContestStore) reset() {
 	s.contests = map[int64]Contest{}
 }
 
-func (s *ContestStore) onCreateObject(o db.Object) {
-	contest := o.(Contest)
+func (s *ContestStore) onCreateObject(contest Contest) {
 	s.contests[contest.ID] = contest
 }
 
-func (s *ContestStore) onDeleteObject(o db.Object) {
-	contest := o.(Contest)
+func (s *ContestStore) onDeleteObject(contest Contest) {
 	delete(s.contests, contest.ID)
 }
 
-func (s *ContestStore) onUpdateObject(o db.Object) {
-	contest := o.(Contest)
+func (s *ContestStore) onUpdateObject(contest Contest) {
 	if old, ok := s.contests[contest.ID]; ok {
 		s.onDeleteObject(old)
 	}
-	s.onCreateObject(o)
+	s.onCreateObject(contest)
 }
 
 // NewContestStore creates a new instance of ContestStore.
@@ -132,8 +129,8 @@ func NewContestStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestStore {
 	impl := &ContestStore{}
-	impl.baseStore = makeBaseStore(
-		db, Contest{}, table, ContestEvent{}, eventTable, impl,
+	impl.baseStore = makeBaseStore[Contest, ContestEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

@@ -48,9 +48,9 @@ func (e ContestProblemEvent) WithObject(o db.Object) ObjectEvent {
 
 // ContestProblemStore represents a problem store.
 type ContestProblemStore struct {
-	baseStore
+	baseStore[ContestProblem, ContestProblemEvent]
 	problems  map[int64]ContestProblem
-	byContest indexInt64
+	byContest index[int64]
 }
 
 // Get returns problem by ID.
@@ -117,27 +117,24 @@ func (s *ContestProblemStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 
 func (s *ContestProblemStore) reset() {
 	s.problems = map[int64]ContestProblem{}
-	s.byContest = indexInt64{}
+	s.byContest = makeIndex[int64]()
 }
 
-func (s *ContestProblemStore) onCreateObject(o db.Object) {
-	problem := o.(ContestProblem)
+func (s *ContestProblemStore) onCreateObject(problem ContestProblem) {
 	s.problems[problem.ID] = problem
 	s.byContest.Create(problem.ContestID, problem.ID)
 }
 
-func (s *ContestProblemStore) onDeleteObject(o db.Object) {
-	problem := o.(ContestProblem)
+func (s *ContestProblemStore) onDeleteObject(problem ContestProblem) {
 	s.byContest.Delete(problem.ContestID, problem.ID)
 	delete(s.problems, problem.ID)
 }
 
-func (s *ContestProblemStore) onUpdateObject(o db.Object) {
-	problem := o.(ContestProblem)
+func (s *ContestProblemStore) onUpdateObject(problem ContestProblem) {
 	if old, ok := s.problems[problem.ID]; ok {
 		s.onDeleteObject(old)
 	}
-	s.onCreateObject(o)
+	s.onCreateObject(problem)
 }
 
 // NewContestProblemStore creates a new instance of ContestProblemStore.
@@ -145,8 +142,8 @@ func NewContestProblemStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestProblemStore {
 	impl := &ContestProblemStore{}
-	impl.baseStore = makeBaseStore(
-		db, ContestProblem{}, table, ContestProblemEvent{}, eventTable, impl,
+	impl.baseStore = makeBaseStore[ContestProblem, ContestProblemEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

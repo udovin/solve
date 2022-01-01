@@ -52,7 +52,7 @@ func (e AccountEvent) WithObject(o db.Object) ObjectEvent {
 
 // AccountStore represents store for accounts.
 type AccountStore struct {
-	baseStore
+	baseStore[Account, AccountEvent]
 	accounts map[int64]Account
 }
 
@@ -100,22 +100,19 @@ func (s *AccountStore) reset() {
 	s.accounts = map[int64]Account{}
 }
 
-func (s *AccountStore) onCreateObject(o db.Object) {
-	account := o.(Account)
+func (s *AccountStore) onCreateObject(account Account) {
 	s.accounts[account.ID] = account
 }
 
-func (s *AccountStore) onDeleteObject(o db.Object) {
-	account := o.(Account)
+func (s *AccountStore) onDeleteObject(account Account) {
 	delete(s.accounts, account.ID)
 }
 
-func (s *AccountStore) onUpdateObject(o db.Object) {
-	account := o.(Account)
+func (s *AccountStore) onUpdateObject(account Account) {
 	if old, ok := s.accounts[account.ID]; ok {
 		s.onDeleteObject(old)
 	}
-	s.onCreateObject(o)
+	s.onCreateObject(account)
 }
 
 // NewAccountStore creates a new instance of AccountStore.
@@ -123,8 +120,8 @@ func NewAccountStore(
 	db *gosql.DB, table, eventTable string,
 ) *AccountStore {
 	impl := &AccountStore{}
-	impl.baseStore = makeBaseStore(
-		db, Account{}, table, AccountEvent{}, eventTable, impl,
+	impl.baseStore = makeBaseStore[Account, AccountEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

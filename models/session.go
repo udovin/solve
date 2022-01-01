@@ -75,9 +75,9 @@ func (e SessionEvent) WithObject(o db.Object) ObjectEvent {
 
 // SessionStore represents store for sessions.
 type SessionStore struct {
-	baseStore
+	baseStore[Session, SessionEvent]
 	sessions  map[int64]Session
-	byAccount indexInt64
+	byAccount index[int64]
 }
 
 // Get returns session by session ID.
@@ -153,29 +153,24 @@ func (s *SessionStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 
 func (s *SessionStore) reset() {
 	s.sessions = map[int64]Session{}
-	s.byAccount = indexInt64{}
+	s.byAccount = makeIndex[int64]()
 }
 
-func (s *SessionStore) onCreateObject(o db.Object) {
-	session := o.(Session)
+func (s *SessionStore) onCreateObject(session Session) {
 	s.sessions[session.ID] = session
 	s.byAccount.Create(session.AccountID, session.ID)
 }
 
-func (s *SessionStore) onDeleteObject(o db.Object) {
-	session := o.(Session)
+func (s *SessionStore) onDeleteObject(session Session) {
 	s.byAccount.Delete(session.AccountID, session.ID)
 	delete(s.sessions, session.ID)
 }
 
-func (s *SessionStore) onUpdateObject(o db.Object) {
-	session := o.(Session)
+func (s *SessionStore) onUpdateObject(session Session) {
 	if old, ok := s.sessions[session.ID]; ok {
-		if old.AccountID != session.AccountID {
-			s.byAccount.Delete(old.AccountID, old.ID)
-		}
+		s.onDeleteObject(old)
 	}
-	s.onCreateObject(o)
+	s.onCreateObject(session)
 }
 
 // NewSessionStore creates a new instance of SessionStore.
@@ -183,8 +178,8 @@ func NewSessionStore(
 	db *gosql.DB, table, eventTable string,
 ) *SessionStore {
 	impl := &SessionStore{}
-	impl.baseStore = makeBaseStore(
-		db, Session{}, table, SessionEvent{}, eventTable, impl,
+	impl.baseStore = makeBaseStore[Session, SessionEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

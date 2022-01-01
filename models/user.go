@@ -54,7 +54,7 @@ func (e UserEvent) WithObject(o db.Object) ObjectEvent {
 
 // UserStore represents users store.
 type UserStore struct {
-	baseStore
+	baseStore[User, UserEvent]
 	users     map[int64]User
 	byAccount map[int64]int64
 	byLogin   map[string]int64
@@ -153,31 +153,23 @@ func (s *UserStore) reset() {
 	s.byLogin = map[string]int64{}
 }
 
-func (s *UserStore) onCreateObject(o db.Object) {
-	user := o.(User)
+func (s *UserStore) onCreateObject(user User) {
 	s.users[user.ID] = user
 	s.byAccount[user.AccountID] = user.ID
 	s.byLogin[strings.ToLower(user.Login)] = user.ID
 }
 
-func (s *UserStore) onDeleteObject(o db.Object) {
-	user := o.(User)
+func (s *UserStore) onDeleteObject(user User) {
 	delete(s.byAccount, user.AccountID)
 	delete(s.byLogin, strings.ToLower(user.Login))
 	delete(s.users, user.ID)
 }
 
-func (s *UserStore) onUpdateObject(o db.Object) {
-	user := o.(User)
+func (s *UserStore) onUpdateObject(user User) {
 	if old, ok := s.users[user.ID]; ok {
-		if old.AccountID != user.AccountID {
-			delete(s.byAccount, old.AccountID)
-		}
-		if old.Login != user.Login {
-			delete(s.byLogin, strings.ToLower(old.Login))
-		}
+		s.onDeleteObject(old)
 	}
-	s.onCreateObject(o)
+	s.onCreateObject(user)
 }
 
 // NewUserStore creates new instance of user store.
@@ -185,8 +177,8 @@ func NewUserStore(
 	db *gosql.DB, table, eventTable, salt string,
 ) *UserStore {
 	impl := &UserStore{salt: salt}
-	impl.baseStore = makeBaseStore(
-		db, User{}, table, UserEvent{}, eventTable, impl,
+	impl.baseStore = makeBaseStore[User, UserEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

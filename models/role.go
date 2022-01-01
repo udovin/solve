@@ -241,7 +241,7 @@ func (e RoleEvent) WithObject(o db.Object) ObjectEvent {
 
 // RoleStore represents a role store.
 type RoleStore struct {
-	baseStore
+	baseStore[Role, RoleEvent]
 	roles  map[int64]Role
 	byCode map[string]int64
 }
@@ -320,26 +320,21 @@ func (s *RoleStore) reset() {
 	s.byCode = map[string]int64{}
 }
 
-func (s *RoleStore) onCreateObject(o db.Object) {
-	role := o.(Role)
+func (s *RoleStore) onCreateObject(role Role) {
 	s.roles[role.ID] = role
 	s.byCode[role.Code] = role.ID
 }
 
-func (s *RoleStore) onDeleteObject(o db.Object) {
-	role := o.(Role)
+func (s *RoleStore) onDeleteObject(role Role) {
 	delete(s.byCode, role.Code)
 	delete(s.roles, role.ID)
 }
 
-func (s *RoleStore) onUpdateObject(o db.Object) {
-	role := o.(Role)
+func (s *RoleStore) onUpdateObject(role Role) {
 	if old, ok := s.roles[role.ID]; ok {
-		if old.Code != role.Code {
-			delete(s.byCode, old.Code)
-		}
+		s.onDeleteObject(old)
 	}
-	s.onCreateObject(o)
+	s.onCreateObject(role)
 }
 
 // NewRoleStore creates a new instance of RoleStore.
@@ -347,8 +342,8 @@ func NewRoleStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleStore {
 	impl := &RoleStore{}
-	impl.baseStore = makeBaseStore(
-		db, Role{}, table, RoleEvent{}, eventTable, impl,
+	impl.baseStore = makeBaseStore[Role, RoleEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

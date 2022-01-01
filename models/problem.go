@@ -45,7 +45,7 @@ func (e ProblemEvent) WithObject(o db.Object) ObjectEvent {
 
 // ProblemStore represents store for problems.
 type ProblemStore struct {
-	baseStore
+	baseStore[Problem, ProblemEvent]
 	problems map[int64]Problem
 }
 
@@ -107,18 +107,19 @@ func (s *ProblemStore) reset() {
 	s.problems = map[int64]Problem{}
 }
 
-func (s *ProblemStore) onCreateObject(o db.Object) {
-	problem := o.(Problem)
+func (s *ProblemStore) onCreateObject(problem Problem) {
 	s.problems[problem.ID] = problem
 }
 
-func (s *ProblemStore) onDeleteObject(o db.Object) {
-	problem := o.(Problem)
+func (s *ProblemStore) onDeleteObject(problem Problem) {
 	delete(s.problems, problem.ID)
 }
 
-func (s *ProblemStore) onUpdateObject(o db.Object) {
-	s.onCreateObject(o)
+func (s *ProblemStore) onUpdateObject(problem Problem) {
+	if old, ok := s.problems[problem.ID]; ok {
+		s.onDeleteObject(old)
+	}
+	s.onCreateObject(problem)
 }
 
 // NewProblemStore creates a new instance of ProblemStore.
@@ -126,8 +127,8 @@ func NewProblemStore(
 	db *gosql.DB, table, eventTable string,
 ) *ProblemStore {
 	impl := &ProblemStore{}
-	impl.baseStore = makeBaseStore(
-		db, Problem{}, table, ProblemEvent{}, eventTable, impl,
+	impl.baseStore = makeBaseStore[Problem, ProblemEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

@@ -46,9 +46,9 @@ func (e RoleEdgeEvent) WithObject(o db.Object) ObjectEvent {
 
 // RoleEdgeStore represents a role edge store.
 type RoleEdgeStore struct {
-	baseStore
+	baseStore[RoleEdge, RoleEdgeEvent]
 	edges  map[int64]RoleEdge
-	byRole indexInt64
+	byRole index[int64]
 }
 
 // Get returns role edge by ID.
@@ -111,29 +111,24 @@ func (s *RoleEdgeStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 
 func (s *RoleEdgeStore) reset() {
 	s.edges = map[int64]RoleEdge{}
-	s.byRole = indexInt64{}
+	s.byRole = makeIndex[int64]()
 }
 
-func (s *RoleEdgeStore) onCreateObject(o db.Object) {
-	edge := o.(RoleEdge)
+func (s *RoleEdgeStore) onCreateObject(edge RoleEdge) {
 	s.edges[edge.ID] = edge
 	s.byRole.Create(edge.RoleID, edge.ID)
 }
 
-func (s *RoleEdgeStore) onDeleteObject(o db.Object) {
-	edge := o.(RoleEdge)
+func (s *RoleEdgeStore) onDeleteObject(edge RoleEdge) {
 	s.byRole.Delete(edge.RoleID, edge.ID)
 	delete(s.edges, edge.ID)
 }
 
-func (s *RoleEdgeStore) onUpdateObject(o db.Object) {
-	edge := o.(RoleEdge)
+func (s *RoleEdgeStore) onUpdateObject(edge RoleEdge) {
 	if old, ok := s.edges[edge.ID]; ok {
-		if old.RoleID != edge.RoleID {
-			s.byRole.Delete(old.RoleID, old.ID)
-		}
+		s.onDeleteObject(old)
 	}
-	s.onCreateObject(o)
+	s.onCreateObject(edge)
 }
 
 // NewRoleEdgeStore creates a new instance of RoleEdgeStore.
@@ -141,8 +136,8 @@ func NewRoleEdgeStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleEdgeStore {
 	impl := &RoleEdgeStore{}
-	impl.baseStore = makeBaseStore(
-		db, RoleEdge{}, table, RoleEdgeEvent{}, eventTable, impl,
+	impl.baseStore = makeBaseStore[RoleEdge, RoleEdgeEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

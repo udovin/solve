@@ -79,7 +79,7 @@ func (e testObjectEvent) WithObject(o db.Object) ObjectEvent {
 }
 
 type testStore struct {
-	baseStore
+	baseStore[testObject, testObjectEvent]
 	table, eventTable string
 	objects           map[int64]testObject
 }
@@ -125,25 +125,25 @@ func (s *testStore) reset() {
 	s.objects = map[int64]testObject{}
 }
 
-func (s *testStore) onCreateObject(o db.Object) {
-	if _, ok := s.objects[o.ObjectID()]; ok {
+func (s *testStore) onCreateObject(object testObject) {
+	if _, ok := s.objects[object.ID]; ok {
 		panic("object already exists")
 	}
-	s.objects[o.ObjectID()] = o.(testObject)
+	s.objects[object.ID] = object
 }
 
-func (s *testStore) onUpdateObject(o db.Object) {
-	if _, ok := s.objects[o.ObjectID()]; !ok {
+func (s *testStore) onUpdateObject(object testObject) {
+	if _, ok := s.objects[object.ID]; !ok {
 		panic("object not found")
 	}
-	s.objects[o.ObjectID()] = o.(testObject)
+	s.objects[object.ID] = object
 }
 
-func (s *testStore) onDeleteObject(o db.Object) {
-	if _, ok := s.objects[o.ObjectID()]; !ok {
+func (s *testStore) onDeleteObject(object testObject) {
+	if _, ok := s.objects[object.ID]; !ok {
 		panic("object not found")
 	}
-	delete(s.objects, o.ObjectID())
+	delete(s.objects, object.ID)
 }
 
 func migrateTestStore(t testing.TB, s *testStore) {
@@ -193,10 +193,8 @@ func newTestStore() *testStore {
 		table:      "test_object",
 		eventTable: "test_object_event",
 	}
-	impl.baseStore = makeBaseStore(
-		testDB, testObject{}, impl.table,
-		testObjectEvent{}, impl.eventTable,
-		impl,
+	impl.baseStore = makeBaseStore[testObject, testObjectEvent](
+		testDB, impl.table, impl.eventTable, impl,
 	)
 	return impl
 }
@@ -357,7 +355,7 @@ func TestBaseStore_lockStore(t *testing.T) {
 }
 
 func TestBaseStore_consumeEvent(t *testing.T) {
-	store := baseStore{}
+	store := baseStore[any, any]{}
 	if err := store.consumeEvent(testObjectEvent{
 		baseEvent: makeBaseEvent(-1),
 	}); err == nil {
@@ -372,10 +370,8 @@ func TestBaseStore_InitTx(t *testing.T) {
 		table:      "invalid_object",
 		eventTable: "invalid_object_event",
 	}
-	store.baseStore = makeBaseStore(
-		testDB, testObject{}, store.table,
-		testObjectEvent{}, store.eventTable,
-		store,
+	store.baseStore = makeBaseStore[testObject, testObjectEvent](
+		testDB, store.table, store.eventTable, store,
 	)
 	tx, err := testDB.Begin()
 	if err != nil {
@@ -470,7 +466,7 @@ func TestJSON_Scan(t *testing.T) {
 	if err := a.Scan([]byte("{")); err == nil {
 		t.Fatal("Expected error")
 	}
-	if err := a.Scan(baseStore{}); err == nil {
+	if err := a.Scan(baseStore[any, any]{}); err == nil {
 		t.Fatal("Expected error")
 	}
 }

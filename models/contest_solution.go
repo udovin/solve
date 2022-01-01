@@ -50,10 +50,10 @@ func (e ContestSolutionEvent) WithObject(o db.Object) ObjectEvent {
 
 // ContestSolutionStore represents a solution store.
 type ContestSolutionStore struct {
-	baseStore
+	baseStore[ContestSolution, ContestSolutionEvent]
 	solutions     map[int64]ContestSolution
-	byContest     indexInt64
-	byParticipant indexInt64
+	byContest     index[int64]
+	byParticipant index[int64]
 }
 
 // Get returns solution by ID.
@@ -121,30 +121,27 @@ func (s *ContestSolutionStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 
 func (s *ContestSolutionStore) reset() {
 	s.solutions = map[int64]ContestSolution{}
-	s.byContest = indexInt64{}
-	s.byParticipant = indexInt64{}
+	s.byContest = makeIndex[int64]()
+	s.byParticipant = makeIndex[int64]()
 }
 
-func (s *ContestSolutionStore) onCreateObject(o db.Object) {
-	solution := o.(ContestSolution)
+func (s *ContestSolutionStore) onCreateObject(solution ContestSolution) {
 	s.solutions[solution.ID] = solution
 	s.byContest.Create(solution.ContestID, solution.ID)
 	s.byParticipant.Create(solution.ParticipantID, solution.ID)
 }
 
-func (s *ContestSolutionStore) onDeleteObject(o db.Object) {
-	solution := o.(ContestSolution)
+func (s *ContestSolutionStore) onDeleteObject(solution ContestSolution) {
 	s.byContest.Delete(solution.ContestID, solution.ID)
 	s.byParticipant.Delete(solution.ParticipantID, solution.ID)
 	delete(s.solutions, solution.ID)
 }
 
-func (s *ContestSolutionStore) onUpdateObject(o db.Object) {
-	solution := o.(ContestSolution)
+func (s *ContestSolutionStore) onUpdateObject(solution ContestSolution) {
 	if old, ok := s.solutions[solution.ID]; ok {
 		s.onDeleteObject(old)
 	}
-	s.onCreateObject(o)
+	s.onCreateObject(solution)
 }
 
 // NewContestSolutionStore creates a new instance of ContestSolutionStore.
@@ -152,8 +149,8 @@ func NewContestSolutionStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestSolutionStore {
 	impl := &ContestSolutionStore{}
-	impl.baseStore = makeBaseStore(
-		db, ContestSolution{}, table, ContestSolutionEvent{}, eventTable, impl,
+	impl.baseStore = makeBaseStore[ContestSolution, ContestSolutionEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

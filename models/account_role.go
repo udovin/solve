@@ -46,9 +46,9 @@ func (e AccountRoleEvent) WithObject(o db.Object) ObjectEvent {
 
 // AccountRoleStore represents store for account roles.
 type AccountRoleStore struct {
-	baseStore
+	baseStore[AccountRole, AccountRoleEvent]
 	roles     map[int64]AccountRole
-	byAccount indexInt64
+	byAccount index[int64]
 }
 
 // Get returns account role by ID.
@@ -109,36 +109,35 @@ func (s *AccountRoleStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 
 func (s *AccountRoleStore) reset() {
 	s.roles = map[int64]AccountRole{}
-	s.byAccount = indexInt64{}
+	s.byAccount = makeIndex[int64]()
 }
 
-func (s *AccountRoleStore) onCreateObject(o db.Object) {
-	role := o.(AccountRole)
+func (s *AccountRoleStore) onCreateObject(role AccountRole) {
 	s.roles[role.ID] = role
 	s.byAccount.Create(role.AccountID, role.ID)
 }
 
-func (s *AccountRoleStore) onDeleteObject(o db.Object) {
-	role := o.(AccountRole)
+func (s *AccountRoleStore) onDeleteObject(role AccountRole) {
 	s.byAccount.Delete(role.AccountID, role.ID)
 	delete(s.roles, role.ID)
 }
 
-func (s *AccountRoleStore) onUpdateObject(o db.Object) {
-	role := o.(AccountRole)
+func (s *AccountRoleStore) onUpdateObject(role AccountRole) {
 	if old, ok := s.roles[role.ID]; ok {
 		s.onDeleteObject(old)
 	}
-	s.onCreateObject(o)
+	s.onCreateObject(role)
 }
+
+var _ baseStoreImpl[AccountRole] = (*AccountRoleStore)(nil)
 
 // NewAccountRoleStore creates a new instance of AccountRoleStore.
 func NewAccountRoleStore(
 	db *gosql.DB, table, eventTable string,
 ) *AccountRoleStore {
 	impl := &AccountRoleStore{}
-	impl.baseStore = makeBaseStore(
-		db, AccountRole{}, table, AccountRoleEvent{}, eventTable, impl,
+	impl.baseStore = makeBaseStore[AccountRole, AccountRoleEvent](
+		db, table, eventTable, impl,
 	)
 	return impl
 }

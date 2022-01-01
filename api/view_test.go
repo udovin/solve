@@ -168,7 +168,7 @@ func (c *testClient) CreateContest(form createContestForm) (Contest, error) {
 	return resp, err
 }
 
-func (c *testClient) doRequest(req *http.Request, code int, resp interface{}) error {
+func (c *testClient) doRequest(req *http.Request, code int, resp any) error {
 	req.Header.Add("Content-Type", "application/json")
 	for _, cookie := range c.cookies {
 		req.AddCookie(cookie)
@@ -201,7 +201,7 @@ func testSocketCreateUserRole(login string, role string) (Roles, error) {
 	return resp, err
 }
 
-func doSocketRequest(req *http.Request, code int, resp interface{}) error {
+func doSocketRequest(req *http.Request, code int, resp any) error {
 	req.Header.Add("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	if err := testHandler(req, rec); err != nil {

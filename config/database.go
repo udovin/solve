@@ -50,7 +50,7 @@ type DB struct {
 	//
 	// For SQLiteDriver field should contains SQLiteOptions.
 	// For PostgresDriver field should contains PostgresOptions.
-	Options interface{}
+	Options any
 }
 
 // UnmarshalJSON parses JSON to create appropriate connection configuration.
@@ -83,8 +83,8 @@ func (c *DB) UnmarshalJSON(bytes []byte) error {
 
 func (c DB) MarshalJSON() ([]byte, error) {
 	cfg := struct {
-		Driver  DBDriver    `json:"driver"`
-		Options interface{} `json:"options"`
+		Driver  DBDriver `json:"driver"`
+		Options any      `json:"options"`
 	}{
 		Options: c.Options,
 	}

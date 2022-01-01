@@ -70,7 +70,7 @@ func (s *mockEventStore) LoadEvents(
 }
 
 func (s *mockEventStore) FindEvents(
-	tx *sql.Tx, where string, args ...interface{},
+	tx *sql.Tx, where string, args ...any,
 ) (EventReader, error) {
 	return nil, sql.ErrNoRows
 }

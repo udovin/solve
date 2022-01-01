@@ -121,7 +121,7 @@ func (r *eventReader) Next() bool {
 	if !r.rows.Next() {
 		return false
 	}
-	var v interface{}
+	var v any
 	v, r.err = scanRow(r.typ, r.rows)
 	if r.err == nil {
 		r.event = v.(Event)

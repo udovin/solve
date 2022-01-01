@@ -9,7 +9,7 @@ import (
 )
 
 // SetupAllStores prepares all stores.
-func (c *Core) SetupAllStores() error {
+func (c *Core) SetupAllStores() {
 	c.Tasks = models.NewTaskStore(
 		c.DB, "solve_task", "solve_task_event",
 	)
@@ -29,12 +29,9 @@ func (c *Core) SetupAllStores() error {
 		c.DB, "solve_session", "solve_session_event",
 	)
 	if c.Config.Security != nil {
-		salt, err := c.Config.Security.PasswordSalt.Secret()
-		if err != nil {
-			return err
-		}
 		c.Users = models.NewUserStore(
-			c.DB, "solve_user", "solve_user_event", salt,
+			c.DB, "solve_user", "solve_user_event",
+			c.Config.Security.PasswordSalt,
 		)
 	}
 	c.Contests = models.NewContestStore(
@@ -56,7 +53,6 @@ func (c *Core) SetupAllStores() error {
 		c.DB, "solve_contest_solution", "solve_contest_solution_event",
 	)
 	c.Visits = models.NewVisitStore(c.DB, "solve_visit")
-	return nil
 }
 
 func (c *Core) startStores(start func(models.Store, time.Duration)) {

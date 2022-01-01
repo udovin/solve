@@ -37,7 +37,7 @@ type PostgresOptions struct {
 	// User contains username of user.
 	User string `json:"user"`
 	// Password contains password of user.
-	Password Secret `json:"password"`
+	Password string `json:"password"`
 	// Name contains name of database.
 	Name string `json:"name"`
 	// SSLMode contains sslmode configuration.
@@ -106,14 +106,10 @@ func createSQLiteDB(opts SQLiteOptions) (*gosql.DB, error) {
 }
 
 func createPostgresDB(opts PostgresOptions) (*gosql.DB, error) {
-	password, err := opts.Password.Secret()
-	if err != nil {
-		return nil, err
-	}
 	return (gosql.PostgresConfig{
 		Hosts:    []string{fmt.Sprintf("%s:%d", opts.Host, opts.Port)},
 		User:     opts.User,
-		Password: password,
+		Password: opts.Password,
 		Name:     opts.Name,
 		SSLMode:  opts.SSLMode,
 	}).NewDB()

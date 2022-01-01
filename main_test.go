@@ -25,10 +25,7 @@ var (
 		Server:     &config.Server{},
 		Invoker:    &config.Invoker{},
 		Security: &config.Security{
-			PasswordSalt: config.Secret{
-				Type: config.DataSecret,
-				Data: "qwerty123",
-			},
+			PasswordSalt: "qwerty123",
 		},
 	}
 )
@@ -54,9 +51,7 @@ func testSetup(tb testing.TB) {
 	if err != nil {
 		tb.Fatal("Error:", err)
 	}
-	if err := c.SetupAllStores(); err != nil {
-		tb.Fatal("Error:", err)
-	}
+	c.SetupAllStores()
 	if err := migrations.Apply(c); err != nil {
 		tb.Fatal("Error:", err)
 	}
@@ -68,9 +63,7 @@ func testTeardown(tb testing.TB) {
 	if err != nil {
 		tb.Fatal("Error:", err)
 	}
-	if err := c.SetupAllStores(); err != nil {
-		tb.Fatal("Error:", err)
-	}
+	c.SetupAllStores()
 	if err := migrations.Unapply(c); err != nil {
 		tb.Fatal("Error:", err)
 	}

@@ -258,9 +258,7 @@ func (s *TaskStore) onDeleteObject(task Task) {
 
 func (s *TaskStore) onUpdateObject(task Task) {
 	if old, ok := s.tasks[task.ID]; ok {
-		if old.Status != task.Status {
-			s.byStatus.Delete(int64(old.Status), old.ID)
-		}
+		s.onDeleteObject(old)
 	}
 	s.onCreateObject(task)
 }

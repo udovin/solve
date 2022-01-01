@@ -64,9 +64,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		panic(err)
 	}
-	if err := c.SetupAllStores(); err != nil {
-		panic(err)
-	}
+	c.SetupAllStores()
 	if err := c.Start(); err != nil {
 		panic(err)
 	}
@@ -161,9 +159,7 @@ func dbApplyMain(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		panic(err)
 	}
-	if err := c.SetupAllStores(); err != nil {
-		panic(err)
-	}
+	c.SetupAllStores()
 	if err := migrations.Apply(c); err != nil {
 		panic(err)
 	}
@@ -178,9 +174,7 @@ func dbUnapplyMain(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		panic(err)
 	}
-	if err := c.SetupAllStores(); err != nil {
-		panic(err)
-	}
+	c.SetupAllStores()
 	if err := migrations.Unapply(c); err != nil {
 		panic(err)
 	}

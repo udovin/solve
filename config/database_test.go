@@ -25,7 +25,7 @@ func TestDatabaseConfig_UnmarshalJSON_Postgres(t *testing.T) {
 	expectedConfig := DB{Options: PostgresOptions{
 		Host:     "localhost",
 		User:     "user",
-		Password: Secret{Type: DataSecret, Data: "password"},
+		Password: "password",
 		Name:     "database",
 	}}
 	data, err := json.Marshal(expectedConfig)
@@ -93,16 +93,10 @@ func TestDatabaseConfig_CreateDB_SQLite(t *testing.T) {
 
 func TestDatabaseConfig_CreateDB_Postgres(t *testing.T) {
 	config := DB{Options: PostgresOptions{
-		Password: Secret{Type: DataSecret, Data: ""},
+		Password: "",
 	}}
 	if _, err := config.Create(); err != nil {
 		t.Fatal(err)
-	}
-	config.Options = PostgresOptions{
-		Password: Secret{Type: "Unsupported"},
-	}
-	if _, err := config.Create(); err == nil {
-		t.Fatal("Expected error")
 	}
 }
 

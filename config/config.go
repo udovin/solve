@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"strings"
 	"text/template"
 
 	"github.com/labstack/gommon/log"
@@ -50,7 +53,7 @@ func (s Server) Address() string {
 // Security contains security config.
 type Security struct {
 	// PasswordSalt contains salt for password hashing.
-	PasswordSalt Secret `json:"password_salt"`
+	PasswordSalt string `json:"password_salt"`
 }
 
 // Invoker contains invoker config.
@@ -69,6 +72,21 @@ type Storage struct {
 	CompilersDir string `json:"compilers_dir"`
 }
 
+var configFuncs = template.FuncMap{
+	"json": func(value interface{}) (string, error) {
+		data, err := json.Marshal(value)
+		return string(data), err
+	},
+	"file": func(name string) (string, error) {
+		bytes, err := ioutil.ReadFile(name)
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimRight(string(bytes), "\r\n"), nil
+	},
+	"env": os.Getenv,
+}
+
 // LoadFromFile loads configuration from json file.
 func LoadFromFile(file string) (Config, error) {
 	cfg := Config{
@@ -76,7 +94,7 @@ func LoadFromFile(file string) (Config, error) {
 		// By default we should use INFO level.
 		LogLevel: log.INFO,
 	}
-	tmpl, err := template.ParseFiles(file)
+	tmpl, err := template.New(file).Funcs(configFuncs).ParseFiles(file)
 	if err != nil {
 		return Config{}, err
 	}

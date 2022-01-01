@@ -17,10 +17,7 @@ var testCfg = config.Config{
 		Options: config.SQLiteOptions{Path: ":memory:"},
 	},
 	Security: &config.Security{
-		PasswordSalt: config.Secret{
-			Type: config.DataSecret,
-			Data: "qwerty123",
-		},
+		PasswordSalt: "qwerty123",
 	},
 }
 
@@ -29,9 +26,7 @@ func TestNewCore(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := c.SetupAllStores(); err != nil {
-		t.Fatal("Error:", err)
-	}
+	c.SetupAllStores()
 	if err := migrations.Apply(c); err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -60,10 +55,7 @@ func TestNewCore_Failure(t *testing.T) {
 		Options: config.SQLiteOptions{Path: ":memory:"},
 	}
 	cfg.Security = &config.Security{
-		PasswordSalt: config.Secret{
-			Type: config.DataSecret,
-			Data: "qwerty123",
-		},
+		PasswordSalt: "qwerty123",
 	}
 	if _, err := core.NewCore(cfg); err != nil {
 		t.Fatal("Error:", err)
@@ -75,9 +67,7 @@ func TestCore_WithTx(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := c.SetupAllStores(); err != nil {
-		t.Fatal("Error:", err)
-	}
+	c.SetupAllStores()
 	if err := migrations.Apply(c); err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -97,9 +87,7 @@ func TestCore_Roles(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := c.SetupAllStores(); err != nil {
-		t.Fatal("Error:", err)
-	}
+	c.SetupAllStores()
 	if err := migrations.Apply(c); err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -123,9 +111,7 @@ func TestCore_Roles_NoRows(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := c.SetupAllStores(); err != nil {
-		t.Fatal("Error:", err)
-	}
+	c.SetupAllStores()
 	if err := migrations.Apply(c); err != nil {
 		t.Fatal("Error:", err)
 	}

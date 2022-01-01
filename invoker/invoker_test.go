@@ -18,19 +18,14 @@ func testSetup(tb testing.TB) {
 		},
 		Invoker: &config.Invoker{},
 		Security: &config.Security{
-			PasswordSalt: config.Secret{
-				Type: config.DataSecret,
-				Data: "qwerty123",
-			},
+			PasswordSalt: "qwerty123",
 		},
 	}
 	c, err := core.NewCore(cfg)
 	if err != nil {
 		tb.Fatal("Error:", err)
 	}
-	if err := c.SetupAllStores(); err != nil {
-		tb.Fatal("Error:", err)
-	}
+	c.SetupAllStores()
 	if err := migrations.Apply(c); err != nil {
 		tb.Fatal("Error:", err)
 	}

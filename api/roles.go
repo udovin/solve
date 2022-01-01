@@ -127,7 +127,7 @@ func (v *View) observeRoles(c echo.Context) error {
 }
 
 type createRoleForm struct {
-	Code string `json:"code"`
+	Code string `json:"code" form:"code"`
 }
 
 var roleCodeRegexp = regexp.MustCompile(

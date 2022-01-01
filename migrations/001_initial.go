@@ -401,6 +401,7 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.ObserveContestSolutionsRole,
 		models.ObserveContestSolutionRole,
 		models.CreateContestSolutionRole,
+		models.SubmitContestSolutionRole,
 		models.UpdateContestSolutionRole,
 		models.DeleteContestSolutionRole,
 		models.CreateContestRole,

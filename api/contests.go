@@ -33,6 +33,11 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.sessionAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.ObserveContestRole),
 	)
+	g.PATCH(
+		"/v0/contests/:contest", v.updateContest,
+		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
+		v.requireAuthRole(models.UpdateContestRole),
+	)
 	g.DELETE(
 		"/v0/contests/:contest", v.deleteContest,
 		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
@@ -64,7 +69,7 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		"/v0/contests/:contest/problems/:problem/submit",
 		v.submitContestProblemSolution, v.sessionAuth, v.extractContest,
 		v.extractContestProblem, v.extractContestRoles,
-		v.requireAuthRole(models.CreateContestSolutionRole),
+		v.requireAuthRole(models.SubmitContestSolutionRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/solutions", v.observeContestSolutions,
@@ -151,6 +156,11 @@ var contestPermissions = []string{
 	models.ObserveContestParticipantsRole,
 	models.CreateContestParticipantRole,
 	models.DeleteContestParticipantRole,
+	models.ObserveContestSolutionsRole,
+	models.CreateContestSolutionRole,
+	models.SubmitContestSolutionRole,
+	models.UpdateContestSolutionRole,
+	models.DeleteContestSolutionRole,
 }
 
 func makeContest(contest models.Contest, roles core.RoleSet, core *core.Core) Contest {
@@ -214,17 +224,18 @@ func (v *View) observeContest(c echo.Context) error {
 	return c.JSON(http.StatusOK, makeContest(contest, roles, v.core))
 }
 
-type createContestForm struct {
-	Title string `json:"title"`
+type updateContestForm struct {
+	Title *string `json:"title"`
 }
 
-func (f createContestForm) validate() *errorResponse {
+func (f updateContestForm) validate() *errorResponse {
 	errors := errorFields{}
-	if len(f.Title) < 4 {
-		errors["title"] = errorField{Message: "title is too short"}
-	}
-	if len(f.Title) > 64 {
-		errors["title"] = errorField{Message: "title is too long"}
+	if f.Title != nil {
+		if len(*f.Title) < 4 {
+			errors["title"] = errorField{Message: "title is too short"}
+		} else if len(*f.Title) > 64 {
+			errors["title"] = errorField{Message: "title is too long"}
+		}
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
@@ -235,12 +246,28 @@ func (f createContestForm) validate() *errorResponse {
 	return nil
 }
 
-func (f createContestForm) Update(contest *models.Contest) *errorResponse {
+func (f updateContestForm) Update(contest *models.Contest) *errorResponse {
 	if err := f.validate(); err != nil {
 		return err
 	}
-	contest.Title = f.Title
+	if f.Title != nil {
+		contest.Title = *f.Title
+	}
 	return nil
+}
+
+type createContestForm updateContestForm
+
+func (f createContestForm) Update(contest *models.Contest) *errorResponse {
+	if f.Title == nil {
+		return &errorResponse{
+			Message: "form has invalid fields",
+			InvalidFields: errorFields{
+				"title": errorField{Message: "title is required"},
+			},
+		}
+	}
+	return updateContestForm(f).Update(contest)
 }
 
 func (v *View) createContest(c echo.Context) error {
@@ -265,6 +292,32 @@ func (v *View) createContest(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeContest(contest, nil, nil))
+}
+
+func (v *View) updateContest(c echo.Context) error {
+	contest, ok := c.Get(contestKey).(models.Contest)
+	if !ok {
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
+	}
+	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	if !ok {
+		c.Logger().Error("roles not extracted")
+		return fmt.Errorf("roles not extracted")
+	}
+	var form updateContestForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if err := form.Update(&contest); err != nil {
+		return c.JSON(http.StatusBadRequest, err)
+	}
+	if err := v.core.Contests.UpdateTx(v.core.DB, contest); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusCreated, makeContest(contest, roles, v.core))
 }
 
 func (v *View) deleteContest(c echo.Context) error {
@@ -906,6 +959,7 @@ func (v *View) extendContestRoles(
 			addRole(models.ObserveContestSolutionsRole)
 			addRole(models.ObserveContestSolutionRole)
 			addRole(models.CreateContestSolutionRole)
+			addRole(models.SubmitContestSolutionRole)
 			addRole(models.UpdateContestSolutionRole)
 			addRole(models.DeleteContestSolutionRole)
 		}
@@ -919,7 +973,7 @@ func (v *View) extendContestRoles(
 			addRole(models.ObserveContestProblemsRole)
 			addRole(models.ObserveContestProblemRole)
 			addRole(models.ObserveContestSolutionsRole)
-			addRole(models.CreateContestSolutionRole)
+			addRole(models.SubmitContestSolutionRole)
 		}
 	}
 	return contestRoles

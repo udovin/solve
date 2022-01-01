@@ -2,8 +2,10 @@ package api
 
 import "testing"
 
+var testContestTitle = "Test contest"
+
 var testCreateContest = createContestForm{
-	Title: "Test contest",
+	Title: &testContestTitle,
 }
 
 func TestContestSimpleScenario(t *testing.T) {
@@ -46,7 +48,7 @@ func TestContestSimpleScenario(t *testing.T) {
 	if contest.ID == 0 {
 		t.Fatal("Invalid contest ID")
 	}
-	if contest.Title != "Test contest" {
+	if contest.Title != testContestTitle {
 		t.Fatal("Invalid title:", contest.Title)
 	}
 	testSyncManagers(t)

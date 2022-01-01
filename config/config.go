@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -94,7 +95,8 @@ func LoadFromFile(file string) (Config, error) {
 		// By default we should use INFO level.
 		LogLevel: log.INFO,
 	}
-	tmpl, err := template.New(file).Funcs(configFuncs).ParseFiles(file)
+	tmpl, err := template.New(filepath.Base(file)).
+		Funcs(configFuncs).ParseFiles(file)
 	if err != nil {
 		return Config{}, err
 	}

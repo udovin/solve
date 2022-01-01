@@ -131,6 +131,9 @@ const (
 	// CreateContestSolutionRole represents role for creating
 	// contest solution.
 	CreateContestSolutionRole = "create_contest_solution"
+	// SubmitContestSolutionRole represents role for submitting
+	// contest solution.
+	SubmitContestSolutionRole = "submit_contest_solution"
 	// UpdateContestSolutionRole represents role for updating
 	// contest solution.
 	UpdateContestSolutionRole = "update_contest_solution"
@@ -195,6 +198,7 @@ var builtInRoles = map[string]struct{}{
 	ObserveContestSolutionsRole:    {},
 	ObserveContestSolutionRole:     {},
 	CreateContestSolutionRole:      {},
+	SubmitContestSolutionRole:      {},
 	UpdateContestSolutionRole:      {},
 	DeleteContestSolutionRole:      {},
 	ObserveContestsRole:            {},

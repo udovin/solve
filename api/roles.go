@@ -394,33 +394,24 @@ func (v *View) deleteUserRole(c echo.Context) error {
 	return errNotImplemented
 }
 
+func getRoleByParam(roles *models.RoleStore, code string) (models.Role, error) {
+	id, err := strconv.ParseInt(code, 10, 64)
+	if err != nil {
+		return roles.GetByCode(code)
+	}
+	return roles.Get(id)
+}
+
 func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		code := c.Param("role")
-		id, err := strconv.ParseInt(code, 10, 64)
-		if err != nil {
-			role, err := v.core.Roles.GetByCode(code)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					resp := errorResponse{
-						Message: fmt.Sprintf("role %q not found", code),
-					}
-					return c.JSON(http.StatusNotFound, resp)
-				}
-				c.Logger().Error(err)
-				return err
+		role, err := getRoleByParam(v.core.Roles, code)
+		if err == sql.ErrNoRows {
+			resp := errorResponse{
+				Message: fmt.Sprintf("role %q not found", code),
 			}
-			c.Set(roleKey, role)
-			return next(c)
-		}
-		role, err := v.core.Roles.Get(id)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				resp := errorResponse{
-					Message: fmt.Sprintf("role %d not found", id),
-				}
-				return c.JSON(http.StatusNotFound, resp)
-			}
+			return c.JSON(http.StatusNotFound, resp)
+		} else if err != nil {
 			c.Logger().Error(err)
 			return err
 		}
@@ -432,30 +423,13 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 func (v *View) extractChildRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		code := c.Param("child_role")
-		id, err := strconv.ParseInt(code, 10, 64)
-		if err != nil {
-			role, err := v.core.Roles.GetByCode(code)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					resp := errorResponse{
-						Message: fmt.Sprintf("role %q not found", code),
-					}
-					return c.JSON(http.StatusNotFound, resp)
-				}
-				c.Logger().Error(err)
-				return err
+		role, err := getRoleByParam(v.core.Roles, code)
+		if err == sql.ErrNoRows {
+			resp := errorResponse{
+				Message: fmt.Sprintf("role %q not found", code),
 			}
-			c.Set(childRoleKey, role)
-			return next(c)
-		}
-		role, err := v.core.Roles.Get(id)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				resp := errorResponse{
-					Message: fmt.Sprintf("role %d not found", id),
-				}
-				return c.JSON(http.StatusNotFound, resp)
-			}
+			return c.JSON(http.StatusNotFound, resp)
+		} else if err != nil {
 			c.Logger().Error(err)
 			return err
 		}

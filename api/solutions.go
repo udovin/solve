@@ -30,10 +30,11 @@ func (v *View) registerSolutionHandlers(g *echo.Group) {
 }
 
 type Solution struct {
-	ID      int64           `json:"id"`
-	Problem *Problem        `json:"problem"`
-	User    *User           `json:"user"`
-	Report  *SolutionReport `json:"report"`
+	ID         int64           `json:"id"`
+	Problem    *Problem        `json:"problem"`
+	User       *User           `json:"user"`
+	Report     *SolutionReport `json:"report"`
+	CreateTime int64           `json:"create_time"`
 }
 
 type Solutions struct {
@@ -55,7 +56,10 @@ func (v solutionSorter) Swap(i, j int) {
 }
 
 func makeSolution(c echo.Context, solution models.Solution, roles core.RoleSet, core *core.Core) Solution {
-	resp := Solution{ID: solution.ID}
+	resp := Solution{
+		ID:         solution.ID,
+		CreateTime: solution.CreateTime,
+	}
 	if problem, err := core.Problems.Get(solution.ProblemID); err == nil {
 		problemResp := makeProblem(problem)
 		resp.Problem = &problemResp

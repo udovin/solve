@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
@@ -79,10 +80,11 @@ type SolutionReport struct {
 
 // Solution represents a solution.
 type Solution struct {
-	ID        int64 `db:"id"`
-	ProblemID int64 `db:"problem_id"`
-	AuthorID  int64 `db:"author_id"`
-	Report    JSON  `db:"report"`
+	ID         int64 `db:"id"`
+	ProblemID  int64 `db:"problem_id"`
+	AuthorID   int64 `db:"author_id"`
+	Report     JSON  `db:"report"`
+	CreateTime int64 `db:"create_time"`
 }
 
 // ObjectID return ID of solution.
@@ -138,6 +140,7 @@ type SolutionStore struct {
 
 // CreateTx creates solution and returns copy with valid ID.
 func (s *SolutionStore) CreateTx(tx gosql.WeakTx, solution *Solution) error {
+	solution.CreateTime = time.Now().Unix()
 	event, err := s.createObjectEvent(tx, SolutionEvent{
 		makeBaseEvent(CreateEvent), *solution,
 	})

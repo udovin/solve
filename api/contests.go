@@ -662,6 +662,7 @@ type ContestSolution struct {
 	Problem     *ContestProblem     `json:"problem,omitempty"`
 	Participant *ContestParticipant `json:"participant,omitempty"`
 	Report      *SolutionReport     `json:"report"`
+	CreateTime  int64               `json:"create_time"`
 }
 
 func (v *View) submitContestProblemSolution(c echo.Context) error {
@@ -755,6 +756,7 @@ func makeContestSolution(c echo.Context, solution models.ContestSolution, roles 
 		ContestID: solution.ContestID,
 	}
 	if baseSolution, err := core.Solutions.Get(solution.SolutionID); err == nil {
+		resp.CreateTime = baseSolution.CreateTime
 		if report, err := baseSolution.GetReport(); err == nil {
 			reportResp := SolutionReport{
 				Verdict:    report.Verdict.String(),

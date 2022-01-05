@@ -255,10 +255,10 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	if err := compier.Compile(
 		ctx, solutionPath, tempSolutionPath, tempCompileLogPath,
 	); err != nil {
-		s.core.Logger().Error("Unable to compile: ", err)
+		s.core.Logger().Warn("Unable to compile: ", err)
 		compileLog, err := readFile(tempCompileLogPath, 1024)
 		if err != nil {
-			s.core.Logger().Error("Unable to read compile logs: ", err)
+			s.core.Logger().Warn("Unable to read compile logs: ", err)
 		}
 		report.CompileLog = compileLog
 		report.Verdict = models.CompilationError
@@ -266,7 +266,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	} else {
 		compileLog, err := readFile(tempCompileLogPath, 1024)
 		if err != nil {
-			s.core.Logger().Error("Unable to read compile logs: ", err)
+			s.core.Logger().Warn("Unable to read compile logs: ", err)
 		}
 		report.CompileLog = compileLog
 	}

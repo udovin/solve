@@ -25,7 +25,7 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.POST(
 		"/v0/contests", v.createContest,
-		v.sessionAuth,
+		v.sessionAuth, v.requireAuth,
 		v.requireAuthRole(models.CreateContestRole),
 	)
 	g.GET(
@@ -56,19 +56,19 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.POST(
 		"/v0/contests/:contest/problems", v.createContestProblem,
-		v.sessionAuth, v.extractContest, v.extractContestRoles,
+		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.CreateContestProblemRole),
 	)
 	g.DELETE(
 		"/v0/contests/:contest/problems/:problem", v.deleteContestProblem,
-		v.sessionAuth, v.extractContest, v.extractContestProblem,
-		v.extractContestRoles,
+		v.sessionAuth, v.requireAuth, v.extractContest,
+		v.extractContestProblem, v.extractContestRoles,
 		v.requireAuthRole(models.DeleteContestProblemRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/problems/:problem/submit",
-		v.submitContestProblemSolution, v.sessionAuth, v.extractContest,
-		v.extractContestProblem, v.extractContestRoles,
+		v.submitContestProblemSolution, v.sessionAuth, v.requireAuth,
+		v.extractContest, v.extractContestProblem, v.extractContestRoles,
 		v.requireAuthRole(models.SubmitContestSolutionRole),
 	)
 	g.GET(
@@ -89,12 +89,13 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 	g.POST(
 		"/v0/contests/:contest/participants", v.createContestParticipant,
-		v.sessionAuth, v.extractContest, v.extractContestRoles,
+		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
 		v.requireAuthRole(models.CreateContestParticipantRole),
 	)
 	g.DELETE(
-		"/v0/contests/:contest/participants/:participant", v.deleteContestParticipant,
-		v.sessionAuth, v.extractContest, v.extractContestParticipant, v.extractContestRoles,
+		"/v0/contests/:contest/participants/:participant",
+		v.deleteContestParticipant, v.sessionAuth, v.requireAuth,
+		v.extractContest, v.extractContestParticipant, v.extractContestRoles,
 		v.requireAuthRole(models.DeleteContestParticipantRole),
 	)
 }
@@ -486,11 +487,6 @@ type ContestParticipants struct {
 }
 
 func (v *View) observeContestParticipants(c echo.Context) error {
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
-	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
-	}
 	contest, ok := c.Get(contestKey).(models.Contest)
 	if !ok {
 		c.Logger().Error("contest not extracted")
@@ -504,7 +500,7 @@ func (v *View) observeContestParticipants(c echo.Context) error {
 	for _, participant := range participants {
 		resp.Participants = append(
 			resp.Participants,
-			makeContestParticipant(c, participant, roles, v.core),
+			makeContestParticipant(c, participant, v.core),
 		)
 	}
 	return c.JSON(http.StatusOK, resp)
@@ -544,11 +540,6 @@ func (f createContestParticipantForm) Update(
 }
 
 func (v *View) createContestParticipant(c echo.Context) error {
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
-	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
-	}
 	contest, ok := c.Get(contestKey).(models.Contest)
 	if !ok {
 		c.Logger().Error("contest not extracted")
@@ -572,7 +563,7 @@ func (v *View) createContestParticipant(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusCreated,
-		makeContestParticipant(c, participant, roles, v.core),
+		makeContestParticipant(c, participant, v.core),
 	)
 }
 
@@ -590,7 +581,7 @@ func (v *View) deleteContestParticipant(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusOK,
-		makeContestParticipant(c, participant, nil, nil),
+		makeContestParticipant(c, participant, nil),
 	)
 }
 
@@ -622,7 +613,7 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 		); ok && err == nil {
 			resp.Solutions = append(
 				resp.Solutions,
-				makeContestSolution(c, solution, roles, v.core),
+				makeBaseContestSolution(c, solution, roles, v.core),
 			)
 		}
 	}
@@ -648,6 +639,8 @@ func (v *View) observeContestSolution(c echo.Context) error {
 type TestReport struct {
 	Verdict  string `json:"verdict"`
 	CheckLog string `json:"check_log,omitempty"`
+	Input    string `json:"input,omitempty"`
+	Output   string `json:"output,omitempty"`
 }
 
 type SolutionReport struct {
@@ -750,6 +743,26 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	)
 }
 
+func makeBaseContestSolution(c echo.Context, solution models.ContestSolution, roles core.RoleSet, core *core.Core) ContestSolution {
+	resp := ContestSolution{
+		ID:        solution.ID,
+		ContestID: solution.ContestID,
+	}
+	if baseSolution, err := core.Solutions.Get(solution.SolutionID); err == nil {
+		resp.CreateTime = baseSolution.CreateTime
+		resp.Report = makeBaseSolutionReport(baseSolution)
+	}
+	if problem, err := core.ContestProblems.Get(solution.ProblemID); err == nil {
+		problemResp := makeContestProblem(problem, core.Problems)
+		resp.Problem = &problemResp
+	}
+	if participant, err := core.ContestParticipants.Get(solution.ParticipantID); err == nil {
+		participantResp := makeContestParticipant(c, participant, core)
+		resp.Participant = &participantResp
+	}
+	return resp
+}
+
 func makeContestSolution(c echo.Context, solution models.ContestSolution, roles core.RoleSet, core *core.Core) ContestSolution {
 	resp := ContestSolution{
 		ID:        solution.ID,
@@ -757,26 +770,14 @@ func makeContestSolution(c echo.Context, solution models.ContestSolution, roles 
 	}
 	if baseSolution, err := core.Solutions.Get(solution.SolutionID); err == nil {
 		resp.CreateTime = baseSolution.CreateTime
-		if report, err := baseSolution.GetReport(); err == nil {
-			reportResp := SolutionReport{
-				Verdict:    report.Verdict.String(),
-				CompileLog: report.CompileLog,
-			}
-			for _, test := range report.Tests {
-				reportResp.Tests = append(reportResp.Tests, TestReport{
-					Verdict:  test.Verdict.String(),
-					CheckLog: test.CheckLog,
-				})
-			}
-			resp.Report = &reportResp
-		}
+		resp.Report = makeSolutionReport(baseSolution)
 	}
 	if problem, err := core.ContestProblems.Get(solution.ProblemID); err == nil {
 		problemResp := makeContestProblem(problem, core.Problems)
 		resp.Problem = &problemResp
 	}
 	if participant, err := core.ContestParticipants.Get(solution.ParticipantID); err == nil {
-		participantResp := makeContestParticipant(c, participant, roles, core)
+		participantResp := makeContestParticipant(c, participant, core)
 		resp.Participant = &participantResp
 	}
 	return resp
@@ -784,7 +785,7 @@ func makeContestSolution(c echo.Context, solution models.ContestSolution, roles 
 
 func makeContestParticipant(
 	c echo.Context, participant models.ContestParticipant,
-	roles core.RoleSet, core *core.Core,
+	core *core.Core,
 ) ContestParticipant {
 	resp := ContestParticipant{
 		ID:        participant.ID,
@@ -795,8 +796,7 @@ func makeContestParticipant(
 			switch account.Kind {
 			case models.UserAccount:
 				if user, err := core.Users.GetByAccount(account.ID); err == nil {
-					userResp := makeUser(c, user, roles, core)
-					resp.User = &userResp
+					resp.User = &User{ID: user.ID, Login: user.Login}
 				}
 			}
 		}

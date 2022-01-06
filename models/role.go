@@ -10,11 +10,11 @@ import (
 // Role represents a role.
 type Role struct {
 	// ID contains ID of role.
-	ID int64 `db:"id" json:"id"`
+	ID int64 `db:"id"`
 	// Code contains role code.
 	//
 	// Code should be unique for all roles in the events.
-	Code string `db:"code" json:"code"`
+	Code string `db:"code"`
 }
 
 const (
@@ -90,6 +90,16 @@ const (
 	UpdateProblemRole = "update_problem"
 	// DeleteProblemRole represents role for deleting problem.
 	DeleteProblemRole = "delete_problem"
+	// ObserveCompilersRole represents role for observing compiler list.
+	ObserveCompilersRole = "observe_compilers"
+	// ObserveCompilerRole represents role for observing compiler.
+	ObserveCompilerRole = "observe_compiler"
+	// CreateCompilerRole represents role for creating compiler.
+	CreateCompilerRole = "create_compiler"
+	// UpdateCompilerRole represents role for updating compiler.
+	UpdateCompilerRole = "update_compiler"
+	// DeleteCompilerRole represents role for deleting compiler.
+	DeleteCompilerRole = "delete_compiler"
 	// ObserveSolutionsRole represents role for observing solution list.
 	ObserveSolutionsRole = "observe_solutions"
 	// ObserveSolutionRole represents role for observing solution.
@@ -184,6 +194,11 @@ var builtInRoles = map[string]struct{}{
 	CreateProblemRole:              {},
 	UpdateProblemRole:              {},
 	DeleteProblemRole:              {},
+	ObserveCompilersRole:           {},
+	ObserveCompilerRole:            {},
+	CreateCompilerRole:             {},
+	UpdateCompilerRole:             {},
+	DeleteCompilerRole:             {},
 	ObserveSolutionsRole:           {},
 	ObserveSolutionRole:            {},
 	ObserveContestRole:             {},

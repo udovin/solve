@@ -26,7 +26,7 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 	if v.core.Config.Storage != nil {
 		g.POST(
 			"/v0/problems", v.createProblem,
-			v.sessionAuth,
+			v.sessionAuth, v.requireAuth,
 			v.requireAuthRole(models.CreateProblemRole),
 		)
 	}

@@ -31,7 +31,7 @@ type Sessions struct {
 func (v *View) registerSessionHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/sessions/:session", v.observeSession,
-		v.sessionAuth, v.requireAuth, v.extractSession, v.extractSessionRoles,
+		v.sessionAuth, v.extractSession, v.extractSessionRoles,
 		v.requireAuthRole(models.ObserveSessionRole),
 	)
 	g.DELETE(

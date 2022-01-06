@@ -55,37 +55,78 @@ func (v solutionSorter) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
 }
 
-func makeSolution(c echo.Context, solution models.Solution, roles core.RoleSet, core *core.Core) Solution {
+func makeBaseSolutionReport(solution models.Solution) *SolutionReport {
+	report, err := solution.GetReport()
+	if err != nil || report == nil {
+		return nil
+	}
+	resp := SolutionReport{
+		Verdict: report.Verdict.String(),
+	}
+	return &resp
+}
+
+func makeSolutionReport(solution models.Solution) *SolutionReport {
+	report, err := solution.GetReport()
+	if err != nil || report == nil {
+		return nil
+	}
+	resp := SolutionReport{
+		Verdict:    report.Verdict.String(),
+		CompileLog: report.CompileLog,
+	}
+	for _, test := range report.Tests {
+		resp.Tests = append(resp.Tests, TestReport{
+			Verdict:  test.Verdict.String(),
+			CheckLog: test.CheckLog,
+		})
+	}
+	return &resp
+}
+
+func (v *View) makeBaseSolution(
+	c echo.Context, solution models.Solution, roles core.RoleSet,
+) Solution {
 	resp := Solution{
 		ID:         solution.ID,
 		CreateTime: solution.CreateTime,
 	}
-	if problem, err := core.Problems.Get(solution.ProblemID); err == nil {
+	if problem, err := v.core.Problems.Get(solution.ProblemID); err == nil {
 		problemResp := makeProblem(problem)
 		resp.Problem = &problemResp
 	}
-	if account, err := core.Accounts.Get(solution.AuthorID); err == nil {
+	if account, err := v.core.Accounts.Get(solution.AuthorID); err == nil {
 		switch account.Kind {
 		case models.UserAccount:
-			if user, err := core.Users.GetByAccount(account.ID); err == nil {
-				userResp := makeUser(c, user, roles, core)
-				resp.User = &userResp
+			if user, err := v.core.Users.GetByAccount(account.ID); err == nil {
+				resp.User = &User{ID: user.ID, Login: user.Login}
 			}
 		}
 	}
-	if report, err := solution.GetReport(); err == nil {
-		reportResp := SolutionReport{
-			Verdict:    report.Verdict.String(),
-			CompileLog: report.CompileLog,
-		}
-		for _, test := range report.Tests {
-			reportResp.Tests = append(reportResp.Tests, TestReport{
-				Verdict:  test.Verdict.String(),
-				CheckLog: test.CheckLog,
-			})
-		}
-		resp.Report = &reportResp
+	resp.Report = makeBaseSolutionReport(solution)
+	return resp
+}
+
+func (v *View) makeSolution(
+	c echo.Context, solution models.Solution, roles core.RoleSet,
+) Solution {
+	resp := Solution{
+		ID:         solution.ID,
+		CreateTime: solution.CreateTime,
 	}
+	if problem, err := v.core.Problems.Get(solution.ProblemID); err == nil {
+		problemResp := makeProblem(problem)
+		resp.Problem = &problemResp
+	}
+	if account, err := v.core.Accounts.Get(solution.AuthorID); err == nil {
+		switch account.Kind {
+		case models.UserAccount:
+			if user, err := v.core.Users.GetByAccount(account.ID); err == nil {
+				resp.User = &User{ID: user.ID, Login: user.Login}
+			}
+		}
+	}
+	resp.Report = makeSolutionReport(solution)
 	return resp
 }
 
@@ -108,7 +149,7 @@ func (v *View) observeSolutions(c echo.Context) error {
 		); ok && err == nil {
 			resp.Solutions = append(
 				resp.Solutions,
-				makeSolution(c, solution, solutionRoles, v.core),
+				v.makeBaseSolution(c, solution, solutionRoles),
 			)
 		}
 	}
@@ -127,7 +168,7 @@ func (v *View) observeSolution(c echo.Context) error {
 		c.Logger().Error("roles not extracted")
 		return fmt.Errorf("roles not extracted")
 	}
-	return c.JSON(http.StatusOK, makeSolution(c, solution, roles, v.core))
+	return c.JSON(http.StatusOK, v.makeSolution(c, solution, roles))
 }
 
 func (v *View) extractSolution(next echo.HandlerFunc) echo.HandlerFunc {

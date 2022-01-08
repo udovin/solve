@@ -64,7 +64,7 @@ func NewCore(cfg config.Config) (*Core, error) {
 		return nil, err
 	}
 	logger := log.New("core")
-	logger.SetLevel(cfg.LogLevel)
+	logger.SetLevel(log.Lvl(cfg.LogLevel))
 	logger.EnableColor()
 	return &Core{Config: cfg, DB: conn, logger: logger}, nil
 }

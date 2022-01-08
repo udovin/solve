@@ -37,7 +37,7 @@ func init() {
 func testSetup(tb testing.TB) {
 	var err error
 	func() {
-		testConfigFile, err = ioutil.TempFile("", "test-")
+		testConfigFile, err = ioutil.TempFile(os.TempDir(), "test-")
 		if err != nil {
 			tb.Fatal("Error:", err)
 		}

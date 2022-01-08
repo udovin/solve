@@ -11,10 +11,10 @@ import (
 type Role struct {
 	// ID contains ID of role.
 	ID int64 `db:"id"`
-	// Code contains role code.
+	// Name contains role name.
 	//
-	// Code should be unique for all roles in the events.
-	Code string `db:"code"`
+	// Name should be unique for all roles in the events.
+	Name string `db:"name"`
 }
 
 const (
@@ -232,7 +232,7 @@ func (o Role) ObjectID() int64 {
 
 // IsBuiltIn returns flag that role is built-in.
 func (o Role) IsBuiltIn() bool {
-	_, ok := builtInRoles[o.Code]
+	_, ok := builtInRoles[o.Name]
 	return ok
 }
 
@@ -262,7 +262,7 @@ func (e RoleEvent) WithObject(o db.Object) ObjectEvent {
 type RoleStore struct {
 	baseStore[Role, RoleEvent]
 	roles  map[int64]Role
-	byCode map[string]int64
+	byName map[string]int64
 }
 
 // Get returns role by ID.
@@ -289,14 +289,14 @@ func (s *RoleStore) All() ([]Role, error) {
 	return roles, nil
 }
 
-// GetByCode returns role by code.
+// GetByName returns role by name.
 //
-// If there is no role with specified code then
+// If there is no role with specified name then
 // sql.ErrNoRows will be returned.
-func (s *RoleStore) GetByCode(code string) (Role, error) {
+func (s *RoleStore) GetByName(name string) (Role, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if id, ok := s.byCode[code]; ok {
+	if id, ok := s.byName[name]; ok {
 		if role, ok := s.roles[id]; ok {
 			return role.Clone(), nil
 		}
@@ -336,16 +336,16 @@ func (s *RoleStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 
 func (s *RoleStore) reset() {
 	s.roles = map[int64]Role{}
-	s.byCode = map[string]int64{}
+	s.byName = map[string]int64{}
 }
 
 func (s *RoleStore) onCreateObject(role Role) {
 	s.roles[role.ID] = role
-	s.byCode[role.Code] = role.ID
+	s.byName[role.Name] = role.ID
 }
 
 func (s *RoleStore) onDeleteObject(role Role) {
-	delete(s.byCode, role.Code)
+	delete(s.byName, role.Name)
 	delete(s.roles, role.ID)
 }
 

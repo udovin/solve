@@ -206,8 +206,8 @@ func (v *View) extendSolutionRoles(
 	if solution.ID == 0 {
 		return solutionRoles
 	}
-	addRole := func(code string) {
-		if err := v.core.AddRole(solutionRoles, code); err != nil {
+	addRole := func(name string) {
+		if err := v.core.AddRole(solutionRoles, name); err != nil {
 			c.Logger().Error(err)
 		}
 	}

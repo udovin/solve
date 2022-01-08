@@ -44,7 +44,7 @@ var m001Tables = []schema.Table{
 		Name: "solve_role",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
-			{Name: "code", Type: schema.String},
+			{Name: "name", Type: schema.String},
 		},
 	},
 	{
@@ -54,7 +54,7 @@ var m001Tables = []schema.Table{
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
-			{Name: "code", Type: schema.String},
+			{Name: "name", Type: schema.String},
 		},
 	},
 	{
@@ -357,10 +357,10 @@ func (m *m001) Unapply(c *core.Core, tx *sql.Tx) error {
 
 func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 	roles := map[string]int64{}
-	create := func(code string) error {
-		role, err := c.Roles.CreateTx(tx, models.Role{Code: code})
+	create := func(name string) error {
+		role, err := c.Roles.CreateTx(tx, models.Role{Name: name})
 		if err == nil {
-			roles[role.Code] = role.ID
+			roles[role.Name] = role.ID
 		}
 		return err
 	}

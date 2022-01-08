@@ -108,8 +108,8 @@ func (v *View) extractSessionRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error("roles not extracted")
 			return fmt.Errorf("roles not extracted")
 		}
-		addRole := func(roles core.RoleSet, code string) {
-			if err := v.core.AddRole(roles, code); err != nil {
+		addRole := func(roles core.RoleSet, name string) {
+			if err := v.core.AddRole(roles, name); err != nil {
 				c.Logger().Error(err)
 			}
 		}

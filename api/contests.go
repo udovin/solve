@@ -939,8 +939,8 @@ func (v *View) extendContestRoles(
 	if contest.ID == 0 {
 		return contestRoles
 	}
-	addRole := func(code string) {
-		if err := v.core.AddRole(contestRoles, code); err != nil {
+	addRole := func(name string) {
+		if err := v.core.AddRole(contestRoles, name); err != nil {
 			c.Logger().Error(err)
 		}
 	}
@@ -988,8 +988,8 @@ func (v *View) extendContestSolutionRoles(
 	if solution.ID == 0 {
 		return solutionRoles
 	}
-	addRole := func(code string) {
-		if err := v.core.AddRole(solutionRoles, code); err != nil {
+	addRole := func(name string) {
+		if err := v.core.AddRole(solutionRoles, name); err != nil {
 			c.Logger().Error(err)
 		}
 	}

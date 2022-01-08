@@ -223,8 +223,8 @@ func (v *View) extendProblemRoles(
 	c echo.Context, roles core.RoleSet, problem models.Problem,
 ) core.RoleSet {
 	problemRoles := roles.Clone()
-	addRole := func(code string) {
-		if err := v.core.AddRole(problemRoles, code); err != nil {
+	addRole := func(name string) {
+		if err := v.core.AddRole(problemRoles, name); err != nil {
 			c.Logger().Error(err)
 		}
 	}

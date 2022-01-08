@@ -23,8 +23,8 @@ func (s RoleSet) Clone() RoleSet {
 }
 
 // AddRole adds role to role set.
-func (c *Core) AddRole(roles RoleSet, code string) error {
-	role, err := c.Roles.GetByCode(code)
+func (c *Core) AddRole(roles RoleSet, name string) error {
+	role, err := c.Roles.GetByName(name)
 	if err != nil {
 		return err
 	}
@@ -33,8 +33,8 @@ func (c *Core) AddRole(roles RoleSet, code string) error {
 }
 
 // HasRole checks that role set has specified role.
-func (c *Core) HasRole(roles RoleSet, code string) (bool, error) {
-	role, err := c.Roles.GetByCode(code)
+func (c *Core) HasRole(roles RoleSet, name string) (bool, error) {
+	role, err := c.Roles.GetByName(name)
 	if err != nil {
 		return false, err
 	}
@@ -43,7 +43,7 @@ func (c *Core) HasRole(roles RoleSet, code string) (bool, error) {
 
 // GetGuestRoles returns roles for guest account.
 func (c *Core) GetGuestRoles() (RoleSet, error) {
-	role, err := c.Roles.GetByCode(models.GuestGroupRole)
+	role, err := c.Roles.GetByName(models.GuestGroupRole)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (c *Core) GetGuestRoles() (RoleSet, error) {
 
 // GetAccountRoles returns roles for account.
 func (c *Core) GetAccountRoles(id int64) (RoleSet, error) {
-	role, err := c.Roles.GetByCode(models.UserGroupRole)
+	role, err := c.Roles.GetByName(models.UserGroupRole)
 	if err != nil {
 		return nil, err
 	}

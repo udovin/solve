@@ -333,7 +333,7 @@ func (v *View) status(c echo.Context) error {
 		for id := range roles {
 			if role, err := v.core.Roles.Get(id); err == nil {
 				if role.IsBuiltIn() {
-					status.Roles = append(status.Roles, role.Code)
+					status.Roles = append(status.Roles, role.Name)
 				}
 			}
 		}
@@ -597,8 +597,8 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error("roles not extracted")
 			return fmt.Errorf("roles not extracted")
 		}
-		addRole := func(roles core.RoleSet, code string) {
-			if err := v.core.AddRole(roles, code); err != nil {
+		addRole := func(roles core.RoleSet, name string) {
+			if err := v.core.AddRole(roles, name); err != nil {
 				c.Logger().Error(err)
 			}
 		}

@@ -270,7 +270,7 @@ func (v *View) extractAuthRoles(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 // requireRole check that user has required roles.
-func (v *View) requireAuthRole(codes ...string) echo.MiddlewareFunc {
+func (v *View) requireAuthRole(names ...string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		nextWrap := func(c echo.Context) error {
 			resp := errorResponse{
@@ -278,17 +278,17 @@ func (v *View) requireAuthRole(codes ...string) echo.MiddlewareFunc {
 			}
 			roles, ok := c.Get(authRolesKey).(core.RoleSet)
 			if !ok {
-				resp.MissingRoles = codes
+				resp.MissingRoles = names
 				return c.JSON(http.StatusForbidden, resp)
 			}
-			for _, code := range codes {
-				ok, err := v.core.HasRole(roles, code)
+			for _, name := range names {
+				ok, err := v.core.HasRole(roles, name)
 				if err != nil {
 					c.Logger().Error(err)
 					return err
 				}
 				if !ok {
-					resp.MissingRoles = append(resp.MissingRoles, code)
+					resp.MissingRoles = append(resp.MissingRoles, name)
 				}
 			}
 			if len(resp.MissingRoles) > 0 {

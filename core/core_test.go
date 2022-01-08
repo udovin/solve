@@ -120,7 +120,7 @@ func TestCore_Roles_NoRows(t *testing.T) {
 	}
 	defer c.Stop()
 	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
-		role, err := c.Roles.GetByCode(models.GuestGroupRole)
+		role, err := c.Roles.GetByName(models.GuestGroupRole)
 		if err != nil {
 			return err
 		}

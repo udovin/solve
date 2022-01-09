@@ -175,7 +175,7 @@ func dbUnapplyMain(cmd *cobra.Command, _ []string) {
 		panic(err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Unapply(c); err != nil {
+	if err := migrations.Unapply(c, false); err != nil {
 		panic(err)
 	}
 }

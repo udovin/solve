@@ -35,7 +35,7 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Unapply(c); err != nil {
+	if err := migrations.Unapply(c, true); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	if err := migrations.Apply(c); err != nil {
@@ -51,7 +51,7 @@ func testSetup(tb testing.TB) {
 }
 
 func testTeardown(tb testing.TB) {
-	_ = migrations.Unapply(testView.core)
+	_ = migrations.Unapply(testView.core, true)
 	testView.core.Stop()
 }
 

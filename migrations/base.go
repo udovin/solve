@@ -3,6 +3,7 @@ package migrations
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
@@ -26,8 +27,10 @@ var migrations = []Migration{
 }
 
 type migration struct {
-	ID   int64  `db:"id"`
-	Name string `db:"name"`
+	ID      int64  `db:"id"`
+	Name    string `db:"name"`
+	Version string `db:"version"`
+	Time    int64  `db:"time"`
 }
 
 func (o migration) ObjectID() int64 {
@@ -38,11 +41,9 @@ const migrationTableName = "solve_db_migration"
 
 // Apply applies all migrations to the specified core.
 func Apply(c *core.Core) error {
-	// Prepare database.
-	if err := setupDB(c.DB); err != nil {
+	if err := setupMigrations(c.DB); err != nil {
 		return err
 	}
-	// Prepare migration store.
 	store := db.NewObjectStore(
 		migration{}, "id", migrationTableName, c.DB.Dialect(),
 	)
@@ -59,7 +60,11 @@ func Apply(c *core.Core) error {
 				return err
 			}
 			// Save to database that migration was applied.
-			_, err := store.CreateObject(tx, migration{Name: m.Name()})
+			_, err := store.CreateObject(tx, migration{
+				Name:    m.Name(),
+				Version: core.Version,
+				Time:    time.Now().Unix(),
+			})
 			return err
 		}); err != nil {
 			return err
@@ -68,17 +73,16 @@ func Apply(c *core.Core) error {
 	return nil
 }
 
-// Unapply rollbacks all applied migrations for specified core.
-func Unapply(c *core.Core) error {
-	// Prepare database.
-	if err := setupDB(c.DB); err != nil {
+// Unapply rollbacks last applied migration for specified core.
+func Unapply(c *core.Core, all bool) error {
+	if err := setupMigrations(c.DB); err != nil {
 		return err
 	}
-	// Prepare migration store.
 	store := db.NewObjectStore(
 		migration{}, "id", migrationTableName, c.DB.Dialect(),
 	)
-	for i := len(migrations) - 1; i >= 0; i-- {
+	stop := false
+	for i := len(migrations) - 1; i >= 0 && !stop; i-- {
 		m := migrations[i]
 		if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
 			// Check that migration already applied.
@@ -111,6 +115,7 @@ func Unapply(c *core.Core) error {
 					return err
 				}
 			}
+			stop = !all
 			return nil
 		}); err != nil {
 			return err
@@ -135,11 +140,13 @@ var mirgationTable = schema.Table{
 	Columns: []schema.Column{
 		{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 		{Name: "name", Type: schema.String},
+		{Name: "version", Type: schema.String},
+		{Name: "time", Type: schema.Int64},
 	},
 }
 
-// setupDB creates migrations table if it does not exists.
-func setupDB(db *gosql.DB) error {
+// setupMigrations creates migrations table if it does not exists.
+func setupMigrations(db *gosql.DB) error {
 	query, err := mirgationTable.BuildCreateSQL(db.Dialect(), false)
 	if err != nil {
 		return err

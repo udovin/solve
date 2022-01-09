@@ -35,9 +35,9 @@ type User struct {
 
 // Status represents current authorization status.
 type Status struct {
-	User    *User    `json:"user,omitempty"`
-	Session *Session `json:"session,omitempty"`
-	Roles   []string `json:"roles"`
+	User        *User    `json:"user,omitempty"`
+	Session     *Session `json:"session,omitempty"`
+	Permissions []string `json:"permissions"`
 }
 
 // registerUserHandlers registers handlers for user management.
@@ -177,7 +177,7 @@ func (v *View) updateUser(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	var missingRoles []string
+	var missingPermissions []string
 	if form.FirstName != nil {
 		ok, err := v.core.HasRole(roles, models.UpdateUserFirstNameRole)
 		if err != nil {
@@ -185,7 +185,7 @@ func (v *View) updateUser(c echo.Context) error {
 			return err
 		}
 		if !ok {
-			missingRoles = append(missingRoles, models.UpdateUserFirstNameRole)
+			missingPermissions = append(missingPermissions, models.UpdateUserFirstNameRole)
 		}
 	}
 	if form.LastName != nil {
@@ -195,7 +195,7 @@ func (v *View) updateUser(c echo.Context) error {
 			return err
 		}
 		if !ok {
-			missingRoles = append(missingRoles, models.UpdateUserLastNameRole)
+			missingPermissions = append(missingPermissions, models.UpdateUserLastNameRole)
 		}
 	}
 	if form.MiddleName != nil {
@@ -205,13 +205,13 @@ func (v *View) updateUser(c echo.Context) error {
 			return err
 		}
 		if !ok {
-			missingRoles = append(missingRoles, models.UpdateUserMiddleNameRole)
+			missingPermissions = append(missingPermissions, models.UpdateUserMiddleNameRole)
 		}
 	}
-	if len(missingRoles) > 0 {
+	if len(missingPermissions) > 0 {
 		return c.JSON(http.StatusForbidden, errorResponse{
-			Message:      "account missing roles",
-			MissingRoles: missingRoles,
+			Message:            "account missing permissions",
+			MissingPermissions: missingPermissions,
 		})
 	}
 	if err := form.Update(&user); err != nil {
@@ -333,7 +333,7 @@ func (v *View) status(c echo.Context) error {
 		for id := range roles {
 			if role, err := v.core.Roles.Get(id); err == nil {
 				if role.IsBuiltIn() {
-					status.Roles = append(status.Roles, role.Name)
+					status.Permissions = append(status.Permissions, role.Name)
 				}
 			}
 		}

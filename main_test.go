@@ -64,7 +64,7 @@ func testTeardown(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Unapply(c); err != nil {
+	if err := migrations.Unapply(c, true); err != nil {
 		tb.Fatal("Error:", err)
 	}
 }

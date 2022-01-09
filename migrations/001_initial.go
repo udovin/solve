@@ -298,6 +298,8 @@ var m001Tables = []schema.Table{
 		Name: "solve_compiler",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "owner_id", Type: schema.Int64, Nullable: true},
+			{Name: "name", Type: schema.String},
 		},
 	},
 	{
@@ -307,6 +309,8 @@ var m001Tables = []schema.Table{
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
+			{Name: "owner_id", Type: schema.Int64, Nullable: true},
+			{Name: "name", Type: schema.String},
 		},
 	},
 	{

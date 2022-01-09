@@ -7,7 +7,9 @@ import (
 
 // Compiler represents compiler.
 type Compiler struct {
-	ID int64 `db:"id"`
+	ID      int64  `db:"id"`
+	OwnerID NInt64 `db:"owner_id"`
+	Name    string `db:"name"`
 }
 
 // ObjectID returns ID of compiler.
@@ -41,6 +43,16 @@ func (e CompilerEvent) WithObject(o db.Object) ObjectEvent {
 type CompilerStore struct {
 	baseStore[Compiler, CompilerEvent]
 	compilers map[int64]Compiler
+}
+
+func (s *CompilerStore) All() ([]Compiler, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	var compilers []Compiler
+	for _, compiler := range s.compilers {
+		compilers = append(compilers, compiler)
+	}
+	return compilers, nil
 }
 
 func (s *CompilerStore) reset() {

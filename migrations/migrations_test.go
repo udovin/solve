@@ -27,7 +27,7 @@ func TestMigrations(t *testing.T) {
 	if err := migrations.Apply(c); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := migrations.Unapply(c); err != nil {
+	if err := migrations.Unapply(c, true); err != nil {
 		t.Fatal("Error:", err)
 	}
 }
@@ -68,7 +68,7 @@ func TestPostgresMigrations(t *testing.T) {
 	if err := migrations.Apply(c); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := migrations.Unapply(c); err != nil {
+	if err := migrations.Unapply(c, true); err != nil {
 		t.Fatal("Error:", err)
 	}
 }

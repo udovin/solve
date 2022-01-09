@@ -109,8 +109,8 @@ type errorFields map[string]errorField
 type errorResponse struct {
 	// Message.
 	Message string `json:"message"`
-	// MissingRoles.
-	MissingRoles []string `json:"missing_roles,omitempty"`
+	// MissingPermissions.
+	MissingPermissions []string `json:"missing_permissions,omitempty"`
 	// InvalidFields.
 	InvalidFields errorFields `json:"invalid_fields"`
 }
@@ -119,9 +119,9 @@ type errorResponse struct {
 func (r errorResponse) Error() string {
 	var result strings.Builder
 	result.WriteString(r.Message)
-	if len(r.MissingRoles) > 0 {
-		result.WriteString(" (missing roles: ")
-		for i, role := range r.MissingRoles {
+	if len(r.MissingPermissions) > 0 {
+		result.WriteString(" (missing permissions: ")
+		for i, role := range r.MissingPermissions {
 			if i > 0 {
 				result.WriteString(", ")
 			}
@@ -274,11 +274,11 @@ func (v *View) requireAuthRole(names ...string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		nextWrap := func(c echo.Context) error {
 			resp := errorResponse{
-				Message: "account missing roles",
+				Message: "account missing permissions",
 			}
 			roles, ok := c.Get(authRolesKey).(core.RoleSet)
 			if !ok {
-				resp.MissingRoles = names
+				resp.MissingPermissions = names
 				return c.JSON(http.StatusForbidden, resp)
 			}
 			for _, name := range names {
@@ -288,10 +288,10 @@ func (v *View) requireAuthRole(names ...string) echo.MiddlewareFunc {
 					return err
 				}
 				if !ok {
-					resp.MissingRoles = append(resp.MissingRoles, name)
+					resp.MissingPermissions = append(resp.MissingPermissions, name)
 				}
 			}
-			if len(resp.MissingRoles) > 0 {
+			if len(resp.MissingPermissions) > 0 {
 				return c.JSON(http.StatusForbidden, resp)
 			}
 			return next(c)

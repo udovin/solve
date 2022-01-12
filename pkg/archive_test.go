@@ -1,8 +1,6 @@
 package pkg
 
 import (
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 )
@@ -10,17 +8,10 @@ import (
 const testPrefix = "test-"
 
 func TestTarGz(t *testing.T) {
-	target, err := ioutil.TempDir("", testPrefix)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
 	if err := ExtractTarGz(
-		filepath.Join("testdata", "alpine.tar.gz"), target,
+		filepath.Join("testdata", "alpine.tar.gz"),
+		filepath.Join(t.TempDir(), "alpine"),
 	); err != nil {
-		_ = os.RemoveAll(target)
 		t.Fatal("Error:", err)
 	}
-	defer func() {
-		_ = os.RemoveAll(target)
-	}()
 }

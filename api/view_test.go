@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -24,7 +25,9 @@ var (
 func testSetup(tb testing.TB) {
 	cfg := config.Config{
 		DB: config.DB{
-			Options: config.SQLiteOptions{Path: ":memory:"},
+			Options: config.SQLiteOptions{
+				Path: filepath.Join(tb.TempDir(), "db.sqlite"),
+			},
 		},
 		Security: &config.Security{
 			PasswordSalt: "qwerty123",
@@ -194,6 +197,15 @@ func testSocketCreateUserRole(login string, role string) (Roles, error) {
 	var resp Roles
 	err := doSocketRequest(req, http.StatusCreated, &resp)
 	return resp, err
+}
+
+func testSocketCreateUserRoles(login string, roles ...string) error {
+	for _, role := range roles {
+		if _, err := testSocketCreateUserRole(login, role); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func doSocketRequest(req *http.Request, code int, resp any) error {

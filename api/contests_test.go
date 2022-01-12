@@ -1,6 +1,10 @@
 package api
 
-import "testing"
+import (
+	"fmt"
+	"math/rand"
+	"testing"
+)
 
 var testContestTitle = "Test contest"
 
@@ -16,16 +20,9 @@ func TestContestSimpleScenario(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)
-	if _, err := testSocketCreateUserRole("test", "observe_contest"); err != nil {
-		t.Fatal("Error:", err)
-	}
-	if _, err := testSocketCreateUserRole("test", "create_contest"); err != nil {
-		t.Fatal("Error:", err)
-	}
-	if _, err := testSocketCreateUserRole("test", "update_contest"); err != nil {
-		t.Fatal("Error:", err)
-	}
-	if _, err := testSocketCreateUserRole("test", "delete_contest"); err != nil {
+	if err := testSocketCreateUserRoles(
+		"test", "observe_contest", "create_contest", "update_contest", "delete_contest",
+	); err != nil {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)
@@ -71,6 +68,55 @@ func TestContestSimpleScenario(t *testing.T) {
 		}
 		if created.Title != contest.Title {
 			t.Fatal("Invalid title:", created.Title)
+		}
+	}
+}
+
+func ptrString(s string) *string {
+	return &s
+}
+
+func BenchmarkContests(b *testing.B) {
+	rnd := rand.New(rand.NewSource(42))
+	testSetup(b)
+	defer testTeardown(b)
+	client := newTestClient()
+	if _, err := client.Register(testRegisterUser); err != nil {
+		b.Fatal("Error:", err)
+	}
+	testSyncManagers(b)
+	if err := testSocketCreateUserRoles(
+		"test", "observe_contest", "create_contest", "update_contest", "delete_contest",
+	); err != nil {
+		b.Fatal("Error:", err)
+	}
+	testSyncManagers(b)
+	if _, err := client.Login("test", "qwerty123"); err != nil {
+		b.Fatal("Error:", err)
+	}
+	b.ResetTimer()
+	var ids []int64
+	for i := 0; i < b.N; i++ {
+		form := createContestForm{
+			Title: ptrString(fmt.Sprintf("Contest %d", i+1)),
+		}
+		contest, err := client.CreateContest(form)
+		if err != nil {
+			b.Fatal("Error:", err)
+		}
+		testSyncManagers(b)
+		ids = append(ids, contest.ID)
+	}
+	rnd.Shuffle(len(ids), func(i, j int) {
+		ids[i], ids[j] = ids[j], ids[i]
+	})
+	for _, id := range ids {
+		contest, err := client.ObserveContest(id)
+		if err != nil {
+			b.Fatal("Error:", err)
+		}
+		if contest.ID != id {
+			b.Fatal("Invalid contest ID:", contest.ID)
 		}
 	}
 }

@@ -30,21 +30,7 @@ func TestUserSimpleScenario(t *testing.T) {
 	if user, err := client.ObserveUser("test"); err != nil {
 		t.Fatal("Error:", err)
 	} else {
-		if user.Login != "test" {
-			t.Fatal("Invalid login:", user.Login)
-		}
-		if len(user.Email) > 0 {
-			t.Fatal("Expected empty email, but got:", user.Email)
-		}
-		if user.FirstName != "First" {
-			t.Fatal("Invalid first name:", user.FirstName)
-		}
-		if user.LastName != "Last" {
-			t.Fatal("Invalid last name:", user.LastName)
-		}
-		if len(user.MiddleName) > 0 {
-			t.Fatal("Expected empty middle name, but got:", user.MiddleName)
-		}
+		testCheck(user)
 	}
 	testSocketObserveUserRoles(t, "test")
 	if _, err := client.Login("test", "qwerty123"); err != nil {
@@ -53,31 +39,15 @@ func TestUserSimpleScenario(t *testing.T) {
 	if status, err := client.Status(); err != nil {
 		t.Fatal("Error:", err)
 	} else {
-		if status.User == nil {
-			t.Fatal("Status should have user")
-		}
-		if status.Session == nil {
-			t.Fatal("Status should have session")
-		}
+		// Canonical tests does not support current timestamps.
+		status.Session.CreateTime = 0
+		status.Session.ExpireTime = 0
+		testCheck(status)
 	}
 	if user, err := client.ObserveUser("test"); err != nil {
 		t.Fatal("Error:", err)
 	} else {
-		if user.Login != "test" {
-			t.Fatal("Invalid login:", user.Login)
-		}
-		if user.Email != "text@example.com" {
-			t.Fatal("Invalid email:", user.Email)
-		}
-		if user.FirstName != "First" {
-			t.Fatal("Invalid first name:", user.FirstName)
-		}
-		if user.LastName != "Last" {
-			t.Fatal("Invalid last name:", user.LastName)
-		}
-		if user.MiddleName != "Middle" {
-			t.Fatal("Invalid middle name:", user.MiddleName)
-		}
+		testCheck(user)
 	}
 	if err := client.Logout(); err != nil {
 		t.Fatal("Error:", err)

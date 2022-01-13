@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -338,6 +339,7 @@ func (v *View) status(c echo.Context) error {
 			}
 		}
 	}
+	sort.Strings(status.Permissions)
 	return c.JSON(http.StatusOK, status)
 }
 

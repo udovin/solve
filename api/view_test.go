@@ -3,9 +3,11 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -17,17 +19,91 @@ import (
 	"github.com/udovin/solve/models"
 )
 
+type testCheckState struct {
+	tb     testing.TB
+	checks []json.RawMessage
+	pos    int
+	reset  bool
+	path   string
+}
+
+func (s *testCheckState) Check(data any) {
+	raw, err := json.MarshalIndent(data, "  ", "  ")
+	if err != nil {
+		s.tb.Fatal("Unable to marshal data:", data)
+	}
+	if s.pos > len(s.checks) {
+		s.tb.Fatalf("Invalid check position: %d", s.pos)
+	}
+	if s.pos == len(s.checks) {
+		if s.reset {
+			s.checks = append(s.checks, raw)
+			s.pos++
+			return
+		}
+		s.tb.Fatalf("Unexpected check with data: %s", raw)
+	}
+	if string(s.checks[s.pos]) != string(raw) {
+		if s.reset {
+			s.checks[s.pos] = raw
+			s.pos++
+			return
+		}
+		s.tb.Fatalf("Unexpected check with data: %s, expected: %s", raw, s.checks[s.pos])
+	}
+	s.pos++
+}
+
+func (s *testCheckState) Close() {
+	if s.reset {
+		if s.pos == 0 {
+			_ = os.Remove(s.path)
+			return
+		}
+		raw, err := json.MarshalIndent(s.checks, "", "  ")
+		if err != nil {
+			s.tb.Fatal("Unable to marshal test data:", err)
+		}
+		if err := os.WriteFile(
+			s.path, raw, os.ModePerm,
+		); err != nil {
+			s.tb.Fatal("Error:", err)
+		}
+	}
+}
+
+func newTestCheckState(tb testing.TB) *testCheckState {
+	state := testCheckState{
+		tb:    tb,
+		reset: os.Getenv("TEST_RESET_DATA") == "1",
+		path:  filepath.Join("testdata", tb.Name()+".json"),
+	}
+	if !state.reset {
+		file, err := os.Open(state.path)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				tb.Fatal("Error:", err)
+			}
+		} else {
+			defer file.Close()
+			if err := json.NewDecoder(file).Decode(&state.checks); err != nil {
+				tb.Fatal("Error:", err)
+			}
+		}
+	}
+	return &state
+}
+
 var (
-	testView *View
-	testSrv  *echo.Echo
+	testView   *View
+	testSrv    *echo.Echo
+	testChecks *testCheckState
 )
 
 func testSetup(tb testing.TB) {
 	cfg := config.Config{
 		DB: config.DB{
-			Options: config.SQLiteOptions{
-				Path: filepath.Join(tb.TempDir(), "db.sqlite"),
-			},
+			Options: config.SQLiteOptions{Path: ":memory:"},
 		},
 		Security: &config.Security{
 			PasswordSalt: "qwerty123",
@@ -51,11 +127,17 @@ func testSetup(tb testing.TB) {
 	testView = NewView(c)
 	testView.Register(testSrv.Group("/api"))
 	testView.RegisterSocket(testSrv.Group("/socket"))
+	testChecks = newTestCheckState(tb)
 }
 
 func testTeardown(tb testing.TB) {
 	_ = migrations.Unapply(testView.core, true)
 	testView.core.Stop()
+	testChecks.Close()
+}
+
+func testCheck(data any) {
+	testChecks.Check(data)
 }
 
 func testHandler(req *http.Request, rec *httptest.ResponseRecorder) error {

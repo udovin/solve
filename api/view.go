@@ -75,6 +75,7 @@ const (
 	contestSolutionKey    = "contest_solution"
 	problemKey            = "problem"
 	solutionKey           = "solution"
+	compilerKey           = "compiler"
 )
 
 // logVisit saves visit to visit store.

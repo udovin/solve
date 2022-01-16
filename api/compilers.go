@@ -1,8 +1,12 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/labstack/echo/v4"
@@ -72,15 +76,85 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 	for _, compiler := range compilers {
 		compilerRoles := v.extendCompilerRoles(c, roles, compiler)
 		if ok, err := v.core.HasRole(compilerRoles, models.ObserveCompilerRole); ok && err == nil {
-			resp.Compilers = append(resp.Compilers, makeCompiler(compiler, compilerRoles, v.core))
+			resp.Compilers = append(resp.Compilers, makeCompiler(compiler))
 		}
 	}
 	sort.Sort(compilerSorter(resp.Compilers))
 	return c.JSON(http.StatusOK, resp)
 }
 
+type createCompilerForm struct {
+	Name string `form:"name"`
+}
+
+func (f createCompilerForm) validate() *errorResponse {
+	errors := errorFields{}
+	if len(f.Name) < 4 {
+		errors["name"] = errorField{Message: "name is too short"}
+	}
+	if len(f.Name) > 64 {
+		errors["name"] = errorField{Message: "name is too long"}
+	}
+	if len(errors) > 0 {
+		return &errorResponse{
+			Message:       "form has invalid fields",
+			InvalidFields: errors,
+		}
+	}
+	return nil
+}
+
+func (f createCompilerForm) Update(compiler *models.Compiler) *errorResponse {
+	if err := f.validate(); err != nil {
+		return err
+	}
+	compiler.Name = f.Name
+	return nil
+}
+
 func (v *View) createCompiler(c echo.Context) error {
-	return errNotImplemented
+	var form createCompilerForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	var compiler models.Compiler
+	if err := form.Update(&compiler); err != nil {
+		return c.JSON(http.StatusBadRequest, err)
+	}
+	if account, ok := c.Get(authAccountKey).(models.Account); ok {
+		compiler.OwnerID = models.NInt64(account.ID)
+	}
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		file, err := c.FormFile("file")
+		if err != nil {
+			return err
+		}
+		src, err := file.Open()
+		if err != nil {
+			return err
+		}
+		defer func() {
+			_ = src.Close()
+		}()
+		if err := v.core.Compilers.CreateTx(tx, &compiler); err != nil {
+			return err
+		}
+		dst, err := os.Create(filepath.Join(
+			v.core.Config.Storage.CompilersDir,
+			fmt.Sprintf("%d.zip", compiler.ID),
+		))
+		if err != nil {
+			return err
+		}
+		defer dst.Close()
+		_, err = io.Copy(dst, src)
+		return err
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusCreated, makeCompiler(compiler))
 }
 
 func (v *View) updateCompiler(c echo.Context) error {
@@ -88,13 +162,24 @@ func (v *View) updateCompiler(c echo.Context) error {
 }
 
 func (v *View) deleteCompiler(c echo.Context) error {
-	return errNotImplemented
+	compiler, ok := c.Get(compilerKey).(models.Compiler)
+	if !ok {
+		c.Logger().Error("problem not extracted")
+		return fmt.Errorf("problem not extracted")
+	}
+	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+		return v.core.Compilers.DeleteTx(tx, compiler.ID)
+	}); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusOK, makeCompiler(compiler))
 }
 
-func makeCompiler(compiler models.Compiler, roles core.RoleSet, core *core.Core) Compiler {
+func makeCompiler(compiler models.Compiler) Compiler {
 	return Compiler{
 		ID:   compiler.ID,
-		Name: "todo", //compiler.Name,
+		Name: compiler.Name,
 	}
 }
 

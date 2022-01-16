@@ -55,6 +55,36 @@ func (s *CompilerStore) All() ([]Compiler, error) {
 	return compilers, nil
 }
 
+// CreateTx creates compiler and returns copy with valid ID.
+func (s *CompilerStore) CreateTx(tx gosql.WeakTx, compiler *Compiler) error {
+	event, err := s.createObjectEvent(tx, CompilerEvent{
+		makeBaseEvent(CreateEvent), *compiler,
+	})
+	if err != nil {
+		return err
+	}
+	*compiler = event.Object().(Compiler)
+	return nil
+}
+
+// UpdateTx updates compiler with specified ID.
+func (s *CompilerStore) UpdateTx(tx gosql.WeakTx, compiler Compiler) error {
+	_, err := s.createObjectEvent(tx, CompilerEvent{
+		makeBaseEvent(UpdateEvent),
+		compiler,
+	})
+	return err
+}
+
+// DeleteTx deletes compiler with specified ID.
+func (s *CompilerStore) DeleteTx(tx gosql.WeakTx, id int64) error {
+	_, err := s.createObjectEvent(tx, CompilerEvent{
+		makeBaseEvent(DeleteEvent),
+		Compiler{ID: id},
+	})
+	return err
+}
+
 func (s *CompilerStore) reset() {
 	s.compilers = map[int64]Compiler{}
 }

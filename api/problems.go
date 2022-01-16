@@ -146,7 +146,7 @@ func (v *View) createProblem(c echo.Context) error {
 		problem.OwnerID = models.NInt64(account.ID)
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		file, err := c.FormFile("package")
+		file, err := c.FormFile("file")
 		if err != nil {
 			return err
 		}

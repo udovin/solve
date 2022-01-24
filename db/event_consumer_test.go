@@ -59,13 +59,10 @@ func (s *mockEventStore) LoadEvents(
 	var events []Event
 	for _, rng := range ranges {
 		for _, event := range s.events {
-			if event.EventID() >= rng.Begin && event.EventID() < rng.End {
+			if rng.contains(event.EventID()) {
 				events = append(events, event)
 			}
 		}
-	}
-	if len(events) == 0 {
-		return nil, sql.ErrNoRows
 	}
 	sort.Sort(eventSorter(events))
 	return &mockEventReader{events: events}, nil

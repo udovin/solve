@@ -76,7 +76,7 @@ func testTeardown(tb testing.TB, removes []string) {
 func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
 	testSetup(t, cfg, creates)
 	defer testTeardown(t, removes)
-	store := NewEventStore(testEvent{}, "id", "test_event", gosql.SQLiteDialect)
+	store := NewEventStore(testEvent{}, "id", "test_event", testDB)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -106,7 +106,7 @@ func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
 			t.Fatal()
 		}
 	}
-	rows, err := store.LoadEvents(tx, 1, 6)
+	rows, err := store.LoadEvents(tx, []EventRange{{Begin: 1, End: 6}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestSQLiteEventStore(t *testing.T) {
 func TestEventStoreClosed(t *testing.T) {
 	testSetup(t, sqliteConfig, sqliteCreateTables)
 	defer testTeardown(t, sqliteDropTables)
-	store := NewEventStore(testEvent{}, "id", "test_event", gosql.SQLiteDialect)
+	store := NewEventStore(testEvent{}, "id", "test_event", testDB)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -144,7 +144,7 @@ func TestEventStoreClosed(t *testing.T) {
 	if _, err := store.LastEventID(tx); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
-	if _, err := store.LoadEvents(tx, 1, 100); err != sql.ErrTxDone {
+	if _, err := store.LoadEvents(tx, []EventRange{{Begin: 1, End: 100}}); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
 	if _, err := store.CreateEvent(tx, testEvent{}); err != sql.ErrTxDone {

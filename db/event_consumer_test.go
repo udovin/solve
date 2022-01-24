@@ -54,12 +54,14 @@ func (e eventSorter) Swap(i, j int) {
 }
 
 func (s *mockEventStore) LoadEvents(
-	tx gosql.WeakTx, begin, end int64,
+	tx gosql.WeakTx, ranges []EventRange,
 ) (EventReader, error) {
 	var events []Event
-	for _, event := range s.events {
-		if event.EventID() >= begin && event.EventID() < end {
-			events = append(events, event)
+	for _, rng := range ranges {
+		for _, event := range s.events {
+			if event.EventID() >= rng.Begin && event.EventID() < rng.End {
+				events = append(events, event)
+			}
 		}
 	}
 	if len(events) == 0 {

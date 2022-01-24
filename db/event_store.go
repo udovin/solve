@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"reflect"
 	"time"
 
@@ -29,13 +30,18 @@ type EventReader interface {
 	Err() error
 }
 
+type EventRange struct {
+	Begin int64
+	End   int64
+}
+
 // EventROStore represents read-only store for events.
 type EventROStore interface {
 	// LastEventID should return last event ID or sql.ErrNoRows
 	// if there is no events.
 	LastEventID(tx gosql.WeakTx) (int64, error)
 	// LoadEvents should load events from store in specified range.
-	LoadEvents(tx gosql.WeakTx, begin, end int64) (EventReader, error)
+	LoadEvents(tx gosql.WeakTx, ranges []EventRange) (EventReader, error)
 }
 
 // EventStore represents persistent store for events.
@@ -47,10 +53,10 @@ type EventStore interface {
 }
 
 type eventStore struct {
-	typ     reflect.Type
-	id      string
-	table   string
-	dialect gosql.Dialect
+	typ   reflect.Type
+	db    *gosql.DB
+	id    string
+	table string
 }
 
 // LastEventID returns last event ID or sql.ErrNoRows
@@ -69,16 +75,34 @@ func (s *eventStore) LastEventID(tx gosql.WeakTx) (int64, error) {
 	return *id, nil
 }
 
+func (s *eventStore) getEventWhere(rng EventRange) gosql.BoolExpression {
+	col := gosql.Column(s.id)
+	if rng.End == math.MaxInt64 {
+		return col.GreaterEqual(rng.Begin)
+	}
+	return col.GreaterEqual(rng.Begin).And(col.Less(rng.End))
+}
+
+func (s *eventStore) getEventsWhere(ranges []EventRange) gosql.BoolExpression {
+	if len(ranges) == 0 {
+		return nil
+	}
+	where := s.getEventWhere(ranges[0])
+	for _, rng := range ranges[1:] {
+		where = where.Or(s.getEventWhere(rng))
+	}
+	return where
+}
+
 func (s *eventStore) LoadEvents(
-	tx gosql.WeakTx, begin, end int64,
+	tx gosql.WeakTx, ranges []EventRange,
 ) (EventReader, error) {
-	rows, err := tx.Query(
-		fmt.Sprintf(
-			"SELECT %s FROM %q WHERE %q >= $1 AND %q < $2 ORDER BY %q",
-			prepareSelect(s.typ), s.table, s.id, s.id, s.id,
-		),
-		begin, end,
-	)
+	query, values := s.db.Select(s.table).
+		Names(prepareNames(s.typ)...).
+		Where(s.getEventsWhere(ranges)).
+		OrderBy(gosql.Ascending(s.id)).
+		Build()
+	rows, err := tx.Query(query, values...)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +117,7 @@ func (s *eventStore) CreateEvent(tx gosql.WeakTx, event Event) (Event, error) {
 	if typ.Name() != s.typ.Name() || typ.PkgPath() != s.typ.PkgPath() {
 		return nil, fmt.Errorf("expected %v type", s.typ)
 	}
-	row, err := insertRow(tx, event, s.id, s.table, s.dialect)
+	row, err := insertRow(tx, event, s.id, s.table, s.db.Dialect())
 	if err != nil {
 		return nil, err
 	}
@@ -101,12 +125,12 @@ func (s *eventStore) CreateEvent(tx gosql.WeakTx, event Event) (Event, error) {
 }
 
 // NewEventStore creates a new store for events of specified type.
-func NewEventStore(event Event, id, table string, dialect gosql.Dialect) EventStore {
+func NewEventStore(event Event, id, table string, db *gosql.DB) EventStore {
 	return &eventStore{
-		typ:     reflect.TypeOf(event),
-		id:      id,
-		table:   table,
-		dialect: dialect,
+		typ:   reflect.TypeOf(event),
+		db:    db,
+		id:    id,
+		table: table,
 	}
 }
 

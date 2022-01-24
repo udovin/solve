@@ -386,7 +386,7 @@ func makeBaseStore[T db.Object, E ObjectEvent](
 			object, "id", table, dbConn.Dialect(),
 		),
 		events: db.NewEventStore(
-			objectEvent, "event_id", eventTable, dbConn.Dialect(),
+			objectEvent, "event_id", eventTable, dbConn,
 		),
 		impl: impl,
 	}

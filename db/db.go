@@ -70,6 +70,23 @@ func checkColumns(typ reflect.Type, rows *sql.Rows) error {
 	return nil
 }
 
+func prepareNames(typ reflect.Type) []string {
+	var cols []string
+	var recursive func(reflect.Type)
+	recursive = func(t reflect.Type) {
+		for i := 0; i < t.NumField(); i++ {
+			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
+				name := strings.Split(db, ",")[0]
+				cols = append(cols, name)
+			} else if t.Field(i).Anonymous {
+				recursive(t.Field(i).Type)
+			}
+		}
+	}
+	recursive(typ)
+	return cols
+}
+
 func prepareSelect(typ reflect.Type) string {
 	var cols strings.Builder
 	var recursive func(reflect.Type)

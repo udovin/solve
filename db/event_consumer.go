@@ -91,7 +91,7 @@ func (c *eventConsumer) loadGapChanges(
 		c.gaps.Remove(it)
 		return nil
 	}
-	rows, err := c.store.LoadEvents(tx, gap.beginID, gap.endID)
+	rows, err := c.store.LoadEvents(tx, []EventRange{{Begin: gap.beginID, End: gap.endID}})
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (c *eventConsumer) loadGapChanges(
 func (c *eventConsumer) loadNewChanges(
 	tx gosql.WeakTx, fn func(Event) error,
 ) error {
-	rows, err := c.store.LoadEvents(tx, c.endID, math.MaxInt64)
+	rows, err := c.store.LoadEvents(tx, []EventRange{{Begin: c.endID, End: math.MaxInt64}})
 	if err != nil {
 		return err
 	}

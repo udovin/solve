@@ -68,6 +68,6 @@ func (s *VisitStore) CreateTx(tx gosql.WeakTx, visit Visit) (Visit, error) {
 func NewVisitStore(dbConn *gosql.DB, table string) *VisitStore {
 	return &VisitStore{
 		db:     dbConn,
-		events: db.NewEventStore(Visit{}, "id", table, dbConn.Dialect()),
+		events: db.NewEventStore(Visit{}, "id", table, dbConn),
 	}
 }

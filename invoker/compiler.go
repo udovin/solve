@@ -303,6 +303,7 @@ func defaultRootlessConfig(id, lower, upper, work string) *configs.Config {
 				MemorySwappiness: nil,
 				Devices:          configDevices(),
 			},
+			Rootless: true,
 		},
 		Devices:         specconv.AllowedDevices,
 		NoNewPrivileges: true,

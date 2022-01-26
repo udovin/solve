@@ -8,7 +8,7 @@ require (
 	github.com/labstack/echo/v4 v4.6.3
 	github.com/labstack/gommon v0.3.1
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
-	github.com/opencontainers/runc v1.0.3
+	github.com/opencontainers/runc v1.1.0
 	github.com/spf13/cobra v1.3.0
 	github.com/udovin/gosql v0.0.0-20211115195900-d2324955b2f6
 	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871
@@ -16,8 +16,7 @@ require (
 )
 
 require (
-	github.com/bits-and-blooms/bitset v1.2.1 // indirect
-	github.com/checkpoint-restore/go-criu/v5 v5.2.0 // indirect
+	github.com/checkpoint-restore/go-criu/v5 v5.3.0 // indirect
 	github.com/cilium/ebpf v0.7.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
@@ -40,7 +39,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417 // indirect
 	github.com/opencontainers/selinux v1.10.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/seccomp/libseccomp-golang v0.9.1 // indirect
+	github.com/seccomp/libseccomp-golang v0.9.2-0.20210429002308-3879420cc921 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect

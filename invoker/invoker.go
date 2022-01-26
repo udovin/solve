@@ -40,7 +40,6 @@ func (s *Invoker) Start() error {
 	}
 	factory, err := libcontainer.New(
 		"/tmp/libcontainer",
-		libcontainer.RootlessCgroupfs,
 		libcontainer.InitArgs(os.Args[0], "init"),
 	)
 	if err != nil {

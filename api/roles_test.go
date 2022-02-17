@@ -25,12 +25,7 @@ func TestCreateDeleteRole(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 	created := createRole(t, "test_role")
-	if created.ID == 0 {
-		t.Fatal("Invalid ID of role", created)
-	}
-	if created.Name != "test_role" {
-		t.Fatal("Invalid name of role:", created)
-	}
+	testCheck(created)
 	testSyncManagers(t)
 	deleted := deleteRole(t, created.ID)
 	if created != deleted {

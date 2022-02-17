@@ -34,41 +34,27 @@ func TestContestSimpleScenario(t *testing.T) {
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		if len(contests.Contests) != 0 {
-			t.Fatal("Contests list should be empty")
-		}
+		testCheck(contests)
 	}
 	contest, err := client.CreateContest(testCreateContest)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if contest.ID == 0 {
-		t.Fatal("Invalid contest ID")
-	}
-	if contest.Title != testContestTitle {
-		t.Fatal("Invalid title:", contest.Title)
-	}
+	testCheck(contest)
 	testSyncManagers(t)
 	{
 		contests, err := client.ObserveContests()
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		if len(contests.Contests) != 1 {
-			t.Fatal("Contests list should not be empty")
-		}
+		testCheck(contests)
 	}
 	{
 		created, err := client.ObserveContest(contest.ID)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		if created.ID != contest.ID {
-			t.Fatal("Invalid contest ID:", created.ID)
-		}
-		if created.Title != contest.Title {
-			t.Fatal("Invalid title:", created.Title)
-		}
+		testCheck(created)
 	}
 }
 

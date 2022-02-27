@@ -48,15 +48,6 @@ type ProblemStore struct {
 	problems map[int64]Problem
 }
 
-// DeleteTx deletes problem with specified ID.
-func (s *ProblemStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, ProblemEvent{
-		makeBaseEvent(DeleteEvent),
-		Problem{ID: id},
-	})
-	return err
-}
-
 // Get returns problem by ID.
 //
 // If there is no problem with specified ID then
@@ -83,6 +74,10 @@ func (s *ProblemStore) All() ([]Problem, error) {
 
 func (s *ProblemStore) reset() {
 	s.problems = map[int64]Problem{}
+}
+
+func (s *ProblemStore) makeObject(id int64) Problem {
+	return Problem{ID: id}
 }
 
 func (s *ProblemStore) makeObjectEvent(typ EventType) ObjectEvent[Problem] {

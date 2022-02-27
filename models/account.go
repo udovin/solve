@@ -65,17 +65,12 @@ func (s *AccountStore) Get(id int64) (Account, error) {
 	return Account{}, sql.ErrNoRows
 }
 
-// DeleteTx deletes account with specified ID.
-func (s *AccountStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, AccountEvent{
-		makeBaseEvent(DeleteEvent),
-		Account{ID: id},
-	})
-	return err
-}
-
 func (s *AccountStore) reset() {
 	s.accounts = map[int64]Account{}
+}
+
+func (s *AccountStore) makeObject(id int64) Account {
+	return Account{ID: id}
 }
 
 func (s *AccountStore) makeObjectEvent(typ EventType) ObjectEvent[Account] {

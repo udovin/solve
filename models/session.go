@@ -118,18 +118,13 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 	return session.Clone(), nil
 }
 
-// DeleteTx deletes session with specified ID.
-func (s *SessionStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, SessionEvent{
-		makeBaseEvent(DeleteEvent),
-		Session{ID: id},
-	})
-	return err
-}
-
 func (s *SessionStore) reset() {
 	s.sessions = map[int64]Session{}
 	s.byAccount = makeIndex[int64]()
+}
+
+func (s *SessionStore) makeObject(id int64) Session {
+	return Session{ID: id}
 }
 
 func (s *SessionStore) makeObjectEvent(typ EventType) ObjectEvent[Session] {

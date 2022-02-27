@@ -48,15 +48,6 @@ type ContestStore struct {
 	contests map[int64]Contest
 }
 
-// DeleteTx deletes contest with specified ID.
-func (s *ContestStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, ContestEvent{
-		makeBaseEvent(DeleteEvent),
-		Contest{ID: id},
-	})
-	return err
-}
-
 // Get returns contest by ID.
 //
 // If there is no contest with specified ID then
@@ -83,6 +74,10 @@ func (s *ContestStore) All() ([]Contest, error) {
 
 func (s *ContestStore) reset() {
 	s.contests = map[int64]Contest{}
+}
+
+func (s *ContestStore) makeObject(id int64) Contest {
+	return Contest{ID: id}
 }
 
 func (s *ContestStore) makeObjectEvent(typ EventType) ObjectEvent[Contest] {

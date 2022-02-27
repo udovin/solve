@@ -91,38 +91,12 @@ func (s *testStore) Get(id int64) (testObject, error) {
 	return testObject{}, sql.ErrNoRows
 }
 
+func (s *testStore) makeObject(id int64) testObject {
+	return testObject{ID: id}
+}
+
 func (s *testStore) makeObjectEvent(typ EventType) ObjectEvent[testObject] {
 	return testObjectEvent{baseEvent: makeBaseEvent(typ)}
-}
-
-func (s *testStore) CreateTx(
-	tx gosql.WeakTx, object *testObject,
-) error {
-	event, err := s.createObjectEvent(tx, testObjectEvent{
-		makeBaseEvent(CreateEvent),
-		*object,
-	})
-	if err != nil {
-		return err
-	}
-	*object = event.Object()
-	return nil
-}
-
-func (s *testStore) UpdateTx(tx gosql.WeakTx, object testObject) error {
-	_, err := s.createObjectEvent(tx, testObjectEvent{
-		makeBaseEvent(UpdateEvent),
-		object,
-	})
-	return err
-}
-
-func (s *testStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, testObjectEvent{
-		makeBaseEvent(DeleteEvent),
-		testObject{ID: id},
-	})
-	return err
 }
 
 func (s *testStore) reset() {
@@ -580,6 +554,13 @@ func (s *StoreTester) Test(t testing.TB) {
 	}
 	if err := master.SyncTx(testDB); err != nil {
 		t.Fatal("Error:", err)
+	}
+	for _, object := range objects {
+		if err := withTestTx(func(tx *sql.Tx) error {
+			return s.helper.deleteObject(master, tx, object.ObjectID())
+		}); err != sql.ErrNoRows {
+			t.Fatalf("Expected %q error, but got %q", sql.ErrNoRows, err)
+		}
 	}
 	s.testFailedTx(t, master)
 }

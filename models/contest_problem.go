@@ -80,18 +80,13 @@ func (s *ContestProblemStore) FindByContest(
 	return problems, nil
 }
 
-// DeleteTx deletes problem with specified ID.
-func (s *ContestProblemStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, ContestProblemEvent{
-		makeBaseEvent(DeleteEvent),
-		ContestProblem{ID: id},
-	})
-	return err
-}
-
 func (s *ContestProblemStore) reset() {
 	s.problems = map[int64]ContestProblem{}
 	s.byContest = makeIndex[int64]()
+}
+
+func (s *ContestProblemStore) makeObject(id int64) ContestProblem {
+	return ContestProblem{ID: id}
 }
 
 func (s *ContestProblemStore) makeObjectEvent(typ EventType) ObjectEvent[ContestProblem] {

@@ -76,18 +76,13 @@ func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
 	return roles, nil
 }
 
-// DeleteTx deletes account role with specified ID.
-func (s *AccountRoleStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, AccountRoleEvent{
-		makeBaseEvent(DeleteEvent),
-		AccountRole{ID: id},
-	})
-	return err
-}
-
 func (s *AccountRoleStore) reset() {
 	s.roles = map[int64]AccountRole{}
 	s.byAccount = makeIndex[int64]()
+}
+
+func (s *AccountRoleStore) makeObject(id int64) AccountRole {
+	return AccountRole{ID: id}
 }
 
 func (s *AccountRoleStore) makeObjectEvent(typ EventType) ObjectEvent[AccountRole] {

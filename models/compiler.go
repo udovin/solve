@@ -54,17 +54,12 @@ func (s *CompilerStore) All() ([]Compiler, error) {
 	return compilers, nil
 }
 
-// DeleteTx deletes compiler with specified ID.
-func (s *CompilerStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, CompilerEvent{
-		makeBaseEvent(DeleteEvent),
-		Compiler{ID: id},
-	})
-	return err
-}
-
 func (s *CompilerStore) reset() {
 	s.compilers = map[int64]Compiler{}
+}
+
+func (s *CompilerStore) makeObject(id int64) Compiler {
+	return Compiler{ID: id}
 }
 
 func (s *CompilerStore) makeObjectEvent(typ EventType) ObjectEvent[Compiler] {

@@ -60,17 +60,12 @@ func (s *ContestUserStore) Get(id int64) (ContestUser, error) {
 	return ContestUser{}, sql.ErrNoRows
 }
 
-// DeleteTx deletes user with specified ID.
-func (s *ContestUserStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, ContestUserEvent{
-		makeBaseEvent(DeleteEvent),
-		ContestUser{ID: id},
-	})
-	return err
-}
-
 func (s *ContestUserStore) reset() {
 	s.users = map[int64]ContestUser{}
+}
+
+func (s *ContestUserStore) makeObject(id int64) ContestUser {
+	return ContestUser{ID: id}
 }
 
 func (s *ContestUserStore) makeObjectEvent(typ EventType) ObjectEvent[ContestUser] {

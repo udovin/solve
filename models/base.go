@@ -231,6 +231,7 @@ func makeBaseEvent(t EventType) baseEvent {
 
 type baseStoreImpl[T db.Object] interface {
 	reset()
+	makeObject(id int64) T
 	makeObjectEvent(EventType) ObjectEvent[T]
 	onCreateObject(T)
 	onDeleteObject(T)
@@ -311,7 +312,9 @@ func (s *baseStore[T, E]) SyncTx(tx gosql.WeakTx) error {
 
 // CreateTx creates object and returns copy with valid ID.
 func (s *baseStore[T, E]) CreateTx(tx gosql.WeakTx, object *T) error {
-	event, err := s.createObjectEvent(tx, s.impl.makeObjectEvent(CreateEvent).WithObject(*object))
+	event, err := s.createObjectEvent(
+		tx, s.impl.makeObjectEvent(CreateEvent).WithObject(*object),
+	)
 	if err != nil {
 		return err
 	}
@@ -321,7 +324,18 @@ func (s *baseStore[T, E]) CreateTx(tx gosql.WeakTx, object *T) error {
 
 // UpdateTx updates object with specified ID.
 func (s *baseStore[T, E]) UpdateTx(tx gosql.WeakTx, object T) error {
-	_, err := s.createObjectEvent(tx, s.impl.makeObjectEvent(UpdateEvent).WithObject(object))
+	_, err := s.createObjectEvent(
+		tx, s.impl.makeObjectEvent(UpdateEvent).WithObject(object),
+	)
+	return err
+}
+
+// DeleteTx deletes compiler with specified ID.
+func (s *baseStore[T, E]) DeleteTx(tx gosql.WeakTx, id int64) error {
+	object := s.impl.makeObject(id)
+	_, err := s.createObjectEvent(
+		tx, s.impl.makeObjectEvent(DeleteEvent).WithObject(object),
+	)
 	return err
 }
 

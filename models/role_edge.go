@@ -76,18 +76,13 @@ func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
 	return edges, nil
 }
 
-// DeleteTx deletes role edge with specified ID.
-func (s *RoleEdgeStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, RoleEdgeEvent{
-		makeBaseEvent(DeleteEvent),
-		RoleEdge{ID: id},
-	})
-	return err
-}
-
 func (s *RoleEdgeStore) reset() {
 	s.edges = map[int64]RoleEdge{}
 	s.byRole = makeIndex[int64]()
+}
+
+func (s *RoleEdgeStore) makeObject(id int64) RoleEdge {
+	return RoleEdge{ID: id}
 }
 
 func (s *RoleEdgeStore) makeObjectEvent(typ EventType) ObjectEvent[RoleEdge] {

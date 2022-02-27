@@ -94,15 +94,6 @@ func (s *UserStore) GetByAccount(id int64) (User, error) {
 	return User{}, sql.ErrNoRows
 }
 
-// DeleteTx deletes user with specified ID.
-func (s *UserStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, UserEvent{
-		makeBaseEvent(DeleteEvent),
-		User{ID: id},
-	})
-	return err
-}
-
 // SetPassword modifies PasswordHash and PasswordSalt fields.
 //
 // PasswordSalt will be replaced with random 16 byte string
@@ -129,6 +120,10 @@ func (s *UserStore) reset() {
 	s.users = map[int64]User{}
 	s.byAccount = map[int64]int64{}
 	s.byLogin = map[string]int64{}
+}
+
+func (s *UserStore) makeObject(id int64) User {
+	return User{ID: id}
 }
 
 func (s *UserStore) makeObjectEvent(typ EventType) ObjectEvent[User] {

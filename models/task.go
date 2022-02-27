@@ -169,15 +169,6 @@ func (s *TaskStore) FindByStatus(status TaskStatus) ([]Task, error) {
 	return tasks, nil
 }
 
-// DeleteTx deletes action.
-func (s *TaskStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, TaskEvent{
-		makeBaseEvent(DeleteEvent),
-		Task{ID: id},
-	})
-	return err
-}
-
 // PopQueuedTx pops queued action from the events and sets running status.
 //
 // Note that events is not synchronized after tasks is popped.
@@ -221,6 +212,10 @@ func (s *TaskStore) popQueuedTx(tx *sql.Tx) (Task, error) {
 func (s *TaskStore) reset() {
 	s.tasks = map[int64]Task{}
 	s.byStatus = makeIndex[int64]()
+}
+
+func (s *TaskStore) makeObject(id int64) Task {
+	return Task{ID: id}
 }
 
 func (s *TaskStore) makeObjectEvent(typ EventType) ObjectEvent[Task] {

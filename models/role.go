@@ -303,18 +303,13 @@ func (s *RoleStore) GetByName(name string) (Role, error) {
 	return Role{}, sql.ErrNoRows
 }
 
-// DeleteTx deletes role with specified ID.
-func (s *RoleStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, RoleEvent{
-		makeBaseEvent(DeleteEvent),
-		Role{ID: id},
-	})
-	return err
-}
-
 func (s *RoleStore) reset() {
 	s.roles = map[int64]Role{}
 	s.byName = map[string]int64{}
+}
+
+func (s *RoleStore) makeObject(id int64) Role {
+	return Role{ID: id}
 }
 
 func (s *RoleStore) makeObjectEvent(typ EventType) ObjectEvent[Role] {

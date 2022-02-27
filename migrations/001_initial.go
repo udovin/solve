@@ -362,18 +362,19 @@ func (m *m001) Unapply(c *core.Core, tx *sql.Tx) error {
 func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 	roles := map[string]int64{}
 	create := func(name string) error {
-		role, err := c.Roles.CreateTx(tx, models.Role{Name: name})
+		role := models.Role{Name: name}
+		err := c.Roles.CreateTx(tx, &role)
 		if err == nil {
 			roles[role.Name] = role.ID
 		}
 		return err
 	}
 	join := func(child, parent string) error {
-		_, err := c.RoleEdges.CreateTx(tx, models.RoleEdge{
+		edge := models.RoleEdge{
 			RoleID:  roles[parent],
 			ChildID: roles[child],
-		})
-		return err
+		}
+		return c.RoleEdges.CreateTx(tx, &edge)
 	}
 	allRoles := []string{
 		models.LoginRole,

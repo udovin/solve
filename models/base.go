@@ -189,14 +189,14 @@ func (t EventType) String() string {
 }
 
 // ObjectEvent represents event for object.
-type ObjectEvent interface {
+type ObjectEvent[T db.Object] interface {
 	db.Event
 	// EventType should return type of object event.
 	EventType() EventType
 	// Object should return struct with object data.
-	Object() db.Object
+	Object() T
 	// WithObject should return copy of event with replaced object.
-	WithObject(db.Object) ObjectEvent
+	WithObject(T) ObjectEvent[T]
 }
 
 // baseEvent represents base for all events.
@@ -229,8 +229,9 @@ func makeBaseEvent(t EventType) baseEvent {
 	return baseEvent{BaseEventType: t, BaseEventTime: time.Now().Unix()}
 }
 
-type baseStoreImpl[T any] interface {
+type baseStoreImpl[T db.Object] interface {
 	reset()
+	makeObjectEvent(EventType) ObjectEvent[T]
 	onCreateObject(T)
 	onDeleteObject(T)
 	onUpdateObject(T)
@@ -242,7 +243,7 @@ type Store interface {
 	SyncTx(tx gosql.WeakTx) error
 }
 
-type baseStore[T, E any] struct {
+type baseStore[T db.Object, E ObjectEvent[T]] struct {
 	db       *gosql.DB
 	table    string
 	objects  db.ObjectStore
@@ -308,9 +309,25 @@ func (s *baseStore[T, E]) SyncTx(tx gosql.WeakTx) error {
 	return s.consumer.ConsumeEvents(tx, s.consumeEvent)
 }
 
+// CreateTx creates object and returns copy with valid ID.
+func (s *baseStore[T, E]) CreateTx(tx gosql.WeakTx, object *T) error {
+	event, err := s.createObjectEvent(tx, s.impl.makeObjectEvent(CreateEvent).WithObject(*object))
+	if err != nil {
+		return err
+	}
+	*object = event.Object()
+	return nil
+}
+
+// UpdateTx updates object with specified ID.
+func (s *baseStore[T, E]) UpdateTx(tx gosql.WeakTx, object T) error {
+	_, err := s.createObjectEvent(tx, s.impl.makeObjectEvent(UpdateEvent).WithObject(object))
+	return err
+}
+
 func (s *baseStore[T, E]) createObjectEvent(
-	tx gosql.WeakTx, event ObjectEvent,
-) (ObjectEvent, error) {
+	tx gosql.WeakTx, event ObjectEvent[T],
+) (ObjectEvent[T], error) {
 	if err := gosql.WithEnsuredTx(tx, func(tx *sql.Tx) (err error) {
 		event, err = s.createObjectEventTx(tx, event)
 		return
@@ -321,21 +338,21 @@ func (s *baseStore[T, E]) createObjectEvent(
 }
 
 func (s *baseStore[T, E]) createObjectEventTx(
-	tx *sql.Tx, event ObjectEvent,
-) (ObjectEvent, error) {
+	tx *sql.Tx, event ObjectEvent[T],
+) (ObjectEvent[T], error) {
 	switch object := event.Object(); event.EventType() {
 	case CreateEvent:
 		object, err := s.objects.CreateObject(tx, object)
 		if err != nil {
 			return nil, err
 		}
-		event = event.WithObject(object)
+		event = event.WithObject(object.(T))
 	case UpdateEvent:
 		object, err := s.objects.UpdateObject(tx, object)
 		if err != nil {
 			return nil, err
 		}
-		event = event.WithObject(object)
+		event = event.WithObject(object.(T))
 	case DeleteEvent:
 		if err := s.objects.DeleteObject(tx, object.ObjectID()); err != nil {
 			return nil, err
@@ -345,7 +362,7 @@ func (s *baseStore[T, E]) createObjectEventTx(
 	if err != nil {
 		return nil, err
 	}
-	return result.(ObjectEvent), err
+	return result.(ObjectEvent[T]), err
 }
 
 func (s *baseStore[T, E]) lockStore(tx *sql.Tx) error {
@@ -359,20 +376,20 @@ func (s *baseStore[T, E]) lockStore(tx *sql.Tx) error {
 }
 
 func (s *baseStore[T, E]) consumeEvent(e db.Event) error {
-	switch v := e.(ObjectEvent); v.EventType() {
+	switch v := e.(ObjectEvent[T]); v.EventType() {
 	case CreateEvent:
-		s.impl.onCreateObject(v.Object().(T))
+		s.impl.onCreateObject(v.Object())
 	case DeleteEvent:
-		s.impl.onDeleteObject(v.Object().(T))
+		s.impl.onDeleteObject(v.Object())
 	case UpdateEvent:
-		s.impl.onUpdateObject(v.Object().(T))
+		s.impl.onUpdateObject(v.Object())
 	default:
 		return fmt.Errorf("unexpected event type: %v", v.EventType())
 	}
 	return nil
 }
 
-func makeBaseStore[T db.Object, E ObjectEvent](
+func makeBaseStore[T db.Object, E ObjectEvent[T]](
 	dbConn *gosql.DB,
 	table, eventTable string,
 	impl baseStoreImpl[T],

@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // ContestProblem represents connection for problems.
@@ -36,13 +35,13 @@ type ContestProblemEvent struct {
 }
 
 // Object returns event role edge.
-func (e ContestProblemEvent) Object() db.Object {
+func (e ContestProblemEvent) Object() ContestProblem {
 	return e.ContestProblem
 }
 
 // WithObject returns event with replaced ContestProblem.
-func (e ContestProblemEvent) WithObject(o db.Object) ObjectEvent {
-	e.ContestProblem = o.(ContestProblem)
+func (e ContestProblemEvent) WithObject(o ContestProblem) ObjectEvent[ContestProblem] {
+	e.ContestProblem = o
 	return e
 }
 
@@ -81,31 +80,6 @@ func (s *ContestProblemStore) FindByContest(
 	return problems, nil
 }
 
-// CreateTx creates problem and returns copy with valid ID.
-func (s *ContestProblemStore) CreateTx(
-	tx gosql.WeakTx, problem ContestProblem,
-) (ContestProblem, error) {
-	event, err := s.createObjectEvent(tx, ContestProblemEvent{
-		makeBaseEvent(CreateEvent),
-		problem,
-	})
-	if err != nil {
-		return ContestProblem{}, err
-	}
-	return event.Object().(ContestProblem), nil
-}
-
-// UpdateTx updates problem with specified ID.
-func (s *ContestProblemStore) UpdateTx(
-	tx gosql.WeakTx, problem ContestProblem,
-) error {
-	_, err := s.createObjectEvent(tx, ContestProblemEvent{
-		makeBaseEvent(UpdateEvent),
-		problem,
-	})
-	return err
-}
-
 // DeleteTx deletes problem with specified ID.
 func (s *ContestProblemStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, ContestProblemEvent{
@@ -118,6 +92,10 @@ func (s *ContestProblemStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 func (s *ContestProblemStore) reset() {
 	s.problems = map[int64]ContestProblem{}
 	s.byContest = makeIndex[int64]()
+}
+
+func (s *ContestProblemStore) makeObjectEvent(typ EventType) ObjectEvent[ContestProblem] {
+	return ContestProblemEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *ContestProblemStore) onCreateObject(problem ContestProblem) {

@@ -181,9 +181,7 @@ func (v *View) createRole(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, resp)
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		var err error
-		role, err = v.core.Roles.CreateTx(tx, role)
-		return err
+		return v.core.Roles.CreateTx(tx, &role)
 	}); err != nil {
 		c.Logger().Error(err)
 		return err
@@ -287,9 +285,8 @@ func (v *View) createRoleRole(c echo.Context) error {
 		ChildID: childRole.ID,
 	}
 	if err := v.core.WithTx(c.Request().Context(),
-		func(tx *sql.Tx) (err error) {
-			edge, err = v.core.RoleEdges.CreateTx(tx, edge)
-			return err
+		func(tx *sql.Tx) error {
+			return v.core.RoleEdges.CreateTx(tx, &edge)
 		},
 	); err != nil {
 		c.Logger().Error(err)
@@ -376,7 +373,7 @@ func (v *View) createUserRole(c echo.Context) error {
 		RoleID:    role.ID,
 	}
 	if err := v.core.WithTx(c.Request().Context(),
-		func(tx *sql.Tx) (err error) {
+		func(tx *sql.Tx) error {
 			return v.core.AccountRoles.CreateTx(tx, &edge)
 		},
 	); err != nil {

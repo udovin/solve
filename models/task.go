@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // TaskStatus represents status of task.
@@ -128,13 +127,13 @@ type TaskEvent struct {
 }
 
 // Object returns task.
-func (e TaskEvent) Object() db.Object {
+func (e TaskEvent) Object() Task {
 	return e.Task
 }
 
 // WithObject returns task event with specified object.
-func (e TaskEvent) WithObject(o db.Object) ObjectEvent {
-	e.Task = o.(Task)
+func (e TaskEvent) WithObject(o Task) ObjectEvent[Task] {
+	e.Task = o
 	return e
 }
 
@@ -168,28 +167,6 @@ func (s *TaskStore) FindByStatus(status TaskStatus) ([]Task, error) {
 		}
 	}
 	return tasks, nil
-}
-
-// CreateTx creates task and returns copy with valid ID.
-func (s *TaskStore) CreateTx(tx gosql.WeakTx, task *Task) error {
-	event, err := s.createObjectEvent(tx, TaskEvent{
-		makeBaseEvent(CreateEvent),
-		*task,
-	})
-	if err != nil {
-		return err
-	}
-	*task = event.Object().(Task)
-	return nil
-}
-
-// UpdateTx updates task.
-func (s *TaskStore) UpdateTx(tx gosql.WeakTx, task Task) error {
-	_, err := s.createObjectEvent(tx, TaskEvent{
-		makeBaseEvent(UpdateEvent),
-		task,
-	})
-	return err
 }
 
 // DeleteTx deletes action.
@@ -244,6 +221,10 @@ func (s *TaskStore) popQueuedTx(tx *sql.Tx) (Task, error) {
 func (s *TaskStore) reset() {
 	s.tasks = map[int64]Task{}
 	s.byStatus = makeIndex[int64]()
+}
+
+func (s *TaskStore) makeObjectEvent(typ EventType) ObjectEvent[Task] {
+	return TaskEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *TaskStore) onCreateObject(task Task) {

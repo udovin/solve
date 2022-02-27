@@ -41,7 +41,9 @@ func (t *roleEdgeStoreTest) newObject() db.Object {
 func (t *roleEdgeStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return s.(*RoleEdgeStore).CreateTx(tx, o.(RoleEdge))
+	object := o.(RoleEdge)
+	err := s.(*RoleEdgeStore).CreateTx(tx, &object)
+	return object, err
 }
 
 func (t *roleEdgeStoreTest) updateObject(

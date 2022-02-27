@@ -46,7 +46,9 @@ func (t *contestStoreTest) newObject() db.Object {
 func (t *contestStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return s.(*ContestStore).CreateTx(tx, o.(Contest))
+	contest := o.(Contest)
+	err := s.(*ContestStore).CreateTx(tx, &contest)
+	return contest, err
 }
 
 func (t *contestStoreTest) updateObject(

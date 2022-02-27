@@ -45,7 +45,9 @@ func (t *sessionStoreTest) newObject() db.Object {
 func (t *sessionStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return s.(*SessionStore).CreateTx(tx, o.(Session))
+	object := o.(Session)
+	err := s.(*SessionStore).CreateTx(tx, &object)
+	return object, err
 }
 
 func (t *sessionStoreTest) updateObject(

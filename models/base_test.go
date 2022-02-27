@@ -69,12 +69,12 @@ type testObjectEvent struct {
 	testObject
 }
 
-func (e testObjectEvent) Object() db.Object {
+func (e testObjectEvent) Object() testObject {
 	return e.testObject
 }
 
-func (e testObjectEvent) WithObject(o db.Object) ObjectEvent {
-	e.testObject = o.(testObject)
+func (e testObjectEvent) WithObject(o testObject) ObjectEvent[testObject] {
+	e.testObject = o
 	return e
 }
 
@@ -91,6 +91,10 @@ func (s *testStore) Get(id int64) (testObject, error) {
 	return testObject{}, sql.ErrNoRows
 }
 
+func (s *testStore) makeObjectEvent(typ EventType) ObjectEvent[testObject] {
+	return testObjectEvent{baseEvent: makeBaseEvent(typ)}
+}
+
 func (s *testStore) CreateTx(
 	tx gosql.WeakTx, object *testObject,
 ) error {
@@ -101,7 +105,7 @@ func (s *testStore) CreateTx(
 	if err != nil {
 		return err
 	}
-	*object = event.Object().(testObject)
+	*object = event.Object()
 	return nil
 }
 
@@ -355,7 +359,7 @@ func TestBaseStore_lockStore(t *testing.T) {
 }
 
 func TestBaseStore_consumeEvent(t *testing.T) {
-	store := baseStore[any, any]{}
+	store := baseStore[testObject, testObjectEvent]{}
 	if err := store.consumeEvent(testObjectEvent{
 		baseEvent: makeBaseEvent(-1),
 	}); err == nil {
@@ -466,7 +470,7 @@ func TestJSON_Scan(t *testing.T) {
 	if err := a.Scan([]byte("{")); err == nil {
 		t.Fatal("Expected error")
 	}
-	if err := a.Scan(baseStore[any, any]{}); err == nil {
+	if err := a.Scan(baseStore[testObject, testObjectEvent]{}); err == nil {
 		t.Fatal("Expected error")
 	}
 }

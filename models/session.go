@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // Session represents account session.
@@ -63,13 +62,13 @@ type SessionEvent struct {
 }
 
 // Object returns session.
-func (e SessionEvent) Object() db.Object {
+func (e SessionEvent) Object() Session {
 	return e.Session
 }
 
 // WithObject returns copy of event with replaced session.
-func (e SessionEvent) WithObject(o db.Object) ObjectEvent {
-	e.Session = o.(Session)
+func (e SessionEvent) WithObject(o Session) ObjectEvent[Session] {
+	e.Session = o
 	return e
 }
 
@@ -119,29 +118,6 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 	return session.Clone(), nil
 }
 
-// CreateTx creates session and returns new session with valid ID.
-func (s *SessionStore) CreateTx(
-	tx gosql.WeakTx, session Session,
-) (Session, error) {
-	event, err := s.createObjectEvent(tx, SessionEvent{
-		makeBaseEvent(CreateEvent),
-		session,
-	})
-	if err != nil {
-		return Session{}, err
-	}
-	return event.Object().(Session), nil
-}
-
-// UpdateTx updates session with specified ID.
-func (s *SessionStore) UpdateTx(tx gosql.WeakTx, session Session) error {
-	_, err := s.createObjectEvent(tx, SessionEvent{
-		makeBaseEvent(UpdateEvent),
-		session,
-	})
-	return err
-}
-
 // DeleteTx deletes session with specified ID.
 func (s *SessionStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, SessionEvent{
@@ -154,6 +130,10 @@ func (s *SessionStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 func (s *SessionStore) reset() {
 	s.sessions = map[int64]Session{}
 	s.byAccount = makeIndex[int64]()
+}
+
+func (s *SessionStore) makeObjectEvent(typ EventType) ObjectEvent[Session] {
+	return SessionEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *SessionStore) onCreateObject(session Session) {

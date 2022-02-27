@@ -285,9 +285,7 @@ func (v *View) createContest(c echo.Context) error {
 		contest.OwnerID = models.NInt64(account.ID)
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		var err error
-		contest, err = v.core.Contests.CreateTx(tx, contest)
-		return err
+		return v.core.Contests.CreateTx(tx, &contest)
 	}); err != nil {
 		c.Logger().Error(err)
 		return err
@@ -443,11 +441,7 @@ func (v *View) createContestProblem(c echo.Context) error {
 		}
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		var err error
-		problem, err = v.core.ContestProblems.CreateTx(
-			tx, problem,
-		)
-		return err
+		return v.core.ContestProblems.CreateTx(tx, &problem)
 	}); err != nil {
 		c.Logger().Error(err)
 		return err

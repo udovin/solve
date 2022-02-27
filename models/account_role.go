@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // AccountRole represents a account role.
@@ -34,13 +33,13 @@ type AccountRoleEvent struct {
 }
 
 // Object returns account role.
-func (e AccountRoleEvent) Object() db.Object {
+func (e AccountRoleEvent) Object() AccountRole {
 	return e.AccountRole
 }
 
 // WithObject return event with replaced account role.
-func (e AccountRoleEvent) WithObject(o db.Object) ObjectEvent {
-	e.AccountRole = o.(AccountRole)
+func (e AccountRoleEvent) WithObject(o AccountRole) ObjectEvent[AccountRole] {
+	e.AccountRole = o
 	return e
 }
 
@@ -77,27 +76,6 @@ func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
 	return roles, nil
 }
 
-// CreateTx creates account role and returns copy with valid ID.
-func (s *AccountRoleStore) CreateTx(tx gosql.WeakTx, role *AccountRole) error {
-	event, err := s.createObjectEvent(tx, AccountRoleEvent{
-		makeBaseEvent(CreateEvent), *role,
-	})
-	if err != nil {
-		return err
-	}
-	*role = event.Object().(AccountRole)
-	return nil
-}
-
-// UpdateTx updates account role with specified ID.
-func (s *AccountRoleStore) UpdateTx(tx gosql.WeakTx, role AccountRole) error {
-	_, err := s.createObjectEvent(tx, AccountRoleEvent{
-		makeBaseEvent(UpdateEvent),
-		role,
-	})
-	return err
-}
-
 // DeleteTx deletes account role with specified ID.
 func (s *AccountRoleStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, AccountRoleEvent{
@@ -110,6 +88,10 @@ func (s *AccountRoleStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 func (s *AccountRoleStore) reset() {
 	s.roles = map[int64]AccountRole{}
 	s.byAccount = makeIndex[int64]()
+}
+
+func (s *AccountRoleStore) makeObjectEvent(typ EventType) ObjectEvent[AccountRole] {
+	return AccountRoleEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *AccountRoleStore) onCreateObject(role AccountRole) {

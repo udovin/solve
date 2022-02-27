@@ -91,9 +91,7 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 				visit.SessionID = models.NInt64(session.ID)
 			}
 			visit.Status = c.Response().Status
-			if _, err := v.core.Visits.CreateTx(
-				v.core.DB, visit,
-			); err != nil {
+			if err := v.core.Visits.CreateTx(v.core.DB, &visit); err != nil {
 				c.Logger().Error(err)
 			}
 		}()

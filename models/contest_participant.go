@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // ContestParticipant represents participant.
@@ -38,13 +37,13 @@ type ContestParticipantEvent struct {
 }
 
 // Object returns event participant.
-func (e ContestParticipantEvent) Object() db.Object {
+func (e ContestParticipantEvent) Object() ContestParticipant {
 	return e.ContestParticipant
 }
 
 // WithObject returns event with replaced ContestParticipant.
-func (e ContestParticipantEvent) WithObject(o db.Object) ObjectEvent {
-	e.ContestParticipant = o.(ContestParticipant)
+func (e ContestParticipantEvent) WithObject(o ContestParticipant) ObjectEvent[ContestParticipant] {
+	e.ContestParticipant = o
 	return e
 }
 
@@ -98,32 +97,6 @@ func (s *ContestParticipantStore) FindByContestAccount(
 	return participants, nil
 }
 
-// CreateTx creates participant and returns copy with valid ID.
-func (s *ContestParticipantStore) CreateTx(
-	tx gosql.WeakTx, participant *ContestParticipant,
-) error {
-	event, err := s.createObjectEvent(tx, ContestParticipantEvent{
-		makeBaseEvent(CreateEvent),
-		*participant,
-	})
-	if err != nil {
-		return err
-	}
-	*participant = event.Object().(ContestParticipant)
-	return nil
-}
-
-// UpdateTx updates participant with specified ID.
-func (s *ContestParticipantStore) UpdateTx(
-	tx gosql.WeakTx, participant ContestParticipant,
-) error {
-	_, err := s.createObjectEvent(tx, ContestParticipantEvent{
-		makeBaseEvent(UpdateEvent),
-		participant,
-	})
-	return err
-}
-
 // DeleteTx deletes participant with specified ID.
 func (s *ContestParticipantStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, ContestParticipantEvent{
@@ -137,6 +110,10 @@ func (s *ContestParticipantStore) reset() {
 	s.participants = map[int64]ContestParticipant{}
 	s.byContest = makeIndex[int64]()
 	s.byContestAccount = makeIndex[pairInt64]()
+}
+
+func (s *ContestParticipantStore) makeObjectEvent(typ EventType) ObjectEvent[ContestParticipant] {
+	return ContestParticipantEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *ContestParticipantStore) onCreateObject(participant ContestParticipant) {

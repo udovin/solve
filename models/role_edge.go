@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // RoleEdge represents connection for roles.
@@ -34,13 +33,13 @@ type RoleEdgeEvent struct {
 }
 
 // Object returns event role edge.
-func (e RoleEdgeEvent) Object() db.Object {
+func (e RoleEdgeEvent) Object() RoleEdge {
 	return e.RoleEdge
 }
 
 // WithObject returns event with replaced RoleEdge.
-func (e RoleEdgeEvent) WithObject(o db.Object) ObjectEvent {
-	e.RoleEdge = o.(RoleEdge)
+func (e RoleEdgeEvent) WithObject(o RoleEdge) ObjectEvent[RoleEdge] {
+	e.RoleEdge = o
 	return e
 }
 
@@ -77,29 +76,6 @@ func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
 	return edges, nil
 }
 
-// CreateTx creates role edge and returns copy with valid ID.
-func (s *RoleEdgeStore) CreateTx(
-	tx gosql.WeakTx, edge RoleEdge,
-) (RoleEdge, error) {
-	event, err := s.createObjectEvent(tx, RoleEdgeEvent{
-		makeBaseEvent(CreateEvent),
-		edge,
-	})
-	if err != nil {
-		return RoleEdge{}, err
-	}
-	return event.Object().(RoleEdge), nil
-}
-
-// UpdateTx updates role edge with specified ID.
-func (s *RoleEdgeStore) UpdateTx(tx gosql.WeakTx, edge RoleEdge) error {
-	_, err := s.createObjectEvent(tx, RoleEdgeEvent{
-		makeBaseEvent(UpdateEvent),
-		edge,
-	})
-	return err
-}
-
 // DeleteTx deletes role edge with specified ID.
 func (s *RoleEdgeStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, RoleEdgeEvent{
@@ -112,6 +88,10 @@ func (s *RoleEdgeStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 func (s *RoleEdgeStore) reset() {
 	s.edges = map[int64]RoleEdge{}
 	s.byRole = makeIndex[int64]()
+}
+
+func (s *RoleEdgeStore) makeObjectEvent(typ EventType) ObjectEvent[RoleEdge] {
+	return RoleEdgeEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *RoleEdgeStore) onCreateObject(edge RoleEdge) {

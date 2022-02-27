@@ -362,9 +362,7 @@ func (v *View) loginAccount(c echo.Context) error {
 		return err
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		var err error
-		session, err = v.core.Sessions.CreateTx(tx, session)
-		return err
+		return v.core.Sessions.CreateTx(tx, &session)
 	}); err != nil {
 		c.Logger().Error(err)
 		return err

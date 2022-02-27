@@ -2,7 +2,6 @@ package models
 
 import (
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // Compiler represents compiler.
@@ -29,13 +28,13 @@ type CompilerEvent struct {
 }
 
 // Object returns event compiler.
-func (e CompilerEvent) Object() db.Object {
+func (e CompilerEvent) Object() Compiler {
 	return e.Compiler
 }
 
 // WithObject replaces event compiler.
-func (e CompilerEvent) WithObject(o db.Object) ObjectEvent {
-	e.Compiler = o.(Compiler)
+func (e CompilerEvent) WithObject(o Compiler) ObjectEvent[Compiler] {
+	e.Compiler = o
 	return e
 }
 
@@ -55,27 +54,6 @@ func (s *CompilerStore) All() ([]Compiler, error) {
 	return compilers, nil
 }
 
-// CreateTx creates compiler and returns copy with valid ID.
-func (s *CompilerStore) CreateTx(tx gosql.WeakTx, compiler *Compiler) error {
-	event, err := s.createObjectEvent(tx, CompilerEvent{
-		makeBaseEvent(CreateEvent), *compiler,
-	})
-	if err != nil {
-		return err
-	}
-	*compiler = event.Object().(Compiler)
-	return nil
-}
-
-// UpdateTx updates compiler with specified ID.
-func (s *CompilerStore) UpdateTx(tx gosql.WeakTx, compiler Compiler) error {
-	_, err := s.createObjectEvent(tx, CompilerEvent{
-		makeBaseEvent(UpdateEvent),
-		compiler,
-	})
-	return err
-}
-
 // DeleteTx deletes compiler with specified ID.
 func (s *CompilerStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, CompilerEvent{
@@ -87,6 +65,10 @@ func (s *CompilerStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 
 func (s *CompilerStore) reset() {
 	s.compilers = map[int64]Compiler{}
+}
+
+func (s *CompilerStore) makeObjectEvent(typ EventType) ObjectEvent[Compiler] {
+	return CompilerEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *CompilerStore) onCreateObject(compiler Compiler) {

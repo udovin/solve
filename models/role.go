@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // Role represents a role.
@@ -248,13 +247,13 @@ type RoleEvent struct {
 }
 
 // Object returns event role.
-func (e RoleEvent) Object() db.Object {
+func (e RoleEvent) Object() Role {
 	return e.Role
 }
 
 // WithObject returns event with replaced Role.
-func (e RoleEvent) WithObject(o db.Object) ObjectEvent {
-	e.Role = o.(Role)
+func (e RoleEvent) WithObject(o Role) ObjectEvent[Role] {
+	e.Role = o
 	return e
 }
 
@@ -304,27 +303,6 @@ func (s *RoleStore) GetByName(name string) (Role, error) {
 	return Role{}, sql.ErrNoRows
 }
 
-// CreateTx creates role and returns copy with valid ID.
-func (s *RoleStore) CreateTx(tx gosql.WeakTx, role Role) (Role, error) {
-	event, err := s.createObjectEvent(tx, RoleEvent{
-		makeBaseEvent(CreateEvent),
-		role,
-	})
-	if err != nil {
-		return Role{}, err
-	}
-	return event.Object().(Role), nil
-}
-
-// UpdateTx updates role with specified ID.
-func (s *RoleStore) UpdateTx(tx gosql.WeakTx, role Role) error {
-	_, err := s.createObjectEvent(tx, RoleEvent{
-		makeBaseEvent(UpdateEvent),
-		role,
-	})
-	return err
-}
-
 // DeleteTx deletes role with specified ID.
 func (s *RoleStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 	_, err := s.createObjectEvent(tx, RoleEvent{
@@ -337,6 +315,10 @@ func (s *RoleStore) DeleteTx(tx gosql.WeakTx, id int64) error {
 func (s *RoleStore) reset() {
 	s.roles = map[int64]Role{}
 	s.byName = map[string]int64{}
+}
+
+func (s *RoleStore) makeObjectEvent(typ EventType) ObjectEvent[Role] {
+	return RoleEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *RoleStore) onCreateObject(role Role) {

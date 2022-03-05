@@ -38,7 +38,7 @@ func (o Visit) EventTime() time.Time {
 // VisitStore represents visit store.
 type VisitStore struct {
 	db     *gosql.DB
-	events db.EventStore
+	events db.EventStore[Visit]
 }
 
 // MakeFromContext creates Visit from context.
@@ -57,18 +57,13 @@ func (s *VisitStore) MakeFromContext(c echo.Context) Visit {
 
 // CreateTx creates a new visit in the events.
 func (s *VisitStore) CreateTx(tx gosql.WeakTx, visit *Visit) error {
-	event, err := s.events.CreateEvent(tx, visit)
-	if err != nil {
-		return err
-	}
-	*visit = event.(Visit)
-	return nil
+	return s.events.CreateEvent(tx, visit)
 }
 
 // NewVisitStore creates a new instance of ViewStore.
 func NewVisitStore(dbConn *gosql.DB, table string) *VisitStore {
 	return &VisitStore{
 		db:     dbConn,
-		events: db.NewEventStore(Visit{}, "id", table, dbConn),
+		events: db.NewEventStore[Visit]("id", table, dbConn),
 	}
 }

@@ -76,7 +76,7 @@ func testTeardown(tb testing.TB, removes []string) {
 func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
 	testSetup(t, cfg, creates)
 	defer testTeardown(t, removes)
-	store := NewEventStore(testEvent{}, "id", "test_event", testDB)
+	store := NewEventStore[testEvent]("id", "test_event", testDB)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -87,15 +87,15 @@ func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
 		{testExtraEvent: testExtraEvent{A: "qwerty"}, C: 10},
 	}
 	for i, event := range events {
-		created, err := store.CreateEvent(tx, event)
-		if err != nil {
+		created := event
+		if err := store.CreateEvent(tx, &created); err != nil {
 			t.Fatal("Error:", err)
 		}
 		events[i].ID = created.EventID()
 		if events[i].ID != int64(i+1) {
 			t.Fatal()
 		}
-		if events[i] != created.(testEvent) {
+		if events[i] != created {
 			t.Fatal()
 		}
 		id, err := store.LastEventID(tx)
@@ -113,7 +113,7 @@ func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
 	defer func() { _ = rows.Close() }()
 	var createdEvents []testEvent
 	for rows.Next() {
-		createdEvents = append(createdEvents, rows.Event().(testEvent))
+		createdEvents = append(createdEvents, rows.Event())
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
@@ -130,7 +130,7 @@ func TestSQLiteEventStore(t *testing.T) {
 func TestEventStoreClosed(t *testing.T) {
 	testSetup(t, sqliteConfig, sqliteCreateTables)
 	defer testTeardown(t, sqliteDropTables)
-	store := NewEventStore(testEvent{}, "id", "test_event", testDB)
+	store := NewEventStore[testEvent]("id", "test_event", testDB)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -147,10 +147,8 @@ func TestEventStoreClosed(t *testing.T) {
 	if _, err := store.LoadEvents(tx, []EventRange{{Begin: 1, End: 100}}); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
-	if _, err := store.CreateEvent(tx, testEvent{}); err != sql.ErrTxDone {
+	event := testEvent{}
+	if err := store.CreateEvent(tx, &event); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
-	}
-	if _, err := store.CreateEvent(tx, mockEvent{}); err == nil {
-		t.Fatal("Expected error")
 	}
 }

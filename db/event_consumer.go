@@ -9,28 +9,28 @@ import (
 )
 
 // EventConsumer represents consumer for events.
-type EventConsumer interface {
+type EventConsumer[T Event] interface {
 	// BeginEventID should return smallest ID of next possibly consumed event.
 	BeginEventID() int64
 	// ConsumeEvents should consume new events.
-	ConsumeEvents(tx gosql.WeakTx, fn func(Event) error) error
+	ConsumeEvents(tx gosql.WeakTx, fn func(T) error) error
 }
 
 // eventConsumer represents a base implementation for EventConsumer.
-type eventConsumer struct {
-	store  EventROStore
+type eventConsumer[T Event] struct {
+	store  EventROStore[T]
 	ranges []EventRange
 	mutex  sync.Mutex
 }
 
 // BeginEventID returns ID of beginning event.
-func (c *eventConsumer) BeginEventID() int64 {
+func (c *eventConsumer[T]) BeginEventID() int64 {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.ranges[0].Begin
 }
 
-func (c *eventConsumer) removeEmptyRanges() {
+func (c *eventConsumer[T]) removeEmptyRanges() {
 	newLen := 0
 	for i, rng := range c.ranges {
 		if rng.Begin != rng.End {
@@ -45,7 +45,7 @@ func (c *eventConsumer) removeEmptyRanges() {
 }
 
 // ConsumeEvents consumes new events from event store.
-func (c *eventConsumer) ConsumeEvents(tx gosql.WeakTx, fn func(Event) error) error {
+func (c *eventConsumer[T]) ConsumeEvents(tx gosql.WeakTx, fn func(T) error) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	events, err := c.store.LoadEvents(tx, c.ranges)
@@ -94,8 +94,8 @@ const eventGapSkipTimeout = 5 * time.Minute
 //
 // TODO(udovin): Add support for gapSkipTimeout.
 // TODO(udovin): Add support for limit.
-func NewEventConsumer(store EventROStore, beginID int64) EventConsumer {
-	return &eventConsumer{
+func NewEventConsumer[T Event](store EventROStore[T], beginID int64) EventConsumer[T] {
+	return &eventConsumer[T]{
 		store:  store,
 		ranges: []EventRange{{Begin: beginID}},
 	}

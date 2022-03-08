@@ -300,6 +300,7 @@ var m001Tables = []schema.Table{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "name", Type: schema.String},
+			{Name: "config", Type: schema.JSON},
 		},
 	},
 	{
@@ -311,6 +312,7 @@ var m001Tables = []schema.Table{
 			{Name: "id", Type: schema.Int64},
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "name", Type: schema.String},
+			{Name: "config", Type: schema.JSON},
 		},
 	},
 	{

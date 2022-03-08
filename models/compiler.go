@@ -9,6 +9,7 @@ type Compiler struct {
 	ID      int64  `db:"id"`
 	OwnerID NInt64 `db:"owner_id"`
 	Name    string `db:"name"`
+	Config  JSON   `db:"config"`
 }
 
 // ObjectID returns ID of compiler.

@@ -5,14 +5,14 @@ go 1.18
 require (
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/jackc/pgx/v4 v4.15.0
-	github.com/labstack/echo/v4 v4.6.3
+	github.com/labstack/echo/v4 v4.7.1
 	github.com/labstack/gommon v0.3.1
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/opencontainers/runc v1.1.0
-	github.com/spf13/cobra v1.3.0
-	github.com/udovin/gosql v0.0.0-20220124232111-acca6d68c697
-	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
-	golang.org/x/sys v0.0.0-20220224120231-95c6836cb0e7
+	github.com/spf13/cobra v1.4.0
+	github.com/udovin/gosql v0.0.0-20211115195900-d2324955b2f6
+	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871
+	golang.org/x/sys v0.0.0-20211205182925-97ca703d548d
 )
 
 require (

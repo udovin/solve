@@ -1,10 +1,7 @@
 package db
 
 import (
-	"container/list"
-	"database/sql"
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -12,49 +9,77 @@ import (
 )
 
 // EventConsumer represents consumer for events.
-type EventConsumer interface {
+type EventConsumer[T Event] interface {
 	// BeginEventID should return smallest ID of next possibly consumed event.
 	BeginEventID() int64
 	// ConsumeEvents should consume new events.
-	ConsumeEvents(tx gosql.WeakTx, fn func(Event) error) error
-}
-
-// eventGap represents a gap in event sequence.
-type eventGap struct {
-	beginID int64
-	endID   int64
-	time    time.Time
+	ConsumeEvents(tx gosql.WeakTx, fn func(T) error) error
 }
 
 // eventConsumer represents a base implementation for EventConsumer.
-type eventConsumer struct {
-	store EventROStore
-	endID int64
-	gaps  *list.List
-	mutex sync.Mutex
+type eventConsumer[T Event] struct {
+	store  EventROStore[T]
+	ranges []EventRange
+	mutex  sync.Mutex
 }
 
 // BeginEventID returns ID of beginning event.
-func (c *eventConsumer) BeginEventID() int64 {
-	if it := c.gaps.Front(); it != nil {
-		return it.Value.(eventGap).beginID
+func (c *eventConsumer[T]) BeginEventID() int64 {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.ranges[0].Begin
+}
+
+func (c *eventConsumer[T]) removeEmptyRanges() {
+	newLen := 0
+	for i, rng := range c.ranges {
+		if rng.Begin != rng.End {
+			c.ranges[newLen] = c.ranges[i]
+			newLen++
+		}
 	}
-	return c.endID
+	c.ranges = c.ranges[:newLen]
+	if len(c.ranges) > eventGapSkipWindow {
+		c.ranges = c.ranges[len(c.ranges)-eventGapSkipWindow:]
+	}
 }
 
 // ConsumeEvents consumes new events from event store.
-func (c *eventConsumer) ConsumeEvents(tx gosql.WeakTx, fn func(Event) error) error {
+func (c *eventConsumer[T]) ConsumeEvents(tx gosql.WeakTx, fn func(T) error) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	if err := c.loadGapsChanges(tx, fn); err != nil {
+	events, err := c.store.LoadEvents(tx, c.ranges)
+	if err != nil {
 		return err
 	}
-	if err := c.loadNewChanges(tx, fn); err != nil {
-		if err != sql.ErrNoRows {
+	defer func() {
+		_ = events.Close()
+	}()
+	it := 0
+	for events.Next() {
+		event := events.Event()
+		for it < len(c.ranges) && !c.ranges[it].contains(event.EventID()) {
+			it++
+		}
+		if it == len(c.ranges) {
+			return fmt.Errorf("invalid event ID: case 1")
+		}
+		if err := fn(event); err != nil {
 			return err
 		}
+		if event.EventID() == c.ranges[it].Begin {
+			c.ranges[it].Begin++
+		} else {
+			c.ranges = append(c.ranges, c.ranges[len(c.ranges)-1])
+			for i := len(c.ranges) - 3; i >= it; i-- {
+				c.ranges[i+1] = c.ranges[i]
+			}
+			c.ranges[it].End = event.EventID()
+			c.ranges[it+1].Begin = event.EventID() + 1
+		}
 	}
-	return nil
+	c.removeEmptyRanges()
+	return events.Err()
 }
 
 // Some transactions may failure and such gaps will never been removed
@@ -65,117 +90,13 @@ const eventGapSkipWindow = 5000
 // store, so we should remove gaps by timeout.
 const eventGapSkipTimeout = 5 * time.Minute
 
-func (c *eventConsumer) loadGapsChanges(
-	tx gosql.WeakTx, fn func(Event) error,
-) error {
-	window := c.endID - eventGapSkipWindow
-	timeout := time.Now().Add(-eventGapSkipTimeout)
-	for it := c.gaps.Front(); it != nil; {
-		jt := it.Next()
-		if err := c.loadGapChanges(tx, it, fn, window, timeout); err != nil {
-			if err != sql.ErrNoRows {
-				return err
-			}
-		}
-		it = jt
-	}
-	return nil
-}
-
-func (c *eventConsumer) loadGapChanges(
-	tx gosql.WeakTx, it *list.Element, fn func(Event) error,
-	window int64, timeout time.Time,
-) error {
-	gap := it.Value.(eventGap)
-	if gap.endID < window || gap.time.Before(timeout) {
-		c.gaps.Remove(it)
-		return nil
-	}
-	rows, err := c.store.LoadEvents(tx, gap.beginID, gap.endID)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = rows.Close() }()
-	prevID := gap.beginID - 1
-	for rows.Next() {
-		event := rows.Event()
-		if event.EventID() <= prevID {
-			return fmt.Errorf(
-				"event %d should have ID greater than %d",
-				event.EventID(), prevID,
-			)
-		}
-		if event.EventID() >= gap.endID {
-			return fmt.Errorf(
-				"event %d should have ID less than %d",
-				event.EventID(), gap.endID,
-			)
-		}
-		if err := fn(event); err != nil {
-			return err
-		}
-		prevID = event.EventID()
-		if event.EventID() > gap.beginID {
-			newGap := eventGap{
-				beginID: event.EventID() + 1,
-				endID:   gap.endID,
-				time:    gap.time,
-			}
-			gap.endID = event.EventID()
-			it.Value = gap
-			if newGap.beginID == newGap.endID {
-				break
-			}
-			it = c.gaps.InsertAfter(newGap, it)
-			gap = newGap
-		} else {
-			gap.beginID++
-			if gap.beginID == gap.endID {
-				c.gaps.Remove(it)
-				break
-			}
-			it.Value = gap
-		}
-	}
-	return rows.Err()
-}
-
-func (c *eventConsumer) loadNewChanges(
-	tx gosql.WeakTx, fn func(Event) error,
-) error {
-	rows, err := c.store.LoadEvents(tx, c.endID, math.MaxInt64)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = rows.Close() }()
-	for rows.Next() {
-		event := rows.Event()
-		if event.EventID() < c.endID {
-			return fmt.Errorf(
-				"event %d should have ID not less than %d",
-				event.EventID(), c.endID,
-			)
-		}
-		if err := fn(event); err != nil {
-			return err
-		}
-		if c.endID < event.EventID() {
-			c.gaps.PushBack(eventGap{
-				beginID: c.endID,
-				endID:   event.EventID(),
-				time:    event.EventTime(),
-			})
-		}
-		c.endID = event.EventID() + 1
-	}
-	return rows.Err()
-}
-
 // NewEventConsumer creates consumer for event store.
-func NewEventConsumer(store EventROStore, beginID int64) EventConsumer {
-	return &eventConsumer{
-		store: store,
-		endID: beginID,
-		gaps:  list.New(),
+//
+// TODO(udovin): Add support for gapSkipTimeout.
+// TODO(udovin): Add support for limit.
+func NewEventConsumer[T Event](store EventROStore[T], beginID int64) EventConsumer[T] {
+	return &eventConsumer[T]{
+		store:  store,
+		ranges: []EventRange{{Begin: beginID}},
 	}
 }

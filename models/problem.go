@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // Problem represents a problem.
@@ -33,13 +32,13 @@ type ProblemEvent struct {
 }
 
 // Object returns event problem.
-func (e ProblemEvent) Object() db.Object {
+func (e ProblemEvent) Object() Problem {
 	return e.Problem
 }
 
 // WithObject returns event with replaced Problem.
-func (e ProblemEvent) WithObject(o db.Object) ObjectEvent {
-	e.Problem = o.(Problem)
+func (e ProblemEvent) WithObject(o Problem) ObjectEvent[Problem] {
+	e.Problem = o
 	return e
 }
 
@@ -47,36 +46,6 @@ func (e ProblemEvent) WithObject(o db.Object) ObjectEvent {
 type ProblemStore struct {
 	baseStore[Problem, ProblemEvent]
 	problems map[int64]Problem
-}
-
-// CreateTx creates problem and returns copy with valid ID.
-func (s *ProblemStore) CreateTx(tx gosql.WeakTx, problem *Problem) error {
-	event, err := s.createObjectEvent(tx, ProblemEvent{
-		makeBaseEvent(CreateEvent), *problem,
-	})
-	if err != nil {
-		return err
-	}
-	*problem = event.Object().(Problem)
-	return nil
-}
-
-// UpdateTx updates problem with specified ID.
-func (s *ProblemStore) UpdateTx(tx gosql.WeakTx, problem Problem) error {
-	_, err := s.createObjectEvent(tx, ProblemEvent{
-		makeBaseEvent(UpdateEvent),
-		problem,
-	})
-	return err
-}
-
-// DeleteTx deletes problem with specified ID.
-func (s *ProblemStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, ProblemEvent{
-		makeBaseEvent(DeleteEvent),
-		Problem{ID: id},
-	})
-	return err
 }
 
 // Get returns problem by ID.
@@ -105,6 +74,14 @@ func (s *ProblemStore) All() ([]Problem, error) {
 
 func (s *ProblemStore) reset() {
 	s.problems = map[int64]Problem{}
+}
+
+func (s *ProblemStore) makeObject(id int64) Problem {
+	return Problem{ID: id}
+}
+
+func (s *ProblemStore) makeObjectEvent(typ EventType) ObjectEvent[Problem] {
+	return ProblemEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *ProblemStore) onCreateObject(problem Problem) {

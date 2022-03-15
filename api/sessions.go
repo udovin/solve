@@ -31,7 +31,7 @@ type Sessions struct {
 func (v *View) registerSessionHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/sessions/:session", v.observeSession,
-		v.sessionAuth, v.requireAuth, v.extractSession, v.extractSessionRoles,
+		v.sessionAuth, v.extractSession, v.extractSessionRoles,
 		v.requireAuthRole(models.ObserveSessionRole),
 	)
 	g.DELETE(
@@ -108,8 +108,8 @@ func (v *View) extractSessionRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error("roles not extracted")
 			return fmt.Errorf("roles not extracted")
 		}
-		addRole := func(roles core.RoleSet, code string) {
-			if err := v.core.AddRole(roles, code); err != nil {
+		addRole := func(roles core.RoleSet, name string) {
+			if err := v.core.AddRole(roles, name); err != nil {
 				c.Logger().Error(err)
 			}
 		}

@@ -1,6 +1,10 @@
 package api
 
-import "testing"
+import (
+	"fmt"
+	"math/rand"
+	"testing"
+)
 
 var testContestTitle = "Test contest"
 
@@ -16,16 +20,9 @@ func TestContestSimpleScenario(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)
-	if _, err := testSocketCreateUserRole("test", "observe_contest"); err != nil {
-		t.Fatal("Error:", err)
-	}
-	if _, err := testSocketCreateUserRole("test", "create_contest"); err != nil {
-		t.Fatal("Error:", err)
-	}
-	if _, err := testSocketCreateUserRole("test", "update_contest"); err != nil {
-		t.Fatal("Error:", err)
-	}
-	if _, err := testSocketCreateUserRole("test", "delete_contest"); err != nil {
+	if err := testSocketCreateUserRoles(
+		"test", "observe_contest", "create_contest", "update_contest", "delete_contest",
+	); err != nil {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)
@@ -37,40 +34,75 @@ func TestContestSimpleScenario(t *testing.T) {
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		if len(contests.Contests) != 0 {
-			t.Fatal("Contests list should be empty")
-		}
+		testCheck(contests)
 	}
 	contest, err := client.CreateContest(testCreateContest)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if contest.ID == 0 {
-		t.Fatal("Invalid contest ID")
-	}
-	if contest.Title != testContestTitle {
-		t.Fatal("Invalid title:", contest.Title)
-	}
+	testCheck(contest)
 	testSyncManagers(t)
 	{
 		contests, err := client.ObserveContests()
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		if len(contests.Contests) != 1 {
-			t.Fatal("Contests list should not be empty")
-		}
+		testCheck(contests)
 	}
 	{
 		created, err := client.ObserveContest(contest.ID)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		if created.ID != contest.ID {
-			t.Fatal("Invalid contest ID:", created.ID)
+		testCheck(created)
+	}
+}
+
+func ptrString(s string) *string {
+	return &s
+}
+
+func BenchmarkContests(b *testing.B) {
+	rnd := rand.New(rand.NewSource(42))
+	testSetup(b)
+	defer testTeardown(b)
+	client := newTestClient()
+	if _, err := client.Register(testRegisterUser); err != nil {
+		b.Fatal("Error:", err)
+	}
+	testSyncManagers(b)
+	if err := testSocketCreateUserRoles(
+		"test", "observe_contest", "create_contest", "update_contest", "delete_contest",
+	); err != nil {
+		b.Fatal("Error:", err)
+	}
+	testSyncManagers(b)
+	if _, err := client.Login("test", "qwerty123"); err != nil {
+		b.Fatal("Error:", err)
+	}
+	b.ResetTimer()
+	var ids []int64
+	for i := 0; i < b.N; i++ {
+		form := createContestForm{
+			Title: ptrString(fmt.Sprintf("Contest %d", i+1)),
 		}
-		if created.Title != contest.Title {
-			t.Fatal("Invalid title:", created.Title)
+		contest, err := client.CreateContest(form)
+		if err != nil {
+			b.Fatal("Error:", err)
+		}
+		testSyncManagers(b)
+		ids = append(ids, contest.ID)
+	}
+	rnd.Shuffle(len(ids), func(i, j int) {
+		ids[i], ids[j] = ids[j], ids[i]
+	})
+	for _, id := range ids {
+		contest, err := client.ObserveContest(id)
+		if err != nil {
+			b.Fatal("Error:", err)
+		}
+		if contest.ID != id {
+			b.Fatal("Invalid contest ID:", contest.ID)
 		}
 	}
 }

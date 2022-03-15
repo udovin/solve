@@ -25,7 +25,7 @@ func TestLoadFromFile(t *testing.T) {
 		DB: DB{
 			Options: SQLiteOptions{Path: ":memory:"},
 		},
-		LogLevel: log.INFO,
+		LogLevel: LogLevel(log.INFO),
 	}
 	expectedConfigData, err := json.Marshal(expectedConfig)
 	if err != nil {
@@ -103,7 +103,7 @@ func TestLoadFromTemplateFile(t *testing.T) {
 	} else {
 		testExpect(t, opts.Path, "secret")
 	}
-	testExpect(t, cfg.LogLevel, log.INFO)
+	testExpect(t, cfg.LogLevel, LogLevel(log.INFO))
 }
 
 func TestLoadFromInvalidFile(t *testing.T) {

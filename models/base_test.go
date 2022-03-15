@@ -69,12 +69,12 @@ type testObjectEvent struct {
 	testObject
 }
 
-func (e testObjectEvent) Object() db.Object {
+func (e testObjectEvent) Object() testObject {
 	return e.testObject
 }
 
-func (e testObjectEvent) WithObject(o db.Object) ObjectEvent {
-	e.testObject = o.(testObject)
+func (e testObjectEvent) WithObject(o testObject) ObjectEvent[testObject] {
+	e.testObject = o
 	return e
 }
 
@@ -91,34 +91,12 @@ func (s *testStore) Get(id int64) (testObject, error) {
 	return testObject{}, sql.ErrNoRows
 }
 
-func (s *testStore) CreateTx(
-	tx gosql.WeakTx, object *testObject,
-) error {
-	event, err := s.createObjectEvent(tx, testObjectEvent{
-		makeBaseEvent(CreateEvent),
-		*object,
-	})
-	if err != nil {
-		return err
-	}
-	*object = event.Object().(testObject)
-	return nil
+func (s *testStore) makeObject(id int64) testObject {
+	return testObject{ID: id}
 }
 
-func (s *testStore) UpdateTx(tx gosql.WeakTx, object testObject) error {
-	_, err := s.createObjectEvent(tx, testObjectEvent{
-		makeBaseEvent(UpdateEvent),
-		object,
-	})
-	return err
-}
-
-func (s *testStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, testObjectEvent{
-		makeBaseEvent(DeleteEvent),
-		testObject{ID: id},
-	})
-	return err
+func (s *testStore) makeObjectEvent(typ EventType) ObjectEvent[testObject] {
+	return testObjectEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *testStore) reset() {
@@ -355,7 +333,7 @@ func TestBaseStore_lockStore(t *testing.T) {
 }
 
 func TestBaseStore_consumeEvent(t *testing.T) {
-	store := baseStore[any, any]{}
+	store := baseStore[testObject, testObjectEvent]{}
 	if err := store.consumeEvent(testObjectEvent{
 		baseEvent: makeBaseEvent(-1),
 	}); err == nil {
@@ -466,7 +444,7 @@ func TestJSON_Scan(t *testing.T) {
 	if err := a.Scan([]byte("{")); err == nil {
 		t.Fatal("Expected error")
 	}
-	if err := a.Scan(baseStore[any, any]{}); err == nil {
+	if err := a.Scan(baseStore[testObject, testObjectEvent]{}); err == nil {
 		t.Fatal("Expected error")
 	}
 }
@@ -576,6 +554,13 @@ func (s *StoreTester) Test(t testing.TB) {
 	}
 	if err := master.SyncTx(testDB); err != nil {
 		t.Fatal("Error:", err)
+	}
+	for _, object := range objects {
+		if err := withTestTx(func(tx *sql.Tx) error {
+			return s.helper.deleteObject(master, tx, object.ObjectID())
+		}); err != sql.ErrNoRows {
+			t.Fatalf("Expected %q error, but got %q", sql.ErrNoRows, err)
+		}
 	}
 	s.testFailedTx(t, master)
 }

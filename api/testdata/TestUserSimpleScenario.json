@@ -1,0 +1,35 @@
+[
+  {
+    "id": 1,
+    "login": "test",
+    "first_name": "First",
+    "last_name": "Last"
+  },
+  {
+    "user": {
+      "id": 1,
+      "login": "test"
+    },
+    "session": {
+      "id": 1
+    },
+    "permissions": [
+      "login",
+      "logout",
+      "observe_contests",
+      "observe_problems",
+      "observe_solutions",
+      "observe_user",
+      "status",
+      "user_group"
+    ]
+  },
+  {
+    "id": 1,
+    "login": "test",
+    "email": "text@example.com",
+    "first_name": "First",
+    "last_name": "Last",
+    "middle_name": "Middle"
+  }
+]

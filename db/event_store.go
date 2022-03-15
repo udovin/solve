@@ -18,44 +18,71 @@ type Event interface {
 }
 
 // EventReader represents reader for events.
-type EventReader interface {
+type EventReader[T Event] interface {
 	// Next should read next event and return true if event exists.
 	Next() bool
 	// Event should return current event.
-	Event() Event
+	Event() T
 	// Close should close reader.
 	Close() error
 	// Err should return error that occurred during reading.
 	Err() error
 }
 
+// EventRange represents range [begin, end).
+type EventRange struct {
+	// Begin contains begin of range.
+	//
+	// Begin can not be greater than End and can not be less than 0.
+	Begin int64
+	// End contains end of range.
+	//
+	// If End == 0, then there is no upper limit.
+	End int64
+}
+
+func (r EventRange) contains(id int64) bool {
+	return id >= r.Begin && (r.End == 0 || id < r.End)
+}
+
+func (r EventRange) getWhere(name string) gosql.BoolExpression {
+	column := gosql.Column(name)
+	if r.End == 0 {
+		return column.GreaterEqual(r.Begin)
+	}
+	if r.Begin+1 == r.End {
+		return column.Equal(r.Begin)
+	}
+	return column.GreaterEqual(r.Begin).And(column.Less(r.End))
+}
+
 // EventROStore represents read-only store for events.
-type EventROStore interface {
+type EventROStore[T Event] interface {
 	// LastEventID should return last event ID or sql.ErrNoRows
 	// if there is no events.
 	LastEventID(tx gosql.WeakTx) (int64, error)
 	// LoadEvents should load events from store in specified range.
-	LoadEvents(tx gosql.WeakTx, begin, end int64) (EventReader, error)
+	LoadEvents(tx gosql.WeakTx, ranges []EventRange) (EventReader[T], error)
 }
 
 // EventStore represents persistent store for events.
-type EventStore interface {
-	EventROStore
+type EventStore[T Event] interface {
+	EventROStore[T]
 	// CreateEvent should create a new event and return copy
 	// that has correct EventID.
-	CreateEvent(tx gosql.WeakTx, event Event) (Event, error)
+	CreateEvent(tx gosql.WeakTx, event *T) error
 }
 
-type eventStore struct {
-	typ     reflect.Type
-	id      string
-	table   string
-	dialect gosql.Dialect
+type eventStore[T Event] struct {
+	typ   reflect.Type
+	db    *gosql.DB
+	id    string
+	table string
 }
 
 // LastEventID returns last event ID or sql.ErrNoRows
 // if there is no events.
-func (s *eventStore) LastEventID(tx gosql.WeakTx) (int64, error) {
+func (s *eventStore[T]) LastEventID(tx gosql.WeakTx) (int64, error) {
 	row := tx.QueryRow(
 		fmt.Sprintf("SELECT max(%q) FROM %q", s.id, s.table),
 	)
@@ -69,75 +96,84 @@ func (s *eventStore) LastEventID(tx gosql.WeakTx) (int64, error) {
 	return *id, nil
 }
 
-func (s *eventStore) LoadEvents(
-	tx gosql.WeakTx, begin, end int64,
-) (EventReader, error) {
-	rows, err := tx.Query(
-		fmt.Sprintf(
-			"SELECT %s FROM %q WHERE %q >= $1 AND %q < $2 ORDER BY %q",
-			prepareSelect(s.typ), s.table, s.id, s.id, s.id,
-		),
-		begin, end,
-	)
+func (s *eventStore[T]) getEventsWhere(ranges []EventRange) gosql.BoolExpression {
+	if len(ranges) == 0 {
+		return nil
+	}
+	where := ranges[0].getWhere(s.id)
+	for _, rng := range ranges[1:] {
+		where = where.Or(rng.getWhere(s.id))
+	}
+	return where
+}
+
+func (s *eventStore[T]) LoadEvents(
+	tx gosql.WeakTx, ranges []EventRange,
+) (EventReader[T], error) {
+	query, values := s.db.Select(s.table).
+		Names(prepareNames(s.typ)...).
+		Where(s.getEventsWhere(ranges)).
+		OrderBy(gosql.Ascending(s.id)).
+		// Limit(1000).
+		Build()
+	rows, err := tx.Query(query, values...)
 	if err != nil {
 		return nil, err
 	}
 	if err := checkColumns(s.typ, rows); err != nil {
 		return nil, err
 	}
-	return &eventReader{typ: s.typ, rows: rows}, nil
+	return &eventReader[T]{typ: s.typ, rows: rows}, nil
 }
 
-func (s *eventStore) CreateEvent(tx gosql.WeakTx, event Event) (Event, error) {
-	typ := reflect.TypeOf(event)
-	if typ.Name() != s.typ.Name() || typ.PkgPath() != s.typ.PkgPath() {
-		return nil, fmt.Errorf("expected %v type", s.typ)
-	}
-	row, err := insertRow(tx, event, s.id, s.table, s.dialect)
+func (s *eventStore[T]) CreateEvent(tx gosql.WeakTx, event *T) error {
+	row, err := insertRow(tx, *event, s.id, s.table, s.db.Dialect())
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return row.(Event), nil
+	*event = row.(T)
+	return nil
 }
 
 // NewEventStore creates a new store for events of specified type.
-func NewEventStore(event Event, id, table string, dialect gosql.Dialect) EventStore {
-	return &eventStore{
-		typ:     reflect.TypeOf(event),
-		id:      id,
-		table:   table,
-		dialect: dialect,
+func NewEventStore[T Event](id, table string, db *gosql.DB) EventStore[T] {
+	var event T
+	return &eventStore[T]{
+		typ:   reflect.TypeOf(event),
+		db:    db,
+		id:    id,
+		table: table,
 	}
 }
 
-type eventReader struct {
+type eventReader[T Event] struct {
 	typ   reflect.Type
 	rows  *sql.Rows
 	err   error
-	event Event
+	event T
 }
 
-func (r *eventReader) Next() bool {
+func (r *eventReader[T]) Next() bool {
 	if !r.rows.Next() {
 		return false
 	}
 	var v any
 	v, r.err = scanRow(r.typ, r.rows)
 	if r.err == nil {
-		r.event = v.(Event)
+		r.event = v.(T)
 	}
 	return r.err == nil
 }
 
-func (r *eventReader) Event() Event {
+func (r *eventReader[T]) Event() T {
 	return r.event
 }
 
-func (r *eventReader) Close() error {
+func (r *eventReader[T]) Close() error {
 	return r.rows.Close()
 }
 
-func (r *eventReader) Err() error {
+func (r *eventReader[T]) Err() error {
 	if err := r.rows.Err(); err != nil {
 		return err
 	}

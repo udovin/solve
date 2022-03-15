@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // ContestSolution represents connection for solutions.
@@ -38,13 +37,13 @@ type ContestSolutionEvent struct {
 }
 
 // Object returns event role edge.
-func (e ContestSolutionEvent) Object() db.Object {
+func (e ContestSolutionEvent) Object() ContestSolution {
 	return e.ContestSolution
 }
 
 // WithObject returns event with replaced ContestSolution.
-func (e ContestSolutionEvent) WithObject(o db.Object) ObjectEvent {
-	e.ContestSolution = o.(ContestSolution)
+func (e ContestSolutionEvent) WithObject(o ContestSolution) ObjectEvent[ContestSolution] {
+	e.ContestSolution = o
 	return e
 }
 
@@ -84,45 +83,18 @@ func (s *ContestSolutionStore) FindByContest(
 	return solutions, nil
 }
 
-// CreateTx creates solution and returns copy with valid ID.
-func (s *ContestSolutionStore) CreateTx(
-	tx gosql.WeakTx, solution *ContestSolution,
-) error {
-	event, err := s.createObjectEvent(tx, ContestSolutionEvent{
-		makeBaseEvent(CreateEvent),
-		*solution,
-	})
-	if err != nil {
-		return err
-	}
-	*solution = event.Object().(ContestSolution)
-	return nil
-}
-
-// UpdateTx updates solution with specified ID.
-func (s *ContestSolutionStore) UpdateTx(
-	tx gosql.WeakTx, solution ContestSolution,
-) error {
-	_, err := s.createObjectEvent(tx, ContestSolutionEvent{
-		makeBaseEvent(UpdateEvent),
-		solution,
-	})
-	return err
-}
-
-// DeleteTx deletes solution with specified ID.
-func (s *ContestSolutionStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, ContestSolutionEvent{
-		makeBaseEvent(DeleteEvent),
-		ContestSolution{ID: id},
-	})
-	return err
-}
-
 func (s *ContestSolutionStore) reset() {
 	s.solutions = map[int64]ContestSolution{}
 	s.byContest = makeIndex[int64]()
 	s.byParticipant = makeIndex[int64]()
+}
+
+func (s *ContestSolutionStore) makeObject(id int64) ContestSolution {
+	return ContestSolution{ID: id}
+}
+
+func (s *ContestSolutionStore) makeObjectEvent(typ EventType) ObjectEvent[ContestSolution] {
+	return ContestSolutionEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *ContestSolutionStore) onCreateObject(solution ContestSolution) {

@@ -16,8 +16,8 @@ import (
 type Role struct {
 	// ID contains role ID.
 	ID int64 `json:"id"`
-	// Code contains role code.
-	Code string `json:"code"`
+	// Name contains role name.
+	Name string `json:"name"`
 }
 
 // Roles represents roles response.
@@ -29,7 +29,7 @@ type Roles struct {
 func (v *View) registerRoleHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/roles", v.observeRoles,
-		v.sessionAuth, v.requireAuth,
+		v.sessionAuth,
 		v.requireAuthRole(models.ObserveRolesRole),
 	)
 	g.POST(
@@ -44,7 +44,7 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/v0/roles/:role/roles", v.observeRoleRoles,
-		v.sessionAuth, v.requireAuth, v.extractRole,
+		v.sessionAuth, v.extractRole,
 		v.requireAuthRole(models.ObserveRoleRolesRole),
 	)
 	g.POST(
@@ -59,7 +59,7 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/v0/users/:user/roles", v.observeUserRoles,
-		v.sessionAuth, v.requireAuth, v.extractUser,
+		v.sessionAuth, v.extractUser,
 		v.requireAuthRole(models.ObserveUserRolesRole),
 	)
 	g.POST(
@@ -120,28 +120,28 @@ func (v *View) observeRoles(c echo.Context) error {
 	for _, role := range roles {
 		resp.Roles = append(resp.Roles, Role{
 			ID:   role.ID,
-			Code: role.Code,
+			Name: role.Name,
 		})
 	}
 	return c.JSON(http.StatusOK, resp)
 }
 
 type createRoleForm struct {
-	Code string `json:"code" form:"code"`
+	Name string `json:"name" form:"name"`
 }
 
-var roleCodeRegexp = regexp.MustCompile(
+var roleNameRegexp = regexp.MustCompile(
 	`^[a-zA-Z]([a-zA-Z0-9_\\-])*[a-zA-Z0-9]$`,
 )
 
 func (f createRoleForm) validate() *errorResponse {
 	errors := errorFields{}
-	if len(f.Code) < 3 {
-		errors["code"] = errorField{Message: "code too short (<3)"}
-	} else if len(f.Code) > 32 {
-		errors["code"] = errorField{Message: "code too long (>32)"}
-	} else if !roleCodeRegexp.MatchString(f.Code) {
-		errors["code"] = errorField{Message: "code has invalid format"}
+	if len(f.Name) < 3 {
+		errors["name"] = errorField{Message: "name too short (<3)"}
+	} else if len(f.Name) > 32 {
+		errors["name"] = errorField{Message: "name too long (>32)"}
+	} else if !roleNameRegexp.MatchString(f.Name) {
+		errors["name"] = errorField{Message: "name has invalid format"}
 	}
 	if len(errors) == 0 {
 		return nil
@@ -158,13 +158,13 @@ func (f createRoleForm) Update(
 	if err := f.validate(); err != nil {
 		return err
 	}
-	role.Code = f.Code
-	if _, err := roles.GetByCode(role.Code); err != sql.ErrNoRows {
+	role.Name = f.Name
+	if _, err := roles.GetByName(role.Name); err != sql.ErrNoRows {
 		if err != nil {
 			return &errorResponse{Message: "unknown error"}
 		}
 		return &errorResponse{
-			Message: fmt.Sprintf("role %q already exists", role.Code),
+			Message: fmt.Sprintf("role %q already exists", role.Name),
 		}
 	}
 	return nil
@@ -181,16 +181,14 @@ func (v *View) createRole(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, resp)
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		var err error
-		role, err = v.core.Roles.CreateTx(tx, role)
-		return err
+		return v.core.Roles.CreateTx(tx, &role)
 	}); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
 	return c.JSON(http.StatusCreated, Role{
 		ID:   role.ID,
-		Code: role.Code,
+		Name: role.Name,
 	})
 }
 
@@ -213,7 +211,7 @@ func (v *View) deleteRole(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, Role{
 		ID:   role.ID,
-		Code: role.Code,
+		Name: role.Name,
 	})
 }
 
@@ -241,7 +239,7 @@ func (v *View) observeRoleRoles(c echo.Context) error {
 		}
 		resp.Roles = append(resp.Roles, Role{
 			ID:   role.ID,
-			Code: role.Code,
+			Name: role.Name,
 		})
 	}
 	return c.JSON(http.StatusOK, resp)
@@ -268,7 +266,7 @@ func (v *View) createRoleRole(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, &errorResponse{
 				Message: fmt.Sprintf(
 					"role %q already has child %q",
-					role.Code, childRole.Code,
+					role.Name, childRole.Name,
 				),
 			})
 		}
@@ -278,7 +276,7 @@ func (v *View) createRoleRole(c echo.Context) error {
 		} else {
 			resp.Roles = append(resp.Roles, Role{
 				ID:   role.ID,
-				Code: role.Code,
+				Name: role.Name,
 			})
 		}
 	}
@@ -287,9 +285,8 @@ func (v *View) createRoleRole(c echo.Context) error {
 		ChildID: childRole.ID,
 	}
 	if err := v.core.WithTx(c.Request().Context(),
-		func(tx *sql.Tx) (err error) {
-			edge, err = v.core.RoleEdges.CreateTx(tx, edge)
-			return err
+		func(tx *sql.Tx) error {
+			return v.core.RoleEdges.CreateTx(tx, &edge)
 		},
 	); err != nil {
 		c.Logger().Error(err)
@@ -297,7 +294,7 @@ func (v *View) createRoleRole(c echo.Context) error {
 	}
 	resp.Roles = append(resp.Roles, Role{
 		ID:   childRole.ID,
-		Code: childRole.Code,
+		Name: childRole.Name,
 	})
 	return c.JSON(http.StatusCreated, resp)
 }
@@ -330,7 +327,7 @@ func (v *View) observeUserRoles(c echo.Context) error {
 		}
 		resp.Roles = append(resp.Roles, Role{
 			ID:   role.ID,
-			Code: role.Code,
+			Name: role.Name,
 		})
 	}
 	return c.JSON(http.StatusOK, resp)
@@ -357,7 +354,7 @@ func (v *View) createUserRole(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, &errorResponse{
 				Message: fmt.Sprintf(
 					"user %q already has role %q",
-					user.Login, role.Code,
+					user.Login, role.Name,
 				),
 			})
 		}
@@ -367,7 +364,7 @@ func (v *View) createUserRole(c echo.Context) error {
 		} else {
 			resp.Roles = append(resp.Roles, Role{
 				ID:   role.ID,
-				Code: role.Code,
+				Name: role.Name,
 			})
 		}
 	}
@@ -376,7 +373,7 @@ func (v *View) createUserRole(c echo.Context) error {
 		RoleID:    role.ID,
 	}
 	if err := v.core.WithTx(c.Request().Context(),
-		func(tx *sql.Tx) (err error) {
+		func(tx *sql.Tx) error {
 			return v.core.AccountRoles.CreateTx(tx, &edge)
 		},
 	); err != nil {
@@ -385,7 +382,7 @@ func (v *View) createUserRole(c echo.Context) error {
 	}
 	resp.Roles = append(resp.Roles, Role{
 		ID:   role.ID,
-		Code: role.Code,
+		Name: role.Name,
 	})
 	return c.JSON(http.StatusCreated, resp)
 }
@@ -394,21 +391,21 @@ func (v *View) deleteUserRole(c echo.Context) error {
 	return errNotImplemented
 }
 
-func getRoleByParam(roles *models.RoleStore, code string) (models.Role, error) {
-	id, err := strconv.ParseInt(code, 10, 64)
+func getRoleByParam(roles *models.RoleStore, name string) (models.Role, error) {
+	id, err := strconv.ParseInt(name, 10, 64)
 	if err != nil {
-		return roles.GetByCode(code)
+		return roles.GetByName(name)
 	}
 	return roles.Get(id)
 }
 
 func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		code := c.Param("role")
-		role, err := getRoleByParam(v.core.Roles, code)
+		name := c.Param("role")
+		role, err := getRoleByParam(v.core.Roles, name)
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
-				Message: fmt.Sprintf("role %q not found", code),
+				Message: fmt.Sprintf("role %q not found", name),
 			}
 			return c.JSON(http.StatusNotFound, resp)
 		} else if err != nil {
@@ -422,11 +419,11 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) extractChildRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		code := c.Param("child_role")
-		role, err := getRoleByParam(v.core.Roles, code)
+		name := c.Param("child_role")
+		role, err := getRoleByParam(v.core.Roles, name)
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
-				Message: fmt.Sprintf("role %q not found", code),
+				Message: fmt.Sprintf("role %q not found", name),
 			}
 			return c.JSON(http.StatusNotFound, resp)
 		} else if err != nil {

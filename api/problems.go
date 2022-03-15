@@ -26,7 +26,7 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 	if v.core.Config.Storage != nil {
 		g.POST(
 			"/v0/problems", v.createProblem,
-			v.sessionAuth,
+			v.sessionAuth, v.requireAuth,
 			v.requireAuthRole(models.CreateProblemRole),
 		)
 	}
@@ -146,7 +146,7 @@ func (v *View) createProblem(c echo.Context) error {
 		problem.OwnerID = models.NInt64(account.ID)
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		file, err := c.FormFile("package")
+		file, err := c.FormFile("file")
 		if err != nil {
 			return err
 		}
@@ -223,8 +223,8 @@ func (v *View) extendProblemRoles(
 	c echo.Context, roles core.RoleSet, problem models.Problem,
 ) core.RoleSet {
 	problemRoles := roles.Clone()
-	addRole := func(code string) {
-		if err := v.core.AddRole(problemRoles, code); err != nil {
+	addRole := func(name string) {
+		if err := v.core.AddRole(problemRoles, name); err != nil {
 			c.Logger().Error(err)
 		}
 	}

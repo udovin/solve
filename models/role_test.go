@@ -13,7 +13,7 @@ func (t *roleStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "role" (` +
 			`"id" integer PRIMARY KEY,` +
-			`"code" varchar(255) NOT NULL)`,
+			`"name" varchar(255) NOT NULL)`,
 	); err != nil {
 		return err
 	}
@@ -23,7 +23,7 @@ func (t *roleStoreTest) prepareDB(tx *sql.Tx) error {
 			`"event_type" int8 NOT NULL,` +
 			`"event_time" bigint NOT NULL,` +
 			`"id" integer NOT NULL,` +
-			`"code" varchar(255) NOT NULL)`,
+			`"name" varchar(255) NOT NULL)`,
 	)
 	return err
 }
@@ -39,7 +39,9 @@ func (t *roleStoreTest) newObject() db.Object {
 func (t *roleStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return s.(*RoleStore).CreateTx(tx, o.(Role))
+	object := o.(Role)
+	err := s.(*RoleStore).CreateTx(tx, &object)
+	return object, err
 }
 
 func (t *roleStoreTest) updateObject(
@@ -62,9 +64,9 @@ func TestRoleStore(t *testing.T) {
 }
 
 func TestRole_IsBuiltIn(t *testing.T) {
-	for code := range builtInRoles {
-		if !(Role{Code: code}).IsBuiltIn() {
-			t.Fatalf("Expected built-in role %q", code)
+	for name := range builtInRoles {
+		if !(Role{Name: name}).IsBuiltIn() {
+			t.Fatalf("Expected built-in role %q", name)
 		}
 	}
 }

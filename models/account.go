@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // AccountKind represents kind of account.
@@ -40,13 +39,13 @@ type AccountEvent struct {
 }
 
 // Object returns event account.
-func (e AccountEvent) Object() db.Object {
+func (e AccountEvent) Object() Account {
 	return e.Account
 }
 
 // WithObject returns event with replaced Account.
-func (e AccountEvent) WithObject(o db.Object) ObjectEvent {
-	e.Account = o.(Account)
+func (e AccountEvent) WithObject(o Account) ObjectEvent[Account] {
+	e.Account = o
 	return e
 }
 
@@ -66,38 +65,16 @@ func (s *AccountStore) Get(id int64) (Account, error) {
 	return Account{}, sql.ErrNoRows
 }
 
-// CreateTx creates account and returns copy with valid ID.
-func (s *AccountStore) CreateTx(tx gosql.WeakTx, account *Account) error {
-	event, err := s.createObjectEvent(tx, AccountEvent{
-		makeBaseEvent(CreateEvent), *account,
-	})
-	if err != nil {
-		return err
-	}
-	*account = event.Object().(Account)
-	return nil
-}
-
-// UpdateTx updates account with specified ID.
-func (s *AccountStore) UpdateTx(tx gosql.WeakTx, account Account) error {
-	_, err := s.createObjectEvent(tx, AccountEvent{
-		makeBaseEvent(UpdateEvent),
-		account,
-	})
-	return err
-}
-
-// DeleteTx deletes account with specified ID.
-func (s *AccountStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, AccountEvent{
-		makeBaseEvent(DeleteEvent),
-		Account{ID: id},
-	})
-	return err
-}
-
 func (s *AccountStore) reset() {
 	s.accounts = map[int64]Account{}
+}
+
+func (s *AccountStore) makeObject(id int64) Account {
+	return Account{ID: id}
+}
+
+func (s *AccountStore) makeObjectEvent(typ EventType) ObjectEvent[Account] {
+	return AccountEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *AccountStore) onCreateObject(account Account) {

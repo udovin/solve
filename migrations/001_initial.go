@@ -44,7 +44,7 @@ var m001Tables = []schema.Table{
 		Name: "solve_role",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
-			{Name: "code", Type: schema.String},
+			{Name: "name", Type: schema.String},
 		},
 	},
 	{
@@ -54,7 +54,7 @@ var m001Tables = []schema.Table{
 			{Name: "event_type", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
-			{Name: "code", Type: schema.String},
+			{Name: "name", Type: schema.String},
 		},
 	},
 	{
@@ -295,6 +295,27 @@ var m001Tables = []schema.Table{
 		},
 	},
 	{
+		Name: "solve_compiler",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "owner_id", Type: schema.Int64, Nullable: true},
+			{Name: "name", Type: schema.String},
+			{Name: "config", Type: schema.JSON},
+		},
+	},
+	{
+		Name: "solve_compiler_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_type", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "id", Type: schema.Int64},
+			{Name: "owner_id", Type: schema.Int64, Nullable: true},
+			{Name: "name", Type: schema.String},
+			{Name: "config", Type: schema.JSON},
+		},
+	},
+	{
 		Name: "solve_visit",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -342,19 +363,20 @@ func (m *m001) Unapply(c *core.Core, tx *sql.Tx) error {
 
 func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 	roles := map[string]int64{}
-	create := func(code string) error {
-		role, err := c.Roles.CreateTx(tx, models.Role{Code: code})
+	create := func(name string) error {
+		role := models.Role{Name: name}
+		err := c.Roles.CreateTx(tx, &role)
 		if err == nil {
-			roles[role.Code] = role.ID
+			roles[role.Name] = role.ID
 		}
 		return err
 	}
 	join := func(child, parent string) error {
-		_, err := c.RoleEdges.CreateTx(tx, models.RoleEdge{
+		edge := models.RoleEdge{
 			RoleID:  roles[parent],
 			ChildID: roles[child],
-		})
-		return err
+		}
+		return c.RoleEdges.CreateTx(tx, &edge)
 	}
 	allRoles := []string{
 		models.LoginRole,
@@ -389,6 +411,11 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.CreateProblemRole,
 		models.UpdateProblemRole,
 		models.DeleteProblemRole,
+		models.ObserveCompilersRole,
+		models.ObserveCompilerRole,
+		models.CreateCompilerRole,
+		models.UpdateCompilerRole,
+		models.DeleteCompilerRole,
 		models.ObserveSolutionsRole,
 		models.ObserveSolutionRole,
 		models.ObserveContestRole,
@@ -433,6 +460,7 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.ObserveUserRole,
 		models.ObserveProblemsRole,
 		models.ObserveContestsRole,
+		models.ObserveSolutionsRole,
 	} {
 		if err := join(role, models.GuestGroupRole); err != nil {
 			return err
@@ -445,6 +473,7 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.ObserveUserRole,
 		models.ObserveProblemsRole,
 		models.ObserveContestsRole,
+		models.ObserveSolutionsRole,
 	} {
 		if err := join(role, models.UserGroupRole); err != nil {
 			return err

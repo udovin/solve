@@ -37,7 +37,7 @@ func init() {
 func testSetup(tb testing.TB) {
 	var err error
 	func() {
-		testConfigFile, err = ioutil.TempFile("", "test-")
+		testConfigFile, err = ioutil.TempFile(os.TempDir(), "test-")
 		if err != nil {
 			tb.Fatal("Error:", err)
 		}
@@ -64,7 +64,7 @@ func testTeardown(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Unapply(c); err != nil {
+	if err := migrations.Unapply(c, true); err != nil {
 		tb.Fatal("Error:", err)
 	}
 }
@@ -86,8 +86,7 @@ func TestClientMain(t *testing.T) {
 	cmd.Flags().String("config", "", "")
 	cmd.Flags().Set("config", "not-found")
 	defer func() {
-		r := recover()
-		if r == nil {
+		if r := recover(); r == nil {
 			t.Fatal("Expected panic")
 		}
 	}()
@@ -116,6 +115,16 @@ func TestDBUnapplyMain(t *testing.T) {
 		shutdown <- os.Interrupt
 	}()
 	dbUnapplyMain(&cmd, nil)
+}
+
+func TestVersionMain(t *testing.T) {
+	cmd := cobra.Command{}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Unexpected panic: %v", r)
+		}
+	}()
+	versionMain(&cmd, nil)
 }
 
 func TestGetConfigUnknown(t *testing.T) {

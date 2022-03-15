@@ -6,12 +6,14 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 )
@@ -34,9 +36,9 @@ type User struct {
 
 // Status represents current authorization status.
 type Status struct {
-	User    *User    `json:"user,omitempty"`
-	Session *Session `json:"session,omitempty"`
-	Roles   []string `json:"roles"`
+	User        *User    `json:"user,omitempty"`
+	Session     *Session `json:"session,omitempty"`
+	Permissions []string `json:"permissions"`
 }
 
 // registerUserHandlers registers handlers for user management.
@@ -51,7 +53,7 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	)
 	g.PATCH(
 		"/v0/users/:user", v.updateUser,
-		v.sessionAuth, v.extractUser, v.extractUserRoles,
+		v.sessionAuth, v.requireAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.UpdateUserRole),
 	)
 	g.GET(
@@ -61,7 +63,7 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	)
 	g.POST(
 		"/v0/users/:user/password", v.updateUserPassword,
-		v.sessionAuth, v.extractUser, v.extractUserRoles,
+		v.sessionAuth, v.requireAuth, v.extractUser, v.extractUserRoles,
 		v.requireAuthRole(models.UpdateUserPasswordRole),
 	)
 	g.GET(
@@ -176,7 +178,7 @@ func (v *View) updateUser(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	var missingRoles []string
+	var missingPermissions []string
 	if form.FirstName != nil {
 		ok, err := v.core.HasRole(roles, models.UpdateUserFirstNameRole)
 		if err != nil {
@@ -184,7 +186,7 @@ func (v *View) updateUser(c echo.Context) error {
 			return err
 		}
 		if !ok {
-			missingRoles = append(missingRoles, models.UpdateUserFirstNameRole)
+			missingPermissions = append(missingPermissions, models.UpdateUserFirstNameRole)
 		}
 	}
 	if form.LastName != nil {
@@ -194,7 +196,7 @@ func (v *View) updateUser(c echo.Context) error {
 			return err
 		}
 		if !ok {
-			missingRoles = append(missingRoles, models.UpdateUserLastNameRole)
+			missingPermissions = append(missingPermissions, models.UpdateUserLastNameRole)
 		}
 	}
 	if form.MiddleName != nil {
@@ -204,13 +206,13 @@ func (v *View) updateUser(c echo.Context) error {
 			return err
 		}
 		if !ok {
-			missingRoles = append(missingRoles, models.UpdateUserMiddleNameRole)
+			missingPermissions = append(missingPermissions, models.UpdateUserMiddleNameRole)
 		}
 	}
-	if len(missingRoles) > 0 {
+	if len(missingPermissions) > 0 {
 		return c.JSON(http.StatusForbidden, errorResponse{
-			Message:      "account missing roles",
-			MissingRoles: missingRoles,
+			Message:            "account missing permissions",
+			MissingPermissions: missingPermissions,
 		})
 	}
 	if err := form.Update(&user); err != nil {
@@ -332,11 +334,12 @@ func (v *View) status(c echo.Context) error {
 		for id := range roles {
 			if role, err := v.core.Roles.Get(id); err == nil {
 				if role.IsBuiltIn() {
-					status.Roles = append(status.Roles, role.Code)
+					status.Permissions = append(status.Permissions, role.Name)
 				}
 			}
 		}
 	}
+	sort.Strings(status.Permissions)
 	return c.JSON(http.StatusOK, status)
 }
 
@@ -359,9 +362,7 @@ func (v *View) loginAccount(c echo.Context) error {
 		return err
 	}
 	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		var err error
-		session, err = v.core.Sessions.CreateTx(tx, session)
-		return err
+		return v.core.Sessions.CreateTx(tx, &session)
 	}); err != nil {
 		c.Logger().Error(err)
 		return err
@@ -533,14 +534,14 @@ func (v *View) registerUser(c echo.Context) error {
 	if err := form.Update(&user, v.core.Users); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+	if err := gosql.WithTx(v.core.DB, func(tx *sql.Tx) error {
 		account := models.Account{Kind: models.UserAccount}
 		if err := v.core.Accounts.CreateTx(tx, &account); err != nil {
 			return err
 		}
 		user.AccountID = account.ID
 		return v.core.Users.CreateTx(tx, &user)
-	}); err != nil {
+	}, gosql.WithContext(c.Request().Context())); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -596,8 +597,8 @@ func (v *View) extractUserRoles(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error("roles not extracted")
 			return fmt.Errorf("roles not extracted")
 		}
-		addRole := func(roles core.RoleSet, code string) {
-			if err := v.core.AddRole(roles, code); err != nil {
+		addRole := func(roles core.RoleSet, name string) {
+			if err := v.core.AddRole(roles, name); err != nil {
 				c.Logger().Error(err)
 			}
 		}

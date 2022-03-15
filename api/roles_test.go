@@ -25,12 +25,7 @@ func TestCreateDeleteRole(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 	created := createRole(t, "test_role")
-	if created.ID == 0 {
-		t.Fatal("Invalid ID of role", created)
-	}
-	if created.Code != "test_role" {
-		t.Fatal("Invalid code of role:", created)
-	}
+	testCheck(created)
 	testSyncManagers(t)
 	deleted := deleteRole(t, created.ID)
 	if created != deleted {
@@ -38,9 +33,9 @@ func TestCreateDeleteRole(t *testing.T) {
 	}
 }
 
-func createRole(tb testing.TB, code string) Role {
+func createRole(tb testing.TB, name string) Role {
 	data, err := json.Marshal(map[string]string{
-		"code": code,
+		"name": name,
 	})
 	if err != nil {
 		tb.Fatal("Error:", err)

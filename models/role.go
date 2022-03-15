@@ -4,17 +4,16 @@ import (
 	"database/sql"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // Role represents a role.
 type Role struct {
 	// ID contains ID of role.
-	ID int64 `db:"id" json:"id"`
-	// Code contains role code.
+	ID int64 `db:"id"`
+	// Name contains role name.
 	//
-	// Code should be unique for all roles in the events.
-	Code string `db:"code" json:"code"`
+	// Name should be unique for all roles in the events.
+	Name string `db:"name"`
 }
 
 const (
@@ -90,6 +89,16 @@ const (
 	UpdateProblemRole = "update_problem"
 	// DeleteProblemRole represents role for deleting problem.
 	DeleteProblemRole = "delete_problem"
+	// ObserveCompilersRole represents role for observing compiler list.
+	ObserveCompilersRole = "observe_compilers"
+	// ObserveCompilerRole represents role for observing compiler.
+	ObserveCompilerRole = "observe_compiler"
+	// CreateCompilerRole represents role for creating compiler.
+	CreateCompilerRole = "create_compiler"
+	// UpdateCompilerRole represents role for updating compiler.
+	UpdateCompilerRole = "update_compiler"
+	// DeleteCompilerRole represents role for deleting compiler.
+	DeleteCompilerRole = "delete_compiler"
 	// ObserveSolutionsRole represents role for observing solution list.
 	ObserveSolutionsRole = "observe_solutions"
 	// ObserveSolutionRole represents role for observing solution.
@@ -184,6 +193,11 @@ var builtInRoles = map[string]struct{}{
 	CreateProblemRole:              {},
 	UpdateProblemRole:              {},
 	DeleteProblemRole:              {},
+	ObserveCompilersRole:           {},
+	ObserveCompilerRole:            {},
+	CreateCompilerRole:             {},
+	UpdateCompilerRole:             {},
+	DeleteCompilerRole:             {},
 	ObserveSolutionsRole:           {},
 	ObserveSolutionRole:            {},
 	ObserveContestRole:             {},
@@ -217,7 +231,7 @@ func (o Role) ObjectID() int64 {
 
 // IsBuiltIn returns flag that role is built-in.
 func (o Role) IsBuiltIn() bool {
-	_, ok := builtInRoles[o.Code]
+	_, ok := builtInRoles[o.Name]
 	return ok
 }
 
@@ -233,13 +247,13 @@ type RoleEvent struct {
 }
 
 // Object returns event role.
-func (e RoleEvent) Object() db.Object {
+func (e RoleEvent) Object() Role {
 	return e.Role
 }
 
 // WithObject returns event with replaced Role.
-func (e RoleEvent) WithObject(o db.Object) ObjectEvent {
-	e.Role = o.(Role)
+func (e RoleEvent) WithObject(o Role) ObjectEvent[Role] {
+	e.Role = o
 	return e
 }
 
@@ -247,7 +261,7 @@ func (e RoleEvent) WithObject(o db.Object) ObjectEvent {
 type RoleStore struct {
 	baseStore[Role, RoleEvent]
 	roles  map[int64]Role
-	byCode map[string]int64
+	byName map[string]int64
 }
 
 // Get returns role by ID.
@@ -274,14 +288,14 @@ func (s *RoleStore) All() ([]Role, error) {
 	return roles, nil
 }
 
-// GetByCode returns role by code.
+// GetByName returns role by name.
 //
-// If there is no role with specified code then
+// If there is no role with specified name then
 // sql.ErrNoRows will be returned.
-func (s *RoleStore) GetByCode(code string) (Role, error) {
+func (s *RoleStore) GetByName(name string) (Role, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if id, ok := s.byCode[code]; ok {
+	if id, ok := s.byName[name]; ok {
 		if role, ok := s.roles[id]; ok {
 			return role.Clone(), nil
 		}
@@ -289,48 +303,26 @@ func (s *RoleStore) GetByCode(code string) (Role, error) {
 	return Role{}, sql.ErrNoRows
 }
 
-// CreateTx creates role and returns copy with valid ID.
-func (s *RoleStore) CreateTx(tx gosql.WeakTx, role Role) (Role, error) {
-	event, err := s.createObjectEvent(tx, RoleEvent{
-		makeBaseEvent(CreateEvent),
-		role,
-	})
-	if err != nil {
-		return Role{}, err
-	}
-	return event.Object().(Role), nil
-}
-
-// UpdateTx updates role with specified ID.
-func (s *RoleStore) UpdateTx(tx gosql.WeakTx, role Role) error {
-	_, err := s.createObjectEvent(tx, RoleEvent{
-		makeBaseEvent(UpdateEvent),
-		role,
-	})
-	return err
-}
-
-// DeleteTx deletes role with specified ID.
-func (s *RoleStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, RoleEvent{
-		makeBaseEvent(DeleteEvent),
-		Role{ID: id},
-	})
-	return err
-}
-
 func (s *RoleStore) reset() {
 	s.roles = map[int64]Role{}
-	s.byCode = map[string]int64{}
+	s.byName = map[string]int64{}
+}
+
+func (s *RoleStore) makeObject(id int64) Role {
+	return Role{ID: id}
+}
+
+func (s *RoleStore) makeObjectEvent(typ EventType) ObjectEvent[Role] {
+	return RoleEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *RoleStore) onCreateObject(role Role) {
 	s.roles[role.ID] = role
-	s.byCode[role.Code] = role.ID
+	s.byName[role.Name] = role.ID
 }
 
 func (s *RoleStore) onDeleteObject(role Role) {
-	delete(s.byCode, role.Code)
+	delete(s.byName, role.Name)
 	delete(s.roles, role.ID)
 }
 

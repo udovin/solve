@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"encoding"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +13,47 @@ import (
 
 	"github.com/labstack/gommon/log"
 )
+
+type LogLevel log.Lvl
+
+func (l LogLevel) MarshalText() ([]byte, error) {
+	switch log.Lvl(l) {
+	case 0:
+		return nil, nil
+	case log.DEBUG:
+		return []byte("debug"), nil
+	case log.INFO:
+		return []byte("info"), nil
+	case log.WARN:
+		return []byte("warning"), nil
+	case log.ERROR:
+		return []byte("error"), nil
+	case log.OFF:
+		return []byte("off"), nil
+	default:
+		return nil, fmt.Errorf("unknown level %d", l)
+	}
+}
+
+func (l *LogLevel) UnmarshalText(text []byte) error {
+	switch string(text) {
+	case "debug":
+		*l = LogLevel(log.DEBUG)
+	case "info":
+		*l = LogLevel(log.INFO)
+	case "warning", "warn":
+		*l = LogLevel(log.WARN)
+	case "error":
+		*l = LogLevel(log.ERROR)
+	case "off":
+		*l = LogLevel(log.OFF)
+	default:
+		return fmt.Errorf("unknown level: %q", text)
+	}
+	return nil
+}
+
+var _ encoding.TextUnmarshaler = (*LogLevel)(nil)
 
 // Config stores configuration for Solve API and Invoker.
 type Config struct {
@@ -30,12 +72,12 @@ type Config struct {
 	// LogLevel contains level of logging.
 	//
 	// You can use following values:
-	//  * 1 - DEBUG
-	//  * 2 - INFO (default)
-	//  * 3 - WARN
-	//  * 4 - ERROR
-	//  * 5 - OFF
-	LogLevel log.Lvl `json:"log_level"`
+	//  * debug
+	//  * info (default)
+	//  * warn
+	//  * error
+	//  * off
+	LogLevel LogLevel `json:"log_level,omitempty"`
 }
 
 // Server contains server config.
@@ -93,7 +135,7 @@ func LoadFromFile(file string) (Config, error) {
 	cfg := Config{
 		SocketFile: "/tmp/solve-server.sock",
 		// By default we should use INFO level.
-		LogLevel: log.INFO,
+		LogLevel: LogLevel(log.INFO),
 	}
 	tmpl, err := template.New(filepath.Base(file)).
 		Funcs(configFuncs).ParseFiles(file)

@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 // Contest represents a contest.
@@ -33,13 +32,13 @@ type ContestEvent struct {
 }
 
 // Object returns event contest.
-func (e ContestEvent) Object() db.Object {
+func (e ContestEvent) Object() Contest {
 	return e.Contest
 }
 
 // WithObject returns event with replaced Contest.
-func (e ContestEvent) WithObject(o db.Object) ObjectEvent {
-	e.Contest = o.(Contest)
+func (e ContestEvent) WithObject(o Contest) ObjectEvent[Contest] {
+	e.Contest = o
 	return e
 }
 
@@ -47,38 +46,6 @@ func (e ContestEvent) WithObject(o db.Object) ObjectEvent {
 type ContestStore struct {
 	baseStore[Contest, ContestEvent]
 	contests map[int64]Contest
-}
-
-// CreateTx creates contest and returns copy with valid ID.
-func (s *ContestStore) CreateTx(
-	tx gosql.WeakTx, contest Contest,
-) (Contest, error) {
-	event, err := s.createObjectEvent(tx, ContestEvent{
-		makeBaseEvent(CreateEvent),
-		contest,
-	})
-	if err != nil {
-		return Contest{}, err
-	}
-	return event.Object().(Contest), nil
-}
-
-// UpdateTx updates contest with specified ID.
-func (s *ContestStore) UpdateTx(tx gosql.WeakTx, contest Contest) error {
-	_, err := s.createObjectEvent(tx, ContestEvent{
-		makeBaseEvent(UpdateEvent),
-		contest,
-	})
-	return err
-}
-
-// DeleteTx deletes contest with specified ID.
-func (s *ContestStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, ContestEvent{
-		makeBaseEvent(DeleteEvent),
-		Contest{ID: id},
-	})
-	return err
 }
 
 // Get returns contest by ID.
@@ -107,6 +74,14 @@ func (s *ContestStore) All() ([]Contest, error) {
 
 func (s *ContestStore) reset() {
 	s.contests = map[int64]Contest{}
+}
+
+func (s *ContestStore) makeObject(id int64) Contest {
+	return Contest{ID: id}
+}
+
+func (s *ContestStore) makeObjectEvent(typ EventType) ObjectEvent[Contest] {
+	return ContestEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *ContestStore) onCreateObject(contest Contest) {

@@ -4,10 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/db"
 )
 
 type Verdict int
@@ -59,23 +57,25 @@ func (v Verdict) String() string {
 }
 
 type UsageReport struct {
-	Time   int64 `json:"time"`
-	Memory int64 `json:"memory"`
+	Time   int64 `json:"time,omitempty"`
+	Memory int64 `json:"memory,omitempty"`
 }
 
 type TestReport struct {
 	Verdict  Verdict     `json:"verdict"`
 	Usage    UsageReport `json:"usage"`
 	CheckLog string      `json:"check_log"`
-	Points   *float64    `json:"points"`
+	Points   *float64    `json:"points,omitempty"`
+	Input    string      `json:"input,omitempty"`
+	Output   string      `json:"output,omitempty"`
 }
 
 type SolutionReport struct {
 	Verdict    Verdict      `json:"verdict"`
 	Usage      UsageReport  `json:"usage"`
 	CompileLog string       `json:"compile_log"`
-	Tests      []TestReport `json:"tests"`
-	Points     *float64     `json:"points"`
+	Tests      []TestReport `json:"tests,omitempty"`
+	Points     *float64     `json:"points,omitempty"`
 }
 
 // Solution represents a solution.
@@ -122,13 +122,13 @@ type SolutionEvent struct {
 }
 
 // Object returns event solution.
-func (e SolutionEvent) Object() db.Object {
+func (e SolutionEvent) Object() Solution {
 	return e.Solution
 }
 
 // WithObject returns event with replaced Solution.
-func (e SolutionEvent) WithObject(o db.Object) ObjectEvent {
-	e.Solution = o.(Solution)
+func (e SolutionEvent) WithObject(o Solution) ObjectEvent[Solution] {
+	e.Solution = o
 	return e
 }
 
@@ -136,35 +136,6 @@ func (e SolutionEvent) WithObject(o db.Object) ObjectEvent {
 type SolutionStore struct {
 	baseStore[Solution, SolutionEvent]
 	solutions map[int64]Solution
-}
-
-// CreateTx creates solution and returns copy with valid ID.
-func (s *SolutionStore) CreateTx(tx gosql.WeakTx, solution *Solution) error {
-	solution.CreateTime = time.Now().Unix()
-	event, err := s.createObjectEvent(tx, SolutionEvent{
-		makeBaseEvent(CreateEvent), *solution,
-	})
-	if err != nil {
-		return err
-	}
-	*solution = event.Object().(Solution)
-	return nil
-}
-
-// UpdateTx updates solution with specified ID.
-func (s *SolutionStore) UpdateTx(tx gosql.WeakTx, solution Solution) error {
-	_, err := s.createObjectEvent(tx, SolutionEvent{
-		makeBaseEvent(UpdateEvent), solution,
-	})
-	return err
-}
-
-// DeleteTx deletes solution with specified ID.
-func (s *SolutionStore) DeleteTx(tx gosql.WeakTx, id int64) error {
-	_, err := s.createObjectEvent(tx, SolutionEvent{
-		makeBaseEvent(DeleteEvent), Solution{ID: id},
-	})
-	return err
 }
 
 // Get returns solution by ID.
@@ -193,6 +164,14 @@ func (s *SolutionStore) All() ([]Solution, error) {
 
 func (s *SolutionStore) reset() {
 	s.solutions = map[int64]Solution{}
+}
+
+func (s *SolutionStore) makeObject(id int64) Solution {
+	return Solution{ID: id}
+}
+
+func (s *SolutionStore) makeObjectEvent(typ EventType) ObjectEvent[Solution] {
+	return SolutionEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *SolutionStore) onCreateObject(solution Solution) {

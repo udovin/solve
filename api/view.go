@@ -29,6 +29,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerContestHandlers(g)
 	v.registerProblemHandlers(g)
 	v.registerSolutionHandlers(g)
+	v.registerCompilerHandlers(g)
 }
 
 func (v *View) RegisterSocket(g *echo.Group) {
@@ -74,6 +75,7 @@ const (
 	contestSolutionKey    = "contest_solution"
 	problemKey            = "problem"
 	solutionKey           = "solution"
+	compilerKey           = "compiler"
 )
 
 // logVisit saves visit to visit store.
@@ -89,9 +91,7 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 				visit.SessionID = models.NInt64(session.ID)
 			}
 			visit.Status = c.Response().Status
-			if _, err := v.core.Visits.CreateTx(
-				v.core.DB, visit,
-			); err != nil {
+			if err := v.core.Visits.CreateTx(v.core.DB, &visit); err != nil {
 				c.Logger().Error(err)
 			}
 		}()
@@ -108,8 +108,8 @@ type errorFields map[string]errorField
 type errorResponse struct {
 	// Message.
 	Message string `json:"message"`
-	// MissingRoles.
-	MissingRoles []string `json:"missing_roles,omitempty"`
+	// MissingPermissions.
+	MissingPermissions []string `json:"missing_permissions,omitempty"`
 	// InvalidFields.
 	InvalidFields errorFields `json:"invalid_fields"`
 }
@@ -118,9 +118,9 @@ type errorResponse struct {
 func (r errorResponse) Error() string {
 	var result strings.Builder
 	result.WriteString(r.Message)
-	if len(r.MissingRoles) > 0 {
-		result.WriteString(" (missing roles: ")
-		for i, role := range r.MissingRoles {
+	if len(r.MissingPermissions) > 0 {
+		result.WriteString(" (missing permissions: ")
+		for i, role := range r.MissingPermissions {
 			if i > 0 {
 				result.WriteString(", ")
 			}
@@ -269,28 +269,28 @@ func (v *View) extractAuthRoles(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 // requireRole check that user has required roles.
-func (v *View) requireAuthRole(codes ...string) echo.MiddlewareFunc {
+func (v *View) requireAuthRole(names ...string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		nextWrap := func(c echo.Context) error {
 			resp := errorResponse{
-				Message: "account missing roles",
+				Message: "account missing permissions",
 			}
 			roles, ok := c.Get(authRolesKey).(core.RoleSet)
 			if !ok {
-				resp.MissingRoles = codes
+				resp.MissingPermissions = names
 				return c.JSON(http.StatusForbidden, resp)
 			}
-			for _, code := range codes {
-				ok, err := v.core.HasRole(roles, code)
+			for _, name := range names {
+				ok, err := v.core.HasRole(roles, name)
 				if err != nil {
 					c.Logger().Error(err)
 					return err
 				}
 				if !ok {
-					resp.MissingRoles = append(resp.MissingRoles, code)
+					resp.MissingPermissions = append(resp.MissingPermissions, name)
 				}
 			}
-			if len(resp.MissingRoles) > 0 {
+			if len(resp.MissingPermissions) > 0 {
 				return c.JSON(http.StatusForbidden, resp)
 			}
 			return next(c)

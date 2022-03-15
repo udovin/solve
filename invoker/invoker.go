@@ -14,6 +14,7 @@ import (
 
 	"github.com/opencontainers/runc/libcontainer"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg"
@@ -82,13 +83,13 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	default:
 	}
 	var task models.Task
-	if err := s.core.WithTx(ctx, func(tx *sql.Tx) error {
+	if err := gosql.WithTx(s.core.DB, func(tx *sql.Tx) error {
 		var err error
 		task, err = s.core.Tasks.PopQueuedTx(tx)
 		return err
-	}); err != nil {
+	}, gosql.WithContext(ctx)); err != nil {
 		if err != sql.ErrNoRows {
-			s.core.Logger().Error("Error:", err)
+			s.core.Logger().Error("Error: ", err)
 		}
 		return false
 	}
@@ -280,41 +281,59 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 			inputPath := filepath.Join(tempProblemPath, testInput)
 			answerPath := filepath.Join(tempProblemPath, testAnswer)
 			tempOutputPath := filepath.Join(tempDir, fmt.Sprintf("output-%d.txt", len(report.Tests)))
-			err := compier.Execute(
+			inputText, err := readFile(inputPath, 1024)
+			if err != nil {
+				s.core.Logger().Error("Error: ", err)
+				inputText = ""
+			}
+			if err := compier.Execute(
 				ctx, tempSolutionPath, inputPath, tempOutputPath,
 				5*time.Second, 128*1024*1024,
-			)
-			if err == nil {
+			); err == nil {
+				outputText, err := readFile(tempOutputPath, 1024)
+				if err != nil {
+					s.core.Logger().Error("Error: ", err)
+					outputText = ""
+				}
 				message, ok, err := compareFiles(tempOutputPath, answerPath)
 				if err != nil {
 					report.Tests = append(report.Tests, models.TestReport{
 						Verdict:  models.Rejected,
 						CheckLog: fmt.Sprintf("unable to compare files: %s", err.Error()),
+						Input:    inputText,
+						Output:   outputText,
 					})
 				} else if ok {
 					report.Tests = append(report.Tests, models.TestReport{
 						Verdict:  models.Accepted,
 						CheckLog: message,
+						Input:    inputText,
+						Output:   outputText,
 					})
 				} else {
 					report.Tests = append(report.Tests, models.TestReport{
-						Verdict:  models.Rejected,
+						Verdict:  models.WrongAnswer,
 						CheckLog: message,
+						Input:    inputText,
+						Output:   outputText,
 					})
 				}
 			} else if errors.Is(err, context.DeadlineExceeded) {
 				report.Tests = append(report.Tests, models.TestReport{
 					Verdict: models.TimeLimitExceeded,
+					Input:   inputText,
 				})
 			} else if state, ok := err.(exitCodeError); ok {
 				report.Tests = append(report.Tests, models.TestReport{
 					Verdict:  models.RuntimeError,
 					CheckLog: fmt.Sprintf("Exit code: %d", state.ExitCode()),
+					Input:    inputText,
 				})
 			} else {
 				report.Tests = append(report.Tests, models.TestReport{
 					Verdict:  models.Rejected,
 					CheckLog: fmt.Sprint("Unknown error: %w", err),
+					Input:    inputText,
 				})
 			}
 		}

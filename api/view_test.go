@@ -3,9 +3,12 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -16,9 +19,85 @@ import (
 	"github.com/udovin/solve/models"
 )
 
+type testCheckState struct {
+	tb     testing.TB
+	checks []json.RawMessage
+	pos    int
+	reset  bool
+	path   string
+}
+
+func (s *testCheckState) Check(data any) {
+	raw, err := json.MarshalIndent(data, "  ", "  ")
+	if err != nil {
+		s.tb.Fatal("Unable to marshal data:", data)
+	}
+	if s.pos > len(s.checks) {
+		s.tb.Fatalf("Invalid check position: %d", s.pos)
+	}
+	if s.pos == len(s.checks) {
+		if s.reset {
+			s.checks = append(s.checks, raw)
+			s.pos++
+			return
+		}
+		s.tb.Fatalf("Unexpected check with data: %s", raw)
+	}
+	if string(s.checks[s.pos]) != string(raw) {
+		if s.reset {
+			s.checks[s.pos] = raw
+			s.pos++
+			return
+		}
+		s.tb.Fatalf("Unexpected check with data: %s, expected: %s", raw, s.checks[s.pos])
+	}
+	s.pos++
+}
+
+func (s *testCheckState) Close() {
+	if s.reset {
+		if s.pos == 0 {
+			_ = os.Remove(s.path)
+			return
+		}
+		raw, err := json.MarshalIndent(s.checks, "", "  ")
+		if err != nil {
+			s.tb.Fatal("Unable to marshal test data:", err)
+		}
+		if err := os.WriteFile(
+			s.path, raw, os.ModePerm,
+		); err != nil {
+			s.tb.Fatal("Error:", err)
+		}
+	}
+}
+
+func newTestCheckState(tb testing.TB) *testCheckState {
+	state := testCheckState{
+		tb:    tb,
+		reset: os.Getenv("TEST_RESET_DATA") == "1",
+		path:  filepath.Join("testdata", tb.Name()+".json"),
+	}
+	if !state.reset {
+		file, err := os.Open(state.path)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				tb.Fatal("Error:", err)
+			}
+		} else {
+			defer file.Close()
+			if err := json.NewDecoder(file).Decode(&state.checks); err != nil {
+				tb.Fatal("Error:", err)
+			}
+		}
+	}
+	return &state
+}
+
 var (
-	testView *View
-	testSrv  *echo.Echo
+	testView   *View
+	testSrv    *echo.Echo
+	testChecks *testCheckState
 )
 
 func testSetup(tb testing.TB) {
@@ -35,7 +114,7 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Unapply(c); err != nil {
+	if err := migrations.Unapply(c, true); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	if err := migrations.Apply(c); err != nil {
@@ -48,11 +127,17 @@ func testSetup(tb testing.TB) {
 	testView = NewView(c)
 	testView.Register(testSrv.Group("/api"))
 	testView.RegisterSocket(testSrv.Group("/socket"))
+	testChecks = newTestCheckState(tb)
 }
 
 func testTeardown(tb testing.TB) {
-	_ = migrations.Unapply(testView.core)
+	_ = migrations.Unapply(testView.core, true)
 	testView.core.Stop()
+	testChecks.Close()
+}
+
+func testCheck(data any) {
+	testChecks.Check(data)
 }
 
 func testHandler(req *http.Request, rec *httptest.ResponseRecorder) error {
@@ -194,6 +279,15 @@ func testSocketCreateUserRole(login string, role string) (Roles, error) {
 	var resp Roles
 	err := doSocketRequest(req, http.StatusCreated, &resp)
 	return resp, err
+}
+
+func testSocketCreateUserRoles(login string, roles ...string) error {
+	for _, role := range roles {
+		if _, err := testSocketCreateUserRole(login, role); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func doSocketRequest(req *http.Request, code int, resp any) error {

@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-var testRegisterUser = registerUserForm{
+var testSimpleUser = registerUserForm{
 	Login:      "test",
 	Password:   "qwerty123",
 	FirstName:  "First",
@@ -23,7 +23,7 @@ func TestUserSimpleScenario(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 	client := newTestClient()
-	if _, err := client.Register(testRegisterUser); err != nil {
+	if _, err := client.Register(testSimpleUser); err != nil {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)
@@ -71,6 +71,9 @@ func testSyncManagers(tb testing.TB) {
 				return err
 			}
 			if err := testView.core.Contests.SyncTx(tx); err != nil {
+				return err
+			}
+			if err := testView.core.Problems.SyncTx(tx); err != nil {
 				return err
 			}
 			return nil

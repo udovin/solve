@@ -75,7 +75,7 @@ func (s *testCheckState) Close() {
 func newTestCheckState(tb testing.TB) *testCheckState {
 	state := testCheckState{
 		tb:    tb,
-		reset: os.Getenv("TEST_RESET_DATA") == "1",
+		reset: os.Getenv("") == "1",
 		path:  filepath.Join("testdata", tb.Name()+".json"),
 	}
 	if !state.reset {
@@ -244,6 +244,24 @@ func (c *testClient) CreateContest(form createContestForm) (Contest, error) {
 		http.MethodPost, "/api/v0/contests", bytes.NewReader(data),
 	)
 	var resp Contest
+	err = c.doRequest(req, http.StatusCreated, &resp)
+	return resp, err
+}
+
+func (c *testClient) CreateContestProblem(
+	contestID int64,
+	form createContestProblemForm,
+) (ContestProblem, error) {
+	data, err := json.Marshal(form)
+	if err != nil {
+		return ContestProblem{}, err
+	}
+	req := httptest.NewRequest(
+		http.MethodPost,
+		fmt.Sprintf("/api/v0/contests/%d/problems", contestID),
+		bytes.NewReader(data),
+	)
+	var resp ContestProblem
 	err = c.doRequest(req, http.StatusCreated, &resp)
 	return resp, err
 }

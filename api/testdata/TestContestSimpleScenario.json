@@ -47,5 +47,11 @@
       "update_contest_solution",
       "delete_contest_solution"
     ]
+  },
+  {
+    "id": 1,
+    "title": "Test problem 1",
+    "contest_id": 1,
+    "code": "A"
   }
 ]

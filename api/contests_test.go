@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+
+	"github.com/udovin/solve/models"
 )
 
-var testContestTitle = "Test contest"
-
-var testCreateContest = createContestForm{
-	Title: &testContestTitle,
+var testSimpleContest = createContestForm{
+	Title: getPtr("Test contest"),
 }
 
 func TestContestSimpleScenario(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 	client := newTestClient()
-	if _, err := client.Register(testRegisterUser); err != nil {
+	if _, err := client.Register(testSimpleUser); err != nil {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)
@@ -36,7 +36,7 @@ func TestContestSimpleScenario(t *testing.T) {
 		}
 		testCheck(contests)
 	}
-	contest, err := client.CreateContest(testCreateContest)
+	contest, err := client.CreateContest(testSimpleContest)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -56,10 +56,30 @@ func TestContestSimpleScenario(t *testing.T) {
 		}
 		testCheck(created)
 	}
+	{
+		c := testView.core
+		problem := models.Problem{
+			Title: "Test problem 1",
+		}
+		err := c.Problems.CreateTx(c.DB, &problem)
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		testSyncManagers(t)
+		form := createContestProblemForm{
+			Code:      "A",
+			ProblemID: problem.ID,
+		}
+		contestProblem, err := client.CreateContestProblem(contest.ID, form)
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		testCheck(contestProblem)
+	}
 }
 
-func ptrString(s string) *string {
-	return &s
+func getPtr[T any](object T) *T {
+	return &object
 }
 
 func BenchmarkContests(b *testing.B) {
@@ -67,7 +87,7 @@ func BenchmarkContests(b *testing.B) {
 	testSetup(b)
 	defer testTeardown(b)
 	client := newTestClient()
-	if _, err := client.Register(testRegisterUser); err != nil {
+	if _, err := client.Register(testSimpleUser); err != nil {
 		b.Fatal("Error:", err)
 	}
 	testSyncManagers(b)
@@ -84,7 +104,7 @@ func BenchmarkContests(b *testing.B) {
 	var ids []int64
 	for i := 0; i < b.N; i++ {
 		form := createContestForm{
-			Title: ptrString(fmt.Sprintf("Contest %d", i+1)),
+			Title: getPtr(fmt.Sprintf("Contest %d", i+1)),
 		}
 		contest, err := client.CreateContest(form)
 		if err != nil {

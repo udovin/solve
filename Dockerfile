@@ -1,4 +1,4 @@
-FROM golang:1.18beta2-alpine AS build
+FROM golang:1.18 AS build
 
 RUN apk add --no-cache git gcc linux-headers libc-dev
 

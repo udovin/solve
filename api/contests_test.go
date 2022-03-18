@@ -78,10 +78,6 @@ func TestContestSimpleScenario(t *testing.T) {
 	}
 }
 
-func getPtr[T any](object T) *T {
-	return &object
-}
-
 func BenchmarkContests(b *testing.B) {
 	rnd := rand.New(rand.NewSource(42))
 	testSetup(b)

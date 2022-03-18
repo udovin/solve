@@ -17,6 +17,8 @@ import (
 type Core struct {
 	// Config contains config.
 	Config config.Config
+	// Settings contains settings store.
+	Settings *models.SettingStore
 	// Tasks contains task store.
 	Tasks *models.TaskStore
 	// Roles contains role store.

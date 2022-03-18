@@ -315,3 +315,34 @@ func (v *View) getSessionByCookie(
 	}
 	return session, nil
 }
+
+var (
+	truePtr  = getPtr(true)
+	falsePtr = getPtr(false)
+)
+
+func (v *View) getBoolSetting(ctx echo.Context, key string) *bool {
+	setting, err := v.core.Settings.GetByKey(key)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			ctx.Logger().Error("Error:", err)
+		}
+		return nil
+	}
+	switch strings.ToLower(setting.Value) {
+	case "1", "t", "true":
+		return truePtr
+	case "0", "f", "false":
+		return falsePtr
+	default:
+		ctx.Logger().Warnf(
+			"Setting %q has invalid value %q",
+			key, setting.Value,
+		)
+		return nil
+	}
+}
+
+func getPtr[T any](object T) *T {
+	return &object
+}

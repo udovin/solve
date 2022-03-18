@@ -25,15 +25,23 @@ const (
 	RegisterRole = "register"
 	// StatusRole represents name of role for status check.
 	StatusRole = "status"
+	// ObserveSettingsRole represents name of role for observing settings.
+	ObserveSettingsRole = "observe_settings"
+	// CreateSettingRole represents name of role for creating new setting.
+	CreateSettingRole = "create_setting"
+	// UpdateSettingRole represents name of role for updating setting.
+	UpdateSettingRole = "update_setting"
+	// DeleteSettingRole represents name of role for deleting setting.
+	DeleteSettingRole = "delete_setting"
 	// ObserveRolesRole represents name of role for observing roles.
 	ObserveRolesRole = "observe_roles"
 	// CreateRoleRole represents name of role for creating new role.
 	CreateRoleRole = "create_role"
-	// DeleteRoleRole represents name of role for deleting new role.
+	// DeleteRoleRole represents name of role for deleting role.
 	DeleteRoleRole = "delete_role"
 	// ObserveRoleRolesRole represents name of role for observing role roles.
 	ObserveRoleRolesRole = "observe_role_roles"
-	// CreateRoleRoleRole represents name of role for creating role role.
+	// CreateRoleRoleRole represents name of role for creating new role role.
 	CreateRoleRoleRole = "create_role_role"
 	// DeleteRoleRoleRole represents name of role for deleting role role.
 	DeleteRoleRoleRole = "delete_role_role"
@@ -166,6 +174,10 @@ var builtInRoles = map[string]struct{}{
 	LogoutRole:                     {},
 	RegisterRole:                   {},
 	StatusRole:                     {},
+	ObserveSettingsRole:            {},
+	CreateSettingRole:              {},
+	UpdateSettingRole:              {},
+	DeleteSettingRole:              {},
 	ObserveRolesRole:               {},
 	CreateRoleRole:                 {},
 	DeleteRoleRole:                 {},

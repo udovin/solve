@@ -75,7 +75,7 @@ func (s *testCheckState) Close() {
 func newTestCheckState(tb testing.TB) *testCheckState {
 	state := testCheckState{
 		tb:    tb,
-		reset: os.Getenv("") == "1",
+		reset: os.Getenv("TEST_RESET_DATA") == "1",
 		path:  filepath.Join("testdata", tb.Name()+".json"),
 	}
 	if !state.reset {

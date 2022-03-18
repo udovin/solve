@@ -16,6 +16,25 @@ func (m *m001) Name() string {
 
 var m001Tables = []schema.Table{
 	{
+		Name: "solve_setting",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "key", Type: schema.String},
+			{Name: "value", Type: schema.String},
+		},
+	},
+	{
+		Name: "solve_setting_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_type", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "id", Type: schema.Int64},
+			{Name: "key", Type: schema.String},
+			{Name: "value", Type: schema.String},
+		},
+	},
+	{
 		Name: "solve_task",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -383,6 +402,10 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 		models.LogoutRole,
 		models.RegisterRole,
 		models.StatusRole,
+		models.ObserveSettingsRole,
+		models.CreateSettingRole,
+		models.UpdateSettingRole,
+		models.DeleteSettingRole,
 		models.ObserveRolesRole,
 		models.CreateRoleRole,
 		models.DeleteRoleRole,

@@ -10,6 +10,9 @@ import (
 
 // SetupAllStores prepares all stores.
 func (c *Core) SetupAllStores() {
+	c.Settings = models.NewSettingStore(
+		c.DB, "solve_setting", "solve_setting_event",
+	)
 	c.Tasks = models.NewTaskStore(
 		c.DB, "solve_task", "solve_task_event",
 	)
@@ -59,9 +62,10 @@ func (c *Core) SetupAllStores() {
 }
 
 func (c *Core) startStores(start func(models.Store, time.Duration)) {
+	start(c.Settings, time.Second*5)
 	start(c.Tasks, time.Second)
-	start(c.Roles, time.Second)
-	start(c.RoleEdges, time.Second)
+	start(c.Roles, time.Second*5)
+	start(c.RoleEdges, time.Second*5)
 	start(c.Accounts, time.Second)
 	start(c.AccountRoles, time.Second)
 	start(c.Sessions, time.Second)
@@ -72,7 +76,7 @@ func (c *Core) startStores(start func(models.Store, time.Duration)) {
 	start(c.ContestProblems, time.Second)
 	start(c.ContestParticipants, time.Second)
 	start(c.ContestSolutions, time.Second)
-	start(c.Compilers, time.Second)
+	start(c.Compilers, time.Second*5)
 }
 
 func (c *Core) startStoreLoops() error {

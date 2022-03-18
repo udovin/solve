@@ -1,6 +1,8 @@
 package models
 
 import (
+	"database/sql"
+
 	"github.com/udovin/gosql"
 )
 
@@ -43,6 +45,16 @@ func (e CompilerEvent) WithObject(o Compiler) ObjectEvent[Compiler] {
 type CompilerStore struct {
 	baseStore[Compiler, CompilerEvent]
 	compilers map[int64]Compiler
+}
+
+// Get returns compiler by specified ID.
+func (s *CompilerStore) Get(id int64) (Compiler, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if compiler, ok := s.compilers[id]; ok {
+		return compiler.Clone(), nil
+	}
+	return Compiler{}, sql.ErrNoRows
 }
 
 func (s *CompilerStore) All() ([]Compiler, error) {

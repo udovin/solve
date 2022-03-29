@@ -44,8 +44,8 @@ func Apply(c *core.Core) error {
 	if err := setupMigrations(c.DB); err != nil {
 		return err
 	}
-	store := db.NewObjectStore(
-		migration{}, "id", migrationTableName, c.DB.Dialect(),
+	store := db.NewObjectStore[migration](
+		"id", migrationTableName, c.DB.Dialect(),
 	)
 	for _, m := range migrations {
 		if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
@@ -60,12 +60,12 @@ func Apply(c *core.Core) error {
 				return err
 			}
 			// Save to database that migration was applied.
-			_, err := store.CreateObject(tx, migration{
+			object := migration{
 				Name:    m.Name(),
 				Version: core.Version,
 				Time:    time.Now().Unix(),
-			})
-			return err
+			}
+			return store.CreateObject(tx, &object)
 		}); err != nil {
 			return err
 		}
@@ -78,8 +78,8 @@ func Unapply(c *core.Core, all bool) error {
 	if err := setupMigrations(c.DB); err != nil {
 		return err
 	}
-	store := db.NewObjectStore(
-		migration{}, "id", migrationTableName, c.DB.Dialect(),
+	store := db.NewObjectStore[migration](
+		"id", migrationTableName, c.DB.Dialect(),
 	)
 	stop := false
 	for i := len(migrations) - 1; i >= 0 && !stop; i-- {
@@ -124,7 +124,7 @@ func Unapply(c *core.Core, all bool) error {
 	return nil
 }
 
-func isApplied(s db.ObjectROStore, tx *sql.Tx, name string) (bool, error) {
+func isApplied(s db.ObjectROStore[migration], tx *sql.Tx, name string) (bool, error) {
 	rows, err := s.FindObjects(tx, `"name" = $1`, name)
 	if err != nil {
 		return false, err

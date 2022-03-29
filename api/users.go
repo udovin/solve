@@ -535,7 +535,7 @@ func (v *View) registerUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err)
 	}
 	if err := gosql.WithTx(v.core.DB, func(tx *sql.Tx) error {
-		account := models.Account{Kind: models.UserAccount}
+		account := models.Account{Kind: user.AccountKind()}
 		if err := v.core.Accounts.CreateTx(tx, &account); err != nil {
 			return err
 		}

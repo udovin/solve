@@ -247,7 +247,7 @@ type Store interface {
 type baseStore[T db.Object, E ObjectEvent[T]] struct {
 	db       *gosql.DB
 	table    string
-	objects  db.ObjectStore
+	objects  db.ObjectStore[T]
 	events   db.EventStore[E]
 	consumer db.EventConsumer[E]
 	impl     baseStoreImpl[T]
@@ -299,7 +299,7 @@ func (s *baseStore[T, E]) initObjects(tx gosql.WeakTx) error {
 	}()
 	s.impl.reset()
 	for rows.Next() {
-		s.impl.onCreateObject(rows.Object().(T))
+		s.impl.onCreateObject(rows.Object())
 	}
 	return rows.Err()
 }
@@ -360,17 +360,15 @@ func (s *baseStore[T, E]) createObjectEventTx(
 ) (ObjectEvent[T], error) {
 	switch object := event.Object(); event.EventType() {
 	case CreateEvent:
-		object, err := s.objects.CreateObject(tx, object)
-		if err != nil {
+		if err := s.objects.CreateObject(tx, &object); err != nil {
 			return nil, err
 		}
-		event = event.WithObject(object.(T)).(E)
+		event = event.WithObject(object).(E)
 	case UpdateEvent:
-		object, err := s.objects.UpdateObject(tx, object)
-		if err != nil {
+		if err := s.objects.UpdateObject(tx, &object); err != nil {
 			return nil, err
 		}
-		event = event.WithObject(object.(T)).(E)
+		event = event.WithObject(object).(E)
 	case DeleteEvent:
 		if err := s.objects.DeleteObject(tx, object.ObjectID()); err != nil {
 			return nil, err
@@ -412,14 +410,11 @@ func makeBaseStore[T db.Object, E ObjectEvent[T]](
 	table, eventTable string,
 	impl baseStoreImpl[T],
 ) baseStore[T, E] {
-	var object T
 	return baseStore[T, E]{
-		db:    dbConn,
-		table: table,
-		objects: db.NewObjectStore(
-			object, "id", table, dbConn.Dialect(),
-		),
-		events: db.NewEventStore[E]("event_id", eventTable, dbConn),
-		impl:   impl,
+		db:      dbConn,
+		table:   table,
+		objects: db.NewObjectStore[T]("id", table, dbConn.Dialect()),
+		events:  db.NewEventStore[E]("event_id", eventTable, dbConn),
+		impl:    impl,
 	}
 }

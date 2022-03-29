@@ -24,6 +24,11 @@ type User struct {
 	MiddleName   NString `db:"middle_name"`
 }
 
+// AccountKind returns UserAccount kind.
+func (o User) AccountKind() AccountKind {
+	return UserAccount
+}
+
 // ObjectID returns ID of user.
 func (o User) ObjectID() int64 {
 	return o.ID

@@ -91,8 +91,10 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 				visit.SessionID = models.NInt64(session.ID)
 			}
 			visit.Status = c.Response().Status
-			if err := v.core.Visits.CreateTx(v.core.DB, &visit); err != nil {
-				c.Logger().Error(err)
+			if s := v.getBoolSetting(c, "log_visit."+c.Path()); s == nil || *s {
+				if err := v.core.Visits.CreateTx(v.core.DB, &visit); err != nil {
+					c.Logger().Error(err)
+				}
 			}
 		}()
 		return next(c)

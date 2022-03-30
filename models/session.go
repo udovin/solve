@@ -16,15 +16,19 @@ import (
 // Session represents account session.
 type Session struct {
 	// ID contains ID of session.
-	ID int64 `db:"id" json:""`
+	ID int64 `db:"id"`
 	// AccountID contains ID of account.
-	AccountID int64 `db:"account_id" json:"-"`
+	AccountID int64 `db:"account_id"`
 	// Secret contains secret string of session.
-	Secret string `db:"secret" json:"-"`
+	Secret string `db:"secret"`
 	// CreateTime contains time when session was created.
-	CreateTime int64 `db:"create_time" json:""`
+	CreateTime int64 `db:"create_time"`
 	// ExpireTime contains time when session should be expired.
-	ExpireTime int64 `db:"expire_time" json:""`
+	ExpireTime int64 `db:"expire_time"`
+	// RemoteAddr contains remote addres of user for created session.
+	RemoteAddr string `db:"remote_addr"`
+	// UserAgent contains user agent header for created session.
+	UserAgent string `db:"user_agent"`
 }
 
 // ObjectID returns session ID.

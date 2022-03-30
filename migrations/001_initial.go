@@ -139,6 +139,8 @@ var m001Tables = []schema.Table{
 			{Name: "secret", Type: schema.String},
 			{Name: "create_time", Type: schema.Int64},
 			{Name: "expire_time", Type: schema.Int64},
+			{Name: "remote_addr", Type: schema.String},
+			{Name: "user_agent", Type: schema.String},
 		},
 	},
 	{
@@ -152,6 +154,8 @@ var m001Tables = []schema.Table{
 			{Name: "secret", Type: schema.String},
 			{Name: "create_time", Type: schema.Int64},
 			{Name: "expire_time", Type: schema.Int64},
+			{Name: "remote_addr", Type: schema.String},
+			{Name: "user_agent", Type: schema.String},
 		},
 	},
 	{

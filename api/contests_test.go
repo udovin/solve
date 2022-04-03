@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -61,7 +62,7 @@ func TestContestSimpleScenario(t *testing.T) {
 		problem := models.Problem{
 			Title: "Test problem 1",
 		}
-		err := c.Problems.CreateTx(c.DB, &problem)
+		err := c.Problems.Create(context.Background(), &problem)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}

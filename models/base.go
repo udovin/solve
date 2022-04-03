@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
@@ -240,8 +241,8 @@ type baseStoreImpl[T db.Object] interface {
 
 // Store represents cached store.
 type Store interface {
-	InitTx(tx gosql.WeakTx) error
-	SyncTx(tx gosql.WeakTx) error
+	Init(ctx context.Context) error
+	Sync(ctx context.Context) error
 }
 
 type baseStore[T db.Object, E ObjectEvent[T]] struct {
@@ -259,19 +260,19 @@ func (s *baseStore[T, E]) DB() *gosql.DB {
 	return s.db
 }
 
-func (s *baseStore[T, E]) InitTx(tx gosql.WeakTx) error {
+func (s *baseStore[T, E]) Init(ctx context.Context) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	if err := s.initEvents(tx); err != nil {
+	if err := s.initEvents(ctx); err != nil {
 		return err
 	}
-	return s.initObjects(tx)
+	return s.initObjects(ctx)
 }
 
 const eventGapSkipWindow = 25000
 
-func (s *baseStore[T, E]) initEvents(tx gosql.WeakTx) error {
-	beginID, err := s.events.LastEventID(tx)
+func (s *baseStore[T, E]) initEvents(ctx context.Context) error {
+	beginID, err := s.events.LastEventID(ctx)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -284,13 +285,13 @@ func (s *baseStore[T, E]) initEvents(tx gosql.WeakTx) error {
 		beginID = 1
 	}
 	s.consumer = db.NewEventConsumer[E](s.events, beginID)
-	return s.consumer.ConsumeEvents(tx, func(E) error {
+	return s.consumer.ConsumeEvents(ctx, func(E) error {
 		return nil
 	})
 }
 
-func (s *baseStore[T, E]) initObjects(tx gosql.WeakTx) error {
-	rows, err := s.objects.LoadObjects(tx)
+func (s *baseStore[T, E]) initObjects(ctx context.Context) error {
+	rows, err := s.objects.LoadObjects(ctx)
 	if err != nil && err != sql.ErrNoRows {
 		return err
 	}
@@ -304,81 +305,73 @@ func (s *baseStore[T, E]) initObjects(tx gosql.WeakTx) error {
 	return rows.Err()
 }
 
-func (s *baseStore[T, E]) SyncTx(tx gosql.WeakTx) error {
+func (s *baseStore[T, E]) Sync(ctx context.Context) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	return s.consumer.ConsumeEvents(tx, s.consumeEvent)
+	return s.consumer.ConsumeEvents(ctx, s.consumeEvent)
 }
 
-// CreateTx creates object and returns copy with valid ID.
-func (s *baseStore[T, E]) CreateTx(tx gosql.WeakTx, object *T) error {
-	event, err := s.createObjectEvent(
-		tx, s.impl.makeObjectEvent(CreateEvent).WithObject(*object).(E),
-	)
-	if err != nil {
+func wrapContext(tx gosql.WeakTx) context.Context {
+	ctx := context.Background()
+	if v, ok := tx.(*sql.Tx); ok {
+		ctx = gosql.WithTx(ctx, v)
+	}
+	return ctx
+}
+
+// Create creates object and returns copy with valid ID.
+func (s *baseStore[T, E]) Create(ctx context.Context, object *T) error {
+	event := s.impl.makeObjectEvent(CreateEvent).WithObject(*object).(E)
+	if err := s.createObjectEvent(ctx, &event); err != nil {
 		return err
 	}
 	*object = event.Object()
 	return nil
 }
 
-// UpdateTx updates object with specified ID.
-func (s *baseStore[T, E]) UpdateTx(tx gosql.WeakTx, object T) error {
-	_, err := s.createObjectEvent(
-		tx, s.impl.makeObjectEvent(UpdateEvent).WithObject(object).(E),
-	)
-	return err
+// Update updates object with specified ID.
+func (s *baseStore[T, E]) Update(ctx context.Context, object T) error {
+	event := s.impl.makeObjectEvent(UpdateEvent).WithObject(object).(E)
+	return s.createObjectEvent(ctx, &event)
 }
 
-// DeleteTx deletes compiler with specified ID.
-func (s *baseStore[T, E]) DeleteTx(tx gosql.WeakTx, id int64) error {
+// Delete deletes compiler with specified ID.
+func (s *baseStore[T, E]) Delete(ctx context.Context, id int64) error {
 	object := s.impl.makeObject(id)
-	_, err := s.createObjectEvent(
-		tx, s.impl.makeObjectEvent(DeleteEvent).WithObject(object).(E),
-	)
-	return err
+	event := s.impl.makeObjectEvent(DeleteEvent).WithObject(object).(E)
+	return s.createObjectEvent(ctx, &event)
 }
+
+var sqlRepeatableRead = gosql.WithTxOptions(&sql.TxOptions{
+	Isolation: sql.LevelRepeatableRead,
+})
 
 func (s *baseStore[T, E]) createObjectEvent(
-	tx gosql.WeakTx, event E,
-) (ObjectEvent[T], error) {
-	if err := gosql.WithEnsuredTx(tx, func(tx *sql.Tx) (err error) {
-		result, err := s.createObjectEventTx(tx, event)
-		if err != nil {
+	ctx context.Context, event *E,
+) error {
+	// Force creation of new transaction.
+	if tx := gosql.GetTx(ctx); tx == nil {
+		return gosql.WrapTx(s.db, func(tx *sql.Tx) error {
+			return s.createObjectEvent(gosql.WithTx(ctx, tx), event)
+		}, sqlRepeatableRead)
+	}
+	switch object := (*event).Object(); (*event).EventType() {
+	case CreateEvent:
+		if err := s.objects.CreateObject(ctx, &object); err != nil {
 			return err
 		}
-		event = result.(E)
-		return
-	}); err != nil {
-		return nil, err
-	}
-	return event, nil
-}
-
-func (s *baseStore[T, E]) createObjectEventTx(
-	tx *sql.Tx, event E,
-) (ObjectEvent[T], error) {
-	switch object := event.Object(); event.EventType() {
-	case CreateEvent:
-		if err := s.objects.CreateObject(tx, &object); err != nil {
-			return nil, err
-		}
-		event = event.WithObject(object).(E)
+		*event = (*event).WithObject(object).(E)
 	case UpdateEvent:
-		if err := s.objects.UpdateObject(tx, &object); err != nil {
-			return nil, err
+		if err := s.objects.UpdateObject(ctx, &object); err != nil {
+			return err
 		}
-		event = event.WithObject(object).(E)
+		*event = (*event).WithObject(object).(E)
 	case DeleteEvent:
-		if err := s.objects.DeleteObject(tx, object.ObjectID()); err != nil {
-			return nil, err
+		if err := s.objects.DeleteObject(ctx, object.ObjectID()); err != nil {
+			return err
 		}
 	}
-	err := s.events.CreateEvent(tx, &event)
-	if err != nil {
-		return nil, err
-	}
-	return event, err
+	return s.events.CreateEvent(ctx, event)
 }
 
 func (s *baseStore[T, E]) lockStore(tx *sql.Tx) error {
@@ -413,7 +406,7 @@ func makeBaseStore[T db.Object, E ObjectEvent[T]](
 	return baseStore[T, E]{
 		db:      dbConn,
 		table:   table,
-		objects: db.NewObjectStore[T]("id", table, dbConn.Dialect()),
+		objects: db.NewObjectStore[T]("id", table, dbConn),
 		events:  db.NewEventStore[E]("event_id", eventTable, dbConn),
 		impl:    impl,
 	}

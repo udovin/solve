@@ -181,7 +181,7 @@ func (v *View) extractSolution(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		solution, err := v.core.Solutions.Get(id)
 		if err == sql.ErrNoRows {
-			if err := v.core.Solutions.SyncTx(v.core.DB); err != nil {
+			if err := v.core.Solutions.Sync(c.Request().Context()); err != nil {
 				return err
 			}
 			solution, err = v.core.Solutions.Get(id)

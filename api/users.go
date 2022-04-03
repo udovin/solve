@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 )
@@ -219,9 +219,7 @@ func (v *View) updateUser(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.Users.UpdateTx(tx, user)
-	}); err != nil {
+	if err := v.core.Users.Update(c.Request().Context(), user); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -286,9 +284,7 @@ func (v *View) updateUserPassword(c echo.Context) error {
 	if err := form.Update(&user, v.core.Users); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.Users.UpdateTx(tx, user)
-	}); err != nil {
+	if err := v.core.Users.Update(c.Request().Context(), user); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -363,9 +359,7 @@ func (v *View) loginAccount(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.Sessions.CreateTx(tx, &session)
-	}); err != nil {
+	if err := v.core.Sessions.Create(c.Request().Context(), &session); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -382,9 +376,7 @@ func (v *View) loginAccount(c echo.Context) error {
 // logoutAccount removes current session.
 func (v *View) logoutAccount(c echo.Context) error {
 	session := c.Get(authSessionKey).(models.Session)
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.Sessions.DeleteTx(tx, session.ID)
-	}); err != nil {
+	if err := v.core.Sessions.Delete(c.Request().Context(), session.ID); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -536,14 +528,14 @@ func (v *View) registerUser(c echo.Context) error {
 	if err := form.Update(&user, v.core.Users); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if err := gosql.WithTx(v.core.DB, func(tx *sql.Tx) error {
+	if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
 		account := models.Account{Kind: user.AccountKind()}
-		if err := v.core.Accounts.CreateTx(tx, &account); err != nil {
+		if err := v.core.Accounts.Create(ctx, &account); err != nil {
 			return err
 		}
 		user.AccountID = account.ID
-		return v.core.Users.CreateTx(tx, &user)
-	}, gosql.WithContext(c.Request().Context())); err != nil {
+		return v.core.Users.Create(ctx, &user)
+	}, sqlRepeatableRead); err != nil {
 		c.Logger().Error(err)
 		return err
 	}

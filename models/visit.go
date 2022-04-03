@@ -57,7 +57,7 @@ func (s *VisitStore) MakeFromContext(c echo.Context) Visit {
 
 // CreateTx creates a new visit in the events.
 func (s *VisitStore) CreateTx(tx gosql.WeakTx, visit *Visit) error {
-	return s.events.CreateEvent(tx, visit)
+	return s.events.CreateEvent(wrapContext(tx), visit)
 }
 
 // NewVisitStore creates a new instance of ViewStore.

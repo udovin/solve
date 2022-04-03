@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 )
@@ -284,9 +284,7 @@ func (v *View) createContest(c echo.Context) error {
 	if account, ok := c.Get(authAccountKey).(models.Account); ok {
 		contest.OwnerID = models.NInt64(account.ID)
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.Contests.CreateTx(tx, &contest)
-	}); err != nil {
+	if err := v.core.Contests.Create(c.Request().Context(), &contest); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -312,7 +310,7 @@ func (v *View) updateContest(c echo.Context) error {
 	if err := form.Update(&contest); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if err := v.core.Contests.UpdateTx(v.core.DB, contest); err != nil {
+	if err := v.core.Contests.Update(c.Request().Context(), contest); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -325,9 +323,7 @@ func (v *View) deleteContest(c echo.Context) error {
 		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.Contests.DeleteTx(tx, contest.ID)
-	}); err != nil {
+	if err := v.core.Contests.Delete(c.Request().Context(), contest.ID); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -440,9 +436,7 @@ func (v *View) createContestProblem(c echo.Context) error {
 			}
 		}
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.ContestProblems.CreateTx(tx, &problem)
-	}); err != nil {
+	if err := v.core.ContestProblems.Create(c.Request().Context(), &problem); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -458,9 +452,7 @@ func (v *View) deleteContestProblem(c echo.Context) error {
 		c.Logger().Error("contest problem not extracted")
 		return fmt.Errorf("contest problem not extracted")
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.ContestProblems.DeleteTx(tx, problem.ID)
-	}); err != nil {
+	if err := v.core.ContestProblems.Delete(c.Request().Context(), problem.ID); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -549,9 +541,7 @@ func (v *View) createContestParticipant(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err)
 	}
 	participant.ContestID = contest.ID
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.ContestParticipants.CreateTx(tx, &participant)
-	}); err != nil {
+	if err := v.core.ContestParticipants.Create(c.Request().Context(), &participant); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -567,9 +557,7 @@ func (v *View) deleteContestParticipant(c echo.Context) error {
 		c.Logger().Error("contest participant not extracted")
 		return fmt.Errorf("contest participant not extracted")
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.ContestParticipants.DeleteTx(tx, participant.ID)
-	}); err != nil {
+	if err := v.core.ContestParticipants.Delete(c.Request().Context(), participant.ID); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -688,7 +676,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		ParticipantID: participants[0].ID,
 		ProblemID:     problem.ID,
 	}
-	if err := gosql.WithTx(v.core.DB, func(tx *sql.Tx) error {
+	if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
 		file, err := c.FormFile("file")
 		if err != nil {
 			return err
@@ -700,13 +688,11 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		defer func() {
 			_ = src.Close()
 		}()
-		if err := v.core.Solutions.CreateTx(tx, &solution); err != nil {
+		if err := v.core.Solutions.Create(ctx, &solution); err != nil {
 			return err
 		}
 		contestSolution.SolutionID = solution.ID
-		if err := v.core.ContestSolutions.CreateTx(
-			tx, &contestSolution,
-		); err != nil {
+		if err := v.core.ContestSolutions.Create(ctx, &contestSolution); err != nil {
 			return err
 		}
 		task := models.Task{Kind: models.JudgeSolution}
@@ -715,7 +701,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		}); err != nil {
 			return err
 		}
-		if err := v.core.Tasks.CreateTx(tx, &task); err != nil {
+		if err := v.core.Tasks.Create(ctx, &task); err != nil {
 			return err
 		}
 		dst, err := os.Create(filepath.Join(
@@ -728,7 +714,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		defer dst.Close()
 		_, err = io.Copy(dst, src)
 		return err
-	}, gosql.WithContext(c.Request().Context())); err != nil {
+	}, sqlRepeatableRead); err != nil {
 		return err
 	}
 	return c.JSON(
@@ -808,7 +794,7 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		contest, err := v.core.Contests.Get(id)
 		if err == sql.ErrNoRows {
-			if err := v.core.Contests.SyncTx(v.core.DB); err != nil {
+			if err := v.core.Contests.Sync(c.Request().Context()); err != nil {
 				return err
 			}
 			contest, err = v.core.Contests.Get(id)
@@ -899,10 +885,10 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		solution, err := v.core.ContestSolutions.Get(id)
 		if err == sql.ErrNoRows {
-			if err := v.core.ContestSolutions.SyncTx(v.core.DB); err != nil {
+			if err := v.core.ContestSolutions.Sync(c.Request().Context()); err != nil {
 				return err
 			}
-			if err := v.core.Solutions.SyncTx(v.core.DB); err != nil {
+			if err := v.core.Solutions.Sync(c.Request().Context()); err != nil {
 				return err
 			}
 			solution, err = v.core.ContestSolutions.Get(id)

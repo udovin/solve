@@ -99,22 +99,14 @@ func (c *Core) Stop() {
 	c.context, c.cancel = nil, nil
 }
 
-// WithTx runs function with transaction.
-func (c *Core) WithTx(
-	ctx context.Context, fn func(tx *sql.Tx) error,
+// WrapTx runs function with transaction.
+func (c *Core) WrapTx(
+	ctx context.Context, fn func(ctx context.Context) error,
+	opts *sql.TxOptions,
 ) (err error) {
-	var tx *sql.Tx
-	if tx, err = c.DB.BeginTx(ctx, nil); err != nil {
-		return
-	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
-			return
-		}
-		err = tx.Commit()
-	}()
-	return fn(tx)
+	return gosql.WrapTx(c.DB, func (tx *sql.Tx) error {
+		return fn(gosql.WithTx(ctx, tx))
+	}, gosql.WithContext(ctx), gosql.WithTxOptions(opts))
 }
 
 // StartTask starts task in new goroutine.

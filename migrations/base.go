@@ -2,7 +2,6 @@ package migrations
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/udovin/gosql"
@@ -16,9 +15,9 @@ type Migration interface {
 	// Name should return unique migration name.
 	Name() string
 	// Apply should apply database migration.
-	Apply(c *core.Core, tx *sql.Tx) error
+	Apply(ctx context.Context, c *core.Core) error
 	// Unapply should unapply database migration.
-	Unapply(c *core.Core, tx *sql.Tx) error
+	Unapply(ctx context.Context, c *core.Core) error
 }
 
 // migrations contains list of all migrations.
@@ -45,18 +44,18 @@ func Apply(c *core.Core) error {
 		return err
 	}
 	store := db.NewObjectStore[migration](
-		"id", migrationTableName, c.DB.Dialect(),
+		"id", migrationTableName, c.DB,
 	)
 	for _, m := range migrations {
-		if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
+		if err := c.WrapTx(context.Background(), func(ctx context.Context) error {
 			// Check that migration already applied.
-			if applied, err := isApplied(store, tx, m.Name()); err != nil {
+			if applied, err := isApplied(ctx, store, m.Name()); err != nil {
 				return err
 			} else if applied {
 				return nil
 			}
 			// Apply migration.
-			if err := m.Apply(c, tx); err != nil {
+			if err := m.Apply(ctx, c); err != nil {
 				return err
 			}
 			// Save to database that migration was applied.
@@ -65,8 +64,8 @@ func Apply(c *core.Core) error {
 				Version: core.Version,
 				Time:    time.Now().Unix(),
 			}
-			return store.CreateObject(tx, &object)
-		}); err != nil {
+			return store.CreateObject(ctx, &object)
+		}, nil); err != nil {
 			return err
 		}
 	}
@@ -79,26 +78,26 @@ func Unapply(c *core.Core, all bool) error {
 		return err
 	}
 	store := db.NewObjectStore[migration](
-		"id", migrationTableName, c.DB.Dialect(),
+		"id", migrationTableName, c.DB,
 	)
 	stop := false
 	for i := len(migrations) - 1; i >= 0 && !stop; i-- {
 		m := migrations[i]
-		if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
+		if err := c.WrapTx(context.Background(), func(ctx context.Context) error {
 			// Check that migration already applied.
-			if applied, err := isApplied(store, tx, m.Name()); err != nil {
+			if applied, err := isApplied(ctx, store, m.Name()); err != nil {
 				return err
 			} else if !applied {
 				return nil
 			}
 			// Apply migration.
-			if err := m.Unapply(c, tx); err != nil {
+			if err := m.Unapply(ctx, c); err != nil {
 				return err
 			}
 			// Remove migration from database.
 			var ids []int64
 			if err := func() error {
-				rows, err := store.FindObjects(tx, `"name" = $1`, m.Name())
+				rows, err := store.FindObjects(ctx, `"name" = $1`, m.Name())
 				if err != nil {
 					return err
 				}
@@ -111,21 +110,23 @@ func Unapply(c *core.Core, all bool) error {
 				return err
 			}
 			for _, id := range ids {
-				if err := store.DeleteObject(tx, id); err != nil {
+				if err := store.DeleteObject(ctx, id); err != nil {
 					return err
 				}
 			}
 			stop = !all
 			return nil
-		}); err != nil {
+		}, nil); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func isApplied(s db.ObjectROStore[migration], tx *sql.Tx, name string) (bool, error) {
-	rows, err := s.FindObjects(tx, `"name" = $1`, name)
+func isApplied(
+	ctx context.Context, store db.ObjectROStore[migration], name string,
+) (bool, error) {
+	rows, err := store.FindObjects(ctx, `"name" = $1`, name)
 	if err != nil {
 		return false, err
 	}

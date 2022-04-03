@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"reflect"
@@ -60,9 +61,9 @@ func (r EventRange) getWhere(name string) gosql.BoolExpression {
 type EventROStore[T Event] interface {
 	// LastEventID should return last event ID or sql.ErrNoRows
 	// if there is no events.
-	LastEventID(tx gosql.WeakTx) (int64, error)
+	LastEventID(ctx context.Context) (int64, error)
 	// LoadEvents should load events from store in specified range.
-	LoadEvents(tx gosql.WeakTx, ranges []EventRange) (EventReader[T], error)
+	LoadEvents(ctx context.Context, ranges []EventRange) (EventReader[T], error)
 }
 
 // EventStore represents persistent store for events.
@@ -70,7 +71,7 @@ type EventStore[T Event] interface {
 	EventROStore[T]
 	// CreateEvent should create a new event and return copy
 	// that has correct EventID.
-	CreateEvent(tx gosql.WeakTx, event *T) error
+	CreateEvent(ctx context.Context, event *T) error
 }
 
 type eventStore[T Event] struct {
@@ -82,9 +83,9 @@ type eventStore[T Event] struct {
 
 // LastEventID returns last event ID or sql.ErrNoRows
 // if there is no events.
-func (s *eventStore[T]) LastEventID(tx gosql.WeakTx) (int64, error) {
-	row := tx.QueryRow(
-		fmt.Sprintf("SELECT max(%q) FROM %q", s.id, s.table),
+func (s *eventStore[T]) LastEventID(ctx context.Context) (int64, error) {
+	row := s.db.QueryRowContext(
+		ctx, fmt.Sprintf("SELECT max(%q) FROM %q", s.id, s.table),
 	)
 	var id *int64
 	if err := row.Scan(&id); err != nil {
@@ -108,7 +109,7 @@ func (s *eventStore[T]) getEventsWhere(ranges []EventRange) gosql.BoolExpression
 }
 
 func (s *eventStore[T]) LoadEvents(
-	tx gosql.WeakTx, ranges []EventRange,
+	ctx context.Context, ranges []EventRange,
 ) (EventReader[T], error) {
 	query, values := s.db.Select(s.table).
 		Names(prepareNames(s.typ)...).
@@ -116,7 +117,7 @@ func (s *eventStore[T]) LoadEvents(
 		OrderBy(gosql.Ascending(s.id)).
 		// Limit(1000).
 		Build()
-	rows, err := tx.Query(query, values...)
+	rows, err := s.db.QueryContext(ctx, query, values...)
 	if err != nil {
 		return nil, err
 	}
@@ -126,13 +127,17 @@ func (s *eventStore[T]) LoadEvents(
 	return &eventReader[T]{typ: s.typ, rows: rows}, nil
 }
 
-func (s *eventStore[T]) CreateEvent(tx gosql.WeakTx, event *T) error {
-	row, err := insertRow(tx, *event, s.id, s.table, s.db.Dialect())
+func (s *eventStore[T]) CreateEvent(ctx context.Context, event *T) error {
+	row, err := insertRow(getWeakTx(ctx, s.db), *event, s.id, s.table, s.db.Dialect())
 	if err != nil {
 		return err
 	}
 	*event = row.(T)
 	return nil
+}
+
+func (s *eventStore[T]) CreateEventTx(tx gosql.WeakTx, event *T) error {
+	return s.CreateEvent(wrapContext(tx), event)
 }
 
 // NewEventStore creates a new store for events of specified type.

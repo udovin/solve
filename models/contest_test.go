@@ -47,20 +47,20 @@ func (t *contestStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
 	contest := o.(Contest)
-	err := s.(*ContestStore).CreateTx(tx, &contest)
+	err := s.(*ContestStore).Create(wrapContext(tx), &contest)
 	return contest, err
 }
 
 func (t *contestStoreTest) updateObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, s.(*ContestStore).UpdateTx(tx, o.(Contest))
+	return o, s.(*ContestStore).Update(wrapContext(tx), o.(Contest))
 }
 
 func (t *contestStoreTest) deleteObject(
 	s Store, tx *sql.Tx, id int64,
 ) error {
-	return s.(*ContestStore).DeleteTx(tx, id)
+	return s.(*ContestStore).Delete(wrapContext(tx), id)
 }
 
 func TestContestStore(t *testing.T) {

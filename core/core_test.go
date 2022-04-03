@@ -75,9 +75,9 @@ func TestCore_WithTx(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	defer c.Stop()
-	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
+	if err := c.WrapTx(context.Background(), func(context.Context) error {
 		return fmt.Errorf("test error")
-	}); err == nil {
+	}, nil); err == nil {
 		t.Fatal("Expected error")
 	}
 }
@@ -119,16 +119,14 @@ func TestCore_Roles_NoRows(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	defer c.Stop()
-	if err := c.WithTx(context.Background(), func(tx *sql.Tx) error {
-		role, err := c.Roles.GetByName(models.GuestGroupRole)
-		if err != nil {
-			return err
-		}
-		return c.Roles.DeleteTx(tx, role.ID)
-	}); err != nil {
+	role, err := c.Roles.GetByName(models.GuestGroupRole)
+	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := c.Roles.SyncTx(c.DB); err != nil {
+	if err := c.Roles.Delete(context.Background(), role.ID); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := c.Roles.Sync(context.Background()); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if _, err := c.GetGuestRoles(); err != sql.ErrNoRows {

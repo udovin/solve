@@ -1,14 +1,13 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
-
-	"github.com/udovin/gosql"
 )
 
 type mockEvent struct {
@@ -35,7 +34,7 @@ type mockEventStore struct {
 	events []mockEvent
 }
 
-func (s *mockEventStore) LastEventID(tx gosql.WeakTx) (int64, error) {
+func (s *mockEventStore) LastEventID(ctx context.Context) (int64, error) {
 	return 0, nil
 }
 
@@ -54,7 +53,7 @@ func (e eventSorter) Swap(i, j int) {
 }
 
 func (s *mockEventStore) LoadEvents(
-	tx gosql.WeakTx, ranges []EventRange,
+	ctx context.Context, ranges []EventRange,
 ) (EventReader[mockEvent], error) {
 	var events []mockEvent
 	for _, rng := range ranges {
@@ -139,12 +138,12 @@ func TestEventConsumer(t *testing.T) {
 			answer = append(answer, event)
 		}
 		errConsume := fmt.Errorf("consuming error")
-		if err := consumer.ConsumeEvents(nil, func(event mockEvent) error {
+		if err := consumer.ConsumeEvents(context.Background(), func(event mockEvent) error {
 			return errConsume
 		}); err != errConsume {
 			t.Fatal(err)
 		}
-		if err := consumer.ConsumeEvents(nil, func(event mockEvent) error {
+		if err := consumer.ConsumeEvents(context.Background(), func(event mockEvent) error {
 			result = append(result, event)
 			usedIDs[event.EventID()] = struct{}{}
 			return nil

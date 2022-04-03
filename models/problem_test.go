@@ -48,7 +48,7 @@ func (t *problemStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
 	problem := o.(Problem)
-	if err := s.(*ProblemStore).CreateTx(tx, &problem); err != nil {
+	if err := s.(*ProblemStore).Create(wrapContext(tx), &problem); err != nil {
 		return Problem{}, err
 	}
 	return problem, nil
@@ -57,13 +57,13 @@ func (t *problemStoreTest) createObject(
 func (t *problemStoreTest) updateObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, s.(*ProblemStore).UpdateTx(tx, o.(Problem))
+	return o, s.(*ProblemStore).Update(wrapContext(tx), o.(Problem))
 }
 
 func (t *problemStoreTest) deleteObject(
 	s Store, tx *sql.Tx, id int64,
 ) error {
-	return s.(*ProblemStore).DeleteTx(tx, id)
+	return s.(*ProblemStore).Delete(wrapContext(tx), id)
 }
 
 func TestProblemStore(t *testing.T) {

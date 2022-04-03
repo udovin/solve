@@ -174,7 +174,7 @@ func (s *TaskStore) FindByStatus(status TaskStatus) ([]Task, error) {
 // Note that events is not synchronized after tasks is popped.
 func (s *TaskStore) PopQueuedTx(tx gosql.WeakTx) (Task, error) {
 	var task Task
-	if err := gosql.WithEnsuredTx(tx, func(tx *sql.Tx) (err error) {
+	if err := gosql.WrapEnsuredTx(tx, func(tx *sql.Tx) (err error) {
 		task, err = s.popQueuedTx(tx)
 		return
 	}); err != nil {
@@ -187,7 +187,7 @@ func (s *TaskStore) popQueuedTx(tx *sql.Tx) (Task, error) {
 	if err := s.lockStore(tx); err != nil {
 		return Task{}, err
 	}
-	if err := s.SyncTx(tx); err != nil {
+	if err := s.Sync(wrapContext(tx)); err != nil {
 		return Task{}, err
 	}
 	s.mutex.RLock()
@@ -200,7 +200,7 @@ func (s *TaskStore) popQueuedTx(tx *sql.Tx) (Task, error) {
 			// Now we can do any manipulations with this action.
 			task.Status = Running
 			task.ExpireTime = time.Now().Add(5 * time.Second).Unix()
-			if err := s.UpdateTx(tx, task); err != nil {
+			if err := s.Update(wrapContext(tx), task); err != nil {
 				return Task{}, err
 			}
 			return task, nil

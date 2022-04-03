@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -178,43 +179,19 @@ func newTestStore() *testStore {
 }
 
 func testInitStore(t testing.TB, m Store) {
-	tx, err := testDB.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-	if err := m.InitTx(tx); err != nil {
+	if err := m.Init(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func testSyncStore(t testing.TB, s Store) {
-	tx, err := testDB.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-	if err := s.SyncTx(tx); err != nil {
+	if err := s.Sync(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func createTestObject(t testing.TB, s *testStore, o testObject) testObject {
-	tx, err := testDB.Begin()
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-	if err := s.CreateTx(tx, &o); err != nil {
-		t.Fatal("Error:", err)
-	}
-	if err := tx.Commit(); err != nil {
+	if err := s.Create(context.Background(), &o); err != nil {
 		t.Fatal("Error:", err)
 	}
 	return o
@@ -230,7 +207,7 @@ func updateTestObject(
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	if err = s.UpdateTx(tx, o); err != expErr {
+	if err = s.Update(wrapContext(tx), o); err != expErr {
 		t.Fatalf("Expected %v, got %v", expErr, err)
 	}
 	if err == nil {
@@ -243,21 +220,8 @@ func updateTestObject(
 func deleteTestObject(
 	t testing.TB, s *testStore, id int64, expErr error,
 ) {
-	tx, err := testDB.Begin()
-	if err != nil {
+	if err := s.Delete(context.Background(), id); err != expErr {
 		t.Fatal(err)
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-	err = s.DeleteTx(tx, id)
-	if err != expErr {
-		t.Fatal(err)
-	}
-	if err == nil {
-		if err := tx.Commit(); err != nil {
-			t.Fatal(err)
-		}
 	}
 }
 
@@ -351,14 +315,7 @@ func TestBaseStore_InitTx(t *testing.T) {
 	store.baseStore = makeBaseStore[testObject, testObjectEvent](
 		testDB, store.table, store.eventTable, store,
 	)
-	tx, err := testDB.Begin()
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-	if err := store.InitTx(tx); err == nil {
+	if err := store.Init(context.Background()); err == nil {
 		t.Fatal("Expected error")
 	}
 }
@@ -521,11 +478,11 @@ type StoreTester struct {
 func (s *StoreTester) Test(t testing.TB) {
 	s.prepareDB(t)
 	master := s.helper.newStore()
-	if err := master.InitTx(testDB); err != nil {
+	if err := master.Init(context.Background()); err != nil {
 		t.Fatal("Error:", err)
 	}
 	objects := s.createObjects(t, master)
-	if err := master.SyncTx(testDB); err != nil {
+	if err := master.Sync(context.Background()); err != nil {
 		t.Fatal("Error:", err)
 	}
 	for _, object := range objects {
@@ -542,7 +499,7 @@ func (s *StoreTester) Test(t testing.TB) {
 			t.Fatal("Error:", err)
 		}
 	}
-	if err := master.SyncTx(testDB); err != nil {
+	if err := master.Sync(context.Background()); err != nil {
 		t.Fatal("Error:", err)
 	}
 	for _, object := range objects {
@@ -552,7 +509,7 @@ func (s *StoreTester) Test(t testing.TB) {
 			t.Fatal("Error:", err)
 		}
 	}
-	if err := master.SyncTx(testDB); err != nil {
+	if err := master.Sync(context.Background()); err != nil {
 		t.Fatal("Error:", err)
 	}
 	for _, object := range objects {
@@ -614,7 +571,7 @@ func BenchmarkBaseStore_CreateTx(b *testing.B) {
 	defer testTeardown(b)
 	store := newTestStore()
 	migrateTestStore(b, store)
-	if err := store.InitTx(testDB); err != nil {
+	if err := store.Init(context.Background()); err != nil {
 		b.Fatal("Error: ", err)
 	}
 	b.ResetTimer()
@@ -624,10 +581,10 @@ func BenchmarkBaseStore_CreateTx(b *testing.B) {
 			b.Fatal("Error: ", err)
 		}
 		obj := testObject{JSON: bytes}
-		if err := store.CreateTx(testDB, &obj); err != nil {
+		if err := store.Create(context.Background(), &obj); err != nil {
 			b.Fatal("Error: ", err)
 		}
-		if err := store.SyncTx(testDB); err != nil {
+		if err := store.Sync(context.Background()); err != nil {
 			b.Fatal("Error: ", err)
 		}
 	}

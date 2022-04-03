@@ -42,7 +42,7 @@ func (t *accountRoleStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
 	role := o.(AccountRole)
-	if err := s.(*AccountRoleStore).CreateTx(tx, &role); err != nil {
+	if err := s.(*AccountRoleStore).Create(wrapContext(tx), &role); err != nil {
 		return AccountRole{}, err
 	}
 	return role, nil
@@ -51,13 +51,13 @@ func (t *accountRoleStoreTest) createObject(
 func (t *accountRoleStoreTest) updateObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, s.(*AccountRoleStore).UpdateTx(tx, o.(AccountRole))
+	return o, s.(*AccountRoleStore).Update(wrapContext(tx), o.(AccountRole))
 }
 
 func (t *accountRoleStoreTest) deleteObject(
 	s Store, tx *sql.Tx, id int64,
 ) error {
-	return s.(*AccountRoleStore).DeleteTx(tx, id)
+	return s.(*AccountRoleStore).Delete(wrapContext(tx), id)
 }
 
 func TestUserRoleStore(t *testing.T) {

@@ -83,11 +83,11 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	default:
 	}
 	var task models.Task
-	if err := gosql.WithTx(s.core.DB, func(tx *sql.Tx) error {
+	if err := s.core.WrapTx(ctx, func(ctx context.Context) error {
 		var err error
-		task, err = s.core.Tasks.PopQueuedTx(tx)
+		task, err = s.core.Tasks.PopQueuedTx(gosql.GetTx(ctx))
 		return err
-	}, gosql.WithContext(ctx)); err != nil {
+	}, nil); err != nil {
 		if err != sql.ErrNoRows {
 			s.core.Logger().Error("Error: ", err)
 		}
@@ -101,9 +101,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 		}
 		ctx, cancel := context.WithDeadline(context.Background(), time.Unix(task.ExpireTime, 0))
 		defer cancel()
-		if err := s.core.WithTx(ctx, func(tx *sql.Tx) error {
-			return s.core.Tasks.UpdateTx(tx, task)
-		}); err != nil {
+		if err := s.core.Tasks.Update(ctx, task); err != nil {
 			s.core.Logger().Error("Error: ", err)
 		}
 	}()
@@ -131,10 +129,10 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 					return
 				}
 				clone := task
-				if err := s.core.WithTx(ctx, func(tx *sql.Tx) error {
+				if err := s.core.WrapTx(ctx, func(ctx context.Context) error {
 					clone.ExpireTime = time.Now().Add(5 * time.Second).Unix()
-					return s.core.Tasks.UpdateTx(tx, clone)
-				}); err != nil {
+					return s.core.Tasks.Update(ctx, clone)
+				}, nil); err != nil {
 					s.core.Logger().Warn("Unable to ping task: ", err)
 				} else {
 					task.ExpireTime = clone.ExpireTime
@@ -168,7 +166,7 @@ func (s *Invoker) onTask(ctx context.Context, task models.Task) error {
 func (s *Invoker) getSolution(id int64) (models.Solution, error) {
 	solution, err := s.core.Solutions.Get(id)
 	if err == sql.ErrNoRows {
-		if err := s.core.Solutions.SyncTx(s.core.DB); err != nil {
+		if err := s.core.Solutions.Sync(context.Background()); err != nil {
 			return models.Solution{}, fmt.Errorf(
 				"unable to sync solutions: %w", err,
 			)
@@ -200,7 +198,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 			return
 		}
 		s.core.Logger().Info("Report: ", string(solution.Report))
-		if err := s.core.Solutions.UpdateTx(s.core.DB, solution); err != nil {
+		if err := s.core.Solutions.Update(ctx, solution); err != nil {
 			s.core.Logger().Error(err)
 			return
 		}

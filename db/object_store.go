@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"reflect"
@@ -29,10 +30,10 @@ type ObjectReader[T Object] interface {
 // ObjectROStore represents read-only store for objects.
 type ObjectROStore[T Object] interface {
 	// LoadObjects should load objects from store.
-	LoadObjects(tx gosql.WeakTx) (ObjectReader[T], error)
+	LoadObjects(ctx context.Context) (ObjectReader[T], error)
 	// FindObjects should bind objects with specified expression.
 	FindObjects(
-		tx gosql.WeakTx, where string, args ...any,
+		ctx context.Context, where string, args ...any,
 	) (ObjectReader[T], error)
 }
 
@@ -41,23 +42,24 @@ type ObjectStore[T Object] interface {
 	ObjectROStore[T]
 	// CreateObject should create a new object and return copy
 	// that has correct ObjectID.
-	CreateObject(tx gosql.WeakTx, object *T) error
+	CreateObject(ctx context.Context, object *T) error
 	// UpdateObject should update object with specified ObjectID and
 	// return copy with updated fields.
-	UpdateObject(tx gosql.WeakTx, object *T) error
+	UpdateObject(ctx context.Context, object *T) error
 	// DeleteObject should delete existing object from the store.
-	DeleteObject(tx gosql.WeakTx, id int64) error
+	DeleteObject(ctx context.Context, id int64) error
 }
 
 type objectStore[T Object] struct {
-	typ     reflect.Type
-	id      string
-	table   string
-	dialect gosql.Dialect
+	typ   reflect.Type
+	db    *gosql.DB
+	id    string
+	table string
 }
 
-func (s *objectStore[T]) LoadObjects(tx gosql.WeakTx) (ObjectReader[T], error) {
-	rows, err := tx.Query(
+func (s *objectStore[T]) LoadObjects(ctx context.Context) (ObjectReader[T], error) {
+	rows, err := s.db.QueryContext(
+		ctx,
 		fmt.Sprintf(
 			"SELECT %s FROM %q ORDER BY %q",
 			prepareSelect(s.typ), s.table, s.id,
@@ -72,10 +74,26 @@ func (s *objectStore[T]) LoadObjects(tx gosql.WeakTx) (ObjectReader[T], error) {
 	return &objectReader[T]{typ: s.typ, rows: rows}, nil
 }
 
+func wrapContext(tx gosql.WeakTx) context.Context {
+	ctx := context.Background()
+	if v, ok := tx.(*sql.Tx); ok {
+		ctx = gosql.WithTx(ctx, v)
+	}
+	return ctx
+}
+
+func getWeakTx(ctx context.Context, db *gosql.DB) gosql.WeakTx {
+	if tx := gosql.GetTx(ctx); tx != nil {
+		return tx
+	}
+	return db
+}
+
 func (s *objectStore[T]) FindObjects(
-	tx gosql.WeakTx, where string, args ...any,
+	ctx context.Context, where string, args ...any,
 ) (ObjectReader[T], error) {
-	rows, err := tx.Query(
+	rows, err := s.db.QueryContext(
+		ctx,
 		fmt.Sprintf(
 			"SELECT %s FROM %q WHERE %s",
 			prepareSelect(s.typ), s.table, where,
@@ -91,8 +109,8 @@ func (s *objectStore[T]) FindObjects(
 	return &objectReader[T]{typ: s.typ, rows: rows}, nil
 }
 
-func (s *objectStore[T]) CreateObject(tx gosql.WeakTx, object *T) error {
-	row, err := insertRow(tx, *object, s.id, s.table, s.dialect)
+func (s *objectStore[T]) CreateObject(ctx context.Context, object *T) error {
+	row, err := insertRow(getWeakTx(ctx, s.db), *object, s.id, s.table, s.db.Dialect())
 	if err != nil {
 		return err
 	}
@@ -100,8 +118,8 @@ func (s *objectStore[T]) CreateObject(tx gosql.WeakTx, object *T) error {
 	return nil
 }
 
-func (s *objectStore[T]) UpdateObject(tx gosql.WeakTx, object *T) error {
-	row, err := updateRow(tx, *object, s.id, s.table)
+func (s *objectStore[T]) UpdateObject(ctx context.Context, object *T) error {
+	row, err := updateRow(getWeakTx(ctx, s.db), *object, s.id, s.table)
 	if err != nil {
 		return err
 	}
@@ -109,20 +127,20 @@ func (s *objectStore[T]) UpdateObject(tx gosql.WeakTx, object *T) error {
 	return nil
 }
 
-func (s *objectStore[T]) DeleteObject(tx gosql.WeakTx, id int64) error {
-	return deleteRow(tx, id, s.id, s.table)
+func (s *objectStore[T]) DeleteObject(ctx context.Context, id int64) error {
+	return deleteRow(getWeakTx(ctx, s.db), id, s.id, s.table)
 }
 
 // NewObjectStore creates a new store for objects of specified type.
 func NewObjectStore[T Object](
-	id, table string, dialect gosql.Dialect,
+	id, table string, db *gosql.DB,
 ) ObjectStore[T] {
 	var object T
 	return &objectStore[T]{
-		typ:     reflect.TypeOf(object),
-		id:      id,
-		table:   table,
-		dialect: dialect,
+		typ:   reflect.TypeOf(object),
+		db:    db,
+		id:    id,
+		table: table,
 	}
 }
 

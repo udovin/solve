@@ -42,20 +42,20 @@ func (t *roleEdgeStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
 	object := o.(RoleEdge)
-	err := s.(*RoleEdgeStore).CreateTx(tx, &object)
+	err := s.(*RoleEdgeStore).Create(wrapContext(tx), &object)
 	return object, err
 }
 
 func (t *roleEdgeStoreTest) updateObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, s.(*RoleEdgeStore).UpdateTx(tx, o.(RoleEdge))
+	return o, s.(*RoleEdgeStore).Update(wrapContext(tx), o.(RoleEdge))
 }
 
 func (t *roleEdgeStoreTest) deleteObject(
 	s Store, tx *sql.Tx, id int64,
 ) error {
-	return s.(*RoleEdgeStore).DeleteTx(tx, id)
+	return s.(*RoleEdgeStore).Delete(wrapContext(tx), id)
 }
 
 func TestRoleEdgeStore(t *testing.T) {

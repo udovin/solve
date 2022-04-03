@@ -1,7 +1,7 @@
 package api
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -125,7 +125,7 @@ func (v *View) createCompiler(c echo.Context) error {
 	if account, ok := c.Get(authAccountKey).(models.Account); ok {
 		compiler.OwnerID = models.NInt64(account.ID)
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+	if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
 		file, err := c.FormFile("file")
 		if err != nil {
 			return err
@@ -137,7 +137,7 @@ func (v *View) createCompiler(c echo.Context) error {
 		defer func() {
 			_ = src.Close()
 		}()
-		if err := v.core.Compilers.CreateTx(tx, &compiler); err != nil {
+		if err := v.core.Compilers.Create(ctx, &compiler); err != nil {
 			return err
 		}
 		dst, err := os.Create(filepath.Join(
@@ -150,7 +150,7 @@ func (v *View) createCompiler(c echo.Context) error {
 		defer dst.Close()
 		_, err = io.Copy(dst, src)
 		return err
-	}); err != nil {
+	}, sqlRepeatableRead); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -167,9 +167,7 @@ func (v *View) deleteCompiler(c echo.Context) error {
 		c.Logger().Error("problem not extracted")
 		return fmt.Errorf("problem not extracted")
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.Compilers.DeleteTx(tx, compiler.ID)
-	}); err != nil {
+	if err := v.core.Compilers.Delete(c.Request().Context(), compiler.ID); err != nil {
 		c.Logger().Error(err)
 		return err
 	}

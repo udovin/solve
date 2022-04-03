@@ -180,9 +180,7 @@ func (v *View) createRole(c echo.Context) error {
 	if resp := form.Update(&role, v.core.Roles); resp != nil {
 		return c.JSON(http.StatusBadRequest, resp)
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.Roles.CreateTx(tx, &role)
-	}); err != nil {
+	if err := v.core.Roles.Create(c.Request().Context(), &role); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -203,9 +201,7 @@ func (v *View) deleteRole(c echo.Context) error {
 			Message: "unable to delete builtin role",
 		})
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.Roles.DeleteTx(tx, role.ID)
-	}); err != nil {
+	if err := v.core.Roles.Delete(c.Request().Context(), role.ID); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -284,11 +280,7 @@ func (v *View) createRoleRole(c echo.Context) error {
 		RoleID:  role.ID,
 		ChildID: childRole.ID,
 	}
-	if err := v.core.WithTx(c.Request().Context(),
-		func(tx *sql.Tx) error {
-			return v.core.RoleEdges.CreateTx(tx, &edge)
-		},
-	); err != nil {
+	if err := v.core.RoleEdges.Create(c.Request().Context(), &edge); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -372,11 +364,7 @@ func (v *View) createUserRole(c echo.Context) error {
 		AccountID: user.AccountID,
 		RoleID:    role.ID,
 	}
-	if err := v.core.WithTx(c.Request().Context(),
-		func(tx *sql.Tx) error {
-			return v.core.AccountRoles.CreateTx(tx, &edge)
-		},
-	); err != nil {
+	if err := v.core.AccountRoles.Create(c.Request().Context(), &edge); err != nil {
 		c.Logger().Error(err)
 		return err
 	}

@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -55,29 +54,30 @@ func TestUserSimpleScenario(t *testing.T) {
 }
 
 func testSyncManagers(tb testing.TB) {
-	if err := testView.core.WithTx(
+	if err := testView.core.WrapTx(
 		context.Background(),
-		func(tx *sql.Tx) error {
-			if err := testView.core.Accounts.SyncTx(tx); err != nil {
+		func(ctx context.Context) error {
+			if err := testView.core.Accounts.Sync(ctx); err != nil {
 				return err
 			}
-			if err := testView.core.Users.SyncTx(tx); err != nil {
+			if err := testView.core.Users.Sync(ctx); err != nil {
 				return err
 			}
-			if err := testView.core.Roles.SyncTx(tx); err != nil {
+			if err := testView.core.Roles.Sync(ctx); err != nil {
 				return err
 			}
-			if err := testView.core.AccountRoles.SyncTx(tx); err != nil {
+			if err := testView.core.AccountRoles.Sync(ctx); err != nil {
 				return err
 			}
-			if err := testView.core.Contests.SyncTx(tx); err != nil {
+			if err := testView.core.Contests.Sync(ctx); err != nil {
 				return err
 			}
-			if err := testView.core.Problems.SyncTx(tx); err != nil {
+			if err := testView.core.Problems.Sync(ctx); err != nil {
 				return err
 			}
 			return nil
 		},
+		sqlReadOnly,
 	); err != nil {
 		tb.Fatal("Error:", err)
 	}

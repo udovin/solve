@@ -1,11 +1,10 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/udovin/gosql"
 )
 
 // EventConsumer represents consumer for events.
@@ -13,7 +12,7 @@ type EventConsumer[T Event] interface {
 	// BeginEventID should return smallest ID of next possibly consumed event.
 	BeginEventID() int64
 	// ConsumeEvents should consume new events.
-	ConsumeEvents(tx gosql.WeakTx, fn func(T) error) error
+	ConsumeEvents(ctx context.Context, fn func(T) error) error
 }
 
 // eventConsumer represents a base implementation for EventConsumer.
@@ -45,10 +44,10 @@ func (c *eventConsumer[T]) removeEmptyRanges() {
 }
 
 // ConsumeEvents consumes new events from event store.
-func (c *eventConsumer[T]) ConsumeEvents(tx gosql.WeakTx, fn func(T) error) error {
+func (c *eventConsumer[T]) ConsumeEvents(ctx context.Context, fn func(T) error) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	events, err := c.store.LoadEvents(tx, c.ranges)
+	events, err := c.store.LoadEvents(ctx, c.ranges)
 	if err != nil {
 		return err
 	}

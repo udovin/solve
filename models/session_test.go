@@ -50,20 +50,20 @@ func (t *sessionStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
 	object := o.(Session)
-	err := s.(*SessionStore).CreateTx(tx, &object)
+	err := s.(*SessionStore).Create(wrapContext(tx), &object)
 	return object, err
 }
 
 func (t *sessionStoreTest) updateObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, s.(*SessionStore).UpdateTx(tx, o.(Session))
+	return o, s.(*SessionStore).Update(wrapContext(tx), o.(Session))
 }
 
 func (t *sessionStoreTest) deleteObject(
 	s Store, tx *sql.Tx, id int64,
 ) error {
-	return s.(*SessionStore).DeleteTx(tx, id)
+	return s.(*SessionStore).Delete(wrapContext(tx), id)
 }
 
 func TestSessionStore(t *testing.T) {

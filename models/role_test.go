@@ -40,20 +40,20 @@ func (t *roleStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
 	object := o.(Role)
-	err := s.(*RoleStore).CreateTx(tx, &object)
+	err := s.(*RoleStore).Create(wrapContext(tx), &object)
 	return object, err
 }
 
 func (t *roleStoreTest) updateObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, s.(*RoleStore).UpdateTx(tx, o.(Role))
+	return o, s.(*RoleStore).Update(wrapContext(tx), o.(Role))
 }
 
 func (t *roleStoreTest) deleteObject(
 	s Store, tx *sql.Tx, id int64,
 ) error {
-	return s.(*RoleStore).DeleteTx(tx, id)
+	return s.(*RoleStore).Delete(wrapContext(tx), id)
 }
 
 func TestRoleStore(t *testing.T) {

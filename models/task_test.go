@@ -49,20 +49,20 @@ func (t *taskStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
 	task := o.(Task)
-	err := s.(*TaskStore).CreateTx(tx, &task)
+	err := s.(*TaskStore).Create(wrapContext(tx), &task)
 	return task, err
 }
 
 func (t *taskStoreTest) updateObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, s.(*TaskStore).UpdateTx(tx, o.(Task))
+	return o, s.(*TaskStore).Update(wrapContext(tx), o.(Task))
 }
 
 func (t *taskStoreTest) deleteObject(
 	s Store, tx *sql.Tx, id int64,
 ) error {
-	return s.(*TaskStore).DeleteTx(tx, id)
+	return s.(*TaskStore).Delete(wrapContext(tx), id)
 }
 
 func TestTaskStatus(t *testing.T) {

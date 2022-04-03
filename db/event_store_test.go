@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"reflect"
@@ -82,13 +83,14 @@ func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Commit() }()
+	ctx := gosql.WithTx(context.Background(), tx)
 	events := []testEvent{
 		{C: 8}, {C: 16}, {C: 5}, {C: 3},
 		{testExtraEvent: testExtraEvent{A: "qwerty"}, C: 10},
 	}
 	for i, event := range events {
 		created := event
-		if err := store.CreateEvent(tx, &created); err != nil {
+		if err := store.CreateEvent(ctx, &created); err != nil {
 			t.Fatal("Error:", err)
 		}
 		events[i].ID = created.EventID()
@@ -98,7 +100,7 @@ func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
 		if events[i] != created {
 			t.Fatal()
 		}
-		id, err := store.LastEventID(tx)
+		id, err := store.LastEventID(ctx)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
@@ -106,7 +108,7 @@ func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
 			t.Fatal()
 		}
 	}
-	rows, err := store.LoadEvents(tx, []EventRange{{Begin: 1, End: 6}})
+	rows, err := store.LoadEvents(ctx, []EventRange{{Begin: 1, End: 6}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,20 +137,21 @@ func TestEventStoreClosed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.LastEventID(tx); err != sql.ErrNoRows {
+	ctx := gosql.WithTx(context.Background(), tx)
+	if _, err := store.LastEventID(ctx); err != sql.ErrNoRows {
 		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
 	}
 	if err := tx.Rollback(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if _, err := store.LastEventID(tx); err != sql.ErrTxDone {
+	if _, err := store.LastEventID(ctx); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
-	if _, err := store.LoadEvents(tx, []EventRange{{Begin: 1, End: 100}}); err != sql.ErrTxDone {
+	if _, err := store.LoadEvents(ctx, []EventRange{{Begin: 1, End: 100}}); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
 	event := testEvent{}
-	if err := store.CreateEvent(tx, &event); err != sql.ErrTxDone {
+	if err := store.CreateEvent(ctx, &event); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
 }

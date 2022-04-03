@@ -307,7 +307,7 @@ func (v *View) getSessionByCookie(
 ) (models.Session, error) {
 	session, err := v.core.Sessions.GetByCookie(value)
 	if err == sql.ErrNoRows {
-		if err := v.core.Sessions.SyncTx(v.core.DB); err != nil {
+		if err := v.core.Sessions.Sync(ctx); err != nil {
 			return models.Session{}, err
 		}
 		session, err = v.core.Sessions.GetByCookie(value)
@@ -348,3 +348,7 @@ func (v *View) getBoolSetting(ctx echo.Context, key string) *bool {
 func getPtr[T any](object T) *T {
 	return &object
 }
+
+var sqlRepeatableRead = &sql.TxOptions{Isolation: sql.LevelRepeatableRead}
+
+var sqlReadOnly = &sql.TxOptions{ReadOnly: true}

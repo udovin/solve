@@ -43,7 +43,7 @@ func (t *accountStoreTest) createObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
 	account := o.(Account)
-	if err := s.(*AccountStore).CreateTx(tx, &account); err != nil {
+	if err := s.(*AccountStore).Create(wrapContext(tx), &account); err != nil {
 		return Account{}, err
 	}
 	return account, nil
@@ -52,13 +52,13 @@ func (t *accountStoreTest) createObject(
 func (t *accountStoreTest) updateObject(
 	s Store, tx *sql.Tx, o db.Object,
 ) (db.Object, error) {
-	return o, s.(*AccountStore).UpdateTx(tx, o.(Account))
+	return o, s.(*AccountStore).Update(wrapContext(tx), o.(Account))
 }
 
 func (t *accountStoreTest) deleteObject(
 	s Store, tx *sql.Tx, id int64,
 ) error {
-	return s.(*AccountStore).DeleteTx(tx, id)
+	return s.(*AccountStore).Delete(wrapContext(tx), id)
 }
 
 func TestAccountStore(t *testing.T) {

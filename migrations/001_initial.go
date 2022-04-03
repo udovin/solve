@@ -1,7 +1,7 @@
 package migrations
 
 import (
-	"database/sql"
+	"context"
 
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db/schema"
@@ -357,38 +357,38 @@ var m001Tables = []schema.Table{
 	},
 }
 
-func (m *m001) Apply(c *core.Core, tx *sql.Tx) error {
+func (m *m001) Apply(ctx context.Context, c *core.Core) error {
 	for _, table := range m001Tables {
 		query, err := table.BuildCreateSQL(c.DB.Dialect(), false)
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(query); err != nil {
+		if _, err := c.DB.ExecContext(ctx, query); err != nil {
 			return err
 		}
 	}
-	return m.createRoles(c, tx)
+	return m.createRoles(ctx, c)
 }
 
-func (m *m001) Unapply(c *core.Core, tx *sql.Tx) error {
+func (m *m001) Unapply(ctx context.Context, c *core.Core) error {
 	for i := 0; i < len(m001Tables); i++ {
 		table := m001Tables[len(m001Tables)-i-1]
 		query, err := table.BuildDropSQL(c.DB.Dialect(), false)
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(query); err != nil {
+		if _, err := c.DB.ExecContext(ctx, query); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
+func (m *m001) createRoles(ctx context.Context, c *core.Core) error {
 	roles := map[string]int64{}
 	create := func(name string) error {
 		role := models.Role{Name: name}
-		err := c.Roles.CreateTx(tx, &role)
+		err := c.Roles.Create(ctx, &role)
 		if err == nil {
 			roles[role.Name] = role.ID
 		}
@@ -399,7 +399,7 @@ func (m *m001) createRoles(c *core.Core, tx *sql.Tx) error {
 			RoleID:  roles[parent],
 			ChildID: roles[child],
 		}
-		return c.RoleEdges.CreateTx(tx, &edge)
+		return c.RoleEdges.Create(ctx, &edge)
 	}
 	allRoles := []string{
 		models.LoginRole,

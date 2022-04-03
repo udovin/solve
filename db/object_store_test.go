@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"reflect"
 	"testing"
@@ -29,12 +30,13 @@ func testSetupObjectStore(t testing.TB, store ObjectStore[testObject]) []testObj
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Commit() }()
+	ctx := gosql.WithTx(context.Background(), tx)
 	objects := []testObject{
 		{C: 8}, {C: 16}, {C: 5}, {C: 3},
 		{testExtraObject: testExtraObject{A: "qwerty"}, C: 10},
 	}
 	for i, object := range objects {
-		err := store.CreateObject(tx, &object)
+		err := store.CreateObject(ctx, &object)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -52,14 +54,15 @@ func testSetupObjectStore(t testing.TB, store ObjectStore[testObject]) []testObj
 func TestObjectStore(t *testing.T) {
 	testSetup(t, sqliteConfig, sqliteCreateTables)
 	defer testTeardown(t, sqliteDropTables)
-	store := NewObjectStore[testObject]("id", "test_object", gosql.SQLiteDialect)
+	store := NewObjectStore[testObject]("id", "test_object", testDB)
 	objects := testSetupObjectStore(t, store)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Commit() }()
-	rows, err := store.LoadObjects(tx)
+	ctx := gosql.WithTx(context.Background(), tx)
+	rows, err := store.LoadObjects(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,23 +79,23 @@ func TestObjectStore(t *testing.T) {
 	}
 	objects[0].A = "Updated text"
 	updatedObject := objects[0]
-	if err := store.UpdateObject(tx, &updatedObject); err != nil {
+	if err := store.UpdateObject(ctx, &updatedObject); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if updatedObject != objects[0] {
 		t.Fatalf("Expected %v, got %v", objects[0], updatedObject)
 	}
 	unknownObject := testObject{ID: 10000}
-	if err := store.UpdateObject(tx, &unknownObject); err != sql.ErrNoRows {
+	if err := store.UpdateObject(ctx, &unknownObject); err != sql.ErrNoRows {
 		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
 	}
-	if err := store.DeleteObject(tx, 10000); err != sql.ErrNoRows {
+	if err := store.DeleteObject(ctx, 10000); err != sql.ErrNoRows {
 		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
 	}
-	if err := store.DeleteObject(tx, objects[0].ID); err != nil {
+	if err := store.DeleteObject(ctx, objects[0].ID); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := store.DeleteObject(tx, objects[0].ID); err != sql.ErrNoRows {
+	if err := store.DeleteObject(ctx, objects[0].ID); err != sql.ErrNoRows {
 		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
 	}
 }
@@ -100,28 +103,29 @@ func TestObjectStore(t *testing.T) {
 func TestObjectStoreClosed(t *testing.T) {
 	testSetup(t, sqliteConfig, sqliteCreateTables)
 	defer testTeardown(t, sqliteDropTables)
-	store := NewObjectStore[testObject]("id", "test_object", gosql.SQLiteDialect)
+	store := NewObjectStore[testObject]("id", "test_object", testDB)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
+	ctx := gosql.WithTx(context.Background(), tx)
 	if err := tx.Rollback(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if _, err := store.LoadObjects(tx); err != sql.ErrTxDone {
+	if _, err := store.LoadObjects(ctx); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
-	if _, err := store.FindObjects(tx, "1"); err != sql.ErrTxDone {
+	if _, err := store.FindObjects(ctx, "1"); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
 	var object testObject
-	if err := store.CreateObject(tx, &object); err != sql.ErrTxDone {
+	if err := store.CreateObject(ctx, &object); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
-	if err := store.UpdateObject(tx, &object); err != sql.ErrTxDone {
+	if err := store.UpdateObject(ctx, &object); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
-	if err := store.DeleteObject(tx, 1); err != sql.ErrTxDone {
+	if err := store.DeleteObject(ctx, 1); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
 }
@@ -129,14 +133,15 @@ func TestObjectStoreClosed(t *testing.T) {
 func TestObjectStoreLoadObjectsFail(t *testing.T) {
 	testSetup(t, sqliteConfig, sqliteCreateTables)
 	defer testTeardown(t, sqliteDropTables)
-	store := NewObjectStore[testObject]("id", "test_object", gosql.SQLiteDialect)
+	store := NewObjectStore[testObject]("id", "test_object", testDB)
 	objects := testSetupObjectStore(t, store)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Commit() }()
-	rows, err := store.LoadObjects(tx)
+	ctx := gosql.WithTx(context.Background(), tx)
+	rows, err := store.LoadObjects(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,14 +162,15 @@ func TestObjectStoreLoadObjectsFail(t *testing.T) {
 func TestObjectStoreFindObjectsFail(t *testing.T) {
 	testSetup(t, sqliteConfig, sqliteCreateTables)
 	defer testTeardown(t, sqliteDropTables)
-	store := NewObjectStore[testObject]("id", "test_object", gosql.SQLiteDialect)
+	store := NewObjectStore[testObject]("id", "test_object", testDB)
 	objects := testSetupObjectStore(t, store)
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Commit() }()
-	rows, err := store.FindObjects(tx, "1")
+	ctx := gosql.WithTx(context.Background(), tx)
+	rows, err := store.FindObjects(ctx, "1")
 	if err != nil {
 		t.Fatal(err)
 	}

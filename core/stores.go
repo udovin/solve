@@ -106,7 +106,7 @@ func (c *Core) runStoreLoop(
 	s models.Store, d time.Duration, errs chan<- error,
 ) {
 	defer c.waiter.Done()
-	err := s.InitTx(c.DB)
+	err := s.Init(c.context)
 	errs <- err
 	if err != nil {
 		return
@@ -118,7 +118,7 @@ func (c *Core) runStoreLoop(
 		case <-c.context.Done():
 			return
 		case <-ticker.C:
-			if err := s.SyncTx(c.DB); err != nil {
+			if err := s.Sync(c.context); err != nil {
 				log.Println("Error:", err)
 			}
 		}

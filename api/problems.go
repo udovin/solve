@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -145,7 +146,7 @@ func (v *View) createProblem(c echo.Context) error {
 	if account, ok := c.Get(authAccountKey).(models.Account); ok {
 		problem.OwnerID = models.NInt64(account.ID)
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
+	if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
 		file, err := c.FormFile("file")
 		if err != nil {
 			return err
@@ -157,7 +158,7 @@ func (v *View) createProblem(c echo.Context) error {
 		defer func() {
 			_ = src.Close()
 		}()
-		if err := v.core.Problems.CreateTx(tx, &problem); err != nil {
+		if err := v.core.Problems.Create(ctx, &problem); err != nil {
 			return err
 		}
 		dst, err := os.Create(filepath.Join(
@@ -170,7 +171,7 @@ func (v *View) createProblem(c echo.Context) error {
 		defer dst.Close()
 		_, err = io.Copy(dst, src)
 		return err
-	}); err != nil {
+	}, sqlRepeatableRead); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -183,9 +184,7 @@ func (v *View) deleteProblem(c echo.Context) error {
 		c.Logger().Error("problem not extracted")
 		return fmt.Errorf("problem not extracted")
 	}
-	if err := v.core.WithTx(c.Request().Context(), func(tx *sql.Tx) error {
-		return v.core.Problems.DeleteTx(tx, problem.ID)
-	}); err != nil {
+	if err := v.core.Problems.Delete(c.Request().Context(), problem.ID); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -201,7 +200,7 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		problem, err := v.core.Problems.Get(id)
 		if err == sql.ErrNoRows {
-			if err := v.core.Problems.SyncTx(v.core.DB); err != nil {
+			if err := v.core.Problems.Sync(c.Request().Context()); err != nil {
 				return err
 			}
 			problem, err = v.core.Problems.Get(id)

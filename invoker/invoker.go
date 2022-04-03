@@ -14,7 +14,6 @@ import (
 
 	"github.com/opencontainers/runc/libcontainer"
 
-	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg"
@@ -82,12 +81,8 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 		return true
 	default:
 	}
-	var task models.Task
-	if err := s.core.WrapTx(ctx, func(ctx context.Context) error {
-		var err error
-		task, err = s.core.Tasks.PopQueuedTx(gosql.GetTx(ctx))
-		return err
-	}, nil); err != nil {
+	task, err := s.core.Tasks.PopQueued(ctx)
+	if err != nil {
 		if err != sql.ErrNoRows {
 			s.core.Logger().Error("Error: ", err)
 		}
@@ -140,7 +135,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 			}
 		}
 	}()
-	err := s.onTask(ctx, task)
+	err = s.onTask(ctx, task)
 	cancel()
 	waiter.Wait()
 	if err != nil {

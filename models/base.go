@@ -353,7 +353,7 @@ func (s *baseStore[T, E]) createObjectEvent(
 	if tx := gosql.GetTx(ctx); tx == nil {
 		return gosql.WrapTx(s.db, func(tx *sql.Tx) error {
 			return s.createObjectEvent(gosql.WithTx(ctx, tx), event)
-		}, sqlRepeatableRead)
+		}, gosql.WithContext(ctx), sqlRepeatableRead)
 	}
 	switch object := (*event).Object(); (*event).EventType() {
 	case CreateEvent:

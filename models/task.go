@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -169,38 +170,40 @@ func (s *TaskStore) FindByStatus(status TaskStatus) ([]Task, error) {
 	return tasks, nil
 }
 
+func (s *TaskStore) isSupportedTask(kind TaskKind) bool {
+	return kind >= 1 && kind <= 1
+}
+
 // PopQueuedTx pops queued action from the events and sets running status.
 //
 // Note that events is not synchronized after tasks is popped.
-func (s *TaskStore) PopQueuedTx(tx gosql.WeakTx) (Task, error) {
-	var task Task
-	if err := gosql.WrapEnsuredTx(tx, func(tx *sql.Tx) (err error) {
-		task, err = s.popQueuedTx(tx)
-		return
-	}); err != nil {
-		return Task{}, err
+func (s *TaskStore) PopQueued(ctx context.Context) (Task, error) {
+	tx := gosql.GetTx(ctx)
+	if tx == nil {
+		var task Task
+		err := gosql.WrapTx(s.db, func(tx *sql.Tx) (err error) {
+			task, err = s.PopQueued(gosql.WithTx(ctx, tx))
+			return err
+		}, gosql.WithContext(ctx), sqlRepeatableRead)
+		return task, err
 	}
-	return task, nil
-}
-
-func (s *TaskStore) popQueuedTx(tx *sql.Tx) (Task, error) {
 	if err := s.lockStore(tx); err != nil {
 		return Task{}, err
 	}
-	if err := s.Sync(wrapContext(tx)); err != nil {
+	if err := s.Sync(ctx); err != nil {
 		return Task{}, err
 	}
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byStatus[int64(Queued)] {
-		if task, ok := s.tasks[id]; ok {
+		if task, ok := s.tasks[id]; ok && s.isSupportedTask(task.Kind) {
 			// We should make clone of action, because we do not
 			// want to corrupt Store in-memory cache.
 			task = task.Clone()
 			// Now we can do any manipulations with this action.
 			task.Status = Running
 			task.ExpireTime = time.Now().Add(5 * time.Second).Unix()
-			if err := s.Update(wrapContext(tx), task); err != nil {
+			if err := s.Update(ctx, task); err != nil {
 				return Task{}, err
 			}
 			return task, nil

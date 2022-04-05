@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -55,9 +56,9 @@ func (s *VisitStore) MakeFromContext(c echo.Context) Visit {
 	}
 }
 
-// CreateTx creates a new visit in the events.
-func (s *VisitStore) CreateTx(tx gosql.WeakTx, visit *Visit) error {
-	return s.events.CreateEvent(wrapContext(tx), visit)
+// Create creates a new visit in the events.
+func (s *VisitStore) Create(ctx context.Context, visit *Visit) error {
+	return s.events.CreateEvent(ctx, visit)
 }
 
 // NewVisitStore creates a new instance of ViewStore.

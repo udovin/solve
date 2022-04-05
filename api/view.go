@@ -92,7 +92,7 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 			visit.Status = c.Response().Status
 			if s := v.getBoolSetting(c, "log_visit."+c.Path()); s == nil || *s {
-				if err := v.core.Visits.CreateTx(v.core.DB, &visit); err != nil {
+				if err := v.core.Visits.Create(c.Request().Context(), &visit); err != nil {
 					c.Logger().Error(err)
 				}
 			}

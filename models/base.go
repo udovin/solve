@@ -311,14 +311,6 @@ func (s *baseStore[T, E]) Sync(ctx context.Context) error {
 	return s.consumer.ConsumeEvents(ctx, s.consumeEvent)
 }
 
-func wrapContext(tx gosql.WeakTx) context.Context {
-	ctx := context.Background()
-	if v, ok := tx.(*sql.Tx); ok {
-		ctx = gosql.WithTx(ctx, v)
-	}
-	return ctx
-}
-
 // Create creates object and returns copy with valid ID.
 func (s *baseStore[T, E]) Create(ctx context.Context, object *T) error {
 	event := s.impl.makeObjectEvent(CreateEvent).WithObject(*object).(E)

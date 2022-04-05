@@ -2,6 +2,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"reflect"
@@ -143,13 +144,15 @@ func prepareInsert(
 }
 
 func insertRow(
-	tx gosql.WeakTx, row any, id, table string, dialect gosql.Dialect,
+	ctx context.Context, db *gosql.DB, row any,
+	id, table string, dialect gosql.Dialect,
 ) (any, error) {
 	clone := cloneRow(row)
 	cols, keys, vals, idPtr := prepareInsert(clone, id)
 	switch dialect {
 	case gosql.PostgresDialect:
-		rows := tx.QueryRow(
+		rows := db.QueryRowContext(
+			ctx,
 			fmt.Sprintf(
 				"INSERT INTO %q (%s) VALUES (%s) RETURNING %q",
 				table, cols, keys, id,
@@ -160,7 +163,8 @@ func insertRow(
 			return nil, err
 		}
 	default:
-		res, err := tx.Exec(
+		res, err := db.ExecContext(
+			ctx,
 			fmt.Sprintf(
 				"INSERT INTO %q (%s) VALUES (%s)",
 				table, cols, keys,
@@ -218,11 +222,13 @@ func prepareUpdate(value reflect.Value, id string) (string, []any) {
 }
 
 func updateRow(
-	tx gosql.WeakTx, row any, id, table string,
+	ctx context.Context, db *gosql.DB, row any,
+	id, table string,
 ) (any, error) {
 	clone := cloneRow(row)
 	sets, vals := prepareUpdate(clone, id)
-	res, err := tx.Exec(
+	res, err := db.ExecContext(
+		ctx,
 		fmt.Sprintf(
 			"UPDATE %q SET %s WHERE %q = $%d",
 			table, sets, id, len(vals),
@@ -243,9 +249,11 @@ func updateRow(
 }
 
 func deleteRow(
-	tx gosql.WeakTx, idValue int64, id, table string,
+	ctx context.Context, db *gosql.DB,
+	idValue int64, id, table string,
 ) error {
-	res, err := tx.Exec(
+	res, err := db.ExecContext(
+		ctx,
 		fmt.Sprintf(
 			"DELETE FROM %q WHERE %q = $1",
 			table, id,

@@ -128,16 +128,12 @@ func (s *eventStore[T]) LoadEvents(
 }
 
 func (s *eventStore[T]) CreateEvent(ctx context.Context, event *T) error {
-	row, err := insertRow(getWeakTx(ctx, s.db), *event, s.id, s.table, s.db.Dialect())
+	row, err := insertRow(ctx, s.db, *event, s.id, s.table, s.db.Dialect())
 	if err != nil {
 		return err
 	}
 	*event = row.(T)
 	return nil
-}
-
-func (s *eventStore[T]) CreateEventTx(tx gosql.WeakTx, event *T) error {
-	return s.CreateEvent(wrapContext(tx), event)
 }
 
 // NewEventStore creates a new store for events of specified type.

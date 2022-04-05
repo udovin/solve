@@ -74,21 +74,6 @@ func (s *objectStore[T]) LoadObjects(ctx context.Context) (ObjectReader[T], erro
 	return &objectReader[T]{typ: s.typ, rows: rows}, nil
 }
 
-func wrapContext(tx gosql.WeakTx) context.Context {
-	ctx := context.Background()
-	if v, ok := tx.(*sql.Tx); ok {
-		ctx = gosql.WithTx(ctx, v)
-	}
-	return ctx
-}
-
-func getWeakTx(ctx context.Context, db *gosql.DB) gosql.WeakTx {
-	if tx := gosql.GetTx(ctx); tx != nil {
-		return tx
-	}
-	return db
-}
-
 func (s *objectStore[T]) FindObjects(
 	ctx context.Context, where string, args ...any,
 ) (ObjectReader[T], error) {
@@ -110,7 +95,7 @@ func (s *objectStore[T]) FindObjects(
 }
 
 func (s *objectStore[T]) CreateObject(ctx context.Context, object *T) error {
-	row, err := insertRow(getWeakTx(ctx, s.db), *object, s.id, s.table, s.db.Dialect())
+	row, err := insertRow(ctx, s.db, *object, s.id, s.table, s.db.Dialect())
 	if err != nil {
 		return err
 	}
@@ -119,7 +104,7 @@ func (s *objectStore[T]) CreateObject(ctx context.Context, object *T) error {
 }
 
 func (s *objectStore[T]) UpdateObject(ctx context.Context, object *T) error {
-	row, err := updateRow(getWeakTx(ctx, s.db), *object, s.id, s.table)
+	row, err := updateRow(ctx, s.db, *object, s.id, s.table)
 	if err != nil {
 		return err
 	}
@@ -128,7 +113,7 @@ func (s *objectStore[T]) UpdateObject(ctx context.Context, object *T) error {
 }
 
 func (s *objectStore[T]) DeleteObject(ctx context.Context, id int64) error {
-	return deleteRow(getWeakTx(ctx, s.db), id, s.id, s.table)
+	return deleteRow(ctx, s.db, id, s.id, s.table)
 }
 
 // NewObjectStore creates a new store for objects of specified type.

@@ -104,7 +104,7 @@ func (c *Core) WrapTx(
 	ctx context.Context, fn func(ctx context.Context) error,
 	opts *sql.TxOptions,
 ) (err error) {
-	return gosql.WrapTx(c.DB, func (tx *sql.Tx) error {
+	return gosql.WrapTx(c.DB, func(tx *sql.Tx) error {
 		return fn(gosql.WithTx(ctx, tx))
 	}, gosql.WithContext(ctx), gosql.WithTxOptions(opts))
 }

@@ -81,7 +81,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 		return true
 	default:
 	}
-	task, err := s.core.Tasks.PopQueued(ctx)
+	task, err := s.core.Tasks.PopQueued(ctx, isSupportedTask)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			s.core.Logger().Error("Error: ", err)

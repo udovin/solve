@@ -170,19 +170,18 @@ func (s *TaskStore) FindByStatus(status TaskStatus) ([]Task, error) {
 	return tasks, nil
 }
 
-func (s *TaskStore) isSupportedTask(kind TaskKind) bool {
-	return kind >= 1 && kind <= 1
-}
-
-// PopQueuedTx pops queued action from the events and sets running status.
+// PopQueued pops queued action from the events and sets running status.
 //
 // Note that events is not synchronized after tasks is popped.
-func (s *TaskStore) PopQueued(ctx context.Context) (Task, error) {
+func (s *TaskStore) PopQueued(
+	ctx context.Context,
+	filter func(TaskKind) bool,
+) (Task, error) {
 	tx := gosql.GetTx(ctx)
 	if tx == nil {
 		var task Task
 		err := gosql.WrapTx(s.db, func(tx *sql.Tx) (err error) {
-			task, err = s.PopQueued(gosql.WithTx(ctx, tx))
+			task, err = s.PopQueued(gosql.WithTx(ctx, tx), filter)
 			return err
 		}, gosql.WithContext(ctx), sqlRepeatableRead)
 		return task, err
@@ -196,7 +195,7 @@ func (s *TaskStore) PopQueued(ctx context.Context) (Task, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byStatus[int64(Queued)] {
-		if task, ok := s.tasks[id]; ok && s.isSupportedTask(task.Kind) {
+		if task, ok := s.tasks[id]; ok && filter(task.Kind) {
 			// We should make clone of action, because we do not
 			// want to corrupt Store in-memory cache.
 			task = task.Clone()

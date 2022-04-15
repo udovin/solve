@@ -9,6 +9,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 )
@@ -349,6 +350,7 @@ func getPtr[T any](object T) *T {
 	return &object
 }
 
-var sqlRepeatableRead = &sql.TxOptions{Isolation: sql.LevelRepeatableRead}
-
-var sqlReadOnly = &sql.TxOptions{ReadOnly: true}
+var (
+	sqlRepeatableRead = gosql.WithIsolation(sql.LevelRepeatableRead)
+	sqlReadOnly       = gosql.WithReadOnly(true)
+)

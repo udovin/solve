@@ -10,6 +10,7 @@ import (
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/config"
+	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/models"
 )
 
@@ -102,11 +103,11 @@ func (c *Core) Stop() {
 // WrapTx runs function with transaction.
 func (c *Core) WrapTx(
 	ctx context.Context, fn func(ctx context.Context) error,
-	opts *sql.TxOptions,
+	options ...gosql.BeginTxOption,
 ) (err error) {
-	return gosql.WrapTx(c.DB, func(tx *sql.Tx) error {
-		return fn(gosql.WithTx(ctx, tx))
-	}, gosql.WithContext(ctx), gosql.WithTxOptions(opts))
+	return gosql.WrapTx(ctx, c.DB, func(tx *sql.Tx) error {
+		return fn(db.WithTx(ctx, tx))
+	}, options...)
 }
 
 // StartTask starts task in new goroutine.

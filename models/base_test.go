@@ -197,10 +197,10 @@ func createTestObject(t testing.TB, s *testStore, o testObject) testObject {
 	return o
 }
 
-func wrapContext(tx gosql.WeakTx) context.Context {
+func wrapContext(tx gosql.Runner) context.Context {
 	ctx := context.Background()
 	if v, ok := tx.(*sql.Tx); ok {
-		ctx = gosql.WithTx(ctx, v)
+		ctx = db.WithTx(ctx, v)
 	}
 	return ctx
 }

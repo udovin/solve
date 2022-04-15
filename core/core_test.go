@@ -77,7 +77,7 @@ func TestCore_WithTx(t *testing.T) {
 	defer c.Stop()
 	if err := c.WrapTx(context.Background(), func(context.Context) error {
 		return fmt.Errorf("test error")
-	}, nil); err == nil {
+	}); err == nil {
 		t.Fatal("Expected error")
 	}
 }

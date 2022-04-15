@@ -11,6 +11,27 @@ import (
 	"github.com/udovin/gosql"
 )
 
+type txKey struct{}
+
+func WithTx(ctx context.Context, tx *sql.Tx) context.Context {
+	return context.WithValue(ctx, txKey{}, tx)
+}
+
+func GetTx(ctx context.Context) *sql.Tx {
+	tx, ok := ctx.Value(txKey{}).(*sql.Tx)
+	if ok {
+		return tx
+	}
+	return nil
+}
+
+func GetRunner(ctx context.Context, db *gosql.DB) gosql.Runner {
+	if tx := GetTx(ctx); tx != nil {
+		return tx
+	}
+	return db
+}
+
 func cloneRow(row any) reflect.Value {
 	clone := reflect.New(reflect.TypeOf(row)).Elem()
 	var recursive func(row, clone reflect.Value)
@@ -149,9 +170,10 @@ func insertRow(
 ) (any, error) {
 	clone := cloneRow(row)
 	cols, keys, vals, idPtr := prepareInsert(clone, id)
+	tx := GetRunner(ctx, db)
 	switch dialect {
 	case gosql.PostgresDialect:
-		rows := db.QueryRowContext(
+		rows := tx.QueryRowContext(
 			ctx,
 			fmt.Sprintf(
 				"INSERT INTO %q (%s) VALUES (%s) RETURNING %q",
@@ -163,7 +185,7 @@ func insertRow(
 			return nil, err
 		}
 	default:
-		res, err := db.ExecContext(
+		res, err := tx.ExecContext(
 			ctx,
 			fmt.Sprintf(
 				"INSERT INTO %q (%s) VALUES (%s)",
@@ -227,7 +249,8 @@ func updateRow(
 ) (any, error) {
 	clone := cloneRow(row)
 	sets, vals := prepareUpdate(clone, id)
-	res, err := db.ExecContext(
+	tx := GetRunner(ctx, db)
+	res, err := tx.ExecContext(
 		ctx,
 		fmt.Sprintf(
 			"UPDATE %q SET %s WHERE %q = $%d",
@@ -252,7 +275,8 @@ func deleteRow(
 	ctx context.Context, db *gosql.DB,
 	idValue int64, id, table string,
 ) error {
-	res, err := db.ExecContext(
+	tx := GetRunner(ctx, db)
+	res, err := tx.ExecContext(
 		ctx,
 		fmt.Sprintf(
 			"DELETE FROM %q WHERE %q = $1",

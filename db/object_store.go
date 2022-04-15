@@ -58,7 +58,8 @@ type objectStore[T Object] struct {
 }
 
 func (s *objectStore[T]) LoadObjects(ctx context.Context) (ObjectReader[T], error) {
-	rows, err := s.db.QueryContext(
+	tx := GetRunner(ctx, s.db)
+	rows, err := tx.QueryContext(
 		ctx,
 		fmt.Sprintf(
 			"SELECT %s FROM %q ORDER BY %q",
@@ -77,7 +78,8 @@ func (s *objectStore[T]) LoadObjects(ctx context.Context) (ObjectReader[T], erro
 func (s *objectStore[T]) FindObjects(
 	ctx context.Context, where string, args ...any,
 ) (ObjectReader[T], error) {
-	rows, err := s.db.QueryContext(
+	tx := GetRunner(ctx, s.db)
+	rows, err := tx.QueryContext(
 		ctx,
 		fmt.Sprintf(
 			"SELECT %s FROM %q WHERE %s",

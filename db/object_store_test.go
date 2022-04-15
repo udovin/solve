@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"reflect"
 	"testing"
-
-	"github.com/udovin/gosql"
 )
 
 type testExtraObject struct {
@@ -25,18 +23,12 @@ func (o testObject) ObjectID() int64 {
 }
 
 func testSetupObjectStore(t testing.TB, store ObjectStore[testObject]) []testObject {
-	tx, err := testDB.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = tx.Commit() }()
-	ctx := gosql.WithTx(context.Background(), tx)
 	objects := []testObject{
 		{C: 8}, {C: 16}, {C: 5}, {C: 3},
 		{testExtraObject: testExtraObject{A: "qwerty"}, C: 10},
 	}
 	for i, object := range objects {
-		err := store.CreateObject(ctx, &object)
+		err := store.CreateObject(context.Background(), &object)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,7 +53,7 @@ func TestObjectStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Commit() }()
-	ctx := gosql.WithTx(context.Background(), tx)
+	ctx := WithTx(context.Background(), tx)
 	rows, err := store.LoadObjects(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +100,7 @@ func TestObjectStoreClosed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := gosql.WithTx(context.Background(), tx)
+	ctx := WithTx(context.Background(), tx)
 	if err := tx.Rollback(); err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -140,7 +132,7 @@ func TestObjectStoreLoadObjectsFail(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Commit() }()
-	ctx := gosql.WithTx(context.Background(), tx)
+	ctx := WithTx(context.Background(), tx)
 	rows, err := store.LoadObjects(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -169,7 +161,7 @@ func TestObjectStoreFindObjectsFail(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Commit() }()
-	ctx := gosql.WithTx(context.Background(), tx)
+	ctx := WithTx(context.Background(), tx)
 	rows, err := store.FindObjects(ctx, "1")
 	if err != nil {
 		t.Fatal(err)

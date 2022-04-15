@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/db"
 )
 
 // TaskStatus represents status of task.
@@ -177,13 +178,13 @@ func (s *TaskStore) PopQueued(
 	ctx context.Context,
 	filter func(TaskKind) bool,
 ) (Task, error) {
-	tx := gosql.GetTx(ctx)
+	tx := db.GetTx(ctx)
 	if tx == nil {
 		var task Task
-		err := gosql.WrapTx(s.db, func(tx *sql.Tx) (err error) {
-			task, err = s.PopQueued(gosql.WithTx(ctx, tx), filter)
+		err := gosql.WrapTx(ctx, s.db, func(tx *sql.Tx) (err error) {
+			task, err = s.PopQueued(db.WithTx(ctx, tx), filter)
 			return err
-		}, gosql.WithContext(ctx), sqlRepeatableRead)
+		}, sqlRepeatableRead)
 		return task, err
 	}
 	if err := s.lockStore(tx); err != nil {

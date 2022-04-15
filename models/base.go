@@ -263,6 +263,15 @@ func (s *baseStore[T, E]) DB() *gosql.DB {
 func (s *baseStore[T, E]) Init(ctx context.Context) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	return s.initUnlocked(ctx)
+}
+
+func (s *baseStore[T, E]) initUnlocked(ctx context.Context) error {
+	if tx := db.GetTx(ctx); tx == nil {
+		return gosql.WrapTx(ctx, s.db, func(tx *sql.Tx) error {
+			return s.initUnlocked(db.WithTx(ctx, tx))
+		}, sqlReadOnly)
+	}
 	if err := s.initEvents(ctx); err != nil {
 		return err
 	}
@@ -334,18 +343,19 @@ func (s *baseStore[T, E]) Delete(ctx context.Context, id int64) error {
 	return s.createObjectEvent(ctx, &event)
 }
 
-var sqlRepeatableRead = gosql.WithTxOptions(&sql.TxOptions{
-	Isolation: sql.LevelRepeatableRead,
-})
+var (
+	sqlRepeatableRead = gosql.WithIsolation(sql.LevelRepeatableRead)
+	sqlReadOnly       = gosql.WithReadOnly(true)
+)
 
 func (s *baseStore[T, E]) createObjectEvent(
 	ctx context.Context, event *E,
 ) error {
 	// Force creation of new transaction.
-	if tx := gosql.GetTx(ctx); tx == nil {
-		return gosql.WrapTx(s.db, func(tx *sql.Tx) error {
-			return s.createObjectEvent(gosql.WithTx(ctx, tx), event)
-		}, gosql.WithContext(ctx), sqlRepeatableRead)
+	if tx := db.GetTx(ctx); tx == nil {
+		return gosql.WrapTx(ctx, s.db, func(tx *sql.Tx) error {
+			return s.createObjectEvent(db.WithTx(ctx, tx), event)
+		}, sqlRepeatableRead)
 	}
 	switch object := (*event).Object(); (*event).EventType() {
 	case CreateEvent:

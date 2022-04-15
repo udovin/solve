@@ -43,9 +43,7 @@ func Apply(c *core.Core) error {
 	if err := setupMigrations(c.DB); err != nil {
 		return err
 	}
-	store := db.NewObjectStore[migration](
-		"id", migrationTableName, c.DB,
-	)
+	store := db.NewObjectStore[migration]("id", migrationTableName, c.DB)
 	for _, m := range migrations {
 		if err := c.WrapTx(context.Background(), func(ctx context.Context) error {
 			// Check that migration already applied.
@@ -65,7 +63,7 @@ func Apply(c *core.Core) error {
 				Time:    time.Now().Unix(),
 			}
 			return store.CreateObject(ctx, &object)
-		}, nil); err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -116,7 +114,7 @@ func Unapply(c *core.Core, all bool) error {
 			}
 			stop = !all
 			return nil
-		}, nil); err != nil {
+		}); err != nil {
 			return err
 		}
 	}

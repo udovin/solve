@@ -83,7 +83,7 @@ func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Commit() }()
-	ctx := gosql.WithTx(context.Background(), tx)
+	ctx := WithTx(context.Background(), tx)
 	events := []testEvent{
 		{C: 8}, {C: 16}, {C: 5}, {C: 3},
 		{testExtraEvent: testExtraEvent{A: "qwerty"}, C: 10},
@@ -137,7 +137,7 @@ func TestEventStoreClosed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := gosql.WithTx(context.Background(), tx)
+	ctx := WithTx(context.Background(), tx)
 	if _, err := store.LastEventID(ctx); err != sql.ErrNoRows {
 		t.Fatalf("Expected %v, got %v", sql.ErrNoRows, err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/db/schema"
 	"github.com/udovin/solve/models"
 )
@@ -358,12 +359,13 @@ var m001Tables = []schema.Table{
 }
 
 func (m *m001) Apply(ctx context.Context, c *core.Core) error {
+	tx := db.GetRunner(ctx, c.DB)
 	for _, table := range m001Tables {
 		query, err := table.BuildCreateSQL(c.DB.Dialect(), false)
 		if err != nil {
 			return err
 		}
-		if _, err := c.DB.ExecContext(ctx, query); err != nil {
+		if _, err := tx.ExecContext(ctx, query); err != nil {
 			return err
 		}
 	}
@@ -371,13 +373,14 @@ func (m *m001) Apply(ctx context.Context, c *core.Core) error {
 }
 
 func (m *m001) Unapply(ctx context.Context, c *core.Core) error {
+	tx := db.GetRunner(ctx, c.DB)
 	for i := 0; i < len(m001Tables); i++ {
 		table := m001Tables[len(m001Tables)-i-1]
 		query, err := table.BuildDropSQL(c.DB.Dialect(), false)
 		if err != nil {
 			return err
 		}
-		if _, err := c.DB.ExecContext(ctx, query); err != nil {
+		if _, err := tx.ExecContext(ctx, query); err != nil {
 			return err
 		}
 	}

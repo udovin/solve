@@ -10,9 +10,9 @@ require (
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/opencontainers/runc v1.1.1
 	github.com/spf13/cobra v1.4.0
-	github.com/udovin/gosql v0.0.0-20220401172700-00eb6d6fc265
-	golang.org/x/crypto v0.0.0-20220331220935-ae2d96664a29
-	golang.org/x/sys v0.0.0-20220330033206-e17cdc41300f
+	github.com/udovin/gosql v0.0.0-20220415211413-f0830a414dff
+	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
+	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad
 )
 
 require (
@@ -31,10 +31,10 @@ require (
 	github.com/jackc/pgproto3/v2 v2.2.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/jackc/pgtype v1.10.0 // indirect
-	github.com/lib/pq v1.10.4 // indirect
+	github.com/lib/pq v1.10.5 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/moby/sys/mountinfo v0.6.0 // indirect
+	github.com/moby/sys/mountinfo v0.6.1 // indirect
 	github.com/mrunalp/fileutils v0.5.0 // indirect
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417 // indirect
 	github.com/opencontainers/selinux v1.10.1 // indirect
@@ -48,8 +48,8 @@ require (
 	github.com/valyala/fasttemplate v1.2.1 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
-	golang.org/x/net v0.0.0-20220401154927-543a649e0bdd // indirect
+	golang.org/x/net v0.0.0-20220412020605-290c469a71a5 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65 // indirect
+	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 )

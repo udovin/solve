@@ -93,21 +93,11 @@ func (s *objectStore[T]) FindObjects(
 }
 
 func (s *objectStore[T]) CreateObject(ctx context.Context, object *T) error {
-	row, err := insertRow(ctx, s.db, *object, s.id, s.table, s.db.Dialect())
-	if err != nil {
-		return err
-	}
-	*object = row.(T)
-	return nil
+	return insertRow(ctx, s.db, object, s.id, s.table)
 }
 
 func (s *objectStore[T]) UpdateObject(ctx context.Context, object *T) error {
-	row, err := updateRow(ctx, s.db, *object, s.id, s.table)
-	if err != nil {
-		return err
-	}
-	*object = row.(T)
-	return nil
+	return updateRow(ctx, s.db, *object, s.id, s.table)
 }
 
 func (s *objectStore[T]) DeleteObject(ctx context.Context, id int64) error {

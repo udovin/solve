@@ -103,7 +103,6 @@ func (s *eventStore[T]) LoadEvents(
 		Names(s.columns...).
 		Where(s.getEventsWhere(ranges)).
 		OrderBy(gosql.Ascending(s.id)).
-		// Limit(1000).
 		Build()
 	tx := GetRunner(ctx, s.db)
 	rows, err := tx.QueryContext(ctx, query, values...)
@@ -117,12 +116,7 @@ func (s *eventStore[T]) LoadEvents(
 }
 
 func (s *eventStore[T]) CreateEvent(ctx context.Context, event *T) error {
-	row, err := insertRow(ctx, s.db, *event, s.id, s.table, s.db.Dialect())
-	if err != nil {
-		return err
-	}
-	*event = row.(T)
-	return nil
+	return insertRow(ctx, s.db, event, s.id, s.table)
 }
 
 // NewEventStore creates a new store for events of specified type.

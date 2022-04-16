@@ -192,14 +192,13 @@ func prepareInsert(
 	return cols.String(), keys.String(), vals, idPtr
 }
 
-func insertRow(
-	ctx context.Context, db *gosql.DB, row any,
-	id, table string, dialect gosql.Dialect,
-) (any, error) {
-	clone := cloneRow(row)
-	cols, keys, vals, idPtr := prepareInsert(clone, id)
+func insertRow[T any](
+	ctx context.Context, db *gosql.DB, row *T,
+	id, table string,
+) error {
+	cols, keys, vals, idPtr := prepareInsert(reflect.ValueOf(row).Elem(), id)
 	tx := GetRunner(ctx, db)
-	switch dialect {
+	switch db.Dialect() {
 	case gosql.PostgresDialect:
 		rows := tx.QueryRowContext(
 			ctx,
@@ -210,7 +209,7 @@ func insertRow(
 			vals...,
 		)
 		if err := rows.Scan(idPtr); err != nil {
-			return nil, err
+			return err
 		}
 	default:
 		res, err := tx.ExecContext(
@@ -222,22 +221,22 @@ func insertRow(
 			vals...,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		count, err := res.RowsAffected()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if count != 1 {
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"invalid amount of affected rows: %d", count,
 			)
 		}
 		if *idPtr, err = res.LastInsertId(); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return clone.Interface(), nil
+	return nil
 }
 
 func prepareUpdate(value reflect.Value, id string) (string, []any) {
@@ -271,12 +270,11 @@ func prepareUpdate(value reflect.Value, id string) (string, []any) {
 	return sets.String(), vals
 }
 
-func updateRow(
-	ctx context.Context, db *gosql.DB, row any,
+func updateRow[T any](
+	ctx context.Context, db *gosql.DB, row T,
 	id, table string,
-) (any, error) {
-	clone := cloneRow(row)
-	sets, vals := prepareUpdate(clone, id)
+) error {
+	sets, vals := prepareUpdate(reflect.ValueOf(row), id)
 	tx := GetRunner(ctx, db)
 	res, err := tx.ExecContext(
 		ctx,
@@ -287,16 +285,16 @@ func updateRow(
 		vals...,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	count, err := res.RowsAffected()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if count != 1 {
-		return nil, sql.ErrNoRows
+		return sql.ErrNoRows
 	}
-	return clone.Interface(), nil
+	return nil
 }
 
 func deleteRow(

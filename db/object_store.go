@@ -2,9 +2,7 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"reflect"
 
 	"github.com/udovin/gosql"
 )
@@ -30,11 +28,11 @@ type ObjectReader[T Object] interface {
 // ObjectROStore represents read-only store for objects.
 type ObjectROStore[T Object] interface {
 	// LoadObjects should load objects from store.
-	LoadObjects(ctx context.Context) (ObjectReader[T], error)
+	LoadObjects(ctx context.Context) (RowReader[T], error)
 	// FindObjects should bind objects with specified expression.
 	FindObjects(
 		ctx context.Context, where string, args ...any,
-	) (ObjectReader[T], error)
+	) (RowReader[T], error)
 }
 
 // ObjectStore represents persistent store for objects.
@@ -51,49 +49,47 @@ type ObjectStore[T Object] interface {
 }
 
 type objectStore[T Object] struct {
-	typ   reflect.Type
-	db    *gosql.DB
-	id    string
-	table string
+	db      *gosql.DB
+	id      string
+	table   string
+	columns []string
 }
 
-func (s *objectStore[T]) LoadObjects(ctx context.Context) (ObjectReader[T], error) {
+func (s *objectStore[T]) LoadObjects(ctx context.Context) (RowReader[T], error) {
+	query := s.db.Select(s.table).
+		Names(s.columns...).
+		OrderBy(gosql.Ascending(s.id)).
+		String()
 	tx := GetRunner(ctx, s.db)
-	rows, err := tx.QueryContext(
-		ctx,
-		fmt.Sprintf(
-			"SELECT %s FROM %q ORDER BY %q",
-			prepareSelect(s.typ), s.table, s.id,
-		),
-	)
+	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-	if err := checkColumns(s.typ, rows); err != nil {
+	if err := checkColumns(rows, s.columns); err != nil {
 		return nil, err
 	}
-	return &objectReader[T]{typ: s.typ, rows: rows}, nil
+	return &rowReader[T]{rows: rows}, nil
 }
 
 func (s *objectStore[T]) FindObjects(
 	ctx context.Context, where string, args ...any,
-) (ObjectReader[T], error) {
+) (RowReader[T], error) {
 	tx := GetRunner(ctx, s.db)
 	rows, err := tx.QueryContext(
 		ctx,
 		fmt.Sprintf(
 			"SELECT %s FROM %q WHERE %s",
-			prepareSelect(s.typ), s.table, where,
+			prepareSelect[T](), s.table, where,
 		),
 		args...,
 	)
 	if err != nil {
 		return nil, err
 	}
-	if err := checkColumns(s.typ, rows); err != nil {
+	if err := checkColumns(rows, s.columns); err != nil {
 		return nil, err
 	}
-	return &objectReader[T]{typ: s.typ, rows: rows}, nil
+	return &rowReader[T]{rows: rows}, nil
 }
 
 func (s *objectStore[T]) CreateObject(ctx context.Context, object *T) error {
@@ -122,45 +118,10 @@ func (s *objectStore[T]) DeleteObject(ctx context.Context, id int64) error {
 func NewObjectStore[T Object](
 	id, table string, db *gosql.DB,
 ) ObjectStore[T] {
-	var object T
 	return &objectStore[T]{
-		typ:   reflect.TypeOf(object),
-		db:    db,
-		id:    id,
-		table: table,
+		db:      db,
+		id:      id,
+		table:   table,
+		columns: prepareNames[T](),
 	}
-}
-
-type objectReader[T Object] struct {
-	typ    reflect.Type
-	rows   *sql.Rows
-	err    error
-	object T
-}
-
-func (r *objectReader[T]) Next() bool {
-	if !r.rows.Next() {
-		return false
-	}
-	var v any
-	v, r.err = scanRow(r.typ, r.rows)
-	if r.err == nil {
-		r.object = v.(T)
-	}
-	return r.err == nil
-}
-
-func (r *objectReader[T]) Object() T {
-	return r.object
-}
-
-func (r *objectReader[T]) Close() error {
-	return r.rows.Close()
-}
-
-func (r *objectReader[T]) Err() error {
-	if err := r.rows.Err(); err != nil {
-		return err
-	}
-	return r.err
 }

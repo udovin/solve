@@ -56,7 +56,7 @@ func (c *eventConsumer[T]) ConsumeEvents(ctx context.Context, fn func(T) error) 
 	}()
 	it := 0
 	for events.Next() {
-		event := events.Event()
+		event := events.Row()
 		for it < len(c.ranges) && !c.ranges[it].contains(event.EventID()) {
 			it++
 		}

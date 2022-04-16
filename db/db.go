@@ -32,6 +32,47 @@ func GetRunner(ctx context.Context, db *gosql.DB) gosql.Runner {
 	return db
 }
 
+// RowReader represents reader for events.
+type RowReader[T any] interface {
+	// Next should read next event and return true if event exists.
+	Next() bool
+	// Row should return current row.
+	Row() T
+	// Close should close reader.
+	Close() error
+	// Err should return error that occurred during reading.
+	Err() error
+}
+
+type rowReader[T any] struct {
+	rows *sql.Rows
+	err  error
+	row  T
+}
+
+func (r *rowReader[T]) Next() bool {
+	if !r.rows.Next() {
+		return false
+	}
+	r.err = scanRow(&r.row, r.rows)
+	return r.err == nil
+}
+
+func (r *rowReader[T]) Row() T {
+	return r.row
+}
+
+func (r *rowReader[T]) Close() error {
+	return r.rows.Close()
+}
+
+func (r *rowReader[T]) Err() error {
+	if err := r.rows.Err(); err != nil {
+		return err
+	}
+	return r.err
+}
+
 func cloneRow(row any) reflect.Value {
 	clone := reflect.New(reflect.TypeOf(row)).Elem()
 	var recursive func(row, clone reflect.Value)
@@ -49,8 +90,7 @@ func cloneRow(row any) reflect.Value {
 	return clone
 }
 
-func scanRow(typ reflect.Type, rows *sql.Rows) (any, error) {
-	value := reflect.New(typ).Elem()
+func scanRow[T any](row *T, rows *sql.Rows) error {
 	var fields []any
 	var recursive func(reflect.Value)
 	recursive = func(v reflect.Value) {
@@ -63,25 +103,11 @@ func scanRow(typ reflect.Type, rows *sql.Rows) (any, error) {
 			}
 		}
 	}
-	recursive(value)
-	err := rows.Scan(fields...)
-	return value.Interface(), err
+	recursive(reflect.ValueOf(row).Elem())
+	return rows.Scan(fields...)
 }
 
-func checkColumns(typ reflect.Type, rows *sql.Rows) error {
-	var cols []string
-	var recursive func(reflect.Type)
-	recursive = func(t reflect.Type) {
-		for i := 0; i < t.NumField(); i++ {
-			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
-				name := strings.Split(db, ",")[0]
-				cols = append(cols, name)
-			} else if t.Field(i).Anonymous {
-				recursive(t.Field(i).Type)
-			}
-		}
-	}
-	recursive(typ)
+func checkColumns(rows *sql.Rows, cols []string) error {
 	rowCols, err := rows.Columns()
 	if err != nil {
 		return err
@@ -92,7 +118,7 @@ func checkColumns(typ reflect.Type, rows *sql.Rows) error {
 	return nil
 }
 
-func prepareNames(typ reflect.Type) []string {
+func prepareNames[T any]() []string {
 	var cols []string
 	var recursive func(reflect.Type)
 	recursive = func(t reflect.Type) {
@@ -105,11 +131,12 @@ func prepareNames(typ reflect.Type) []string {
 			}
 		}
 	}
-	recursive(typ)
+	var object T
+	recursive(reflect.TypeOf(object))
 	return cols
 }
 
-func prepareSelect(typ reflect.Type) string {
+func prepareSelect[T any]() string {
 	var cols strings.Builder
 	var recursive func(reflect.Type)
 	recursive = func(t reflect.Type) {
@@ -125,7 +152,8 @@ func prepareSelect(typ reflect.Type) string {
 			}
 		}
 	}
-	recursive(typ)
+	var object T
+	recursive(reflect.TypeOf(object))
 	return cols.String()
 }
 

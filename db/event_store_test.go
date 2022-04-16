@@ -115,7 +115,7 @@ func testEventStore(t *testing.T, cfg config.DB, creates, removes []string) {
 	defer func() { _ = rows.Close() }()
 	var createdEvents []testEvent
 	for rows.Next() {
-		createdEvents = append(createdEvents, rows.Event())
+		createdEvents = append(createdEvents, rows.Row())
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)

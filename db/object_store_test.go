@@ -61,7 +61,7 @@ func TestObjectStore(t *testing.T) {
 	defer func() { _ = rows.Close() }()
 	var createdObjects []testObject
 	for rows.Next() {
-		createdObjects = append(createdObjects, rows.Object())
+		createdObjects = append(createdObjects, rows.Row())
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal("Error:", err)

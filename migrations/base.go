@@ -101,7 +101,7 @@ func Unapply(c *core.Core, all bool) error {
 				}
 				defer func() { _ = rows.Close() }()
 				for rows.Next() {
-					ids = append(ids, rows.Object().ObjectID())
+					ids = append(ids, rows.Row().ObjectID())
 				}
 				return rows.Err()
 			}(); err != nil {

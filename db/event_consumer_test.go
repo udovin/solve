@@ -54,7 +54,7 @@ func (e eventSorter) Swap(i, j int) {
 
 func (s *mockEventStore) LoadEvents(
 	ctx context.Context, ranges []EventRange,
-) (EventReader[mockEvent], error) {
+) (RowReader[mockEvent], error) {
 	var events []mockEvent
 	for _, rng := range ranges {
 		for _, event := range s.events {
@@ -69,7 +69,7 @@ func (s *mockEventStore) LoadEvents(
 
 func (s *mockEventStore) FindEvents(
 	tx *sql.Tx, where string, args ...any,
-) (EventReader[mockEvent], error) {
+) (RowReader[mockEvent], error) {
 	return nil, sql.ErrNoRows
 }
 
@@ -88,7 +88,7 @@ func (r *mockEventReader) Next() bool {
 	return false
 }
 
-func (r *mockEventReader) Event() mockEvent {
+func (r *mockEventReader) Row() mockEvent {
 	return r.event
 }
 

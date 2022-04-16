@@ -309,7 +309,7 @@ func (s *baseStore[T, E]) initObjects(ctx context.Context) error {
 	}()
 	s.impl.reset()
 	for rows.Next() {
-		s.impl.onCreateObject(rows.Object())
+		s.impl.onCreateObject(rows.Row())
 	}
 	return rows.Err()
 }

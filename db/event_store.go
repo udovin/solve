@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/udovin/gosql"
@@ -16,18 +15,6 @@ type Event interface {
 	EventID() int64
 	// EventTime should return time when event occurred.
 	EventTime() time.Time
-}
-
-// EventReader represents reader for events.
-type EventReader[T Event] interface {
-	// Next should read next event and return true if event exists.
-	Next() bool
-	// Event should return current event.
-	Event() T
-	// Close should close reader.
-	Close() error
-	// Err should return error that occurred during reading.
-	Err() error
 }
 
 // EventRange represents range [begin, end).
@@ -63,7 +50,7 @@ type EventROStore[T Event] interface {
 	// if there is no events.
 	LastEventID(ctx context.Context) (int64, error)
 	// LoadEvents should load events from store in specified range.
-	LoadEvents(ctx context.Context, ranges []EventRange) (EventReader[T], error)
+	LoadEvents(ctx context.Context, ranges []EventRange) (RowReader[T], error)
 }
 
 // EventStore represents persistent store for events.
@@ -75,10 +62,10 @@ type EventStore[T Event] interface {
 }
 
 type eventStore[T Event] struct {
-	typ   reflect.Type
-	db    *gosql.DB
-	id    string
-	table string
+	db      *gosql.DB
+	id      string
+	table   string
+	columns []string
 }
 
 // LastEventID returns last event ID or sql.ErrNoRows
@@ -111,9 +98,9 @@ func (s *eventStore[T]) getEventsWhere(ranges []EventRange) gosql.BoolExpression
 
 func (s *eventStore[T]) LoadEvents(
 	ctx context.Context, ranges []EventRange,
-) (EventReader[T], error) {
+) (RowReader[T], error) {
 	query, values := s.db.Select(s.table).
-		Names(prepareNames(s.typ)...).
+		Names(s.columns...).
 		Where(s.getEventsWhere(ranges)).
 		OrderBy(gosql.Ascending(s.id)).
 		// Limit(1000).
@@ -123,10 +110,10 @@ func (s *eventStore[T]) LoadEvents(
 	if err != nil {
 		return nil, err
 	}
-	if err := checkColumns(s.typ, rows); err != nil {
+	if err := checkColumns(rows, s.columns); err != nil {
 		return nil, err
 	}
-	return &eventReader[T]{typ: s.typ, rows: rows}, nil
+	return &rowReader[T]{rows: rows}, nil
 }
 
 func (s *eventStore[T]) CreateEvent(ctx context.Context, event *T) error {
@@ -140,45 +127,10 @@ func (s *eventStore[T]) CreateEvent(ctx context.Context, event *T) error {
 
 // NewEventStore creates a new store for events of specified type.
 func NewEventStore[T Event](id, table string, db *gosql.DB) EventStore[T] {
-	var event T
 	return &eventStore[T]{
-		typ:   reflect.TypeOf(event),
-		db:    db,
-		id:    id,
-		table: table,
+		db:      db,
+		id:      id,
+		table:   table,
+		columns: prepareNames[T](),
 	}
-}
-
-type eventReader[T Event] struct {
-	typ   reflect.Type
-	rows  *sql.Rows
-	err   error
-	event T
-}
-
-func (r *eventReader[T]) Next() bool {
-	if !r.rows.Next() {
-		return false
-	}
-	var v any
-	v, r.err = scanRow(r.typ, r.rows)
-	if r.err == nil {
-		r.event = v.(T)
-	}
-	return r.err == nil
-}
-
-func (r *eventReader[T]) Event() T {
-	return r.event
-}
-
-func (r *eventReader[T]) Close() error {
-	return r.rows.Close()
-}
-
-func (r *eventReader[T]) Err() error {
-	if err := r.rows.Err(); err != nil {
-		return err
-	}
-	return r.err
 }

@@ -63,9 +63,22 @@ func TestRoleSimpleScenario(t *testing.T) {
 			t.Fatal("Error:", err)
 		}
 		testCheck(roles)
+		testSyncManagers(t)
 	}
 	{
-		roles, err := testAPI.CreateUserRole("test", "role2")
+		if _, err := testAPI.DeleteRoleRole("role1", "role2"); err == nil {
+			t.Fatal("Expected error")
+		} else {
+			testCheck(err)
+		}
+		if _, err := testAPI.DeleteRoleRole("role1", "role3"); err == nil {
+			t.Fatal("Expected error")
+		} else {
+			testCheck(err)
+		}
+	}
+	{
+		roles, err := testAPI.CreateUserRole("test", "role1")
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
@@ -73,11 +86,28 @@ func TestRoleSimpleScenario(t *testing.T) {
 		testSyncManagers(t)
 	}
 	{
-		roles, err := testAPI.DeleteUserRole("test", "role2")
+		roles, err := testAPI.DeleteUserRole("test", "role1")
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
 		testCheck(roles)
+	}
+	{
+		if _, err := testAPI.DeleteUserRole("test", "role2"); err == nil {
+			t.Fatal("Expected error")
+		} else {
+			testCheck(err)
+		}
+		if _, err := testAPI.DeleteUserRole("test", "role3"); err == nil {
+			t.Fatal("Expected error")
+		} else {
+			testCheck(err)
+		}
+		if _, err := testAPI.DeleteUserRole("test3", "role2"); err == nil {
+			t.Fatal("Expected error")
+		} else {
+			testCheck(err)
+		}
 	}
 }
 

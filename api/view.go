@@ -114,7 +114,7 @@ type errorResponse struct {
 	// MissingPermissions.
 	MissingPermissions []string `json:"missing_permissions,omitempty"`
 	// InvalidFields.
-	InvalidFields errorFields `json:"invalid_fields"`
+	InvalidFields errorFields `json:"invalid_fields,omitempty"`
 }
 
 // Error returns response error message.

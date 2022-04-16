@@ -551,12 +551,15 @@ func (v *View) registerUser(c echo.Context) error {
 
 func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		id, err := strconv.ParseInt(c.Param("user"), 10, 64)
+		login := c.Param("user")
+		id, err := strconv.ParseInt(login, 10, 64)
 		if err != nil {
-			user, err := v.core.Users.GetByLogin(c.Param("user"))
+			user, err := v.core.Users.GetByLogin(login)
 			if err != nil {
 				if err == sql.ErrNoRows {
-					resp := errorResponse{Message: "user not found"}
+					resp := errorResponse{
+						Message: fmt.Sprintf("user %q not found", login),
+					}
 					return c.JSON(http.StatusNotFound, resp)
 				}
 				c.Logger().Error(err)
@@ -568,7 +571,9 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 		user, err := v.core.Users.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResponse{Message: "user not found"}
+				resp := errorResponse{
+					Message: fmt.Sprintf("user %d not found", id),
+				}
 				return c.JSON(http.StatusNotFound, resp)
 			}
 			c.Logger().Error(err)

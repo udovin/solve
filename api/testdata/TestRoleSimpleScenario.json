@@ -19,14 +19,20 @@
     "roles": null
   },
   {
+    "message": "role \"role1\" does not have child \"role2\""
+  },
+  {
+    "message": "role \"role3\" not found"
+  },
+  {
     "roles": [
       {
         "id": 65,
         "name": "admin_group"
       },
       {
-        "id": 67,
-        "name": "role2"
+        "id": 66,
+        "name": "role1"
       }
     ]
   },
@@ -37,5 +43,14 @@
         "name": "admin_group"
       }
     ]
+  },
+  {
+    "message": "user \"test\" does not have role \"role2\""
+  },
+  {
+    "message": "role \"role3\" not found"
+  },
+  {
+    "message": "user \"test3\" not found"
   }
 ]

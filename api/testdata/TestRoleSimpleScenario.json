@@ -1,0 +1,41 @@
+[
+  {
+    "id": 66,
+    "name": "role1"
+  },
+  {
+    "id": 67,
+    "name": "role2"
+  },
+  {
+    "roles": [
+      {
+        "id": 67,
+        "name": "role2"
+      }
+    ]
+  },
+  {
+    "roles": null
+  },
+  {
+    "roles": [
+      {
+        "id": 65,
+        "name": "admin_group"
+      },
+      {
+        "id": 67,
+        "name": "role2"
+      }
+    ]
+  },
+  {
+    "roles": [
+      {
+        "id": 65,
+        "name": "admin_group"
+      }
+    ]
+  }
+]

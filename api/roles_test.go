@@ -33,6 +33,54 @@ func TestCreateDeleteRole(t *testing.T) {
 	}
 }
 
+func TestRoleSimpleScenario(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	role1 := createRole(t, "role1")
+	testCheck(role1)
+	role2 := createRole(t, "role2")
+	testCheck(role2)
+	if _, err := testAPI.Register(testSimpleUser); err != nil {
+		t.Fatal("Error:", err)
+	}
+	testSyncManagers(t)
+	if _, err := testAPI.Login("test", "qwerty123"); err != nil {
+		t.Fatal("Error:", err)
+	}
+	testSocketCreateUserRole("test", "admin_group")
+	testSyncManagers(t)
+	{
+		roles, err := testAPI.CreateRoleRole("role1", "role2")
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		testCheck(roles)
+		testSyncManagers(t)
+	}
+	{
+		roles, err := testAPI.DeleteRoleRole("role1", "role2")
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		testCheck(roles)
+	}
+	{
+		roles, err := testAPI.CreateUserRole("test", "role2")
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		testCheck(roles)
+		testSyncManagers(t)
+	}
+	{
+		roles, err := testAPI.DeleteUserRole("test", "role2")
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		testCheck(roles)
+	}
+}
+
 func createRole(tb testing.TB, name string) Role {
 	data, err := json.Marshal(map[string]string{
 		"name": name,

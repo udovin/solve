@@ -292,7 +292,52 @@ func (v *View) createRoleRole(c echo.Context) error {
 }
 
 func (v *View) deleteRoleRole(c echo.Context) error {
-	return errNotImplemented
+	role, ok := c.Get(roleKey).(models.Role)
+	if !ok {
+		c.Logger().Error("role not extracted")
+		return fmt.Errorf("role not extracted")
+	}
+	childRole, ok := c.Get(childRoleKey).(models.Role)
+	if !ok {
+		c.Logger().Error("child role not extracted")
+		return fmt.Errorf("child role not extracted")
+	}
+	edges, err := v.core.RoleEdges.FindByRole(role.ID)
+	if err != nil {
+		return err
+	}
+	edgePos := -1
+	var resp Roles
+	for i, edge := range edges {
+		if edgePos == -1 && edge.ChildID == childRole.ID {
+			edgePos = i
+			continue
+		}
+		role, err := v.core.Roles.Get(edge.ChildID)
+		if err != nil {
+			c.Logger().Error(err)
+		} else {
+			resp.Roles = append(resp.Roles, Role{
+				ID:   role.ID,
+				Name: role.Name,
+			})
+		}
+	}
+	if edgePos == -1 {
+		return c.JSON(http.StatusBadRequest, &errorResponse{
+			Message: fmt.Sprintf(
+				"role %q does not have child %q",
+				role.Name, childRole.Name,
+			),
+		})
+	}
+	if err := v.core.RoleEdges.Delete(
+		c.Request().Context(), edges[edgePos].ID,
+	); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusOK, resp)
 }
 
 func (v *View) observeUserRoles(c echo.Context) error {
@@ -376,7 +421,52 @@ func (v *View) createUserRole(c echo.Context) error {
 }
 
 func (v *View) deleteUserRole(c echo.Context) error {
-	return errNotImplemented
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	role, ok := c.Get(roleKey).(models.Role)
+	if !ok {
+		c.Logger().Error("role not extracted")
+		return fmt.Errorf("role not extracted")
+	}
+	edges, err := v.core.AccountRoles.FindByAccount(user.AccountID)
+	if err != nil {
+		return err
+	}
+	edgePos := -1
+	var resp Roles
+	for i, edge := range edges {
+		if edgePos == -1 && edge.RoleID == role.ID {
+			edgePos = i
+			continue
+		}
+		role, err := v.core.Roles.Get(edge.RoleID)
+		if err != nil {
+			c.Logger().Error(err)
+		} else {
+			resp.Roles = append(resp.Roles, Role{
+				ID:   role.ID,
+				Name: role.Name,
+			})
+		}
+	}
+	if edgePos == -1 {
+		return c.JSON(http.StatusBadRequest, &errorResponse{
+			Message: fmt.Sprintf(
+				"user %q does not have role %q",
+				user.Login, role.Name,
+			),
+		})
+	}
+	if err := v.core.AccountRoles.Delete(
+		c.Request().Context(), edges[edgePos].ID,
+	); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusOK, resp)
 }
 
 func getRoleByParam(roles *models.RoleStore, name string) (models.Role, error) {

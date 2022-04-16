@@ -306,6 +306,58 @@ func (c *testClient) CreateContestProblem(
 	return respData, err
 }
 
+func (c *testClient) CreateRoleRole(role string, child string) (Roles, error) {
+	req, err := http.NewRequest(
+		http.MethodPost, c.getURL("/v0/roles/%s/roles/%s", role, child),
+		nil,
+	)
+	if err != nil {
+		return Roles{}, err
+	}
+	var respData Roles
+	err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
+func (c *testClient) DeleteRoleRole(role string, child string) (Roles, error) {
+	req, err := http.NewRequest(
+		http.MethodDelete, c.getURL("/v0/roles/%s/roles/%s", role, child),
+		nil,
+	)
+	if err != nil {
+		return Roles{}, err
+	}
+	var respData Roles
+	err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *testClient) CreateUserRole(login string, role string) (Roles, error) {
+	req, err := http.NewRequest(
+		http.MethodPost, c.getURL("/v0/users/%s/roles/%s", login, role),
+		nil,
+	)
+	if err != nil {
+		return Roles{}, err
+	}
+	var respData Roles
+	err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
+func (c *testClient) DeleteUserRole(login string, role string) (Roles, error) {
+	req, err := http.NewRequest(
+		http.MethodDelete, c.getURL("/v0/users/%s/roles/%s", login, role),
+		nil,
+	)
+	if err != nil {
+		return Roles{}, err
+	}
+	var respData Roles
+	err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
 func (c *testClient) getURL(path string, args ...any) string {
 	return c.Endpoint + fmt.Sprintf(path, args...)
 }

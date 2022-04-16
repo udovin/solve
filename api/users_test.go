@@ -65,6 +65,9 @@ func testSyncManagers(tb testing.TB) {
 			if err := testView.core.Roles.Sync(ctx); err != nil {
 				return err
 			}
+			if err := testView.core.RoleEdges.Sync(ctx); err != nil {
+				return err
+			}
 			if err := testView.core.AccountRoles.Sync(ctx); err != nil {
 				return err
 			}

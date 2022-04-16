@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
@@ -18,6 +19,20 @@ type Role struct {
 	ID int64 `json:"id"`
 	// Name contains role name.
 	Name string `json:"name"`
+}
+
+type roleSorter []Role
+
+func (v roleSorter) Len() int {
+	return len(v)
+}
+
+func (v roleSorter) Less(i, j int) bool {
+	return v[i].ID > v[j].ID
+}
+
+func (v roleSorter) Swap(i, j int) {
+	v[i], v[j] = v[j], v[i]
 }
 
 // Roles represents roles response.
@@ -123,6 +138,7 @@ func (v *View) observeRoles(c echo.Context) error {
 			Name: role.Name,
 		})
 	}
+	sort.Sort(roleSorter(resp.Roles))
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -238,6 +254,7 @@ func (v *View) observeRoleRoles(c echo.Context) error {
 			Name: role.Name,
 		})
 	}
+	sort.Sort(roleSorter(resp.Roles))
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -288,6 +305,7 @@ func (v *View) createRoleRole(c echo.Context) error {
 		ID:   childRole.ID,
 		Name: childRole.Name,
 	})
+	sort.Sort(roleSorter(resp.Roles))
 	return c.JSON(http.StatusCreated, resp)
 }
 
@@ -337,6 +355,7 @@ func (v *View) deleteRoleRole(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
+	sort.Sort(roleSorter(resp.Roles))
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -367,6 +386,7 @@ func (v *View) observeUserRoles(c echo.Context) error {
 			Name: role.Name,
 		})
 	}
+	sort.Sort(roleSorter(resp.Roles))
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -417,6 +437,7 @@ func (v *View) createUserRole(c echo.Context) error {
 		ID:   role.ID,
 		Name: role.Name,
 	})
+	sort.Sort(roleSorter(resp.Roles))
 	return c.JSON(http.StatusCreated, resp)
 }
 
@@ -466,6 +487,7 @@ func (v *View) deleteUserRole(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
+	sort.Sort(roleSorter(resp.Roles))
 	return c.JSON(http.StatusOK, resp)
 }
 

@@ -8,10 +8,66 @@
     "name": "role2"
   },
   {
+    "id": 68,
+    "name": "role3"
+  },
+  {
+    "id": 69,
+    "name": "role4"
+  },
+  {
     "roles": [
       {
         "id": 67,
         "name": "role2"
+      }
+    ]
+  },
+  {
+    "roles": [
+      {
+        "id": 68,
+        "name": "role3"
+      },
+      {
+        "id": 67,
+        "name": "role2"
+      }
+    ]
+  },
+  {
+    "roles": [
+      {
+        "id": 69,
+        "name": "role4"
+      },
+      {
+        "id": 68,
+        "name": "role3"
+      },
+      {
+        "id": 67,
+        "name": "role2"
+      }
+    ]
+  },
+  {
+    "roles": [
+      {
+        "id": 69,
+        "name": "role4"
+      },
+      {
+        "id": 68,
+        "name": "role3"
+      }
+    ]
+  },
+  {
+    "roles": [
+      {
+        "id": 69,
+        "name": "role4"
       }
     ]
   },
@@ -22,17 +78,125 @@
     "message": "role \"role1\" does not have child \"role2\""
   },
   {
-    "message": "role \"role3\" not found"
+    "message": "role \"role100\" not found"
   },
   {
     "roles": [
       {
+        "id": 66,
+        "name": "role1"
+      },
+      {
         "id": 65,
         "name": "admin_group"
+      }
+    ]
+  },
+  {
+    "roles": [
+      {
+        "id": 67,
+        "name": "role2"
       },
       {
         "id": 66,
         "name": "role1"
+      },
+      {
+        "id": 65,
+        "name": "admin_group"
+      }
+    ]
+  },
+  {
+    "roles": [
+      {
+        "id": 68,
+        "name": "role3"
+      },
+      {
+        "id": 67,
+        "name": "role2"
+      },
+      {
+        "id": 66,
+        "name": "role1"
+      },
+      {
+        "id": 65,
+        "name": "admin_group"
+      }
+    ]
+  },
+  {
+    "roles": [
+      {
+        "id": 69,
+        "name": "role4"
+      },
+      {
+        "id": 68,
+        "name": "role3"
+      },
+      {
+        "id": 67,
+        "name": "role2"
+      },
+      {
+        "id": 66,
+        "name": "role1"
+      },
+      {
+        "id": 65,
+        "name": "admin_group"
+      }
+    ]
+  },
+  {
+    "roles": [
+      {
+        "id": 69,
+        "name": "role4"
+      },
+      {
+        "id": 68,
+        "name": "role3"
+      },
+      {
+        "id": 67,
+        "name": "role2"
+      },
+      {
+        "id": 65,
+        "name": "admin_group"
+      }
+    ]
+  },
+  {
+    "roles": [
+      {
+        "id": 69,
+        "name": "role4"
+      },
+      {
+        "id": 68,
+        "name": "role3"
+      },
+      {
+        "id": 65,
+        "name": "admin_group"
+      }
+    ]
+  },
+  {
+    "roles": [
+      {
+        "id": 69,
+        "name": "role4"
+      },
+      {
+        "id": 65,
+        "name": "admin_group"
       }
     ]
   },
@@ -48,9 +212,9 @@
     "message": "user \"test\" does not have role \"role2\""
   },
   {
-    "message": "role \"role3\" not found"
+    "message": "role \"role100\" not found"
   },
   {
-    "message": "user \"test3\" not found"
+    "message": "user \"user100\" not found"
   }
 ]

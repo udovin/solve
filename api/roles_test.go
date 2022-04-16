@@ -14,7 +14,7 @@ func TestObserveRoles(t *testing.T) {
 	defer testTeardown(t)
 	req := httptest.NewRequest(http.MethodGet, "/roles", nil)
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
+	c := testEcho.NewContext(req, rec)
 	if err := testView.observeRoles(c); err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -45,7 +45,7 @@ func createRole(tb testing.TB, name string) Role {
 	)
 	req.Header.Add("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
+	c := testEcho.NewContext(req, rec)
 	if err := testView.createRole(c); err != nil {
 		tb.Fatal("Error:", err)
 	}
@@ -63,7 +63,7 @@ func deleteRole(tb testing.TB, role int64) Role {
 	)
 	req.Header.Add("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
+	c := testEcho.NewContext(req, rec)
 	c.SetParamNames("role")
 	c.SetParamValues(fmt.Sprint(role))
 	handler := testView.extractRole(testView.deleteRole)

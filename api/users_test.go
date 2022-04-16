@@ -21,21 +21,20 @@ var testSimpleUser = registerUserForm{
 func TestUserSimpleScenario(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	client := newTestClient()
-	if _, err := client.Register(testSimpleUser); err != nil {
+	if _, err := testAPI.Register(testSimpleUser); err != nil {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)
-	if user, err := client.ObserveUser("test"); err != nil {
+	if user, err := testAPI.ObserveUser("test"); err != nil {
 		t.Fatal("Error:", err)
 	} else {
 		testCheck(user)
 	}
 	testSocketObserveUserRoles(t, "test")
-	if _, err := client.Login("test", "qwerty123"); err != nil {
+	if _, err := testAPI.Login("test", "qwerty123"); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if status, err := client.Status(); err != nil {
+	if status, err := testAPI.Status(); err != nil {
 		t.Fatal("Error:", err)
 	} else {
 		// Canonical tests does not support current timestamps.
@@ -43,12 +42,12 @@ func TestUserSimpleScenario(t *testing.T) {
 		status.Session.ExpireTime = 0
 		testCheck(status)
 	}
-	if user, err := client.ObserveUser("test"); err != nil {
+	if user, err := testAPI.ObserveUser("test"); err != nil {
 		t.Fatal("Error:", err)
 	} else {
 		testCheck(user)
 	}
-	if err := client.Logout(); err != nil {
+	if err := testAPI.Logout(); err != nil {
 		t.Fatal("Error:", err)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -96,11 +97,14 @@ func newTestCheckState(tb testing.TB) *testCheckState {
 
 var (
 	testView   *View
-	testSrv    *echo.Echo
+	testEcho   *echo.Echo
+	testSrv    *httptest.Server
 	testChecks *testCheckState
+	testAPI    *testClient
 )
 
 func testSetup(tb testing.TB) {
+	testChecks = newTestCheckState(tb)
 	cfg := config.Config{
 		DB: config.DB{
 			Options: config.SQLiteOptions{Path: ":memory:"},
@@ -123,16 +127,18 @@ func testSetup(tb testing.TB) {
 	if err := c.Start(); err != nil {
 		tb.Fatal("Error:", err)
 	}
-	testSrv = echo.New()
+	testEcho = echo.New()
 	testView = NewView(c)
-	testView.Register(testSrv.Group("/api"))
-	testView.RegisterSocket(testSrv.Group("/socket"))
-	testChecks = newTestCheckState(tb)
+	testView.Register(testEcho.Group("/api"))
+	testView.RegisterSocket(testEcho.Group("/socket"))
+	testSrv = httptest.NewServer(testEcho)
+	testAPI = newTestClient(testSrv.URL + "/api")
 }
 
 func testTeardown(tb testing.TB) {
-	_ = migrations.Unapply(testView.core, true)
+	testSrv.Close()
 	testView.core.Stop()
+	_ = migrations.Unapply(testView.core, true)
 	testChecks.Close()
 }
 
@@ -140,18 +146,17 @@ func testCheck(data any) {
 	testChecks.Check(data)
 }
 
-func testHandler(req *http.Request, rec *httptest.ResponseRecorder) error {
-	c := testSrv.NewContext(req, rec)
-	testSrv.Router().Find(req.Method, req.URL.Path, c)
-	return c.Handler()(c)
-}
-
 type testClient struct {
-	cookies []*http.Cookie
+	Endpoint string
+	cookies  []*http.Cookie
+	client   http.Client
 }
 
-func newTestClient() *testClient {
-	return &testClient{}
+func newTestClient(endpoint string) *testClient {
+	return &testClient{
+		Endpoint: endpoint,
+		client:   http.Client{Timeout: time.Second},
+	}
 }
 
 func (c *testClient) Register(form registerUserForm) (User, error) {
@@ -159,26 +164,30 @@ func (c *testClient) Register(form registerUserForm) (User, error) {
 	if err != nil {
 		return User{}, err
 	}
-	req := httptest.NewRequest(
-		http.MethodPost, "/api/v0/register", bytes.NewReader(data),
+	req, err := http.NewRequest(
+		http.MethodPost, c.getURL("/v0/register"),
+		bytes.NewReader(data),
 	)
-	req.Header.Add("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	if err := testHandler(req, rec); err != nil {
+	if err != nil {
 		return User{}, err
 	}
-	if rec.Code != http.StatusCreated {
-		var resp errorResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return User{}, err
+	}
+	if resp.StatusCode != http.StatusCreated {
+		var respData errorResponse
+		if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 			return User{}, err
 		}
-		return User{}, &resp
+		return User{}, &respData
 	}
-	var resp User
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+	var respData User
+	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 		return User{}, err
 	}
-	return resp, nil
+	return respData, nil
 }
 
 func (c *testClient) Login(login, password string) (Session, error) {
@@ -189,50 +198,70 @@ func (c *testClient) Login(login, password string) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	req := httptest.NewRequest(
-		http.MethodPost, "/api/v0/login", bytes.NewReader(data),
+	req, err := http.NewRequest(
+		http.MethodPost, c.getURL("/v0/login"),
+		bytes.NewReader(data),
 	)
-	var resp Session
-	err = c.doRequest(req, http.StatusCreated, &resp)
-	return resp, err
+	if err != nil {
+		return Session{}, err
+	}
+	var respData Session
+	err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
 }
 
 func (c *testClient) Logout() error {
-	req := httptest.NewRequest(http.MethodPost, "/api/v0/logout", nil)
-	err := c.doRequest(req, http.StatusOK, nil)
-	return err
+	req, err := http.NewRequest(http.MethodPost, c.getURL("/v0/logout"), nil)
+	if err != nil {
+		return err
+	}
+	return c.doRequest(req, http.StatusOK, nil)
 }
 
 func (c *testClient) Status() (Status, error) {
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/status", nil)
-	var resp Status
-	err := c.doRequest(req, http.StatusOK, &resp)
-	return resp, err
+	req, err := http.NewRequest(http.MethodGet, c.getURL("/v0/status"), nil)
+	if err != nil {
+		return Status{}, err
+	}
+	var respData Status
+	err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
 }
 
 func (c *testClient) ObserveUser(login string) (User, error) {
-	req := httptest.NewRequest(
-		http.MethodGet, fmt.Sprintf("/api/v0/users/%s", login), nil,
+	req, err := http.NewRequest(
+		http.MethodGet, c.getURL("/v0/users/%s", login), nil,
 	)
-	var resp User
-	err := c.doRequest(req, http.StatusOK, &resp)
-	return resp, err
+	if err != nil {
+		return User{}, err
+	}
+	var respData User
+	err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
 }
 
 func (c *testClient) ObserveContests() (Contests, error) {
-	req := httptest.NewRequest(http.MethodGet, "/api/v0/contests", nil)
-	var resp Contests
-	err := c.doRequest(req, http.StatusOK, &resp)
-	return resp, err
+	req, err := http.NewRequest(
+		http.MethodGet, c.getURL("/v0/contests"), nil,
+	)
+	if err != nil {
+		return Contests{}, err
+	}
+	var respData Contests
+	err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
 }
 
 func (c *testClient) ObserveContest(id int64) (Contest, error) {
-	req := httptest.NewRequest(
-		http.MethodGet, fmt.Sprintf("/api/v0/contests/%d", id), nil,
+	req, err := http.NewRequest(
+		http.MethodGet, c.getURL("/v0/contests/%d", id), nil,
 	)
-	var resp Contest
-	err := c.doRequest(req, http.StatusOK, &resp)
-	return resp, err
+	if err != nil {
+		return Contest{}, err
+	}
+	var respData Contest
+	err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
 }
 
 func (c *testClient) CreateContest(form createContestForm) (Contest, error) {
@@ -240,12 +269,16 @@ func (c *testClient) CreateContest(form createContestForm) (Contest, error) {
 	if err != nil {
 		return Contest{}, err
 	}
-	req := httptest.NewRequest(
-		http.MethodPost, "/api/v0/contests", bytes.NewReader(data),
+	req, err := http.NewRequest(
+		http.MethodPost, c.getURL("/v0/contests"),
+		bytes.NewReader(data),
 	)
-	var resp Contest
-	err = c.doRequest(req, http.StatusCreated, &resp)
-	return resp, err
+	if err != nil {
+		return Contest{}, err
+	}
+	var respData Contest
+	err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
 }
 
 func (c *testClient) CreateContestProblem(
@@ -256,35 +289,42 @@ func (c *testClient) CreateContestProblem(
 	if err != nil {
 		return ContestProblem{}, err
 	}
-	req := httptest.NewRequest(
+	req, err := http.NewRequest(
 		http.MethodPost,
-		fmt.Sprintf("/api/v0/contests/%d/problems", contestID),
+		c.getURL("/v0/contests/%d/problems", contestID),
 		bytes.NewReader(data),
 	)
-	var resp ContestProblem
-	err = c.doRequest(req, http.StatusCreated, &resp)
-	return resp, err
+	if err != nil {
+		return ContestProblem{}, err
+	}
+	var respData ContestProblem
+	err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
 }
 
-func (c *testClient) doRequest(req *http.Request, code int, resp any) error {
+func (c *testClient) getURL(path string, args ...any) string {
+	return c.Endpoint + fmt.Sprintf(path, args...)
+}
+
+func (c *testClient) doRequest(req *http.Request, code int, respData any) error {
 	req.Header.Add("Content-Type", "application/json")
 	for _, cookie := range c.cookies {
 		req.AddCookie(cookie)
 	}
-	rec := httptest.NewRecorder()
-	if err := testHandler(req, rec); err != nil {
+	resp, err := c.client.Do(req)
+	if err != nil {
 		return err
 	}
-	if rec.Code != code {
-		var resp errorResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+	if resp.StatusCode != code {
+		var respData errorResponse
+		if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 			return err
 		}
-		return &resp
+		return &respData
 	}
-	c.cookies = append(c.cookies, rec.Result().Cookies()...)
-	if resp != nil {
-		return json.NewDecoder(rec.Body).Decode(resp)
+	c.cookies = append(c.cookies, resp.Cookies()...)
+	if respData != nil {
+		return json.NewDecoder(resp.Body).Decode(respData)
 	}
 	return nil
 }
@@ -322,6 +362,12 @@ func doSocketRequest(req *http.Request, code int, resp any) error {
 		return &resp
 	}
 	return json.NewDecoder(rec.Body).Decode(resp)
+}
+
+func testHandler(req *http.Request, rec *httptest.ResponseRecorder) error {
+	c := testEcho.NewContext(req, rec)
+	testEcho.Router().Find(req.Method, req.URL.Path, c)
+	return c.Handler()(c)
 }
 
 func TestPing(t *testing.T) {
@@ -366,7 +412,7 @@ func TestSessionAuth(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
 	req.AddCookie(&http.Cookie{Name: "session", Value: "123_qwerty123"})
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
+	c := testEcho.NewContext(req, rec)
 	handler := testView.sessionAuth(testView.ping)
 	if err := handler(c); err != nil {
 		t.Fatal("Error:", err)
@@ -389,7 +435,7 @@ func TestUserAuth(t *testing.T) {
 	)
 	req.Header.Add("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
+	c := testEcho.NewContext(req, rec)
 	handler := testView.userAuth(testView.ping)
 	if err := handler(c); err != nil {
 		t.Fatal("Error:", err)
@@ -402,7 +448,7 @@ func TestRequireAuth(t *testing.T) {
 	defer testTeardown(t)
 	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
+	c := testEcho.NewContext(req, rec)
 	handler := testView.requireAuth(testView.ping)
 	if err := handler(c); err != nil {
 		t.Fatal("Error:", err)
@@ -415,7 +461,7 @@ func TestExtractAuthRoles(t *testing.T) {
 	defer testTeardown(t)
 	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
+	c := testEcho.NewContext(req, rec)
 	handler := testView.extractAuthRoles(testView.ping)
 	if err := handler(c); err != nil {
 		t.Fatal("Error:", err)
@@ -428,7 +474,7 @@ func TestRequireAuthRole(t *testing.T) {
 	defer testTeardown(t)
 	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
 	rec := httptest.NewRecorder()
-	c := testSrv.NewContext(req, rec)
+	c := testEcho.NewContext(req, rec)
 	handler := testView.requireAuthRole(models.ObserveUserRole)(testView.ping)
 	if err := handler(c); err != nil {
 		t.Fatal("Error:", err)

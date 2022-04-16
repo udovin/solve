@@ -16,8 +16,7 @@ var testSimpleContest = createContestForm{
 func TestContestSimpleScenario(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	client := newTestClient()
-	if _, err := client.Register(testSimpleUser); err != nil {
+	if _, err := testAPI.Register(testSimpleUser); err != nil {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)
@@ -27,31 +26,31 @@ func TestContestSimpleScenario(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)
-	if _, err := client.Login("test", "qwerty123"); err != nil {
+	if _, err := testAPI.Login("test", "qwerty123"); err != nil {
 		t.Fatal("Error:", err)
 	}
 	{
-		contests, err := client.ObserveContests()
+		contests, err := testAPI.ObserveContests()
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
 		testCheck(contests)
 	}
-	contest, err := client.CreateContest(testSimpleContest)
+	contest, err := testAPI.CreateContest(testSimpleContest)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 	testCheck(contest)
 	testSyncManagers(t)
 	{
-		contests, err := client.ObserveContests()
+		contests, err := testAPI.ObserveContests()
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
 		testCheck(contests)
 	}
 	{
-		created, err := client.ObserveContest(contest.ID)
+		created, err := testAPI.ObserveContest(contest.ID)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
@@ -71,7 +70,7 @@ func TestContestSimpleScenario(t *testing.T) {
 			Code:      "A",
 			ProblemID: problem.ID,
 		}
-		contestProblem, err := client.CreateContestProblem(contest.ID, form)
+		contestProblem, err := testAPI.CreateContestProblem(contest.ID, form)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
@@ -83,8 +82,7 @@ func BenchmarkContests(b *testing.B) {
 	rnd := rand.New(rand.NewSource(42))
 	testSetup(b)
 	defer testTeardown(b)
-	client := newTestClient()
-	if _, err := client.Register(testSimpleUser); err != nil {
+	if _, err := testAPI.Register(testSimpleUser); err != nil {
 		b.Fatal("Error:", err)
 	}
 	testSyncManagers(b)
@@ -94,7 +92,7 @@ func BenchmarkContests(b *testing.B) {
 		b.Fatal("Error:", err)
 	}
 	testSyncManagers(b)
-	if _, err := client.Login("test", "qwerty123"); err != nil {
+	if _, err := testAPI.Login("test", "qwerty123"); err != nil {
 		b.Fatal("Error:", err)
 	}
 	b.ResetTimer()
@@ -103,7 +101,7 @@ func BenchmarkContests(b *testing.B) {
 		form := createContestForm{
 			Title: getPtr(fmt.Sprintf("Contest %d", i+1)),
 		}
-		contest, err := client.CreateContest(form)
+		contest, err := testAPI.CreateContest(form)
 		if err != nil {
 			b.Fatal("Error:", err)
 		}
@@ -114,7 +112,7 @@ func BenchmarkContests(b *testing.B) {
 		ids[i], ids[j] = ids[j], ids[i]
 	})
 	for _, id := range ids {
-		contest, err := client.ObserveContest(id)
+		contest, err := testAPI.ObserveContest(id)
 		if err != nil {
 			b.Fatal("Error:", err)
 		}

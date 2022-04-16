@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
 
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
@@ -112,6 +113,9 @@ func testSetup(tb testing.TB) {
 		Security: &config.Security{
 			PasswordSalt: "qwerty123",
 		},
+	}
+	if _, ok := tb.(*testing.B); ok {
+		cfg.LogLevel = config.LogLevel(log.OFF)
 	}
 	c, err := core.NewCore(cfg)
 	if err != nil {

@@ -271,10 +271,10 @@ func prepareUpdate(value reflect.Value, id string) (string, []any) {
 }
 
 func updateRow[T any](
-	ctx context.Context, db *gosql.DB, row T,
+	ctx context.Context, db *gosql.DB, row *T,
 	id, table string,
 ) error {
-	sets, vals := prepareUpdate(reflect.ValueOf(row), id)
+	sets, vals := prepareUpdate(reflect.ValueOf(row).Elem(), id)
 	tx := GetRunner(ctx, db)
 	res, err := tx.ExecContext(
 		ctx,

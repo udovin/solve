@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/udovin/gosql"
 )
@@ -31,7 +30,7 @@ type ObjectROStore[T Object] interface {
 	LoadObjects(ctx context.Context) (RowReader[T], error)
 	// FindObjects should bind objects with specified expression.
 	FindObjects(
-		ctx context.Context, where string, args ...any,
+		ctx context.Context, where gosql.BoolExpression,
 	) (RowReader[T], error)
 }
 
@@ -72,17 +71,15 @@ func (s *objectStore[T]) LoadObjects(ctx context.Context) (RowReader[T], error) 
 }
 
 func (s *objectStore[T]) FindObjects(
-	ctx context.Context, where string, args ...any,
+	ctx context.Context, where gosql.BoolExpression,
 ) (RowReader[T], error) {
+	query, values := s.db.Select(s.table).
+		Names(s.columns...).
+		Where(where).
+		OrderBy(gosql.Ascending(s.id)).
+		Build()
 	tx := GetRunner(ctx, s.db)
-	rows, err := tx.QueryContext(
-		ctx,
-		fmt.Sprintf(
-			"SELECT %s FROM %q WHERE %s",
-			prepareSelect[T](), s.table, where,
-		),
-		args...,
-	)
+	rows, err := tx.QueryContext(ctx, query, values...)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +94,7 @@ func (s *objectStore[T]) CreateObject(ctx context.Context, object *T) error {
 }
 
 func (s *objectStore[T]) UpdateObject(ctx context.Context, object *T) error {
-	return updateRow(ctx, s.db, *object, s.id, s.table)
+	return updateRow(ctx, s.db, object, s.id, s.table)
 }
 
 func (s *objectStore[T]) DeleteObject(ctx context.Context, id int64) error {

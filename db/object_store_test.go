@@ -107,7 +107,7 @@ func TestObjectStoreClosed(t *testing.T) {
 	if _, err := store.LoadObjects(ctx); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
-	if _, err := store.FindObjects(ctx, "1"); err != sql.ErrTxDone {
+	if _, err := store.FindObjects(ctx, nil); err != sql.ErrTxDone {
 		t.Fatalf("Expected %v, got %v", sql.ErrTxDone, err)
 	}
 	var object testObject
@@ -162,7 +162,7 @@ func TestObjectStoreFindObjectsFail(t *testing.T) {
 	}
 	defer func() { _ = tx.Commit() }()
 	ctx := WithTx(context.Background(), tx)
-	rows, err := store.FindObjects(ctx, "1")
+	rows, err := store.FindObjects(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

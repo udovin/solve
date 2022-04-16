@@ -95,7 +95,9 @@ func Unapply(c *core.Core, all bool) error {
 			// Remove migration from database.
 			var ids []int64
 			if err := func() error {
-				rows, err := store.FindObjects(ctx, `"name" = $1`, m.Name())
+				rows, err := store.FindObjects(
+					ctx, gosql.Column("name").Equal(m.Name()),
+				)
 				if err != nil {
 					return err
 				}
@@ -124,7 +126,7 @@ func Unapply(c *core.Core, all bool) error {
 func isApplied(
 	ctx context.Context, store db.ObjectROStore[migration], name string,
 ) (bool, error) {
-	rows, err := store.FindObjects(ctx, `"name" = $1`, name)
+	rows, err := store.FindObjects(ctx, gosql.Column("name").Equal(name))
 	if err != nil {
 		return false, err
 	}

@@ -55,12 +55,10 @@ type objectStore[T Object] struct {
 }
 
 func (s *objectStore[T]) LoadObjects(ctx context.Context) (RowReader[T], error) {
-	query := s.db.Select(s.table).
-		Names(s.columns...).
-		OrderBy(gosql.Ascending(s.id)).
-		String()
-	tx := GetRunner(ctx, s.db)
-	rows, err := tx.QueryContext(ctx, query)
+	builder := s.db.Select(s.table)
+	builder.SetNames(s.columns...)
+	builder.SetOrderBy(gosql.Ascending(s.id))
+	rows, err := GetRunner(ctx, s.db).QueryContext(ctx, builder.String())
 	if err != nil {
 		return nil, err
 	}
@@ -73,13 +71,12 @@ func (s *objectStore[T]) LoadObjects(ctx context.Context) (RowReader[T], error) 
 func (s *objectStore[T]) FindObjects(
 	ctx context.Context, where gosql.BoolExpression,
 ) (RowReader[T], error) {
-	query, values := s.db.Select(s.table).
-		Names(s.columns...).
-		Where(where).
-		OrderBy(gosql.Ascending(s.id)).
-		Build()
-	tx := GetRunner(ctx, s.db)
-	rows, err := tx.QueryContext(ctx, query, values...)
+	builder := s.db.Select(s.table)
+	builder.SetNames(s.columns...)
+	builder.SetWhere(where)
+	builder.SetOrderBy(gosql.Ascending(s.id))
+	query, values := builder.Build()
+	rows, err := GetRunner(ctx, s.db).QueryContext(ctx, query, values...)
 	if err != nil {
 		return nil, err
 	}

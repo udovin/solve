@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -668,8 +669,9 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, resp)
 	}
 	solution := models.Solution{
-		ProblemID: problem.ProblemID,
-		AuthorID:  account.ID,
+		ProblemID:  problem.ProblemID,
+		AuthorID:   account.ID,
+		CreateTime: time.Now().Unix(),
 	}
 	contestSolution := models.ContestSolution{
 		ContestID:     contest.ID,

@@ -124,10 +124,8 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 					return
 				}
 				clone := task
-				if err := s.core.WrapTx(ctx, func(ctx context.Context) error {
-					clone.ExpireTime = time.Now().Add(5 * time.Second).Unix()
-					return s.core.Tasks.Update(ctx, clone)
-				}, nil); err != nil {
+				clone.ExpireTime = time.Now().Add(5 * time.Second).Unix()
+				if err := s.core.Tasks.Update(ctx, clone); err != nil {
 					s.core.Logger().Warn("Unable to ping task: ", err)
 				} else {
 					task.ExpireTime = clone.ExpireTime

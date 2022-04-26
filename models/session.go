@@ -25,7 +25,7 @@ type Session struct {
 	CreateTime int64 `db:"create_time"`
 	// ExpireTime contains time when session should be expired.
 	ExpireTime int64 `db:"expire_time"`
-	// RemoteAddr contains remote addres of user for created session.
+	// RemoteAddr contains remote address of user for created session.
 	RemoteAddr string `db:"remote_addr"`
 	// UserAgent contains user agent header for created session.
 	UserAgent string `db:"user_agent"`

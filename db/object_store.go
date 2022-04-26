@@ -65,7 +65,7 @@ func (s *objectStore[T]) LoadObjects(ctx context.Context) (RowReader[T], error) 
 	if err := checkColumns(rows, s.columns); err != nil {
 		return nil, err
 	}
-	return &rowReader[T]{rows: rows}, nil
+	return newRowReader[T](rows), nil
 }
 
 func (s *objectStore[T]) FindObjects(
@@ -83,7 +83,7 @@ func (s *objectStore[T]) FindObjects(
 	if err := checkColumns(rows, s.columns); err != nil {
 		return nil, err
 	}
-	return &rowReader[T]{rows: rows}, nil
+	return newRowReader[T](rows), nil
 }
 
 func (s *objectStore[T]) CreateObject(ctx context.Context, object *T) error {

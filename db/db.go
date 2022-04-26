@@ -48,13 +48,15 @@ type rowReader[T any] struct {
 	rows *sql.Rows
 	err  error
 	row  T
+	// refs contains pointers for each field in row.
+	refs []any
 }
 
 func (r *rowReader[T]) Next() bool {
 	if !r.rows.Next() {
 		return false
 	}
-	r.err = scanRow(&r.row, r.rows)
+	r.err = r.rows.Scan(r.refs...)
 	return r.err == nil
 }
 
@@ -73,24 +75,7 @@ func (r *rowReader[T]) Err() error {
 	return r.err
 }
 
-func cloneRow(row any) reflect.Value {
-	clone := reflect.New(reflect.TypeOf(row)).Elem()
-	var recursive func(row, clone reflect.Value)
-	recursive = func(row, clone reflect.Value) {
-		t := row.Type()
-		for i := 0; i < t.NumField(); i++ {
-			if _, ok := t.Field(i).Tag.Lookup("db"); ok {
-				clone.Field(i).Set(row.Field(i))
-			} else if t.Field(i).Anonymous {
-				recursive(row.Field(i), clone.Field(i))
-			}
-		}
-	}
-	recursive(reflect.ValueOf(row), clone)
-	return clone
-}
-
-func scanRow[T any](row *T, rows *sql.Rows) error {
+func getRowFields[T any](row *T) []any {
 	var fields []any
 	var recursive func(reflect.Value)
 	recursive = func(v reflect.Value) {
@@ -104,7 +89,13 @@ func scanRow[T any](row *T, rows *sql.Rows) error {
 		}
 	}
 	recursive(reflect.ValueOf(row).Elem())
-	return rows.Scan(fields...)
+	return fields
+}
+
+func newRowReader[T any](rows *sql.Rows) *rowReader[T] {
+	r := &rowReader[T]{rows: rows}
+	r.refs = getRowFields(&r.row)
+	return r
 }
 
 func checkColumns(rows *sql.Rows, cols []string) error {
@@ -112,8 +103,13 @@ func checkColumns(rows *sql.Rows, cols []string) error {
 	if err != nil {
 		return err
 	}
-	if !reflect.DeepEqual(cols, rowCols) {
+	if len(cols) != len(rowCols) {
 		return fmt.Errorf("result has invalid column sequence")
+	}
+	for i := 0; i < len(cols); i++ {
+		if cols[i] != rowCols[i] {
+			return fmt.Errorf("result has invalid column sequence")
+		}
 	}
 	return nil
 }
@@ -136,35 +132,10 @@ func prepareNames[T any]() []string {
 	return cols
 }
 
-func prepareSelect[T any]() string {
-	var cols strings.Builder
-	var recursive func(reflect.Type)
-	recursive = func(t reflect.Type) {
-		for i := 0; i < t.NumField(); i++ {
-			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
-				name := strings.Split(db, ",")[0]
-				if cols.Len() > 0 {
-					cols.WriteRune(',')
-				}
-				cols.WriteString(fmt.Sprintf("%q", name))
-			} else if t.Field(i).Anonymous {
-				recursive(t.Field(i).Type)
-			}
-		}
-	}
-	var object T
-	recursive(reflect.TypeOf(object))
-	return cols.String()
-}
-
-func prepareInsert(
-	value reflect.Value, id string,
-) (string, string, []any, *int64) {
-	var cols strings.Builder
-	var keys strings.Builder
+func prepareInsert(value reflect.Value, id string) ([]string, []any, *int64) {
 	var vals []any
 	var idPtr *int64
-	var it int
+	var cols []string
 	var recursive func(reflect.Value)
 	recursive = func(v reflect.Value) {
 		t := v.Type()
@@ -175,13 +146,7 @@ func prepareInsert(
 					idPtr = v.Field(i).Addr().Interface().(*int64)
 					continue
 				}
-				if it > 0 {
-					cols.WriteRune(',')
-					keys.WriteRune(',')
-				}
-				it++
-				cols.WriteString(fmt.Sprintf("%q", name))
-				keys.WriteString(fmt.Sprintf("$%d", it))
+				cols = append(cols, name)
 				vals = append(vals, v.Field(i).Interface())
 			} else if t.Field(i).Anonymous {
 				recursive(v.Field(i))
@@ -189,37 +154,26 @@ func prepareInsert(
 		}
 	}
 	recursive(value)
-	return cols.String(), keys.String(), vals, idPtr
+	return cols, vals, idPtr
 }
 
 func insertRow[T any](
 	ctx context.Context, db *gosql.DB, row *T,
 	id, table string,
 ) error {
-	cols, keys, vals, idPtr := prepareInsert(reflect.ValueOf(row).Elem(), id)
-	tx := GetRunner(ctx, db)
-	switch db.Dialect() {
-	case gosql.PostgresDialect:
-		rows := tx.QueryRowContext(
-			ctx,
-			fmt.Sprintf(
-				"INSERT INTO %q (%s) VALUES (%s) RETURNING %q",
-				table, cols, keys, id,
-			),
-			vals...,
-		)
+	cols, vals, idPtr := prepareInsert(reflect.ValueOf(row).Elem(), id)
+	builder := db.Insert(table)
+	builder.SetNames(cols...)
+	builder.SetValues(vals...)
+	switch b := builder.(type) {
+	case *gosql.PostgresInsertQuery:
+		b.SetReturning(id)
+		rows := GetRunner(ctx, db).QueryRowContext(ctx, builder.String(), vals...)
 		if err := rows.Scan(idPtr); err != nil {
 			return err
 		}
 	default:
-		res, err := tx.ExecContext(
-			ctx,
-			fmt.Sprintf(
-				"INSERT INTO %q (%s) VALUES (%s)",
-				table, cols, keys,
-			),
-			vals...,
-		)
+		res, err := GetRunner(ctx, db).ExecContext(ctx, builder.String(), vals...)
 		if err != nil {
 			return err
 		}
@@ -228,9 +182,7 @@ func insertRow[T any](
 			return err
 		}
 		if count != 1 {
-			return fmt.Errorf(
-				"invalid amount of affected rows: %d", count,
-			)
+			return fmt.Errorf("invalid amount of affected rows: %d", count)
 		}
 		if *idPtr, err = res.LastInsertId(); err != nil {
 			return err
@@ -239,11 +191,10 @@ func insertRow[T any](
 	return nil
 }
 
-func prepareUpdate(value reflect.Value, id string) (string, []any) {
-	var sets strings.Builder
+func prepareUpdate(value reflect.Value, id string) ([]string, []any, int64) {
+	var cols []string
 	var vals []any
-	var idValue any
-	var it int
+	var idValue int64
 	var recursive func(reflect.Value)
 	recursive = func(v reflect.Value) {
 		t := v.Type()
@@ -251,14 +202,10 @@ func prepareUpdate(value reflect.Value, id string) (string, []any) {
 			if db, ok := t.Field(i).Tag.Lookup("db"); ok {
 				name := strings.Split(db, ",")[0]
 				if name == id {
-					idValue = v.Field(i).Interface()
+					idValue = v.Field(i).Interface().(int64)
 					continue
 				}
-				if it > 0 {
-					sets.WriteRune(',')
-				}
-				it++
-				sets.WriteString(fmt.Sprintf("%q = $%d", name, it))
+				cols = append(cols, name)
 				vals = append(vals, v.Field(i).Interface())
 			} else if t.Field(i).Anonymous {
 				recursive(v.Field(i))
@@ -266,24 +213,20 @@ func prepareUpdate(value reflect.Value, id string) (string, []any) {
 		}
 	}
 	recursive(value)
-	vals = append(vals, idValue)
-	return sets.String(), vals
+	return cols, vals, idValue
 }
 
 func updateRow[T any](
 	ctx context.Context, db *gosql.DB, row *T,
 	id, table string,
 ) error {
-	sets, vals := prepareUpdate(reflect.ValueOf(row).Elem(), id)
-	tx := GetRunner(ctx, db)
-	res, err := tx.ExecContext(
-		ctx,
-		fmt.Sprintf(
-			"UPDATE %q SET %s WHERE %q = $%d",
-			table, sets, id, len(vals),
-		),
-		vals...,
-	)
+	cols, vals, idValue := prepareUpdate(reflect.ValueOf(row).Elem(), id)
+	builder := db.Update(table)
+	builder.SetNames(cols...)
+	builder.SetValues(vals...)
+	builder.SetWhere(gosql.Column(id).Equal(idValue))
+	query, values := builder.Build()
+	res, err := GetRunner(ctx, db).ExecContext(ctx, query, values...)
 	if err != nil {
 		return err
 	}
@@ -291,25 +234,22 @@ func updateRow[T any](
 	if err != nil {
 		return err
 	}
-	if count != 1 {
+	if count < 1 {
 		return sql.ErrNoRows
+	} else if count > 1 {
+		return fmt.Errorf("updated %d objects", count)
 	}
 	return nil
 }
 
 func deleteRow(
-	ctx context.Context, db *gosql.DB,
-	idValue int64, id, table string,
+	ctx context.Context, db *gosql.DB, idValue int64,
+	id, table string,
 ) error {
-	tx := GetRunner(ctx, db)
-	res, err := tx.ExecContext(
-		ctx,
-		fmt.Sprintf(
-			"DELETE FROM %q WHERE %q = $1",
-			table, id,
-		),
-		idValue,
-	)
+	builder := db.Delete(table)
+	builder.SetWhere(gosql.Column(id).Equal(idValue))
+	query, values := builder.Build()
+	res, err := GetRunner(ctx, db).ExecContext(ctx, query, values...)
 	if err != nil {
 		return err
 	}
@@ -317,8 +257,10 @@ func deleteRow(
 	if err != nil {
 		return err
 	}
-	if count != 1 {
+	if count < 1 {
 		return sql.ErrNoRows
+	} else if count > 1 {
+		return fmt.Errorf("deleted %d objects", count)
 	}
 	return nil
 }

@@ -110,7 +110,7 @@ func (s *eventStore[T]) LoadEvents(
 	if err := checkColumns(rows, s.columns); err != nil {
 		return nil, err
 	}
-	return &rowReader[T]{rows: rows}, nil
+	return newRowReader[T](rows), nil
 }
 
 func (s *eventStore[T]) CreateEvent(ctx context.Context, event *T) error {

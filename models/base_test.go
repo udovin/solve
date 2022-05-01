@@ -33,14 +33,14 @@ func testTeardown(tb testing.TB) {
 }
 
 func TestEventType(t *testing.T) {
-	if s := fmt.Sprintf("%s", CreateEvent); s != "Create" {
-		t.Errorf("Expected %q, got %q", "Create", s)
+	if s := fmt.Sprintf("%s", CreateEvent); s != "create" {
+		t.Errorf("Expected %q, got %q", "create", s)
 	}
-	if s := fmt.Sprintf("%s", UpdateEvent); s != "Update" {
-		t.Errorf("Expected %q, got %q", "Update", s)
+	if s := fmt.Sprintf("%s", UpdateEvent); s != "update" {
+		t.Errorf("Expected %q, got %q", "update", s)
 	}
-	if s := fmt.Sprintf("%s", DeleteEvent); s != "Delete" {
-		t.Errorf("Expected %q, got %q", "Delete", s)
+	if s := fmt.Sprintf("%s", DeleteEvent); s != "delete" {
+		t.Errorf("Expected %q, got %q", "delete", s)
 	}
 	if s := fmt.Sprintf("%s", EventType(-1)); s != "EventType(-1)" {
 		t.Errorf("Expected %q, got %q", "EventType(-1)", s)

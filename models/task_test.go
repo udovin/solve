@@ -66,17 +66,17 @@ func (t *taskStoreTest) deleteObject(
 }
 
 func TestTaskStatus(t *testing.T) {
-	if s := fmt.Sprintf("%s", Queued); s != "Queued" {
-		t.Errorf("Expected %q, got %q", "Queued", s)
+	if s := fmt.Sprintf("%s", Queued); s != "queued" {
+		t.Errorf("Expected %q, got %q", "queued", s)
 	}
-	if s := fmt.Sprintf("%s", Running); s != "Running" {
-		t.Errorf("Expected %q, got %q", "Running", s)
+	if s := fmt.Sprintf("%s", Running); s != "running" {
+		t.Errorf("Expected %q, got %q", "running", s)
 	}
-	if s := fmt.Sprintf("%s", Succeeded); s != "Succeeded" {
-		t.Errorf("Expected %q, got %q", "Succeeded", s)
+	if s := fmt.Sprintf("%s", Succeeded); s != "succeeded" {
+		t.Errorf("Expected %q, got %q", "succeeded", s)
 	}
-	if s := fmt.Sprintf("%s", Failed); s != "Failed" {
-		t.Errorf("Expected %q, got %q", "Failed", s)
+	if s := fmt.Sprintf("%s", Failed); s != "failed" {
+		t.Errorf("Expected %q, got %q", "failed", s)
 	}
 	if s := fmt.Sprintf("%s", TaskStatus(-1)); s != "TaskStatus(-1)" {
 		t.Errorf("Expected %q, got %q", "TaskStatus(-1)", s)
@@ -85,14 +85,14 @@ func TestTaskStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if string(text) != "Succeeded" {
-		t.Errorf("Expected %q, got %q", "Succeeded", string(text))
+	if string(text) != "succeeded" {
+		t.Errorf("Expected %q, got %q", "succeeded", string(text))
 	}
 }
 
 func TestTaskKind(t *testing.T) {
-	if s := fmt.Sprintf("%s", JudgeSolution); s != "JudgeSolution" {
-		t.Errorf("Expected %q, got %q", "JudgeSolution", s)
+	if s := fmt.Sprintf("%s", JudgeSolution); s != "judge_solution" {
+		t.Errorf("Expected %q, got %q", "judge_solution", s)
 	}
 	if s := fmt.Sprintf("%s", TaskKind(-1)); s != "TaskKind(-1)" {
 		t.Errorf("Expected %q, got %q", "TaskKind(-1)", s)
@@ -101,8 +101,8 @@ func TestTaskKind(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if string(text) != "JudgeSolution" {
-		t.Errorf("Expected %q, got %q", "JudgeSolution", string(text))
+	if string(text) != "judge_solution" {
+		t.Errorf("Expected %q, got %q", "judge_solution", string(text))
 	}
 }
 

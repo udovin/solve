@@ -179,11 +179,11 @@ const (
 func (t EventType) String() string {
 	switch t {
 	case CreateEvent:
-		return "Create"
+		return "create"
 	case DeleteEvent:
-		return "Delete"
+		return "delete"
 	case UpdateEvent:
-		return "Update"
+		return "update"
 	default:
 		return fmt.Sprintf("EventType(%d)", t)
 	}

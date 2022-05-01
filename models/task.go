@@ -29,13 +29,13 @@ const (
 func (t TaskStatus) String() string {
 	switch t {
 	case Queued:
-		return "Queued"
+		return "queued"
 	case Running:
-		return "Running"
+		return "running"
 	case Succeeded:
-		return "Succeeded"
+		return "succeeded"
 	case Failed:
-		return "Failed"
+		return "failed"
 	default:
 		return fmt.Sprintf("TaskStatus(%d)", t)
 	}
@@ -58,7 +58,7 @@ const (
 func (t TaskKind) String() string {
 	switch t {
 	case JudgeSolution:
-		return "JudgeSolution"
+		return "judge_solution"
 	default:
 		return fmt.Sprintf("TaskKind(%d)", t)
 	}

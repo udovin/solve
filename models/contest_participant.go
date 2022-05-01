@@ -2,9 +2,38 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/udovin/gosql"
 )
+
+type ParticipantKind int
+
+const (
+	OfficialParticipant   ParticipantKind = 1
+	UpsolvingParticipant  ParticipantKind = 2
+	ManagerParticipant    ParticipantKind = 3
+	UnofficialParticipant ParticipantKind = 4
+	VirtualParticipant    ParticipantKind = 5
+)
+
+// String returns string representation.
+func (t ParticipantKind) String() string {
+	switch t {
+	case OfficialParticipant:
+		return "official"
+	case UnofficialParticipant:
+		return "unofficial"
+	case UpsolvingParticipant:
+		return "upsolving"
+	case ManagerParticipant:
+		return "manager"
+	case VirtualParticipant:
+		return "virtual"
+	default:
+		return fmt.Sprintf("ParticipantKind(%d)", t)
+	}
+}
 
 // ContestParticipant represents participant.
 type ContestParticipant struct {
@@ -14,6 +43,10 @@ type ContestParticipant struct {
 	ContestID int64 `db:"contest_id"`
 	// AccountID contains ID of account.
 	AccountID int64 `db:"account_id"`
+	// Kind contains participant kind.
+	Kind ParticipantKind `db:"kind"`
+	// Config contains participant config.
+	Config JSON `db:"config"`
 }
 
 // ObjectID return ID of problem.

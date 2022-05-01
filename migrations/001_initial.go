@@ -282,6 +282,8 @@ var m001Tables = []schema.Table{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "contest_id", Type: schema.Int64},
 			{Name: "account_id", Type: schema.Int64},
+			{Name: "kind", Type: schema.Int64},
+			{Name: "config", Type: schema.JSON},
 		},
 	},
 	{
@@ -293,6 +295,8 @@ var m001Tables = []schema.Table{
 			{Name: "id", Type: schema.Int64},
 			{Name: "contest_id", Type: schema.Int64},
 			{Name: "account_id", Type: schema.Int64},
+			{Name: "kind", Type: schema.Int64},
+			{Name: "config", Type: schema.JSON},
 		},
 	},
 	{

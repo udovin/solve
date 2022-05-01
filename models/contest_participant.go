@@ -10,29 +10,42 @@ import (
 type ParticipantKind int
 
 const (
-	OfficialParticipant   ParticipantKind = 1
-	UpsolvingParticipant  ParticipantKind = 2
-	ManagerParticipant    ParticipantKind = 3
-	UnofficialParticipant ParticipantKind = 4
-	VirtualParticipant    ParticipantKind = 5
+	RegularParticipant   ParticipantKind = 1
+	UpsolvingParticipant ParticipantKind = 2
+	ManagerParticipant   ParticipantKind = 3
+	VirtualParticipant   ParticipantKind = 5
 )
 
 // String returns string representation.
-func (t ParticipantKind) String() string {
-	switch t {
-	case OfficialParticipant:
-		return "official"
-	case UnofficialParticipant:
-		return "unofficial"
+func (k ParticipantKind) String() string {
+	switch k {
+	case RegularParticipant:
+		return "regular"
 	case UpsolvingParticipant:
 		return "upsolving"
 	case ManagerParticipant:
 		return "manager"
-	case VirtualParticipant:
-		return "virtual"
 	default:
-		return fmt.Sprintf("ParticipantKind(%d)", t)
+		return fmt.Sprintf("ParticipantKind(%d)", k)
 	}
+}
+
+func (k ParticipantKind) MarshalText() ([]byte, error) {
+	return []byte(k.String()), nil
+}
+
+func (k *ParticipantKind) UnmarshalText(data []byte) error {
+	switch s := string(data); s {
+	case "regular":
+		*k = RegularParticipant
+	case "upsolving":
+		*k = UpsolvingParticipant
+	case "manager":
+		*k = ManagerParticipant
+	default:
+		return fmt.Errorf("unsupported kind: %q", s)
+	}
+	return nil
 }
 
 // ContestParticipant represents participant.

@@ -61,7 +61,7 @@ func makeBaseSolutionReport(solution models.Solution) *SolutionReport {
 		return nil
 	}
 	resp := SolutionReport{
-		Verdict: report.Verdict.String(),
+		Verdict: report.Verdict,
 	}
 	return &resp
 }
@@ -72,12 +72,12 @@ func makeSolutionReport(solution models.Solution) *SolutionReport {
 		return nil
 	}
 	resp := SolutionReport{
-		Verdict:    report.Verdict.String(),
+		Verdict:    report.Verdict,
 		CompileLog: report.CompileLog,
 	}
 	for _, test := range report.Tests {
 		resp.Tests = append(resp.Tests, TestReport{
-			Verdict:  test.Verdict.String(),
+			Verdict:  test.Verdict,
 			CheckLog: test.CheckLog,
 		})
 	}

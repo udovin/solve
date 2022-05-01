@@ -56,6 +56,10 @@ func (v Verdict) String() string {
 	}
 }
 
+func (v Verdict) MarshalText() ([]byte, error) {
+	return []byte(v.String()), nil
+}
+
 type UsageReport struct {
 	Time   int64 `json:"time,omitempty"`
 	Memory int64 `json:"memory,omitempty"`

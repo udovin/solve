@@ -467,6 +467,8 @@ type ContestParticipant struct {
 	ID        int64 `json:"id"`
 	User      *User `json:"user"`
 	ContestID int64 `json:"contest_id"`
+	// Kind contains kind.
+	Kind models.ParticipantKind `json:"kind"`
 }
 
 type ContestParticipants struct {
@@ -494,8 +496,9 @@ func (v *View) observeContestParticipants(c echo.Context) error {
 }
 
 type createContestParticipantForm struct {
-	UserID    *int64  `json:"user_id"`
-	UserLogin *string `json:"user_login"`
+	UserID    *int64                 `json:"user_id"`
+	UserLogin *string                `json:"user_login"`
+	Kind      models.ParticipantKind `json:"kind"`
 }
 
 func (f createContestParticipantForm) Update(
@@ -518,6 +521,7 @@ func (f createContestParticipantForm) Update(
 		}
 		participant.AccountID = user.AccountID
 	}
+	participant.Kind = f.Kind
 	if participant.AccountID == 0 {
 		return &errorResponse{
 			Message: "participant account is not specified",
@@ -620,16 +624,16 @@ func (v *View) observeContestSolution(c echo.Context) error {
 }
 
 type TestReport struct {
-	Verdict  string `json:"verdict"`
-	CheckLog string `json:"check_log,omitempty"`
-	Input    string `json:"input,omitempty"`
-	Output   string `json:"output,omitempty"`
+	Verdict  models.Verdict `json:"verdict"`
+	CheckLog string         `json:"check_log,omitempty"`
+	Input    string         `json:"input,omitempty"`
+	Output   string         `json:"output,omitempty"`
 }
 
 type SolutionReport struct {
-	Verdict    string       `json:"verdict"`
-	Tests      []TestReport `json:"tests,omitempty"`
-	CompileLog string       `json:"compile_log,omitempty"`
+	Verdict    models.Verdict `json:"verdict"`
+	Tests      []TestReport   `json:"tests,omitempty"`
+	CompileLog string         `json:"compile_log,omitempty"`
 }
 
 type ContestSolution struct {
@@ -772,6 +776,7 @@ func makeContestParticipant(
 	resp := ContestParticipant{
 		ID:        participant.ID,
 		ContestID: participant.ContestID,
+		Kind:      participant.Kind,
 	}
 	if core != nil {
 		if account, err := core.Accounts.Get(participant.AccountID); err == nil {

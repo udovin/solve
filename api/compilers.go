@@ -10,30 +10,30 @@ import (
 	"sort"
 
 	"github.com/labstack/echo/v4"
-	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
 
 func (v *View) registerCompilerHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/compilers", v.ObserveCompilers,
-		v.sessionAuth,
-		v.requireAuthRole(models.ObserveCompilersRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth),
+		v.requirePermission(models.ObserveCompilersRole),
 	)
 	g.POST(
 		"/v0/compiler", v.createCompiler,
-		v.sessionAuth, v.requireAuth,
-		v.requireAuthRole(models.CreateCompilerRole),
+		v.extractAuth(v.sessionAuth),
+		v.requirePermission(models.CreateCompilerRole),
 	)
 	g.PATCH(
 		"/v0/compiler/:compiler", v.updateCompiler,
-		v.sessionAuth, v.requireAuth,
-		v.requireAuthRole(models.UpdateCompilerRole),
+		v.extractAuth(v.sessionAuth),
+		v.requirePermission(models.UpdateCompilerRole),
 	)
 	g.DELETE(
 		"/v0/compiler/:compiler", v.deleteCompiler,
-		v.sessionAuth, v.requireAuth,
-		v.requireAuthRole(models.DeleteCompilerRole),
+		v.extractAuth(v.sessionAuth),
+		v.requirePermission(models.DeleteCompilerRole),
 	)
 }
 
@@ -62,20 +62,20 @@ func (v compilerSorter) Swap(i, j int) {
 
 // ObserveCompilers returns list of available compilers.
 func (v *View) ObserveCompilers(c echo.Context) error {
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
+		c.Logger().Error("auth not extracted")
+		return fmt.Errorf("auth not extracted")
 	}
-	var resp Compilers
 	compilers, err := v.core.Compilers.All()
 	if err != nil {
 		c.Logger().Error(err)
 		return err
 	}
+	var resp Compilers
 	for _, compiler := range compilers {
-		compilerRoles := v.extendCompilerRoles(c, roles, compiler)
-		if ok, err := v.core.HasRole(compilerRoles, models.ObserveCompilerRole); ok && err == nil {
+		permissions := v.getCompilerPermissions(accountCtx, compiler)
+		if permissions.HasPermission(models.ObserveCompilerRole) {
 			resp.Compilers = append(resp.Compilers, makeCompiler(compiler))
 		}
 	}
@@ -113,6 +113,11 @@ func (f createCompilerForm) Update(compiler *models.Compiler) *errorResponse {
 }
 
 func (v *View) createCompiler(c echo.Context) error {
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		c.Logger().Error("auth not extracted")
+		return fmt.Errorf("auth not extracted")
+	}
 	var form createCompilerForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
@@ -122,7 +127,7 @@ func (v *View) createCompiler(c echo.Context) error {
 	if err := form.Update(&compiler); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if account, ok := c.Get(authAccountKey).(models.Account); ok {
+	if account := accountCtx.Account; account != nil {
 		compiler.OwnerID = models.NInt64(account.ID)
 	}
 	if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
@@ -181,18 +186,10 @@ func makeCompiler(compiler models.Compiler) Compiler {
 	}
 }
 
-func (v *View) extendCompilerRoles(
-	c echo.Context, roles core.RoleSet, compiler models.Compiler,
-) core.RoleSet {
-	compilerRoles := roles.Clone()
-	if compiler.ID == 0 {
-		return compilerRoles
-	}
-	addRole := func(name string) {
-		if err := v.core.AddRole(compilerRoles, name); err != nil {
-			c.Logger().Error(err)
-		}
-	}
-	addRole(models.ObserveCompilerRole)
-	return compilerRoles
+func (v *View) getCompilerPermissions(
+	ctx *managers.AccountContext, compiler models.Compiler,
+) managers.PermissionSet {
+	permissions := ctx.Permissions.Clone()
+	permissions[models.ObserveCompilerRole] = struct{}{}
+	return permissions
 }

@@ -18,7 +18,6 @@ import (
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/migrations"
-	"github.com/udovin/solve/models"
 )
 
 type testCheckState struct {
@@ -460,82 +459,6 @@ func TestHealthUnhealthy(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	expectStatus(t, http.StatusInternalServerError, rec.Code)
-}
-
-func TestSessionAuth(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
-	req.AddCookie(&http.Cookie{Name: "session", Value: "123_qwerty123"})
-	rec := httptest.NewRecorder()
-	c := testEcho.NewContext(req, rec)
-	handler := testView.sessionAuth(testView.ping)
-	if err := handler(c); err != nil {
-		t.Fatal("Error:", err)
-	}
-	expectStatus(t, http.StatusOK, rec.Code)
-}
-
-func TestUserAuth(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	data, err := json.Marshal(map[string]string{
-		"login":    "test",
-		"password": "qwerty123",
-	})
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	req := httptest.NewRequest(
-		http.MethodPost, "/ping", bytes.NewReader(data),
-	)
-	req.Header.Add("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	c := testEcho.NewContext(req, rec)
-	handler := testView.userAuth(testView.ping)
-	if err := handler(c); err != nil {
-		t.Fatal("Error:", err)
-	}
-	expectStatus(t, http.StatusForbidden, rec.Code)
-}
-
-func TestRequireAuth(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
-	rec := httptest.NewRecorder()
-	c := testEcho.NewContext(req, rec)
-	handler := testView.requireAuth(testView.ping)
-	if err := handler(c); err != nil {
-		t.Fatal("Error:", err)
-	}
-	expectStatus(t, http.StatusForbidden, rec.Code)
-}
-
-func TestExtractAuthRoles(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
-	rec := httptest.NewRecorder()
-	c := testEcho.NewContext(req, rec)
-	handler := testView.extractAuthRoles(testView.ping)
-	if err := handler(c); err != nil {
-		t.Fatal("Error:", err)
-	}
-	expectStatus(t, http.StatusOK, rec.Code)
-}
-
-func TestRequireAuthRole(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
-	rec := httptest.NewRecorder()
-	c := testEcho.NewContext(req, rec)
-	handler := testView.requireAuthRole(models.ObserveUserRole)(testView.ping)
-	if err := handler(c); err != nil {
-		t.Fatal("Error:", err)
-	}
-	expectStatus(t, http.StatusOK, rec.Code)
 }
 
 func expectStatus(tb testing.TB, expected, got int) {

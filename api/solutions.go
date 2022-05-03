@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
-	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
 
@@ -19,13 +19,13 @@ func (v *View) registerSolutionHandlers(g *echo.Group) {
 	}
 	g.GET(
 		"/v0/solutions", v.observeSolutions,
-		v.sessionAuth,
-		v.requireAuthRole(models.ObserveSolutionsRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth),
+		v.requirePermission(models.ObserveSolutionsRole),
 	)
 	g.GET(
 		"/v0/solutions/:solution", v.observeSolution,
-		v.sessionAuth, v.extractSolution, v.extractSolutionRoles,
-		v.requireAuthRole(models.ObserveSolutionRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractSolution,
+		v.requirePermission(models.ObserveSolutionRole),
 	)
 }
 
@@ -85,7 +85,7 @@ func makeSolutionReport(solution models.Solution) *SolutionReport {
 }
 
 func (v *View) makeBaseSolution(
-	c echo.Context, solution models.Solution, roles core.RoleSet,
+	ctx *managers.AccountContext, solution models.Solution,
 ) Solution {
 	resp := Solution{
 		ID:         solution.ID,
@@ -108,7 +108,7 @@ func (v *View) makeBaseSolution(
 }
 
 func (v *View) makeSolution(
-	c echo.Context, solution models.Solution, roles core.RoleSet,
+	ctx *managers.AccountContext, solution models.Solution,
 ) Solution {
 	resp := Solution{
 		ID:         solution.ID,
@@ -131,10 +131,10 @@ func (v *View) makeSolution(
 }
 
 func (v *View) observeSolutions(c echo.Context) error {
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
+		c.Logger().Error("auth not extracted")
+		return fmt.Errorf("auth not extracted")
 	}
 	var resp Solutions
 	solutions, err := v.core.Solutions.All()
@@ -143,14 +143,9 @@ func (v *View) observeSolutions(c echo.Context) error {
 		return err
 	}
 	for _, solution := range solutions {
-		solutionRoles := v.extendSolutionRoles(c, roles, solution)
-		if ok, err := v.core.HasRole(
-			solutionRoles, models.ObserveSolutionRole,
-		); ok && err == nil {
-			resp.Solutions = append(
-				resp.Solutions,
-				v.makeBaseSolution(c, solution, solutionRoles),
-			)
+		permissions := v.getSolutionPermissions(accountCtx, solution)
+		if permissions.HasPermission(models.ObserveSolutionRole) {
+			resp.Solutions = append(resp.Solutions, v.makeBaseSolution(accountCtx, solution))
 		}
 	}
 	sort.Sort(solutionSorter(resp.Solutions))
@@ -163,12 +158,12 @@ func (v *View) observeSolution(c echo.Context) error {
 		c.Logger().Error("solution not extracted")
 		return fmt.Errorf("solution not extracted")
 	}
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
+		c.Logger().Error("auth not extracted")
+		return fmt.Errorf("auth not extracted")
 	}
-	return c.JSON(http.StatusOK, v.makeSolution(c, solution, roles))
+	return c.JSON(http.StatusOK, v.makeSolution(accountCtx, solution))
 }
 
 func (v *View) extractSolution(next echo.HandlerFunc) echo.HandlerFunc {
@@ -194,46 +189,27 @@ func (v *View) extractSolution(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error(err)
 			return err
 		}
+		accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+		if !ok {
+			c.Logger().Error("auth not extracted")
+			return fmt.Errorf("auth not extracted")
+		}
 		c.Set(solutionKey, solution)
+		c.Set(permissionCtxKey, v.getSolutionPermissions(accountCtx, solution))
 		return next(c)
 	}
 }
 
-func (v *View) extendSolutionRoles(
-	c echo.Context, roles core.RoleSet, solution models.Solution,
-) core.RoleSet {
-	solutionRoles := roles.Clone()
+func (v *View) getSolutionPermissions(
+	ctx *managers.AccountContext, solution models.Solution,
+) managers.PermissionSet {
+	permissions := ctx.Permissions.Clone()
 	if solution.ID == 0 {
-		return solutionRoles
+		return permissions
 	}
-	addRole := func(name string) {
-		if err := v.core.AddRole(solutionRoles, name); err != nil {
-			c.Logger().Error(err)
-		}
+	if account := ctx.Account; account != nil &&
+		solution.AuthorID != 0 && account.ID == int64(solution.AuthorID) {
+		permissions[models.ObserveSolutionRole] = struct{}{}
 	}
-	account, ok := c.Get(authAccountKey).(models.Account)
-	if ok {
-		if solution.AuthorID != 0 && account.ID == int64(solution.AuthorID) {
-			addRole(models.ObserveSolutionRole)
-		}
-	}
-	return solutionRoles
-}
-
-func (v *View) extractSolutionRoles(next echo.HandlerFunc) echo.HandlerFunc {
-	nextWrap := func(c echo.Context) error {
-		solution, ok := c.Get(solutionKey).(models.Solution)
-		if !ok {
-			c.Logger().Error("contest not extracted")
-			return fmt.Errorf("contest not extracted")
-		}
-		roles, ok := c.Get(authRolesKey).(core.RoleSet)
-		if !ok {
-			c.Logger().Error("roles not extracted")
-			return fmt.Errorf("roles not extracted")
-		}
-		c.Set(authRolesKey, v.extendSolutionRoles(c, roles, solution))
-		return next(c)
-	}
-	return v.extractAuthRoles(nextWrap)
+	return permissions
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
 
@@ -31,13 +31,13 @@ type Sessions struct {
 func (v *View) registerSessionHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/sessions/:session", v.observeSession,
-		v.sessionAuth, v.extractSession, v.extractSessionRoles,
-		v.requireAuthRole(models.ObserveSessionRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractSession,
+		v.requirePermission(models.ObserveSessionRole),
 	)
 	g.DELETE(
 		"/v0/sessions/:session", v.deleteSession,
-		v.sessionAuth, v.requireAuth, v.extractSession, v.extractSessionRoles,
-		v.requireAuthRole(models.DeleteSessionRole),
+		v.extractAuth(v.sessionAuth), v.extractSession,
+		v.requirePermission(models.DeleteSessionRole),
 	)
 }
 
@@ -89,34 +89,24 @@ func (v *View) extractSession(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error(err)
 			return err
 		}
+		accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+		if !ok {
+			c.Logger().Error("auth not extracted")
+			return fmt.Errorf("auth not extracted")
+		}
 		c.Set(sessionKey, session)
+		c.Set(permissionCtxKey, v.getSessionPermissions(accountCtx, session))
 		return next(c)
 	}
 }
 
-func (v *View) extractSessionRoles(next echo.HandlerFunc) echo.HandlerFunc {
-	nextWrap := func(c echo.Context) error {
-		session, ok := c.Get(sessionKey).(models.Session)
-		if !ok {
-			c.Logger().Error("session not extracted")
-			return fmt.Errorf("session not extracted")
-		}
-		roles, ok := c.Get(authRolesKey).(core.RoleSet)
-		if !ok {
-			c.Logger().Error("roles not extracted")
-			return fmt.Errorf("roles not extracted")
-		}
-		addRole := func(roles core.RoleSet, name string) {
-			if err := v.core.AddRole(roles, name); err != nil {
-				c.Logger().Error(err)
-			}
-		}
-		account, ok := c.Get(authAccountKey).(models.Account)
-		if ok && account.ID == session.AccountID {
-			addRole(roles, models.ObserveSessionRole)
-			addRole(roles, models.DeleteSessionRole)
-		}
-		return next(c)
+func (v *View) getSessionPermissions(
+	ctx *managers.AccountContext, session models.Session,
+) managers.PermissionSet {
+	permissions := ctx.Permissions.Clone()
+	if account := ctx.Account; account != nil && account.ID == session.AccountID {
+		permissions[models.ObserveSessionRole] = struct{}{}
+		permissions[models.DeleteSessionRole] = struct{}{}
 	}
-	return v.extractAuthRoles(nextWrap)
+	return permissions
 }

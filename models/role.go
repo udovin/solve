@@ -163,10 +163,6 @@ const (
 	UpdateContestRole = "update_contest"
 	// DeleteContestRole represents role for deleting contest.
 	DeleteContestRole = "delete_contest"
-	// GuestGroupRole represents name of role for guest group.
-	GuestGroupRole = "guest_group"
-	// UserGroupRole represents name of role for user group.
-	UserGroupRole = "user_group"
 )
 
 var builtInRoles = map[string]struct{}{
@@ -232,8 +228,6 @@ var builtInRoles = map[string]struct{}{
 	UpdateContestRole:              {},
 	DeleteContestRole:              {},
 	DeleteSessionRole:              {},
-	GuestGroupRole:                 {},
-	UserGroupRole:                  {},
 }
 
 // ObjectID return ID of role.

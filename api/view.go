@@ -11,17 +11,20 @@ import (
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
 
 // View represents API view.
 type View struct {
-	core *core.Core
+	core     *core.Core
+	Accounts *managers.AccountManager
+	Contests *managers.ContestManager
 }
 
 // Register registers handlers in specified group.
 func (v *View) Register(g *echo.Group) {
-	g.Use(v.logVisit)
+	g.Use(wrapErrorResponse, v.logVisit)
 	g.GET("/ping", v.ping)
 	g.GET("/health", v.health)
 	v.registerUserHandlers(g)
@@ -34,6 +37,7 @@ func (v *View) Register(g *echo.Group) {
 }
 
 func (v *View) RegisterSocket(g *echo.Group) {
+	g.Use(wrapErrorResponse, v.extractAuth(v.guestAuth))
 	g.GET("/ping", v.ping)
 	g.GET("/health", v.health)
 	v.registerSocketUserHandlers(g)
@@ -56,20 +60,24 @@ func (v *View) health(c echo.Context) error {
 
 // NewView returns a new instance of view.
 func NewView(core *core.Core) *View {
-	return &View{core: core}
+	return &View{
+		core:     core,
+		Accounts: managers.NewAccountManager(core),
+		Contests: managers.NewContestManager(core),
+	}
 }
 
 const (
-	authAccountKey        = "auth_account"
-	authSessionKey        = "auth_session"
 	authVisitKey          = "auth_visit"
-	authRolesKey          = "auth_roles"
-	authUserKey           = "auth_user"
+	authSessionKey        = "auth_session"
+	accountCtxKey         = "account_ctx"
+	permissionCtxKey      = "permission_ctx"
 	roleKey               = "role"
 	childRoleKey          = "child_role"
 	userKey               = "user"
 	sessionKey            = "session"
 	sessionCookie         = "session"
+	contestCtxKey         = "contest_ctx"
 	contestKey            = "contest"
 	contestProblemKey     = "contest_problem"
 	contestParticipantKey = "contest_participant"
@@ -85,8 +93,10 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 		c.Set(authVisitKey, v.core.Visits.MakeFromContext(c))
 		defer func() {
 			visit := c.Get(authVisitKey).(models.Visit)
-			if account, ok := c.Get(authAccountKey).(models.Account); ok {
-				visit.AccountID = models.NInt64(account.ID)
+			if ctx, ok := c.Get(accountCtxKey).(*managers.AccountContext); ok {
+				if ctx.Account != nil {
+					visit.AccountID = models.NInt64(ctx.Account.ID)
+				}
 			}
 			if session, ok := c.Get(authSessionKey).(models.Session); ok {
 				visit.SessionID = models.NInt64(session.ID)
@@ -109,6 +119,8 @@ type errorField struct {
 type errorFields map[string]errorField
 
 type errorResponse struct {
+	// Code.
+	Code int `json:"-"`
 	// Message.
 	Message string `json:"message"`
 	// MissingPermissions.
@@ -134,51 +146,72 @@ func (r errorResponse) Error() string {
 	return result.String()
 }
 
-// sessionAuth tries to authorize account by session.
-func (v *View) sessionAuth(next echo.HandlerFunc) echo.HandlerFunc {
+func wrapErrorResponse(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		if _, ok := c.Get(authAccountKey).(models.Account); ok {
-			return next(c)
-		}
-		cookie, err := c.Cookie(sessionCookie)
-		if err != nil {
-			if err == http.ErrNoCookie {
-				return next(c)
+		err := next(c)
+		if resp, ok := err.(errorResponse); ok {
+			if resp.Code == 0 {
+				resp.Code = http.StatusInternalServerError
 			}
-			c.Logger().Warn(err)
-			return err
+			return c.JSON(resp.Code, resp)
 		}
-		session, err := v.getSessionByCookie(
-			c.Request().Context(), cookie.Value,
-		)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return next(c)
-			}
-			c.Logger().Error(err)
-			return err
-		}
-		account, err := v.core.Accounts.Get(session.AccountID)
-		if err != nil {
-			c.Logger().Error(err)
-			return err
-		}
-		if account.Kind != models.UserAccount {
-			resp := errorResponse{
-				Message: "only user account supported",
-			}
-			return c.JSON(http.StatusNotImplemented, resp)
-		}
-		user, err := v.core.Users.GetByAccount(session.AccountID)
-		if err != nil {
-			c.Logger().Error(err)
-			return err
-		}
-		c.Set(authAccountKey, account)
-		c.Set(authUserKey, user)
-		c.Set(authSessionKey, session)
-		return next(c)
+		return err
 	}
+}
+
+type authMethod func(c echo.Context) (bool, error)
+
+func (v *View) extractAuth(authMethods ...authMethod) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			for _, method := range authMethods {
+				ok, err := method(c)
+				if err != nil {
+					c.Logger().Error(err)
+					return err
+				}
+				if ok {
+					return next(c)
+				}
+			}
+			resp := errorResponse{
+				Code:    http.StatusForbidden,
+				Message: "unable to authorize",
+			}
+			return c.JSON(http.StatusForbidden, resp)
+		}
+	}
+}
+
+func (v *View) sessionAuth(c echo.Context) (bool, error) {
+	cookie, err := c.Cookie(sessionCookie)
+	if err != nil {
+		if err == http.ErrNoCookie {
+			return false, nil
+		}
+		return false, err
+	}
+	session, err := v.getSessionByCookie(
+		c.Request().Context(), cookie.Value,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+	account, err := v.core.Accounts.Get(session.AccountID)
+	if err != nil {
+		return false, err
+	}
+	accountCtx, err := v.Accounts.MakeContext(c.Request().Context(), &account)
+	if err != nil {
+		return false, err
+	}
+	c.Set(authSessionKey, session)
+	c.Set(accountCtxKey, accountCtx)
+	c.Set(permissionCtxKey, accountCtx)
+	return true, nil
 }
 
 type userAuthForm struct {
@@ -186,110 +219,76 @@ type userAuthForm struct {
 	Password string `json:"password"`
 }
 
-// userAuth tries to authorize user by login and password.
-func (v *View) userAuth(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if _, ok := c.Get(authAccountKey).(models.Account); ok {
-			return next(c)
-		}
-		var form userAuthForm
-		if err := c.Bind(&form); err != nil {
-			return err
-		}
-		if form.Login == "" || form.Password == "" {
-			return next(c)
-		}
-		user, err := v.core.Users.GetByLogin(form.Login)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				resp := errorResponse{
-					Message: "user not found",
-				}
-				return c.JSON(http.StatusForbidden, resp)
-			}
-			c.Logger().Error(err)
-			return err
-		}
-		if !v.core.Users.CheckPassword(user, form.Password) {
+func (v *View) userAuth(c echo.Context) (bool, error) {
+	var form userAuthForm
+	if err := c.Bind(&form); err != nil {
+		return false, err
+	}
+	if form.Login == "" || form.Password == "" {
+		return false, nil
+	}
+	user, err := v.core.Users.GetByLogin(form.Login)
+	if err != nil {
+		if err == sql.ErrNoRows {
 			resp := errorResponse{
+				Code:    http.StatusForbidden,
 				Message: "user not found",
 			}
-			return c.JSON(http.StatusForbidden, resp)
+			return false, resp
 		}
-		account, err := v.core.Accounts.Get(user.AccountID)
-		if err != nil {
-			return err
-		}
-		if account.Kind != models.UserAccount {
-			c.Logger().Errorf(
-				"Account %v should have %v kind, but has %v",
-				account.ID, models.UserAccount, account.Kind,
-			)
-			return fmt.Errorf("invalid account kind %q", account.Kind)
-		}
-		c.Set(authAccountKey, account)
-		c.Set(authUserKey, user)
-		return next(c)
+		return false, err
 	}
+	if !v.core.Users.CheckPassword(user, form.Password) {
+		resp := errorResponse{
+			Code:    http.StatusForbidden,
+			Message: "invalid password",
+		}
+		return false, resp
+	}
+	account, err := v.core.Accounts.Get(user.AccountID)
+	if err != nil {
+		return false, err
+	}
+	if account.Kind != models.UserAccount {
+		c.Logger().Errorf(
+			"Account %v should have %v kind, but has %v",
+			account.ID, models.UserAccount, account.Kind,
+		)
+		return false, fmt.Errorf("invalid account kind %q", account.Kind)
+	}
+	accountCtx, err := v.Accounts.MakeContext(c.Request().Context(), &account)
+	if err != nil {
+		return false, err
+	}
+	c.Set(accountCtxKey, accountCtx)
+	c.Set(permissionCtxKey, accountCtx)
+	return true, nil
 }
 
-// requireAuth checks account authorization.
-func (v *View) requireAuth(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if _, ok := c.Get(authAccountKey).(models.Account); !ok {
-			resp := errorResponse{
-				Message: "auth required",
-			}
-			return c.JSON(http.StatusForbidden, resp)
-		}
-		return next(c)
+func (v *View) guestAuth(c echo.Context) (bool, error) {
+	ctx, err := v.Accounts.MakeContext(c.Request().Context(), nil)
+	if err != nil {
+		return false, err
 	}
-}
-
-// extractAuthRoles extract roles for user.
-func (v *View) extractAuthRoles(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if _, ok := c.Get(authRolesKey).(core.RoleSet); ok {
-			return next(c)
-		}
-		if account, ok := c.Get(authAccountKey).(models.Account); ok {
-			roles, err := v.core.GetAccountRoles(account.ID)
-			if err != nil {
-				c.Logger().Error(err)
-				return err
-			}
-			c.Set(authRolesKey, roles)
-		} else {
-			roles, err := v.core.GetGuestRoles()
-			if err != nil {
-				c.Logger().Error(err)
-				return err
-			}
-			c.Set(authRolesKey, roles)
-		}
-		return next(c)
-	}
+	c.Set(accountCtxKey, ctx)
+	c.Set(permissionCtxKey, ctx)
+	return true, nil
 }
 
 // requireRole check that user has required roles.
-func (v *View) requireAuthRole(names ...string) echo.MiddlewareFunc {
+func (v *View) requirePermission(names ...string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		nextWrap := func(c echo.Context) error {
+		return func(c echo.Context) error {
 			resp := errorResponse{
 				Message: "account missing permissions",
 			}
-			roles, ok := c.Get(authRolesKey).(core.RoleSet)
+			ctx, ok := c.Get(permissionCtxKey).(managers.Permissions)
 			if !ok {
 				resp.MissingPermissions = names
 				return c.JSON(http.StatusForbidden, resp)
 			}
 			for _, name := range names {
-				ok, err := v.core.HasRole(roles, name)
-				if err != nil {
-					c.Logger().Error(err)
-					return err
-				}
-				if !ok {
+				if !ctx.HasPermission(name) {
 					resp.MissingPermissions = append(resp.MissingPermissions, name)
 				}
 			}
@@ -298,7 +297,6 @@ func (v *View) requireAuthRole(names ...string) echo.MiddlewareFunc {
 			}
 			return next(c)
 		}
-		return v.extractAuthRoles(nextWrap)
 	}
 }
 

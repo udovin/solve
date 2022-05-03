@@ -44,48 +44,48 @@ type Roles struct {
 func (v *View) registerRoleHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/roles", v.observeRoles,
-		v.sessionAuth,
-		v.requireAuthRole(models.ObserveRolesRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth),
+		v.requirePermission(models.ObserveRolesRole),
 	)
 	g.POST(
 		"/v0/roles", v.createRole,
-		v.sessionAuth, v.requireAuth,
-		v.requireAuthRole(models.CreateRoleRole),
+		v.extractAuth(v.sessionAuth),
+		v.requirePermission(models.CreateRoleRole),
 	)
 	g.DELETE(
 		"/v0/roles/:role", v.deleteRole,
-		v.sessionAuth, v.requireAuth, v.extractRole,
-		v.requireAuthRole(models.DeleteRoleRole),
+		v.extractAuth(v.sessionAuth), v.extractRole,
+		v.requirePermission(models.DeleteRoleRole),
 	)
 	g.GET(
 		"/v0/roles/:role/roles", v.observeRoleRoles,
-		v.sessionAuth, v.extractRole,
-		v.requireAuthRole(models.ObserveRoleRolesRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractRole,
+		v.requirePermission(models.ObserveRoleRolesRole),
 	)
 	g.POST(
 		"/v0/roles/:role/roles/:child_role", v.createRoleRole,
-		v.sessionAuth, v.requireAuth, v.extractRole, v.extractChildRole,
-		v.requireAuthRole(models.CreateRoleRoleRole),
+		v.extractAuth(v.sessionAuth), v.extractRole, v.extractChildRole,
+		v.requirePermission(models.CreateRoleRoleRole),
 	)
 	g.DELETE(
 		"/v0/roles/:role/roles/:child_role", v.deleteRoleRole,
-		v.sessionAuth, v.requireAuth, v.extractRole, v.extractChildRole,
-		v.requireAuthRole(models.DeleteRoleRoleRole),
+		v.extractAuth(v.sessionAuth), v.extractRole, v.extractChildRole,
+		v.requirePermission(models.DeleteRoleRoleRole),
 	)
 	g.GET(
 		"/v0/users/:user/roles", v.observeUserRoles,
-		v.sessionAuth, v.extractUser,
-		v.requireAuthRole(models.ObserveUserRolesRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractUser,
+		v.requirePermission(models.ObserveUserRolesRole),
 	)
 	g.POST(
 		"/v0/users/:user/roles/:role", v.createUserRole,
-		v.sessionAuth, v.requireAuth, v.extractUser, v.extractRole,
-		v.requireAuthRole(models.CreateUserRoleRole),
+		v.extractAuth(v.sessionAuth), v.extractUser, v.extractRole,
+		v.requirePermission(models.CreateUserRoleRole),
 	)
 	g.DELETE(
 		"/v0/users/:user/roles/:role", v.deleteUserRole,
-		v.sessionAuth, v.requireAuth, v.extractUser, v.extractRole,
-		v.requireAuthRole(models.DeleteUserRoleRole),
+		v.extractAuth(v.sessionAuth), v.extractUser, v.extractRole,
+		v.requirePermission(models.DeleteUserRoleRole),
 	)
 }
 

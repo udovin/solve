@@ -15,89 +15,88 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
 
 func (v *View) registerContestHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/contests", v.observeContests,
-		v.sessionAuth,
-		v.requireAuthRole(models.ObserveContestsRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth),
+		v.requirePermission(models.ObserveContestsRole),
 	)
 	g.POST(
 		"/v0/contests", v.createContest,
-		v.sessionAuth, v.requireAuth,
-		v.requireAuthRole(models.CreateContestRole),
+		v.extractAuth(v.sessionAuth),
+		v.requirePermission(models.CreateContestRole),
 	)
 	g.GET(
 		"/v0/contests/:contest", v.observeContest,
-		v.sessionAuth, v.extractContest, v.extractContestRoles,
-		v.requireAuthRole(models.ObserveContestRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
+		v.requirePermission(models.ObserveContestRole),
 	)
 	g.PATCH(
 		"/v0/contests/:contest", v.updateContest,
-		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
-		v.requireAuthRole(models.UpdateContestRole),
+		v.extractAuth(v.sessionAuth), v.extractContest,
+		v.requirePermission(models.UpdateContestRole),
 	)
 	g.DELETE(
 		"/v0/contests/:contest", v.deleteContest,
-		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
-		v.requireAuthRole(models.DeleteContestRole),
+		v.extractAuth(v.sessionAuth), v.extractContest,
+		v.requirePermission(models.DeleteContestRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/problems", v.observeContestProblems,
-		v.sessionAuth, v.extractContest, v.extractContestRoles,
-		v.requireAuthRole(models.ObserveContestProblemsRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
+		v.requirePermission(models.ObserveContestProblemsRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/problems/:problem", v.observeContestProblem,
-		v.sessionAuth, v.extractContest, v.extractContestProblem,
-		v.extractContestRoles,
-		v.requireAuthRole(models.ObserveContestProblemRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest, v.extractContestProblem,
+		v.requirePermission(models.ObserveContestProblemRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/problems", v.createContestProblem,
-		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
-		v.requireAuthRole(models.CreateContestProblemRole),
+		v.extractAuth(v.sessionAuth), v.extractContest,
+		v.requirePermission(models.CreateContestProblemRole),
 	)
 	g.DELETE(
 		"/v0/contests/:contest/problems/:problem", v.deleteContestProblem,
-		v.sessionAuth, v.requireAuth, v.extractContest,
-		v.extractContestProblem, v.extractContestRoles,
-		v.requireAuthRole(models.DeleteContestProblemRole),
+		v.extractAuth(v.sessionAuth), v.extractContest,
+		v.extractContestProblem,
+		v.requirePermission(models.DeleteContestProblemRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/problems/:problem/submit",
-		v.submitContestProblemSolution, v.sessionAuth, v.requireAuth,
-		v.extractContest, v.extractContestProblem, v.extractContestRoles,
-		v.requireAuthRole(models.SubmitContestSolutionRole),
+		v.submitContestProblemSolution, v.extractAuth(v.sessionAuth),
+		v.extractContest, v.extractContestProblem,
+		v.requirePermission(models.SubmitContestSolutionRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/solutions", v.observeContestSolutions,
-		v.sessionAuth, v.extractContest, v.extractContestRoles,
-		v.requireAuthRole(models.ObserveContestSolutionsRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
+		v.requirePermission(models.ObserveContestSolutionsRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/solutions/:solution", v.observeContestSolution,
-		v.sessionAuth, v.extractContest, v.extractContestSolution,
-		v.extractContestSolutionRoles,
-		v.requireAuthRole(models.ObserveContestSolutionRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest, v.extractContestSolution,
+		v.requirePermission(models.ObserveContestSolutionRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/participants", v.observeContestParticipants,
-		v.sessionAuth, v.extractContest, v.extractContestRoles,
-		v.requireAuthRole(models.ObserveContestParticipantsRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
+		v.requirePermission(models.ObserveContestParticipantsRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/participants", v.createContestParticipant,
-		v.sessionAuth, v.requireAuth, v.extractContest, v.extractContestRoles,
-		v.requireAuthRole(models.CreateContestParticipantRole),
+		v.extractAuth(v.sessionAuth), v.extractContest,
+		v.requirePermission(models.CreateContestParticipantRole),
 	)
 	g.DELETE(
 		"/v0/contests/:contest/participants/:participant",
-		v.deleteContestParticipant, v.sessionAuth, v.requireAuth,
-		v.extractContest, v.extractContestParticipant, v.extractContestRoles,
-		v.requireAuthRole(models.DeleteContestParticipantRole),
+		v.deleteContestParticipant, v.extractAuth(v.sessionAuth),
+		v.extractContest, v.extractContestParticipant,
+		v.requirePermission(models.DeleteContestParticipantRole),
 	)
 }
 
@@ -165,13 +164,11 @@ var contestPermissions = []string{
 	models.DeleteContestSolutionRole,
 }
 
-func makeContest(contest models.Contest, roles core.RoleSet, core *core.Core) Contest {
+func makeContest(contest models.Contest, permissions managers.Permissions, core *core.Core) Contest {
 	resp := Contest{ID: contest.ID, Title: contest.Title}
-	if roles != nil {
-		for _, permission := range contestPermissions {
-			if ok, err := core.HasRole(roles, permission); err == nil && ok {
-				resp.Permissions = append(resp.Permissions, permission)
-			}
+	for _, permission := range contestPermissions {
+		if permissions.HasPermission(permission) {
+			resp.Permissions = append(resp.Permissions, permission)
 		}
 	}
 	return resp
@@ -191,10 +188,10 @@ func makeContestProblem(
 }
 
 func (v *View) observeContests(c echo.Context) error {
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
+		c.Logger().Error("account not extracted")
+		return fmt.Errorf("account not extracted")
 	}
 	var resp Contests
 	contests, err := v.core.Contests.All()
@@ -203,9 +200,12 @@ func (v *View) observeContests(c echo.Context) error {
 		return err
 	}
 	for _, contest := range contests {
-		contestRoles := v.extendContestRoles(c, roles, contest)
-		if ok, err := v.core.HasRole(contestRoles, models.ObserveContestRole); ok && err == nil {
-			resp.Contests = append(resp.Contests, makeContest(contest, contestRoles, v.core))
+		contextCtx, err := v.Contests.BuildContext(accountCtx, contest)
+		if err != nil {
+			return err
+		}
+		if contextCtx.HasPermission(models.ObserveContestRole) {
+			resp.Contests = append(resp.Contests, makeContest(contest, contextCtx, v.core))
 		}
 	}
 	sort.Sort(contestSorter(resp.Contests))
@@ -218,12 +218,12 @@ func (v *View) observeContest(c echo.Context) error {
 		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
 	}
-	return c.JSON(http.StatusOK, makeContest(contest, roles, v.core))
+	return c.JSON(http.StatusOK, makeContest(contest, contestCtx, v.core))
 }
 
 type updateContestForm struct {
@@ -273,6 +273,11 @@ func (f createContestForm) Update(contest *models.Contest) *errorResponse {
 }
 
 func (v *View) createContest(c echo.Context) error {
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		c.Logger().Error("auth not extracted")
+		return fmt.Errorf("auth not extracted")
+	}
 	var form createContestForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
@@ -282,14 +287,14 @@ func (v *View) createContest(c echo.Context) error {
 	if err := form.Update(&contest); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if account, ok := c.Get(authAccountKey).(models.Account); ok {
+	if account := accountCtx.Account; account != nil {
 		contest.OwnerID = models.NInt64(account.ID)
 	}
-	if err := v.core.Contests.Create(c.Request().Context(), &contest); err != nil {
+	if err := v.core.Contests.Create(accountCtx, &contest); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeContest(contest, nil, nil))
+	return c.JSON(http.StatusCreated, makeContest(contest, accountCtx, nil))
 }
 
 func (v *View) updateContest(c echo.Context) error {
@@ -298,10 +303,10 @@ func (v *View) updateContest(c echo.Context) error {
 		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
 	}
 	var form updateContestForm
 	if err := c.Bind(&form); err != nil {
@@ -311,11 +316,11 @@ func (v *View) updateContest(c echo.Context) error {
 	if err := form.Update(&contest); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if err := v.core.Contests.Update(c.Request().Context(), contest); err != nil {
+	if err := v.core.Contests.Update(contestCtx, contest); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeContest(contest, roles, v.core))
+	return c.JSON(http.StatusCreated, makeContest(contest, contestCtx, v.core))
 }
 
 func (v *View) deleteContest(c echo.Context) error {
@@ -324,11 +329,16 @@ func (v *View) deleteContest(c echo.Context) error {
 		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
-	if err := v.core.Contests.Delete(c.Request().Context(), contest.ID); err != nil {
+	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
+	if !ok {
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
+	}
+	if err := v.core.Contests.Delete(contestCtx, contest.ID); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusOK, makeContest(contest, nil, nil))
+	return c.JSON(http.StatusOK, makeContest(contest, contestCtx, nil))
 }
 
 func (v *View) observeContestProblems(c echo.Context) error {
@@ -578,12 +588,12 @@ type ContestSolutions struct {
 }
 
 func (v *View) observeContestSolutions(c echo.Context) error {
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
-	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
-	}
 	contest, ok := c.Get(contestKey).(models.Contest)
+	if !ok {
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
+	}
+	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
 		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
@@ -594,13 +604,11 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 	}
 	var resp ContestSolutions
 	for _, solution := range solutions {
-		solutionRoles := v.extendContestSolutionRoles(c, roles, solution)
-		if ok, err := v.core.HasRole(
-			solutionRoles, models.ObserveContestSolutionRole,
-		); ok && err == nil {
+		permissions := v.getContestSolutionPermissions(contestCtx, solution)
+		if permissions.HasPermission(models.ObserveContestSolutionRole) {
 			resp.Solutions = append(
 				resp.Solutions,
-				makeBaseContestSolution(c, solution, roles, v.core),
+				makeBaseContestSolution(c, solution, v.core),
 			)
 		}
 	}
@@ -609,17 +617,12 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 }
 
 func (v *View) observeContestSolution(c echo.Context) error {
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
-	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
-	}
 	solution, ok := c.Get(contestSolutionKey).(models.ContestSolution)
 	if !ok {
 		c.Logger().Error("solution not extracted")
 		return fmt.Errorf("solution not extracted")
 	}
-	resp := makeContestSolution(c, solution, roles, v.core)
+	resp := makeContestSolution(c, solution, v.core)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -646,10 +649,10 @@ type ContestSolution struct {
 }
 
 func (v *View) submitContestProblemSolution(c echo.Context) error {
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
+		c.Logger().Error("contest not extracted")
+		return fmt.Errorf("contest not extracted")
 	}
 	problem, ok := c.Get(contestProblemKey).(models.ContestProblem)
 	if !ok {
@@ -659,8 +662,8 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("contest not extracted")
 	}
-	account, ok := c.Get(authAccountKey).(models.Account)
-	if !ok {
+	account := contestCtx.Account
+	if account == nil {
 		return fmt.Errorf("account not extracted")
 	}
 	participants, err := v.core.ContestParticipants.
@@ -725,11 +728,11 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusCreated,
-		makeContestSolution(c, contestSolution, roles, v.core),
+		makeContestSolution(c, contestSolution, v.core),
 	)
 }
 
-func makeBaseContestSolution(c echo.Context, solution models.ContestSolution, roles core.RoleSet, core *core.Core) ContestSolution {
+func makeBaseContestSolution(c echo.Context, solution models.ContestSolution, core *core.Core) ContestSolution {
 	resp := ContestSolution{
 		ID:        solution.ID,
 		ContestID: solution.ContestID,
@@ -749,7 +752,7 @@ func makeBaseContestSolution(c echo.Context, solution models.ContestSolution, ro
 	return resp
 }
 
-func makeContestSolution(c echo.Context, solution models.ContestSolution, roles core.RoleSet, core *core.Core) ContestSolution {
+func makeContestSolution(c echo.Context, solution models.ContestSolution, core *core.Core) ContestSolution {
 	resp := ContestSolution{
 		ID:        solution.ID,
 		ContestID: solution.ContestID,
@@ -814,6 +817,18 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error(err)
 			return err
 		}
+		accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+		if !ok {
+			c.Logger().Error("auth not extracted")
+			return fmt.Errorf("auth not extracted")
+		}
+		contestCtx, err := v.Contests.BuildContext(accountCtx, contest)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+		c.Set(contestCtxKey, contestCtx)
+		c.Set(permissionCtxKey, contestCtx)
 		c.Set(contestKey, contest)
 		return next(c)
 	}
@@ -914,122 +929,31 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 				return c.JSON(http.StatusNotFound, resp)
 			}
 		}
-		c.Set(contestSolutionKey, solution)
-		return next(c)
-	}
-}
-
-func (v *View) extendContestRoles(
-	c echo.Context, roles core.RoleSet, contest models.Contest,
-) core.RoleSet {
-	contestRoles := roles.Clone()
-	if contest.ID == 0 {
-		return contestRoles
-	}
-	addRole := func(name string) {
-		if err := v.core.AddRole(contestRoles, name); err != nil {
-			c.Logger().Error(err)
-		}
-	}
-	account, ok := c.Get(authAccountKey).(models.Account)
-	if ok {
-		if contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
-			addRole(models.ObserveContestRole)
-			addRole(models.UpdateContestRole)
-			addRole(models.DeleteContestRole)
-			addRole(models.ObserveContestProblemsRole)
-			addRole(models.ObserveContestProblemRole)
-			addRole(models.CreateContestProblemRole)
-			addRole(models.DeleteContestProblemRole)
-			addRole(models.ObserveContestParticipantsRole)
-			addRole(models.ObserveContestParticipantRole)
-			addRole(models.CreateContestParticipantRole)
-			addRole(models.DeleteContestParticipantRole)
-			addRole(models.ObserveContestSolutionsRole)
-			addRole(models.ObserveContestSolutionRole)
-			addRole(models.CreateContestSolutionRole)
-			addRole(models.SubmitContestSolutionRole)
-			addRole(models.UpdateContestSolutionRole)
-			addRole(models.DeleteContestSolutionRole)
-		}
-		participants, err := v.core.ContestParticipants.
-			FindByContestAccount(contest.ID, account.ID)
-		if err != nil {
-			c.Logger().Error(err)
-		} else if len(participants) > 0 {
-			addRole(models.ObserveContestRole)
-			// TODO(iudovin): Add support of start time.
-			addRole(models.ObserveContestProblemsRole)
-			addRole(models.ObserveContestProblemRole)
-			addRole(models.ObserveContestSolutionsRole)
-			addRole(models.SubmitContestSolutionRole)
-		}
-	}
-	return contestRoles
-}
-
-func (v *View) extendContestSolutionRoles(
-	c echo.Context, roles core.RoleSet, solution models.ContestSolution,
-) core.RoleSet {
-	solutionRoles := roles.Clone()
-	if solution.ID == 0 {
-		return solutionRoles
-	}
-	addRole := func(name string) {
-		if err := v.core.AddRole(solutionRoles, name); err != nil {
-			c.Logger().Error(err)
-		}
-	}
-	account, ok := c.Get(authAccountKey).(models.Account)
-	if ok {
-		participants, err := v.core.ContestParticipants.
-			FindByContestAccount(solution.ContestID, account.ID)
-		if err != nil {
-			c.Logger().Error(err)
-		} else if len(participants) > 0 {
-			for _, participant := range participants {
-				if solution.ParticipantID != 0 &&
-					participant.ID == solution.ParticipantID {
-					addRole(models.ObserveContestSolutionRole)
-				}
-			}
-		}
-	}
-	return solutionRoles
-}
-
-func (v *View) extractContestRoles(next echo.HandlerFunc) echo.HandlerFunc {
-	nextWrap := func(c echo.Context) error {
-		contest, ok := c.Get(contestKey).(models.Contest)
+		contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 		if !ok {
 			c.Logger().Error("contest not extracted")
 			return fmt.Errorf("contest not extracted")
 		}
-		roles, ok := c.Get(authRolesKey).(core.RoleSet)
-		if !ok {
-			c.Logger().Error("roles not extracted")
-			return fmt.Errorf("roles not extracted")
-		}
-		c.Set(authRolesKey, v.extendContestRoles(c, roles, contest))
+		c.Set(contestSolutionKey, solution)
+		c.Set(permissionCtxKey, v.getContestSolutionPermissions(contestCtx, solution))
 		return next(c)
 	}
-	return v.extractAuthRoles(nextWrap)
 }
 
-func (v *View) extractContestSolutionRoles(next echo.HandlerFunc) echo.HandlerFunc {
-	nextWrap := func(c echo.Context) error {
-		solution, ok := c.Get(contestSolutionKey).(models.ContestSolution)
-		if !ok {
-			c.Logger().Error("solution not extracted")
-			return fmt.Errorf("solution not extracted")
-		}
-		roles, ok := c.Get(authRolesKey).(core.RoleSet)
-		if !ok {
-			c.Logger().Error("roles not extracted")
-			return fmt.Errorf("roles not extracted")
-		}
-		c.Set(authRolesKey, v.extendContestSolutionRoles(c, roles, solution))
-		return next(c)
+func (v *View) getContestSolutionPermissions(
+	ctx *managers.ContestContext, solution models.ContestSolution,
+) managers.PermissionSet {
+	permissions := ctx.Permissions.Clone()
+	if solution.ID == 0 {
+		return permissions
 	}
-	return v.extractContestRoles(nextWrap)
+	if solution.ParticipantID != 0 {
+		for _, participant := range ctx.Participants {
+			if participant.ID == solution.ParticipantID {
+				permissions[models.ObserveContestSolutionRole] = struct{}{}
+				break
+			}
+		}
+	}
+	return permissions
 }

@@ -12,8 +12,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
-
-	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
 
@@ -21,25 +20,25 @@ import (
 func (v *View) registerProblemHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/problems", v.observeProblems,
-		v.sessionAuth,
-		v.requireAuthRole(models.ObserveProblemsRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth),
+		v.requirePermission(models.ObserveProblemsRole),
 	)
 	if v.core.Config.Storage != nil {
 		g.POST(
 			"/v0/problems", v.createProblem,
-			v.sessionAuth, v.requireAuth,
-			v.requireAuthRole(models.CreateProblemRole),
+			v.extractAuth(v.sessionAuth),
+			v.requirePermission(models.CreateProblemRole),
 		)
 	}
 	g.GET(
 		"/v0/problems/:problem", v.observeProblem,
-		v.sessionAuth, v.extractProblem, v.extractProblemRoles,
-		v.requireAuthRole(models.ObserveProblemRole),
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractProblem,
+		v.requirePermission(models.ObserveProblemRole),
 	)
 	g.DELETE(
 		"/v0/problems/:problem", v.deleteProblem,
-		v.sessionAuth, v.requireAuth, v.extractProblem, v.extractProblemRoles,
-		v.requireAuthRole(models.DeleteProblemRole),
+		v.extractAuth(v.sessionAuth), v.extractProblem,
+		v.requirePermission(models.DeleteProblemRole),
 	)
 }
 
@@ -74,20 +73,20 @@ func makeProblem(problem models.Problem) Problem {
 }
 
 func (v *View) observeProblems(c echo.Context) error {
-	roles, ok := c.Get(authRolesKey).(core.RoleSet)
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
-		c.Logger().Error("roles not extracted")
-		return fmt.Errorf("roles not extracted")
+		c.Logger().Error("auth not extracted")
+		return fmt.Errorf("auth not extracted")
 	}
-	var resp Problems
 	problems, err := v.core.Problems.All()
 	if err != nil {
 		c.Logger().Error(err)
 		return err
 	}
+	var resp Problems
 	for _, problem := range problems {
-		problemRoles := v.extendProblemRoles(c, roles, problem)
-		if ok, err := v.core.HasRole(problemRoles, models.ObserveProblemRole); ok && err == nil {
+		permissions := v.getProblemPermissions(accountCtx, problem)
+		if permissions.HasPermission(models.ObserveProblemRole) {
 			resp.Problems = append(resp.Problems, makeProblem(problem))
 		}
 	}
@@ -134,6 +133,11 @@ func (f createProblemForm) Update(problem *models.Problem) *errorResponse {
 }
 
 func (v *View) createProblem(c echo.Context) error {
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		c.Logger().Error("auth not extracted")
+		return fmt.Errorf("auth not extracted")
+	}
 	var form createProblemForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
@@ -143,7 +147,7 @@ func (v *View) createProblem(c echo.Context) error {
 	if err := form.Update(&problem); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if account, ok := c.Get(authAccountKey).(models.Account); ok {
+	if account := accountCtx.Account; account != nil {
 		problem.OwnerID = models.NInt64(account.ID)
 	}
 	if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
@@ -213,43 +217,26 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Error(err)
 			return err
 		}
+		accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+		if !ok {
+			c.Logger().Error("auth not extracted")
+			return fmt.Errorf("auth not extracted")
+		}
 		c.Set(problemKey, problem)
+		c.Set(permissionCtxKey, v.getProblemPermissions(accountCtx, problem))
 		return next(c)
 	}
 }
 
-func (v *View) extendProblemRoles(
-	c echo.Context, roles core.RoleSet, problem models.Problem,
-) core.RoleSet {
-	problemRoles := roles.Clone()
-	addRole := func(name string) {
-		if err := v.core.AddRole(problemRoles, name); err != nil {
-			c.Logger().Error(err)
-		}
+func (v *View) getProblemPermissions(
+	ctx *managers.AccountContext, problem models.Problem,
+) managers.PermissionSet {
+	permissions := ctx.Permissions.Clone()
+	if account := ctx.Account; account != nil &&
+		problem.OwnerID != 0 && account.ID == int64(problem.OwnerID) {
+		permissions[models.ObserveProblemRole] = struct{}{}
+		permissions[models.UpdateProblemRole] = struct{}{}
+		permissions[models.DeleteProblemRole] = struct{}{}
 	}
-	account, ok := c.Get(authAccountKey).(models.Account)
-	if ok && problem.OwnerID != 0 && account.ID == int64(problem.OwnerID) {
-		addRole(models.ObserveProblemRole)
-		addRole(models.UpdateProblemRole)
-		addRole(models.DeleteProblemRole)
-	}
-	return problemRoles
-}
-
-func (v *View) extractProblemRoles(next echo.HandlerFunc) echo.HandlerFunc {
-	nextWrap := func(c echo.Context) error {
-		problem, ok := c.Get(problemKey).(models.Problem)
-		if !ok {
-			c.Logger().Error("session not extracted")
-			return fmt.Errorf("session not extracted")
-		}
-		roles, ok := c.Get(authRolesKey).(core.RoleSet)
-		if !ok {
-			c.Logger().Error("roles not extracted")
-			return fmt.Errorf("roles not extracted")
-		}
-		c.Set(authRolesKey, v.extendProblemRoles(c, roles, problem))
-		return next(c)
-	}
-	return v.extractAuthRoles(nextWrap)
+	return permissions
 }

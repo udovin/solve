@@ -4,7 +4,11 @@
   },
   {
     "id": 1,
-    "title": "Test contest"
+    "title": "Test contest",
+    "permissions": [
+      "update_contest",
+      "delete_contest"
+    ]
   },
   {
     "contests": [
@@ -22,7 +26,6 @@
           "delete_contest_participant",
           "observe_contest_solutions",
           "create_contest_solution",
-          "submit_contest_solution",
           "update_contest_solution",
           "delete_contest_solution"
         ]
@@ -43,7 +46,6 @@
       "delete_contest_participant",
       "observe_contest_solutions",
       "create_contest_solution",
-      "submit_contest_solution",
       "update_contest_solution",
       "delete_contest_solution"
     ]

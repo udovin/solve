@@ -473,8 +473,8 @@ func (m *m001) createRoles(ctx context.Context, c *core.Core) error {
 		models.ObserveContestsRole,
 	}
 	allGroups := []string{
-		models.GuestGroupRole,
-		models.UserGroupRole,
+		"guest_group",
+		"user_group",
 		"admin_group",
 	}
 	for _, role := range allRoles {
@@ -496,7 +496,7 @@ func (m *m001) createRoles(ctx context.Context, c *core.Core) error {
 		models.ObserveContestsRole,
 		models.ObserveSolutionsRole,
 	} {
-		if err := join(role, models.GuestGroupRole); err != nil {
+		if err := join(role, "guest_group"); err != nil {
 			return err
 		}
 	}
@@ -509,7 +509,7 @@ func (m *m001) createRoles(ctx context.Context, c *core.Core) error {
 		models.ObserveContestsRole,
 		models.ObserveSolutionsRole,
 	} {
-		if err := join(role, models.UserGroupRole); err != nil {
+		if err := join(role, "user_group"); err != nil {
 			return err
 		}
 	}

@@ -78,7 +78,6 @@ const (
 	sessionKey            = "session"
 	sessionCookie         = "session"
 	contestCtxKey         = "contest_ctx"
-	contestKey            = "contest"
 	contestProblemKey     = "contest_problem"
 	contestParticipantKey = "contest_participant"
 	contestSolutionKey    = "contest_solution"

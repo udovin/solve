@@ -68,6 +68,6 @@ func (c *ContestContext) HasPermission(name string) bool {
 }
 
 var (
-	_ context.Context = &ContestContext{}
-	_ Permissions     = &ContestContext{}
+	_ context.Context = (*ContestContext)(nil)
+	_ Permissions     = (*ContestContext)(nil)
 )

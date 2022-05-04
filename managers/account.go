@@ -170,6 +170,6 @@ func (c *AccountContext) Value(key any) any {
 }
 
 var (
-	_ context.Context = &AccountContext{}
-	_ Permissions     = &AccountContext{}
+	_ context.Context = (*AccountContext)(nil)
+	_ Permissions     = (*AccountContext)(nil)
 )

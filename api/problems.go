@@ -75,12 +75,10 @@ func makeProblem(problem models.Problem) Problem {
 func (v *View) observeProblems(c echo.Context) error {
 	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
-		c.Logger().Error("auth not extracted")
-		return fmt.Errorf("auth not extracted")
+		return fmt.Errorf("account not extracted")
 	}
 	problems, err := v.core.Problems.All()
 	if err != nil {
-		c.Logger().Error(err)
 		return err
 	}
 	var resp Problems
@@ -97,7 +95,6 @@ func (v *View) observeProblems(c echo.Context) error {
 func (v *View) observeProblem(c echo.Context) error {
 	problem, ok := c.Get(problemKey).(models.Problem)
 	if !ok {
-		c.Logger().Error("problem not extracted")
 		return fmt.Errorf("problem not extracted")
 	}
 	return c.JSON(http.StatusOK, makeProblem(problem))
@@ -135,8 +132,7 @@ func (f createProblemForm) Update(problem *models.Problem) *errorResponse {
 func (v *View) createProblem(c echo.Context) error {
 	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
-		c.Logger().Error("auth not extracted")
-		return fmt.Errorf("auth not extracted")
+		return fmt.Errorf("account not extracted")
 	}
 	var form createProblemForm
 	if err := c.Bind(&form); err != nil {
@@ -176,7 +172,6 @@ func (v *View) createProblem(c echo.Context) error {
 		_, err = io.Copy(dst, src)
 		return err
 	}, sqlRepeatableRead); err != nil {
-		c.Logger().Error(err)
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeProblem(problem))
@@ -185,11 +180,9 @@ func (v *View) createProblem(c echo.Context) error {
 func (v *View) deleteProblem(c echo.Context) error {
 	problem, ok := c.Get(problemKey).(models.Problem)
 	if !ok {
-		c.Logger().Error("problem not extracted")
 		return fmt.Errorf("problem not extracted")
 	}
 	if err := v.core.Problems.Delete(c.Request().Context(), problem.ID); err != nil {
-		c.Logger().Error(err)
 		return err
 	}
 	return c.JSON(http.StatusOK, makeProblem(problem))
@@ -200,7 +193,10 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 		id, err := strconv.ParseInt(c.Param("problem"), 10, 64)
 		if err != nil {
 			c.Logger().Warn(err)
-			return err
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: "invalid problem ID",
+			}
 		}
 		problem, err := v.core.Problems.Get(id)
 		if err == sql.ErrNoRows {
@@ -211,16 +207,16 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResponse{Message: "problem not found"}
-				return c.JSON(http.StatusNotFound, resp)
+				return errorResponse{
+					Code:    http.StatusNotFound,
+					Message: "problem not found",
+				}
 			}
-			c.Logger().Error(err)
 			return err
 		}
 		accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 		if !ok {
-			c.Logger().Error("auth not extracted")
-			return fmt.Errorf("auth not extracted")
+			return fmt.Errorf("account not extracted")
 		}
 		c.Set(problemKey, problem)
 		c.Set(permissionCtxKey, v.getProblemPermissions(accountCtx, problem))

@@ -190,13 +190,11 @@ func makeContestProblem(
 func (v *View) observeContests(c echo.Context) error {
 	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
-		c.Logger().Error("account not extracted")
 		return fmt.Errorf("account not extracted")
 	}
 	var resp Contests
 	contests, err := v.core.Contests.All()
 	if err != nil {
-		c.Logger().Error(err)
 		return err
 	}
 	for _, contest := range contests {
@@ -215,7 +213,6 @@ func (v *View) observeContests(c echo.Context) error {
 func (v *View) observeContest(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
@@ -237,6 +234,7 @@ func (f updateContestForm) validate() *errorResponse {
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
+			Code:          http.StatusBadRequest,
 			Message:       "form has invalid fields",
 			InvalidFields: errors,
 		}
@@ -259,6 +257,7 @@ type createContestForm updateContestForm
 func (f createContestForm) Update(contest *models.Contest) *errorResponse {
 	if f.Title == nil {
 		return &errorResponse{
+			Code:    http.StatusBadRequest,
 			Message: "form has invalid fields",
 			InvalidFields: errorFields{
 				"title": errorField{Message: "title is required"},
@@ -271,8 +270,7 @@ func (f createContestForm) Update(contest *models.Contest) *errorResponse {
 func (v *View) createContest(c echo.Context) error {
 	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
-		c.Logger().Error("auth not extracted")
-		return fmt.Errorf("auth not extracted")
+		return fmt.Errorf("account not extracted")
 	}
 	var form createContestForm
 	if err := c.Bind(&form); err != nil {
@@ -281,13 +279,12 @@ func (v *View) createContest(c echo.Context) error {
 	}
 	var contest models.Contest
 	if err := form.Update(&contest); err != nil {
-		return c.JSON(http.StatusBadRequest, err)
+		return err
 	}
 	if account := accountCtx.Account; account != nil {
 		contest.OwnerID = models.NInt64(account.ID)
 	}
 	if err := v.core.Contests.Create(accountCtx, &contest); err != nil {
-		c.Logger().Error(err)
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeContest(contest, accountCtx, nil))
@@ -296,7 +293,6 @@ func (v *View) createContest(c echo.Context) error {
 func (v *View) updateContest(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
@@ -306,10 +302,9 @@ func (v *View) updateContest(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 	if err := form.Update(&contest); err != nil {
-		return c.JSON(http.StatusBadRequest, err)
+		return err
 	}
 	if err := v.core.Contests.Update(c.Request().Context(), contest); err != nil {
-		c.Logger().Error(err)
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeContest(contest, contestCtx, v.core))
@@ -318,12 +313,10 @@ func (v *View) updateContest(c echo.Context) error {
 func (v *View) deleteContest(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
 	if err := v.core.Contests.Delete(c.Request().Context(), contest.ID); err != nil {
-		c.Logger().Error(err)
 		return err
 	}
 	return c.JSON(http.StatusOK, makeContest(contest, contestCtx, nil))
@@ -332,7 +325,6 @@ func (v *View) deleteContest(c echo.Context) error {
 func (v *View) observeContestProblems(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
@@ -342,10 +334,7 @@ func (v *View) observeContestProblems(c echo.Context) error {
 	}
 	resp := ContestProblems{}
 	for _, problem := range problems {
-		resp.Problems = append(
-			resp.Problems,
-			makeContestProblem(problem, v.core.Problems),
-		)
+		resp.Problems = append(resp.Problems, makeContestProblem(problem, v.core.Problems))
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -353,13 +342,9 @@ func (v *View) observeContestProblems(c echo.Context) error {
 func (v *View) observeContestProblem(c echo.Context) error {
 	problem, ok := c.Get(contestProblemKey).(models.ContestProblem)
 	if !ok {
-		c.Logger().Error("contest problem not extracted")
 		return fmt.Errorf("contest problem not extracted")
 	}
-	return c.JSON(
-		http.StatusOK,
-		makeContestProblem(problem, v.core.Problems),
-	)
+	return c.JSON(http.StatusOK, makeContestProblem(problem, v.core.Problems))
 }
 
 type createContestProblemForm struct {
@@ -377,6 +362,7 @@ func (f createContestProblemForm) validate() *errorResponse {
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
+			Code:          http.StatusBadRequest,
 			Message:       "form has invalid fields",
 			InvalidFields: errors,
 		}
@@ -391,9 +377,10 @@ func (f createContestProblemForm) Update(
 		return err
 	}
 	if _, err := problems.Get(f.ProblemID); err != nil {
-		return &errorResponse{Message: fmt.Sprintf(
-			"problem %d does not exists", f.ProblemID,
-		)}
+		return &errorResponse{
+			Code:    http.StatusNotFound,
+			Message: fmt.Sprintf("problem %d does not exists", f.ProblemID),
+		}
 	}
 	problem.Code = f.Code
 	problem.ProblemID = f.ProblemID
@@ -403,7 +390,6 @@ func (f createContestProblemForm) Update(
 func (v *View) createContestProblem(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
@@ -414,7 +400,7 @@ func (v *View) createContestProblem(c echo.Context) error {
 	}
 	var problem models.ContestProblem
 	if err := form.Update(&problem, v.core.Problems); err != nil {
-		return c.JSON(http.StatusBadRequest, err)
+		return err
 	}
 	problem.ContestID = contest.ID
 	{
@@ -424,43 +410,34 @@ func (v *View) createContestProblem(c echo.Context) error {
 		}
 		for _, contestProblem := range problems {
 			if problem.Code == contestProblem.Code {
-				resp := errorResponse{Message: fmt.Sprintf(
-					"problem with code %q already exists", problem.Code,
-				)}
-				return c.JSON(http.StatusBadRequest, resp)
+				return errorResponse{
+					Code:    http.StatusBadRequest,
+					Message: fmt.Sprintf("problem with code %q already exists", problem.Code),
+				}
 			}
 			if problem.ProblemID == contestProblem.ProblemID {
-				resp := errorResponse{Message: fmt.Sprintf(
-					"problem %d already exists", problem.ProblemID,
-				)}
-				return c.JSON(http.StatusBadRequest, resp)
+				return errorResponse{
+					Code:    http.StatusBadRequest,
+					Message: fmt.Sprintf("problem %d already exists", problem.ProblemID),
+				}
 			}
 		}
 	}
 	if err := v.core.ContestProblems.Create(c.Request().Context(), &problem); err != nil {
-		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(
-		http.StatusCreated,
-		makeContestProblem(problem, v.core.Problems),
-	)
+	return c.JSON(http.StatusCreated, makeContestProblem(problem, v.core.Problems))
 }
 
 func (v *View) deleteContestProblem(c echo.Context) error {
 	problem, ok := c.Get(contestProblemKey).(models.ContestProblem)
 	if !ok {
-		c.Logger().Error("contest problem not extracted")
 		return fmt.Errorf("contest problem not extracted")
 	}
 	if err := v.core.ContestProblems.Delete(c.Request().Context(), problem.ID); err != nil {
-		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(
-		http.StatusOK,
-		makeContestProblem(problem, v.core.Problems),
-	)
+	return c.JSON(http.StatusOK, makeContestProblem(problem, v.core.Problems))
 }
 
 type ContestParticipant struct {
@@ -478,7 +455,6 @@ type ContestParticipants struct {
 func (v *View) observeContestParticipants(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
@@ -488,10 +464,7 @@ func (v *View) observeContestParticipants(c echo.Context) error {
 	}
 	var resp ContestParticipants
 	for _, participant := range participants {
-		resp.Participants = append(
-			resp.Participants,
-			makeContestParticipant(c, participant, v.core),
-		)
+		resp.Participants = append(resp.Participants, makeContestParticipant(c, participant, v.core))
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -508,23 +481,29 @@ func (f createContestParticipantForm) Update(
 	if f.UserID != nil {
 		user, err := core.Users.Get(*f.UserID)
 		if err != nil {
-			return &errorResponse{Message: fmt.Sprintf(
-				"user with id %d does not exists", *f.UserID,
-			)}
+			return &errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: fmt.Sprintf("user #%d does not exists", *f.UserID),
+			}
 		}
 		participant.AccountID = user.AccountID
 	} else if f.UserLogin != nil {
 		user, err := core.Users.GetByLogin(*f.UserLogin)
 		if err != nil {
-			return &errorResponse{Message: fmt.Sprintf(
-				"user %q does not exists", *f.UserLogin,
-			)}
+			return &errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: fmt.Sprintf("user %q does not exists", *f.UserLogin),
+			}
 		}
 		participant.AccountID = user.AccountID
 	}
 	participant.Kind = f.Kind
+	if participant.Kind == 0 {
+		participant.Kind = models.RegularParticipant
+	}
 	if participant.AccountID == 0 {
 		return &errorResponse{
+			Code:    http.StatusBadRequest,
 			Message: "participant account is not specified",
 		}
 	}
@@ -534,7 +513,6 @@ func (f createContestParticipantForm) Update(
 func (v *View) createContestParticipant(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
@@ -545,33 +523,38 @@ func (v *View) createContestParticipant(c echo.Context) error {
 	}
 	var participant models.ContestParticipant
 	if err := form.Update(&participant, v.core); err != nil {
-		return c.JSON(http.StatusBadRequest, err)
-	}
-	participant.ContestID = contest.ID
-	if err := v.core.ContestParticipants.Create(c.Request().Context(), &participant); err != nil {
-		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(
-		http.StatusCreated,
-		makeContestParticipant(c, participant, v.core),
-	)
+	participant.ContestID = contest.ID
+	{
+		participants, err := v.core.ContestParticipants.FindByContestAccount(contest.ID, participant.AccountID)
+		if err != nil {
+			return err
+		}
+		for _, p := range participants {
+			if p.Kind == participant.Kind {
+				return errorResponse{
+					Code:    http.StatusBadRequest,
+					Message: fmt.Sprintf("participant with %q kind already exists", participant.Kind),
+				}
+			}
+		}
+	}
+	if err := v.core.ContestParticipants.Create(c.Request().Context(), &participant); err != nil {
+		return err
+	}
+	return c.JSON(http.StatusCreated, makeContestParticipant(c, participant, v.core))
 }
 
 func (v *View) deleteContestParticipant(c echo.Context) error {
 	participant, ok := c.Get(contestParticipantKey).(models.ContestParticipant)
 	if !ok {
-		c.Logger().Error("contest participant not extracted")
 		return fmt.Errorf("contest participant not extracted")
 	}
 	if err := v.core.ContestParticipants.Delete(c.Request().Context(), participant.ID); err != nil {
-		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(
-		http.StatusOK,
-		makeContestParticipant(c, participant, nil),
-	)
+	return c.JSON(http.StatusOK, makeContestParticipant(c, participant, v.core))
 }
 
 // ContestSolutions represents contest solutions response.
@@ -582,7 +565,6 @@ type ContestSolutions struct {
 func (v *View) observeContestSolutions(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
@@ -594,10 +576,7 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 	for _, solution := range solutions {
 		permissions := v.getContestSolutionPermissions(contestCtx, solution)
 		if permissions.HasPermission(models.ObserveContestSolutionRole) {
-			resp.Solutions = append(
-				resp.Solutions,
-				makeBaseContestSolution(c, solution, v.core),
-			)
+			resp.Solutions = append(resp.Solutions, makeBaseContestSolution(c, solution, v.core))
 		}
 	}
 	sort.Sort(contestSolutionSorter(resp.Solutions))
@@ -607,7 +586,6 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 func (v *View) observeContestSolution(c echo.Context) error {
 	solution, ok := c.Get(contestSolutionKey).(models.ContestSolution)
 	if !ok {
-		c.Logger().Error("solution not extracted")
 		return fmt.Errorf("solution not extracted")
 	}
 	resp := makeContestSolution(c, solution, v.core)
@@ -639,7 +617,6 @@ type ContestSolution struct {
 func (v *View) submitContestProblemSolution(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
-		c.Logger().Error("contest not extracted")
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
@@ -651,14 +628,12 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	if account == nil {
 		return fmt.Errorf("account not extracted")
 	}
-	participants, err := v.core.ContestParticipants.
-		FindByContestAccount(contest.ID, account.ID)
-	if err != nil {
-		return err
-	}
+	participants := contestCtx.Participants
 	if len(participants) == 0 {
-		resp := errorResponse{Message: "participant not found"}
-		return c.JSON(http.StatusForbidden, resp)
+		return errorResponse{
+			Code:    http.StatusForbidden,
+			Message: "participant not found",
+		}
 	}
 	solution := models.Solution{
 		ProblemID:  problem.ProblemID,
@@ -711,10 +686,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	}, sqlRepeatableRead); err != nil {
 		return err
 	}
-	return c.JSON(
-		http.StatusCreated,
-		makeContestSolution(c, contestSolution, v.core),
-	)
+	return c.JSON(http.StatusCreated, makeContestSolution(c, contestSolution, v.core))
 }
 
 func makeBaseContestSolution(c echo.Context, solution models.ContestSolution, core *core.Core) ContestSolution {
@@ -766,13 +738,11 @@ func makeContestParticipant(
 		ContestID: participant.ContestID,
 		Kind:      participant.Kind,
 	}
-	if core != nil {
-		if account, err := core.Accounts.Get(participant.AccountID); err == nil {
-			switch account.Kind {
-			case models.UserAccount:
-				if user, err := core.Users.GetByAccount(account.ID); err == nil {
-					resp.User = &User{ID: user.ID, Login: user.Login}
-				}
+	if account, err := core.Accounts.Get(participant.AccountID); err == nil {
+		switch account.Kind {
+		case models.UserAccount:
+			if user, err := core.Users.GetByAccount(account.ID); err == nil {
+				resp.User = &User{ID: user.ID, Login: user.Login}
 			}
 		}
 	}
@@ -784,8 +754,10 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 		id, err := strconv.ParseInt(c.Param("contest"), 10, 64)
 		if err != nil {
 			c.Logger().Warn(err)
-			resp := errorResponse{Message: "invalid contest ID"}
-			return c.JSON(http.StatusBadRequest, resp)
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: "invalid contest ID",
+			}
 		}
 		contest, err := v.core.Contests.Get(id)
 		if err == sql.ErrNoRows {
@@ -796,20 +768,19 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResponse{Message: "contest not found"}
-				return c.JSON(http.StatusNotFound, resp)
+				return errorResponse{
+					Code:    http.StatusNotFound,
+					Message: "contest not found",
+				}
 			}
-			c.Logger().Error(err)
 			return err
 		}
 		accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 		if !ok {
-			c.Logger().Error("auth not extracted")
-			return fmt.Errorf("auth not extracted")
+			return fmt.Errorf("account not extracted")
 		}
 		contestCtx, err := v.Contests.BuildContext(accountCtx, contest)
 		if err != nil {
-			c.Logger().Error(err)
 			return err
 		}
 		c.Set(contestCtxKey, contestCtx)
@@ -822,18 +793,18 @@ func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		code := c.Param("problem")
 		if len(code) == 0 {
-			resp := errorResponse{Message: "empty problem code"}
-			return c.JSON(http.StatusNotFound, resp)
+			return errorResponse{
+				Code:    http.StatusNotFound,
+				Message: "empty problem code",
+			}
 		}
 		contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 		if !ok {
-			c.Logger().Error("contest not extracted")
 			return fmt.Errorf("contest not extracted")
 		}
 		contest := contestCtx.Contest
 		problems, err := v.core.ContestProblems.FindByContest(contest.ID)
 		if err != nil {
-			c.Logger().Error(err)
 			return err
 		}
 		pos := -1
@@ -844,10 +815,10 @@ func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		}
 		if pos == -1 {
-			resp := errorResponse{
+			return errorResponse{
+				Code:    http.StatusNotFound,
 				Message: fmt.Sprintf("problem %q does not exists", code),
 			}
-			return c.JSON(http.StatusNotFound, resp)
 		}
 		c.Set(contestProblemKey, problems[pos])
 		return next(c)
@@ -859,26 +830,30 @@ func (v *View) extractContestParticipant(next echo.HandlerFunc) echo.HandlerFunc
 		id, err := strconv.ParseInt(c.Param("participant"), 10, 64)
 		if err != nil {
 			c.Logger().Warn(err)
-			resp := errorResponse{Message: "invalid participant ID"}
-			return c.JSON(http.StatusBadRequest, resp)
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: "invalid participant ID",
+			}
 		}
 		participant, err := v.core.ContestParticipants.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResponse{Message: "participant not found"}
-				return c.JSON(http.StatusNotFound, resp)
+				return errorResponse{
+					Code:    http.StatusNotFound,
+					Message: "participant not found",
+				}
 			}
-			c.Logger().Error(err)
 			return err
 		}
 		contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 		if !ok {
-			c.Logger().Error("contest not extracted")
 			return fmt.Errorf("contest not extracted")
 		}
 		if contestCtx.Contest.ID != participant.ContestID {
-			resp := errorResponse{Message: "participant not found"}
-			return c.JSON(http.StatusNotFound, resp)
+			return errorResponse{
+				Code:    http.StatusNotFound,
+				Message: "participant not found",
+			}
 		}
 		c.Set(contestParticipantKey, participant)
 		return next(c)
@@ -890,8 +865,10 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 		id, err := strconv.ParseInt(c.Param("solution"), 10, 64)
 		if err != nil {
 			c.Logger().Warn(err)
-			resp := errorResponse{Message: "invalid solution ID"}
-			return c.JSON(http.StatusBadRequest, resp)
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: "invalid solution ID",
+			}
 		}
 		solution, err := v.core.ContestSolutions.Get(id)
 		if err == sql.ErrNoRows {
@@ -905,20 +882,22 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResponse{Message: "solution not found"}
-				return c.JSON(http.StatusNotFound, resp)
+				return errorResponse{
+					Code:    http.StatusNotFound,
+					Message: "solution not found",
+				}
 			}
-			c.Logger().Error(err)
 			return err
 		}
 		contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 		if !ok {
-			c.Logger().Error("contest not extracted")
 			return fmt.Errorf("contest not extracted")
 		}
 		if contestCtx.Contest.ID != solution.ContestID {
-			resp := errorResponse{Message: "solution not found"}
-			return c.JSON(http.StatusNotFound, resp)
+			return errorResponse{
+				Code:    http.StatusNotFound,
+				Message: "solution not found",
+			}
 		}
 		c.Set(contestSolutionKey, solution)
 		c.Set(permissionCtxKey, v.getContestSolutionPermissions(contestCtx, solution))

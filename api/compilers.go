@@ -64,12 +64,10 @@ func (v compilerSorter) Swap(i, j int) {
 func (v *View) ObserveCompilers(c echo.Context) error {
 	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
-		c.Logger().Error("auth not extracted")
-		return fmt.Errorf("auth not extracted")
+		return fmt.Errorf("account not extracted")
 	}
 	compilers, err := v.core.Compilers.All()
 	if err != nil {
-		c.Logger().Error(err)
 		return err
 	}
 	var resp Compilers
@@ -115,8 +113,7 @@ func (f createCompilerForm) Update(compiler *models.Compiler) *errorResponse {
 func (v *View) createCompiler(c echo.Context) error {
 	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
-		c.Logger().Error("auth not extracted")
-		return fmt.Errorf("auth not extracted")
+		return fmt.Errorf("account not extracted")
 	}
 	var form createCompilerForm
 	if err := c.Bind(&form); err != nil {
@@ -125,7 +122,7 @@ func (v *View) createCompiler(c echo.Context) error {
 	}
 	var compiler models.Compiler
 	if err := form.Update(&compiler); err != nil {
-		return c.JSON(http.StatusBadRequest, err)
+		return err
 	}
 	if account := accountCtx.Account; account != nil {
 		compiler.OwnerID = models.NInt64(account.ID)
@@ -156,7 +153,6 @@ func (v *View) createCompiler(c echo.Context) error {
 		_, err = io.Copy(dst, src)
 		return err
 	}, sqlRepeatableRead); err != nil {
-		c.Logger().Error(err)
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeCompiler(compiler))
@@ -169,11 +165,9 @@ func (v *View) updateCompiler(c echo.Context) error {
 func (v *View) deleteCompiler(c echo.Context) error {
 	compiler, ok := c.Get(compilerKey).(models.Compiler)
 	if !ok {
-		c.Logger().Error("problem not extracted")
 		return fmt.Errorf("problem not extracted")
 	}
 	if err := v.core.Compilers.Delete(c.Request().Context(), compiler.ID); err != nil {
-		c.Logger().Error(err)
 		return err
 	}
 	return c.JSON(http.StatusOK, makeCompiler(compiler))

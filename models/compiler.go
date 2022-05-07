@@ -2,9 +2,13 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"github.com/udovin/gosql"
 )
+
+type CompilerConfig struct {
+}
 
 // Compiler represents compiler.
 type Compiler struct {
@@ -22,6 +26,13 @@ func (o Compiler) ObjectID() int64 {
 // Clone creates copy of compiler.
 func (o Compiler) Clone() Compiler {
 	return o
+}
+
+// GetConfig returns compiler config.
+func (o Compiler) GetConfig() (*CompilerConfig, error) {
+	var config *CompilerConfig
+	err := json.Unmarshal(o.Config, &config)
+	return config, err
 }
 
 // CompilerEvent represents compiler event.

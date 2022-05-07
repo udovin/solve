@@ -82,10 +82,11 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 }
 
 type createCompilerForm struct {
-	Name string `form:"name"`
+	Name   string      `form:"name" json:"name"`
+	Config models.JSON `form:"config" json:"config"`
 }
 
-func (f createCompilerForm) validate() *errorResponse {
+func (f createCompilerForm) Update(compiler *models.Compiler) *errorResponse {
 	errors := errorFields{}
 	if len(f.Name) < 4 {
 		errors["name"] = errorField{Message: "name is too short"}
@@ -95,18 +96,13 @@ func (f createCompilerForm) validate() *errorResponse {
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
+			Code:          http.StatusBadRequest,
 			Message:       "form has invalid fields",
 			InvalidFields: errors,
 		}
 	}
-	return nil
-}
-
-func (f createCompilerForm) Update(compiler *models.Compiler) *errorResponse {
-	if err := f.validate(); err != nil {
-		return err
-	}
 	compiler.Name = f.Name
+	compiler.Config = f.Config
 	return nil
 }
 

@@ -148,7 +148,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 func (s *Invoker) onTask(ctx context.Context, task models.Task) error {
 	s.core.Logger().Debug("Received new task: ", task.ID)
 	switch task.Kind {
-	case models.JudgeSolution:
+	case models.JudgeSolutionTask:
 		return s.onJudgeSolution(ctx, task)
 	default:
 		s.core.Logger().Error("Unknown task: ", task.Kind)
@@ -170,7 +170,7 @@ func (s *Invoker) getSolution(id int64) (models.Solution, error) {
 }
 
 func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
-	var taskConfig models.JudgeSolutionConfig
+	var taskConfig models.JudgeSolutionTaskConfig
 	if err := task.ScanConfig(&taskConfig); err != nil {
 		return fmt.Errorf("unable to scan task config: %w", err)
 	}
@@ -213,7 +213,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 		return err
 	}
 	compierPath := filepath.Join(
-		s.core.Config.Storage.CompilersDir,
+		s.core.Config.Storage.ImagesDir,
 		"dosbox-tasm.tar.gz",
 	)
 	solutionPath := filepath.Join(

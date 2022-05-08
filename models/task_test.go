@@ -91,13 +91,13 @@ func TestTaskStatus(t *testing.T) {
 }
 
 func TestTaskKind(t *testing.T) {
-	if s := fmt.Sprintf("%s", JudgeSolution); s != "judge_solution" {
+	if s := fmt.Sprintf("%s", JudgeSolutionTask); s != "judge_solution" {
 		t.Errorf("Expected %q, got %q", "judge_solution", s)
 	}
 	if s := fmt.Sprintf("%s", TaskKind(-1)); s != "TaskKind(-1)" {
 		t.Errorf("Expected %q, got %q", "TaskKind(-1)", s)
 	}
-	text, err := JudgeSolution.MarshalText()
+	text, err := JudgeSolutionTask.MarshalText()
 	if err != nil {
 		t.Fatal("Error:", err)
 	}

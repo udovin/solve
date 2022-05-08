@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	registerTaskImpl(models.JudgeSolution, &judgeSolutionTask{})
+	registerTaskImpl(models.JudgeSolutionTask, &judgeSolutionTask{})
 }
 
 type judgeSolutionTask struct {

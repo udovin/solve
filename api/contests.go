@@ -664,8 +664,8 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		if err := v.core.ContestSolutions.Create(ctx, &contestSolution); err != nil {
 			return err
 		}
-		task := models.Task{Kind: models.JudgeSolution}
-		if err := task.SetConfig(models.JudgeSolutionConfig{
+		task := models.Task{Kind: models.JudgeSolutionTask}
+		if err := task.SetConfig(models.JudgeSolutionTaskConfig{
 			SolutionID: solution.ID,
 		}); err != nil {
 			return err

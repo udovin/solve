@@ -86,6 +86,7 @@ type SolutionReport struct {
 type Solution struct {
 	ID         int64 `db:"id"`
 	ProblemID  int64 `db:"problem_id"`
+	CompilerID int64 `db:"compiler_id"`
 	AuthorID   int64 `db:"author_id"`
 	Report     JSON  `db:"report"`
 	CreateTime int64 `db:"create_time"`

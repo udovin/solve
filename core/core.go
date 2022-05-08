@@ -46,8 +46,8 @@ type Core struct {
 	ContestParticipants *models.ContestParticipantStore
 	// ContestSolutions contains contest solutions store.
 	ContestSolutions *models.ContestSolutionStore
-	// Compilers contains compiler store.
-	Compilers *models.CompilerStore
+	// Images contains image store.
+	Images *models.ImageStore
 	// Visits contains visit store.
 	Visits *models.VisitStore
 	//

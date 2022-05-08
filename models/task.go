@@ -51,13 +51,13 @@ type TaskKind int
 
 const (
 	// JudgeSolution represents judge solution task.
-	JudgeSolution TaskKind = 1
+	JudgeSolutionTask TaskKind = 1
 )
 
 // String returns string representation.
 func (t TaskKind) String() string {
 	switch t {
-	case JudgeSolution:
+	case JudgeSolutionTask:
 		return "judge_solution"
 	default:
 		return fmt.Sprintf("TaskKind(%d)", t)
@@ -69,8 +69,8 @@ func (t TaskKind) MarshalText() ([]byte, error) {
 	return []byte(t.String()), nil
 }
 
-// JudgeSolutionConfig represets config for JudgeSolution.
-type JudgeSolutionConfig struct {
+// JudgeSolutionTaskConfig represets config for JudgeSolution.
+type JudgeSolutionTaskConfig struct {
 	SolutionID int64 `json:"solution_id"`
 }
 

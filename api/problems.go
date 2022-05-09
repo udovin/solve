@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/managers"
@@ -72,10 +73,34 @@ func makeProblem(problem models.Problem) Problem {
 	}
 }
 
+type problemFilter struct {
+	Query string `query:"q"`
+}
+
+func (f problemFilter) Filter(problem models.Problem) bool {
+	if len(f.Query) > 0 {
+		switch {
+		case strings.HasPrefix(fmt.Sprint(problem.ID), f.Query):
+		case strings.Contains(problem.Title, f.Query):
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func (v *View) observeProblems(c echo.Context) error {
 	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
 		return fmt.Errorf("account not extracted")
+	}
+	var filter problemFilter
+	if err := c.Bind(&filter); err != nil {
+		c.Logger().Warn(err)
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "unable to parse filter",
+		}
 	}
 	problems, err := v.core.Problems.All()
 	if err != nil {
@@ -83,6 +108,9 @@ func (v *View) observeProblems(c echo.Context) error {
 	}
 	var resp Problems
 	for _, problem := range problems {
+		if !filter.Filter(problem) {
+			continue
+		}
 		permissions := v.getProblemPermissions(accountCtx, problem)
 		if permissions.HasPermission(models.ObserveProblemRole) {
 			resp.Problems = append(resp.Problems, makeProblem(problem))

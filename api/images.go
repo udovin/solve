@@ -68,18 +68,19 @@ type imageFilter struct {
 }
 
 func (f imageFilter) Filter(image models.Image) bool {
-	result := true
 	if len(f.Kinds) > 0 {
-		has := false
+		result := false
 		for _, kind := range f.Kinds {
 			if image.Kind.String() == kind {
-				has = true
+				result = true
 				break
 			}
 		}
-		result = result && has
+		if !result {
+			return false
+		}
 	}
-	return result
+	return true
 }
 
 // ObserveImages returns list of available images.

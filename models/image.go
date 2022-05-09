@@ -2,7 +2,9 @@ package models
 
 import (
 	"database/sql"
+	"encoding"
 	"encoding/json"
+	"fmt"
 
 	"github.com/udovin/gosql"
 )
@@ -11,6 +13,37 @@ type ImageKind int
 
 const (
 	CompilerImage ImageKind = 1
+)
+
+// String returns string representation.
+func (t ImageKind) String() string {
+	switch t {
+	case CompilerImage:
+		return "compiler"
+	default:
+		return fmt.Sprintf("ImageKind(%d)", t)
+	}
+}
+
+// MarshalText marshals kind to text.
+func (t ImageKind) MarshalText() ([]byte, error) {
+	return []byte(t.String()), nil
+}
+
+// UnmarshalText marshals kind to text.
+func (t *ImageKind) UnmarshalText(data []byte) error {
+	switch s := string(data); s {
+	case "compiler":
+		*t = CompilerImage
+	default:
+		return fmt.Errorf("unsupported kind: %q", s)
+	}
+	return nil
+}
+
+var (
+	_ encoding.TextMarshaler   = ImageKind(0)
+	_ encoding.TextUnmarshaler = (*ImageKind)(nil)
 )
 
 type CompilerImageConfig struct {

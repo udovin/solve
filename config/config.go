@@ -53,7 +53,10 @@ func (l *LogLevel) UnmarshalText(text []byte) error {
 	return nil
 }
 
-var _ encoding.TextUnmarshaler = (*LogLevel)(nil)
+var (
+	_ encoding.TextMarshaler   = LogLevel(0)
+	_ encoding.TextUnmarshaler = (*LogLevel)(nil)
+)
 
 // Config stores configuration for Solve API and Invoker.
 type Config struct {

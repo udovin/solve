@@ -19,6 +19,26 @@ func NewContestManager(core *core.Core) *ContestManager {
 	}
 }
 
+func addContestManagerPermissions(permissions PermissionSet) {
+	permissions.AddPermission(
+		models.ObserveContestRole,
+		models.UpdateContestRole,
+		models.ObserveContestProblemsRole,
+		models.ObserveContestProblemRole,
+		models.CreateContestProblemRole,
+		models.DeleteContestProblemRole,
+		models.ObserveContestParticipantsRole,
+		models.ObserveContestParticipantRole,
+		models.CreateContestParticipantRole,
+		models.DeleteContestParticipantRole,
+		models.ObserveContestSolutionsRole,
+		models.ObserveContestSolutionRole,
+		models.CreateContestSolutionRole,
+		models.UpdateContestSolutionRole,
+		models.DeleteContestSolutionRole,
+	)
+}
+
 func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contest) (*ContestContext, error) {
 	c := ContestContext{
 		AccountContext: ctx,
@@ -27,29 +47,24 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 	}
 	if account := ctx.Account; account != nil {
 		if contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
-			c.Permissions[models.ObserveContestRole] = struct{}{}
-			c.Permissions[models.UpdateContestRole] = struct{}{}
-			c.Permissions[models.DeleteContestRole] = struct{}{}
-			c.Permissions[models.ObserveContestProblemsRole] = struct{}{}
-			c.Permissions[models.ObserveContestProblemRole] = struct{}{}
-			c.Permissions[models.CreateContestProblemRole] = struct{}{}
-			c.Permissions[models.DeleteContestProblemRole] = struct{}{}
-			c.Permissions[models.ObserveContestParticipantsRole] = struct{}{}
-			c.Permissions[models.ObserveContestParticipantRole] = struct{}{}
-			c.Permissions[models.CreateContestParticipantRole] = struct{}{}
-			c.Permissions[models.DeleteContestParticipantRole] = struct{}{}
-			c.Permissions[models.ObserveContestSolutionsRole] = struct{}{}
-			c.Permissions[models.ObserveContestSolutionRole] = struct{}{}
-			c.Permissions[models.CreateContestSolutionRole] = struct{}{}
-			c.Permissions[models.UpdateContestSolutionRole] = struct{}{}
-			c.Permissions[models.DeleteContestSolutionRole] = struct{}{}
-			c.Permissions[models.ObserveContestRole] = struct{}{}
-			c.Permissions[models.ObserveContestRole] = struct{}{}
-			c.Permissions[models.ObserveContestRole] = struct{}{}
+			addContestManagerPermissions(c.Permissions)
+			c.Permissions.AddPermission(models.DeleteContestRole)
 		}
 		participants, err := m.Participants.FindByContestAccount(contest.ID, ctx.Account.ID)
 		if err != nil {
 			return nil, err
+		}
+		for _, participant := range participants {
+			switch participant.Kind {
+			case models.RegularParticipant:
+				c.Permissions.AddPermission(models.ObserveContestRole)
+			case models.UpsolvingParticipant:
+				c.Permissions.AddPermission(models.ObserveContestRole)
+			case models.VirtualParticipant:
+				c.Permissions.AddPermission(models.ObserveContestRole)
+			case models.ManagerParticipant:
+				addContestManagerPermissions(c.Permissions)
+			}
 		}
 		c.Participants = participants
 	}

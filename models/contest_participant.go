@@ -13,7 +13,7 @@ const (
 	RegularParticipant   ParticipantKind = 1
 	UpsolvingParticipant ParticipantKind = 2
 	ManagerParticipant   ParticipantKind = 3
-	VirtualParticipant   ParticipantKind = 5
+	VirtualParticipant   ParticipantKind = 4
 )
 
 // String returns string representation.

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -187,10 +188,34 @@ func makeContestProblem(
 	return resp
 }
 
+type contestFilter struct {
+	Query string `query:"q"`
+}
+
+func (f contestFilter) Filter(contest models.Contest) bool {
+	if len(f.Query) > 0 {
+		switch {
+		case strings.HasPrefix(fmt.Sprint(contest.ID), f.Query):
+		case strings.Contains(contest.Title, f.Query):
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func (v *View) observeContests(c echo.Context) error {
 	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
 		return fmt.Errorf("account not extracted")
+	}
+	var filter contestFilter
+	if err := c.Bind(&filter); err != nil {
+		c.Logger().Warn(err)
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "unable to parse filter",
+		}
 	}
 	var resp Contests
 	contests, err := v.core.Contests.All()
@@ -198,6 +223,9 @@ func (v *View) observeContests(c echo.Context) error {
 		return err
 	}
 	for _, contest := range contests {
+		if !filter.Filter(contest) {
+			continue
+		}
 		contextCtx, err := v.Contests.BuildContext(accountCtx, contest)
 		if err != nil {
 			return err

@@ -213,7 +213,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 		return err
 	}
 	compierPath := filepath.Join(
-		s.core.Config.Storage.ImagesDir,
+		s.core.Config.Storage.CompilersDir,
 		"dosbox-tasm.tar.gz",
 	)
 	solutionPath := filepath.Join(

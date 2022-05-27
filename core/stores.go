@@ -55,7 +55,9 @@ func (c *Core) SetupAllStores() {
 	c.ContestSolutions = models.NewContestSolutionStore(
 		c.DB, "solve_contest_solution", "solve_contest_solution_event",
 	)
-	c.Images = models.NewImageStore(c.DB, "solve_image", "solve_image_event")
+	c.Compilers = models.NewCompilerStore(
+		c.DB, "solve_compiler", "solve_compiler_event",
+	)
 	c.Visits = models.NewVisitStore(c.DB, "solve_visit")
 }
 
@@ -74,7 +76,7 @@ func (c *Core) startStores(start func(models.Store, time.Duration)) {
 	start(c.ContestProblems, time.Second)
 	start(c.ContestParticipants, time.Second)
 	start(c.ContestSolutions, time.Second)
-	start(c.Images, time.Second*5)
+	start(c.Compilers, time.Second*5)
 }
 
 func (c *Core) startStoreLoops() error {

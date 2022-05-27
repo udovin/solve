@@ -1,3 +1,5 @@
+// Package invoker represents solve implementation for running asynchronious
+// tasks like compiling and judging solutions.
 package invoker
 
 import (

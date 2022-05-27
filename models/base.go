@@ -1,3 +1,5 @@
+// Package models contains tools for working with solve objects stored
+// in different databases like SQLite or Postgres.
 package models
 
 import (

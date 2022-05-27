@@ -1,3 +1,4 @@
+// Package migrations contains migrations for solve database.
 package migrations
 
 import (

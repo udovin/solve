@@ -141,17 +141,12 @@ func (s *UserStore) onCreateObject(user User) {
 	s.byLogin[strings.ToLower(user.Login)] = user.ID
 }
 
-func (s *UserStore) onDeleteObject(user User) {
-	delete(s.byAccount, user.AccountID)
-	delete(s.byLogin, strings.ToLower(user.Login))
-	delete(s.users, user.ID)
-}
-
-func (s *UserStore) onUpdateObject(user User) {
-	if old, ok := s.users[user.ID]; ok {
-		s.onDeleteObject(old)
+func (s *UserStore) onDeleteObject(id int64) {
+	if user, ok := s.users[id]; ok {
+		delete(s.byAccount, user.AccountID)
+		delete(s.byLogin, strings.ToLower(user.Login))
+		delete(s.users, user.ID)
 	}
-	s.onCreateObject(user)
 }
 
 // NewUserStore creates new instance of user store.

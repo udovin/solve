@@ -98,16 +98,11 @@ func (s *SettingStore) onCreateObject(setting Setting) {
 	s.byKey[setting.Key] = setting.ID
 }
 
-func (s *SettingStore) onDeleteObject(setting Setting) {
-	delete(s.byKey, setting.Key)
-	delete(s.settings, setting.ID)
-}
-
-func (s *SettingStore) onUpdateObject(setting Setting) {
-	if old, ok := s.settings[setting.ID]; ok {
-		s.onDeleteObject(old)
+func (s *SettingStore) onDeleteObject(id int64) {
+	if setting, ok := s.settings[id]; ok {
+		delete(s.byKey, setting.Key)
+		delete(s.settings, setting.ID)
 	}
-	s.onCreateObject(setting)
 }
 
 // NewSettingStore creates a new instance of SettingStore.

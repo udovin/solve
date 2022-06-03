@@ -94,16 +94,11 @@ func (s *AccountRoleStore) onCreateObject(role AccountRole) {
 	s.byAccount.Create(role.AccountID, role.ID)
 }
 
-func (s *AccountRoleStore) onDeleteObject(role AccountRole) {
-	s.byAccount.Delete(role.AccountID, role.ID)
-	delete(s.roles, role.ID)
-}
-
-func (s *AccountRoleStore) onUpdateObject(role AccountRole) {
-	if old, ok := s.roles[role.ID]; ok {
-		s.onDeleteObject(old)
+func (s *AccountRoleStore) onDeleteObject(id int64) {
+	if role, ok := s.roles[id]; ok {
+		s.byAccount.Delete(role.AccountID, role.ID)
+		delete(s.roles, role.ID)
 	}
-	s.onCreateObject(role)
 }
 
 var _ baseStoreImpl[AccountRole] = (*AccountRoleStore)(nil)

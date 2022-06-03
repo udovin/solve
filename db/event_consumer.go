@@ -57,7 +57,8 @@ func (c *eventConsumer[T]) ConsumeEvents(ctx context.Context, fn func(T) error) 
 	it := 0
 	for events.Next() {
 		event := events.Row()
-		for it < len(c.ranges) && !c.ranges[it].contains(event.EventID()) {
+		eventID := event.EventID()
+		for it < len(c.ranges) && !c.ranges[it].contains(eventID) {
 			it++
 		}
 		if it == len(c.ranges) {
@@ -66,15 +67,15 @@ func (c *eventConsumer[T]) ConsumeEvents(ctx context.Context, fn func(T) error) 
 		if err := fn(event); err != nil {
 			return err
 		}
-		if event.EventID() == c.ranges[it].Begin {
+		if eventID == c.ranges[it].Begin {
 			c.ranges[it].Begin++
 		} else {
 			c.ranges = append(c.ranges, c.ranges[len(c.ranges)-1])
 			for i := len(c.ranges) - 3; i >= it; i-- {
 				c.ranges[i+1] = c.ranges[i]
 			}
-			c.ranges[it].End = event.EventID()
-			c.ranges[it+1].Begin = event.EventID() + 1
+			c.ranges[it].End = eventID
+			c.ranges[it+1].Begin = eventID + 1
 		}
 	}
 	c.removeEmptyRanges()

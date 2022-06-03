@@ -140,16 +140,11 @@ func (s *SessionStore) onCreateObject(session Session) {
 	s.byAccount.Create(session.AccountID, session.ID)
 }
 
-func (s *SessionStore) onDeleteObject(session Session) {
-	s.byAccount.Delete(session.AccountID, session.ID)
-	delete(s.sessions, session.ID)
-}
-
-func (s *SessionStore) onUpdateObject(session Session) {
-	if old, ok := s.sessions[session.ID]; ok {
-		s.onDeleteObject(old)
+func (s *SessionStore) onDeleteObject(id int64) {
+	if session, ok := s.sessions[id]; ok {
+		s.byAccount.Delete(session.AccountID, session.ID)
+		delete(s.sessions, session.ID)
 	}
-	s.onCreateObject(session)
 }
 
 // NewSessionStore creates a new instance of SessionStore.

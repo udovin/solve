@@ -98,16 +98,11 @@ func (s *ContestProblemStore) onCreateObject(problem ContestProblem) {
 	s.byContest.Create(problem.ContestID, problem.ID)
 }
 
-func (s *ContestProblemStore) onDeleteObject(problem ContestProblem) {
-	s.byContest.Delete(problem.ContestID, problem.ID)
-	delete(s.problems, problem.ID)
-}
-
-func (s *ContestProblemStore) onUpdateObject(problem ContestProblem) {
-	if old, ok := s.problems[problem.ID]; ok {
-		s.onDeleteObject(old)
+func (s *ContestProblemStore) onDeleteObject(id int64) {
+	if problem, ok := s.problems[id]; ok {
+		s.byContest.Delete(problem.ContestID, problem.ID)
+		delete(s.problems, problem.ID)
 	}
-	s.onCreateObject(problem)
 }
 
 // NewContestProblemStore creates a new instance of ContestProblemStore.

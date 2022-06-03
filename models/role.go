@@ -327,16 +327,11 @@ func (s *RoleStore) onCreateObject(role Role) {
 	s.byName[role.Name] = role.ID
 }
 
-func (s *RoleStore) onDeleteObject(role Role) {
-	delete(s.byName, role.Name)
-	delete(s.roles, role.ID)
-}
-
-func (s *RoleStore) onUpdateObject(role Role) {
-	if old, ok := s.roles[role.ID]; ok {
-		s.onDeleteObject(old)
+func (s *RoleStore) onDeleteObject(id int64) {
+	if role, ok := s.roles[id]; ok {
+		delete(s.byName, role.Name)
+		delete(s.roles, role.ID)
 	}
-	s.onCreateObject(role)
 }
 
 // NewRoleStore creates a new instance of RoleStore.

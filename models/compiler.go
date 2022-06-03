@@ -103,15 +103,10 @@ func (s *CompilerStore) onCreateObject(compiler Compiler) {
 	s.compilers[compiler.ID] = compiler
 }
 
-func (s *CompilerStore) onDeleteObject(compiler Compiler) {
-	delete(s.compilers, compiler.ID)
-}
-
-func (s *CompilerStore) onUpdateObject(compiler Compiler) {
-	if old, ok := s.compilers[compiler.ID]; ok {
-		s.onDeleteObject(old)
+func (s *CompilerStore) onDeleteObject(id int64) {
+	if compiler, ok := s.compilers[id]; ok {
+		delete(s.compilers, compiler.ID)
 	}
-	s.onCreateObject(compiler)
 }
 
 // NewCompilerStore creates a new instance of CompilerStore.

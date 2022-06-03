@@ -237,7 +237,7 @@ type baseStoreImpl[T db.Object] interface {
 	makeObject(id int64) T
 	makeObjectEvent(EventType) ObjectEvent[T]
 	onCreateObject(T)
-	onDeleteObject(T)
+	onDeleteObject(int64)
 	onUpdateObject(T)
 }
 
@@ -388,14 +388,19 @@ func (s *baseStore[T, E]) lockStore(tx *sql.Tx) error {
 	}
 }
 
+func (s *baseStore[T, E]) onUpdateObject(object T) {
+	s.impl.onDeleteObject(object.ObjectID())
+	s.impl.onCreateObject(object)
+}
+
 func (s *baseStore[T, E]) consumeEvent(e E) error {
-	switch e.EventType() {
+	switch object := e.Object(); e.EventType() {
 	case CreateEvent:
-		s.impl.onCreateObject(e.Object())
+		s.impl.onCreateObject(object)
 	case DeleteEvent:
-		s.impl.onDeleteObject(e.Object())
+		s.impl.onDeleteObject(object.ObjectID())
 	case UpdateEvent:
-		s.impl.onUpdateObject(e.Object())
+		s.impl.onUpdateObject(object)
 	default:
 		return fmt.Errorf("unexpected event type: %v", e.EventType())
 	}

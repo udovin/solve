@@ -88,15 +88,10 @@ func (s *ProblemStore) onCreateObject(problem Problem) {
 	s.problems[problem.ID] = problem
 }
 
-func (s *ProblemStore) onDeleteObject(problem Problem) {
-	delete(s.problems, problem.ID)
-}
-
-func (s *ProblemStore) onUpdateObject(problem Problem) {
-	if old, ok := s.problems[problem.ID]; ok {
-		s.onDeleteObject(old)
+func (s *ProblemStore) onDeleteObject(id int64) {
+	if problem, ok := s.problems[id]; ok {
+		delete(s.problems, problem.ID)
 	}
-	s.onCreateObject(problem)
 }
 
 // NewProblemStore creates a new instance of ProblemStore.

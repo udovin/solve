@@ -94,16 +94,11 @@ func (s *RoleEdgeStore) onCreateObject(edge RoleEdge) {
 	s.byRole.Create(edge.RoleID, edge.ID)
 }
 
-func (s *RoleEdgeStore) onDeleteObject(edge RoleEdge) {
-	s.byRole.Delete(edge.RoleID, edge.ID)
-	delete(s.edges, edge.ID)
-}
-
-func (s *RoleEdgeStore) onUpdateObject(edge RoleEdge) {
-	if old, ok := s.edges[edge.ID]; ok {
-		s.onDeleteObject(old)
+func (s *RoleEdgeStore) onDeleteObject(id int64) {
+	if edge, ok := s.edges[id]; ok {
+		s.byRole.Delete(edge.RoleID, edge.ID)
+		delete(s.edges, edge.ID)
 	}
-	s.onCreateObject(edge)
 }
 
 // NewRoleEdgeStore creates a new instance of RoleEdgeStore.

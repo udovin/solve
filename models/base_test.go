@@ -111,15 +111,9 @@ func (s *testStore) onCreateObject(object testObject) {
 	s.objects[object.ID] = object
 }
 
-func (s *testStore) onUpdateObject(object testObject) {
-	if _, ok := s.objects[object.ID]; !ok {
-		panic("object not found")
-	}
-	s.objects[object.ID] = object
-}
-
-func (s *testStore) onDeleteObject(object testObject) {
-	if _, ok := s.objects[object.ID]; !ok {
+func (s *testStore) onDeleteObject(id int64) {
+	object, ok := s.objects[id]
+	if !ok {
 		panic("object not found")
 	}
 	delete(s.objects, object.ID)

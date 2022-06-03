@@ -81,15 +81,10 @@ func (s *AccountStore) onCreateObject(account Account) {
 	s.accounts[account.ID] = account
 }
 
-func (s *AccountStore) onDeleteObject(account Account) {
-	delete(s.accounts, account.ID)
-}
-
-func (s *AccountStore) onUpdateObject(account Account) {
-	if old, ok := s.accounts[account.ID]; ok {
-		s.onDeleteObject(old)
+func (s *AccountStore) onDeleteObject(id int64) {
+	if account, ok := s.accounts[id]; ok {
+		delete(s.accounts, account.ID)
 	}
-	s.onCreateObject(account)
 }
 
 // NewAccountStore creates a new instance of AccountStore.

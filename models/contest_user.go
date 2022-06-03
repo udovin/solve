@@ -76,15 +76,10 @@ func (s *ContestUserStore) onCreateObject(user ContestUser) {
 	s.users[user.ID] = user
 }
 
-func (s *ContestUserStore) onDeleteObject(user ContestUser) {
-	delete(s.users, user.ID)
-}
-
-func (s *ContestUserStore) onUpdateObject(user ContestUser) {
-	if old, ok := s.users[user.ID]; ok {
-		s.onDeleteObject(old)
+func (s *ContestUserStore) onDeleteObject(id int64) {
+	if user, ok := s.users[id]; ok {
+		delete(s.users, user.ID)
 	}
-	s.onCreateObject(user)
 }
 
 // NewContestUserStore creates new instance of contest user store.

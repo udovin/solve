@@ -183,15 +183,10 @@ func (s *SolutionStore) onCreateObject(solution Solution) {
 	s.solutions[solution.ID] = solution
 }
 
-func (s *SolutionStore) onDeleteObject(solution Solution) {
-	delete(s.solutions, solution.ID)
-}
-
-func (s *SolutionStore) onUpdateObject(solution Solution) {
-	if old, ok := s.solutions[solution.ID]; ok {
-		s.onDeleteObject(old)
+func (s *SolutionStore) onDeleteObject(id int64) {
+	if solution, ok := s.solutions[id]; ok {
+		delete(s.solutions, solution.ID)
 	}
-	s.onCreateObject(solution)
 }
 
 // NewSolutionStore creates a new instance of SolutionStore.

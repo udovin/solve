@@ -163,17 +163,12 @@ func (s *ContestParticipantStore) onCreateObject(participant ContestParticipant)
 	s.byContestAccount.Create(participant.contestAccountKey(), participant.ID)
 }
 
-func (s *ContestParticipantStore) onDeleteObject(participant ContestParticipant) {
-	s.byContest.Delete(participant.ContestID, participant.ID)
-	s.byContestAccount.Delete(participant.contestAccountKey(), participant.ID)
-	delete(s.participants, participant.ID)
-}
-
-func (s *ContestParticipantStore) onUpdateObject(participant ContestParticipant) {
-	if old, ok := s.participants[participant.ID]; ok {
-		s.onDeleteObject(old)
+func (s *ContestParticipantStore) onDeleteObject(id int64) {
+	if participant, ok := s.participants[id]; ok {
+		s.byContest.Delete(participant.ContestID, participant.ID)
+		s.byContestAccount.Delete(participant.contestAccountKey(), participant.ID)
+		delete(s.participants, participant.ID)
 	}
-	s.onCreateObject(participant)
 }
 
 // NewContestParticipantStore creates a new instance of

@@ -230,16 +230,11 @@ func (s *TaskStore) onCreateObject(task Task) {
 	s.byStatus.Create(int64(task.Status), task.ID)
 }
 
-func (s *TaskStore) onDeleteObject(task Task) {
-	s.byStatus.Delete(int64(task.Status), task.ID)
-	delete(s.tasks, task.ID)
-}
-
-func (s *TaskStore) onUpdateObject(task Task) {
-	if old, ok := s.tasks[task.ID]; ok {
-		s.onDeleteObject(old)
+func (s *TaskStore) onDeleteObject(id int64) {
+	if task, ok := s.tasks[id]; ok {
+		s.byStatus.Delete(int64(task.Status), task.ID)
+		delete(s.tasks, task.ID)
 	}
-	s.onCreateObject(task)
 }
 
 // NewTaskStore creates a new instance of TaskStore.

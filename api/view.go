@@ -102,7 +102,7 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 			visit.Status = c.Response().Status
 			if s := v.getBoolSetting(c, "log_visit."+c.Path()); s == nil || *s {
-				if err := v.core.Visits.Create(c.Request().Context(), &visit); err != nil {
+				if err := v.core.Visits.Create(getContext(c), &visit); err != nil {
 					c.Logger().Error(err)
 				}
 			}
@@ -190,9 +190,7 @@ func (v *View) sessionAuth(c echo.Context) (bool, error) {
 		}
 		return false, err
 	}
-	session, err := v.getSessionByCookie(
-		c.Request().Context(), cookie.Value,
-	)
+	session, err := v.getSessionByCookie(getContext(c), cookie.Value)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil
@@ -203,7 +201,7 @@ func (v *View) sessionAuth(c echo.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	accountCtx, err := v.Accounts.MakeContext(c.Request().Context(), &account)
+	accountCtx, err := v.Accounts.MakeContext(getContext(c), &account)
 	if err != nil {
 		return false, err
 	}
@@ -255,7 +253,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 		)
 		return false, fmt.Errorf("invalid account kind %q", account.Kind)
 	}
-	accountCtx, err := v.Accounts.MakeContext(c.Request().Context(), &account)
+	accountCtx, err := v.Accounts.MakeContext(getContext(c), &account)
 	if err != nil {
 		return false, err
 	}
@@ -265,7 +263,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 }
 
 func (v *View) guestAuth(c echo.Context) (bool, error) {
-	ctx, err := v.Accounts.MakeContext(c.Request().Context(), nil)
+	ctx, err := v.Accounts.MakeContext(getContext(c), nil)
 	if err != nil {
 		return false, err
 	}
@@ -341,6 +339,14 @@ func (v *View) getBoolSetting(ctx echo.Context, key string) *bool {
 		)
 		return nil
 	}
+}
+
+func getContext(c echo.Context) context.Context {
+	ctx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok || ctx.Account == nil {
+		return c.Request().Context()
+	}
+	return models.WithAccountID(c.Request().Context(), ctx.Account.ID)
 }
 
 func getPtr[T any](object T) *T {

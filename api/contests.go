@@ -332,7 +332,7 @@ func (v *View) updateContest(c echo.Context) error {
 	if err := form.Update(&contest); err != nil {
 		return err
 	}
-	if err := v.core.Contests.Update(c.Request().Context(), contest); err != nil {
+	if err := v.core.Contests.Update(getContext(c), contest); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeContest(contest, contestCtx, v.core))
@@ -344,7 +344,7 @@ func (v *View) deleteContest(c echo.Context) error {
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
-	if err := v.core.Contests.Delete(c.Request().Context(), contest.ID); err != nil {
+	if err := v.core.Contests.Delete(getContext(c), contest.ID); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, makeContest(contest, contestCtx, nil))
@@ -451,7 +451,7 @@ func (v *View) createContestProblem(c echo.Context) error {
 			}
 		}
 	}
-	if err := v.core.ContestProblems.Create(c.Request().Context(), &problem); err != nil {
+	if err := v.core.ContestProblems.Create(getContext(c), &problem); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeContestProblem(problem, v.core.Problems))
@@ -462,7 +462,7 @@ func (v *View) deleteContestProblem(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("contest problem not extracted")
 	}
-	if err := v.core.ContestProblems.Delete(c.Request().Context(), problem.ID); err != nil {
+	if err := v.core.ContestProblems.Delete(getContext(c), problem.ID); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, makeContestProblem(problem, v.core.Problems))
@@ -568,7 +568,7 @@ func (v *View) createContestParticipant(c echo.Context) error {
 			}
 		}
 	}
-	if err := v.core.ContestParticipants.Create(c.Request().Context(), &participant); err != nil {
+	if err := v.core.ContestParticipants.Create(getContext(c), &participant); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeContestParticipant(c, participant, v.core))
@@ -579,7 +579,7 @@ func (v *View) deleteContestParticipant(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("contest participant not extracted")
 	}
-	if err := v.core.ContestParticipants.Delete(c.Request().Context(), participant.ID); err != nil {
+	if err := v.core.ContestParticipants.Delete(getContext(c), participant.ID); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, makeContestParticipant(c, participant, v.core))
@@ -673,7 +673,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		ParticipantID: participants[0].ID,
 		ProblemID:     problem.ID,
 	}
-	if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
 		file, err := c.FormFile("file")
 		if err != nil {
 			return err
@@ -789,7 +789,7 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		contest, err := v.core.Contests.Get(id)
 		if err == sql.ErrNoRows {
-			if err := v.core.Contests.Sync(c.Request().Context()); err != nil {
+			if err := v.core.Contests.Sync(getContext(c)); err != nil {
 				return err
 			}
 			contest, err = v.core.Contests.Get(id)
@@ -900,10 +900,10 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		solution, err := v.core.ContestSolutions.Get(id)
 		if err == sql.ErrNoRows {
-			if err := v.core.ContestSolutions.Sync(c.Request().Context()); err != nil {
+			if err := v.core.ContestSolutions.Sync(getContext(c)); err != nil {
 				return err
 			}
-			if err := v.core.Solutions.Sync(c.Request().Context()); err != nil {
+			if err := v.core.Solutions.Sync(getContext(c)); err != nil {
 				return err
 			}
 			solution, err = v.core.ContestSolutions.Get(id)

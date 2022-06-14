@@ -246,6 +246,20 @@ func (e *baseEvent) SetAccountID(accountID int64) {
 	e.EventAccountID = NInt64(accountID)
 }
 
+type accountIDKey struct{}
+
+func WithAccountID(ctx context.Context, id int64) context.Context {
+	return context.WithValue(ctx, accountIDKey{}, id)
+}
+
+// GetAccountID returns account ID or zero if there is no account.
+func GetAccountID(ctx context.Context) int64 {
+	if id, ok := ctx.Value(accountIDKey{}).(int64); ok {
+		return id
+	}
+	return 0
+}
+
 // makeBaseEvent creates baseEvent with specified type.
 func makeBaseEvent(t EventType) baseEvent {
 	return baseEvent{BaseEventType: t, BaseEventTime: time.Now().Unix()}
@@ -384,7 +398,7 @@ func (s *baseStore[T, E]) createObjectEvent(
 		}, sqlRepeatableRead)
 	}
 	eventPtr := any(event).(ObjectEventPtr[T])
-	// eventPtr.SetAccountID()
+	eventPtr.SetAccountID(GetAccountID(ctx))
 	switch object := eventPtr.Object(); eventPtr.EventType() {
 	case CreateEvent:
 		if err := s.objects.CreateObject(ctx, &object); err != nil {

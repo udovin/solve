@@ -202,7 +202,7 @@ func (v *View) updateUser(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if err := v.core.Users.Update(c.Request().Context(), user); err != nil {
+	if err := v.core.Users.Update(getContext(c), user); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -272,7 +272,7 @@ func (v *View) updateUserPassword(c echo.Context) error {
 	if err := form.Update(&user, v.core.Users); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if err := v.core.Users.Update(c.Request().Context(), user); err != nil {
+	if err := v.core.Users.Update(getContext(c), user); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -346,7 +346,7 @@ func (v *View) loginAccount(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	if err := v.core.Sessions.Create(c.Request().Context(), &session); err != nil {
+	if err := v.core.Sessions.Create(getContext(c), &session); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -363,7 +363,7 @@ func (v *View) loginAccount(c echo.Context) error {
 // logoutAccount removes current session.
 func (v *View) logoutAccount(c echo.Context) error {
 	session := c.Get(authSessionKey).(models.Session)
-	if err := v.core.Sessions.Delete(c.Request().Context(), session.ID); err != nil {
+	if err := v.core.Sessions.Delete(getContext(c), session.ID); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
@@ -515,7 +515,7 @@ func (v *View) registerUser(c echo.Context) error {
 	if err := form.Update(&user, v.core.Users); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
 		account := models.Account{Kind: user.AccountKind()}
 		if err := v.core.Accounts.Create(ctx, &account); err != nil {
 			return err

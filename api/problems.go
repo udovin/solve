@@ -174,7 +174,7 @@ func (v *View) createProblem(c echo.Context) error {
 	if account := accountCtx.Account; account != nil {
 		problem.OwnerID = models.NInt64(account.ID)
 	}
-	if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
 		file, err := c.FormFile("file")
 		if err != nil {
 			return err
@@ -210,7 +210,7 @@ func (v *View) deleteProblem(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("problem not extracted")
 	}
-	if err := v.core.Problems.Delete(c.Request().Context(), problem.ID); err != nil {
+	if err := v.core.Problems.Delete(getContext(c), problem.ID); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, makeProblem(problem))
@@ -228,7 +228,7 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		problem, err := v.core.Problems.Get(id)
 		if err == sql.ErrNoRows {
-			if err := v.core.Problems.Sync(c.Request().Context()); err != nil {
+			if err := v.core.Problems.Sync(getContext(c)); err != nil {
 				return err
 			}
 			problem, err = v.core.Problems.Get(id)

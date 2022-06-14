@@ -61,7 +61,7 @@ func (v *View) deleteSession(c echo.Context) error {
 		c.Logger().Error("session not extracted")
 		return fmt.Errorf("session not extracted")
 	}
-	if err := v.core.Sessions.Delete(c.Request().Context(), session.ID); err != nil {
+	if err := v.core.Sessions.Delete(getContext(c), session.ID); err != nil {
 		c.Logger().Error(err)
 		return err
 	}

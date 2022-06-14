@@ -132,7 +132,7 @@ func (v *View) createCompiler(c echo.Context) error {
 	if account := accountCtx.Account; account != nil {
 		compiler.OwnerID = models.NInt64(account.ID)
 	}
-	if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
 		file, err := c.FormFile("file")
 		if err != nil {
 			return err
@@ -172,7 +172,7 @@ func (v *View) deleteCompiler(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("compiler not extracted")
 	}
-	if err := v.core.Compilers.Delete(c.Request().Context(), compiler.ID); err != nil {
+	if err := v.core.Compilers.Delete(getContext(c), compiler.ID); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, makeCompiler(compiler))

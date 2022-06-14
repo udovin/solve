@@ -23,6 +23,7 @@ func (t *accountRoleStoreTest) prepareDB(tx *sql.Tx) error {
 			`"event_id" integer PRIMARY KEY,` +
 			`"event_type" int8 NOT NULL,` +
 			`"event_time" bigint NOT NULL,` +
+			`"event_account_id" integer NULL,` +
 			`"id" integer NOT NULL,` +
 			`"account_id" integer NOT NULL,` +
 			`"role_id" integer NOT NULL)`,

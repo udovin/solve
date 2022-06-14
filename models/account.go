@@ -43,10 +43,9 @@ func (e AccountEvent) Object() Account {
 	return e.Account
 }
 
-// WithObject returns event with replaced Account.
-func (e AccountEvent) WithObject(o Account) ObjectEvent[Account] {
+// SetObject sets event account.
+func (e *AccountEvent) SetObject(o Account) {
 	e.Account = o
-	return e
 }
 
 // AccountStore represents store for accounts.
@@ -73,7 +72,7 @@ func (s *AccountStore) makeObject(id int64) Account {
 	return Account{ID: id}
 }
 
-func (s *AccountStore) makeObjectEvent(typ EventType) ObjectEvent[Account] {
+func (s *AccountStore) makeObjectEvent(typ EventType) AccountEvent {
 	return AccountEvent{baseEvent: makeBaseEvent(typ)}
 }
 

@@ -36,10 +36,9 @@ func (e ProblemEvent) Object() Problem {
 	return e.Problem
 }
 
-// WithObject returns event with replaced Problem.
-func (e ProblemEvent) WithObject(o Problem) ObjectEvent[Problem] {
+// SetObject sets event problem.
+func (e *ProblemEvent) SetObject(o Problem) {
 	e.Problem = o
-	return e
 }
 
 // ProblemStore represents store for problems.
@@ -80,7 +79,7 @@ func (s *ProblemStore) makeObject(id int64) Problem {
 	return Problem{ID: id}
 }
 
-func (s *ProblemStore) makeObjectEvent(typ EventType) ObjectEvent[Problem] {
+func (s *ProblemStore) makeObjectEvent(typ EventType) ProblemEvent {
 	return ProblemEvent{baseEvent: makeBaseEvent(typ)}
 }
 

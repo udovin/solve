@@ -257,10 +257,9 @@ func (e RoleEvent) Object() Role {
 	return e.Role
 }
 
-// WithObject returns event with replaced Role.
-func (e RoleEvent) WithObject(o Role) ObjectEvent[Role] {
+// SetObject sets event role.
+func (e *RoleEvent) SetObject(o Role) {
 	e.Role = o
-	return e
 }
 
 // RoleStore represents a role store.
@@ -318,7 +317,7 @@ func (s *RoleStore) makeObject(id int64) Role {
 	return Role{ID: id}
 }
 
-func (s *RoleStore) makeObjectEvent(typ EventType) ObjectEvent[Role] {
+func (s *RoleStore) makeObjectEvent(typ EventType) RoleEvent {
 	return RoleEvent{baseEvent: makeBaseEvent(typ)}
 }
 

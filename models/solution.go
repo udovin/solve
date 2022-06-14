@@ -131,10 +131,9 @@ func (e SolutionEvent) Object() Solution {
 	return e.Solution
 }
 
-// WithObject returns event with replaced Solution.
-func (e SolutionEvent) WithObject(o Solution) ObjectEvent[Solution] {
+// SetObject sets event solution.
+func (e *SolutionEvent) SetObject(o Solution) {
 	e.Solution = o
-	return e
 }
 
 // SolutionStore represents store for solutions.
@@ -175,7 +174,7 @@ func (s *SolutionStore) makeObject(id int64) Solution {
 	return Solution{ID: id}
 }
 
-func (s *SolutionStore) makeObjectEvent(typ EventType) ObjectEvent[Solution] {
+func (s *SolutionStore) makeObjectEvent(typ EventType) SolutionEvent {
 	return SolutionEvent{baseEvent: makeBaseEvent(typ)}
 }
 

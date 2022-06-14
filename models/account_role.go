@@ -37,10 +37,9 @@ func (e AccountRoleEvent) Object() AccountRole {
 	return e.AccountRole
 }
 
-// WithObject return event with replaced account role.
-func (e AccountRoleEvent) WithObject(o AccountRole) ObjectEvent[AccountRole] {
+// SetObject sets event account role.
+func (e *AccountRoleEvent) SetObject(o AccountRole) {
 	e.AccountRole = o
-	return e
 }
 
 // AccountRoleStore represents store for account roles.
@@ -85,7 +84,7 @@ func (s *AccountRoleStore) makeObject(id int64) AccountRole {
 	return AccountRole{ID: id}
 }
 
-func (s *AccountRoleStore) makeObjectEvent(typ EventType) ObjectEvent[AccountRole] {
+func (s *AccountRoleStore) makeObjectEvent(typ EventType) AccountRoleEvent {
 	return AccountRoleEvent{baseEvent: makeBaseEvent(typ)}
 }
 
@@ -101,7 +100,7 @@ func (s *AccountRoleStore) onDeleteObject(id int64) {
 	}
 }
 
-var _ baseStoreImpl[AccountRole] = (*AccountRoleStore)(nil)
+var _ baseStoreImpl[AccountRole, AccountRoleEvent] = (*AccountRoleStore)(nil)
 
 // NewAccountRoleStore creates a new instance of AccountRoleStore.
 func NewAccountRoleStore(

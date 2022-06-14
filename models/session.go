@@ -70,10 +70,9 @@ func (e SessionEvent) Object() Session {
 	return e.Session
 }
 
-// WithObject returns copy of event with replaced session.
-func (e SessionEvent) WithObject(o Session) ObjectEvent[Session] {
+// SetObject sets event session.
+func (e *SessionEvent) SetObject(o Session) {
 	e.Session = o
-	return e
 }
 
 // SessionStore represents store for sessions.
@@ -131,7 +130,7 @@ func (s *SessionStore) makeObject(id int64) Session {
 	return Session{ID: id}
 }
 
-func (s *SessionStore) makeObjectEvent(typ EventType) ObjectEvent[Session] {
+func (s *SessionStore) makeObjectEvent(typ EventType) SessionEvent {
 	return SessionEvent{baseEvent: makeBaseEvent(typ)}
 }
 

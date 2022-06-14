@@ -37,11 +37,9 @@ type ObjectROStore[T Object] interface {
 // ObjectStore represents persistent store for objects.
 type ObjectStore[T Object] interface {
 	ObjectROStore[T]
-	// CreateObject should create a new object and return copy
-	// that has correct ObjectID.
+	// CreateObject should create a new object set valid ID.
 	CreateObject(ctx context.Context, object *T) error
-	// UpdateObject should update object with specified ObjectID and
-	// return copy with updated fields.
+	// UpdateObject should update object with specified ID.
 	UpdateObject(ctx context.Context, object *T) error
 	// DeleteObject should delete existing object from the store.
 	DeleteObject(ctx context.Context, id int64) error

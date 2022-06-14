@@ -74,9 +74,8 @@ func (e testObjectEvent) Object() testObject {
 	return e.testObject
 }
 
-func (e testObjectEvent) WithObject(o testObject) ObjectEvent[testObject] {
+func (e *testObjectEvent) SetObject(o testObject) {
 	e.testObject = o
-	return e
 }
 
 type testStore struct {
@@ -96,7 +95,7 @@ func (s *testStore) makeObject(id int64) testObject {
 	return testObject{ID: id}
 }
 
-func (s *testStore) makeObjectEvent(typ EventType) ObjectEvent[testObject] {
+func (s *testStore) makeObjectEvent(typ EventType) testObjectEvent {
 	return testObjectEvent{baseEvent: makeBaseEvent(typ)}
 }
 
@@ -145,6 +144,7 @@ func migrateTestStore(t testing.TB, s *testStore) {
 			`"event_id" integer PRIMARY KEY,`+
 			`"event_type" int8 NOT NULL,`+
 			`"event_time" bigint NOT NULL,`+
+			`"event_account_id" integer NULL,`+
 			`"id" integer NOT NULL,`+
 			`"string" varchar(255) NOT NULL,`+
 			`"int" integer NOT NULL,`+

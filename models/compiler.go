@@ -55,10 +55,9 @@ func (e CompilerEvent) Object() Compiler {
 	return e.Compiler
 }
 
-// WithObject replaces event compiler.
-func (e CompilerEvent) WithObject(o Compiler) ObjectEvent[Compiler] {
+// SetObject sets event compiler.
+func (e *CompilerEvent) SetObject(o Compiler) {
 	e.Compiler = o
-	return e
 }
 
 // CompilerStore represents store for compilers.
@@ -95,7 +94,7 @@ func (s *CompilerStore) makeObject(id int64) Compiler {
 	return Compiler{ID: id}
 }
 
-func (s *CompilerStore) makeObjectEvent(typ EventType) ObjectEvent[Compiler] {
+func (s *CompilerStore) makeObjectEvent(typ EventType) CompilerEvent {
 	return CompilerEvent{baseEvent: makeBaseEvent(typ)}
 }
 

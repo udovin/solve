@@ -34,10 +34,9 @@ func (e SettingEvent) Object() Setting {
 	return e.Setting
 }
 
-// WithObject replaces event compiler.
-func (e SettingEvent) WithObject(o Setting) ObjectEvent[Setting] {
+// SetObject sets event setting.
+func (e *SettingEvent) SetObject(o Setting) {
 	e.Setting = o
-	return e
 }
 
 // SettingStore represents store for settings.
@@ -89,7 +88,7 @@ func (s *SettingStore) makeObject(id int64) Setting {
 	return Setting{ID: id}
 }
 
-func (s *SettingStore) makeObjectEvent(typ EventType) ObjectEvent[Setting] {
+func (s *SettingStore) makeObjectEvent(typ EventType) SettingEvent {
 	return SettingEvent{baseEvent: makeBaseEvent(typ)}
 }
 

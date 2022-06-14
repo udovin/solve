@@ -133,17 +133,16 @@ func (e TaskEvent) Object() Task {
 	return e.Task
 }
 
-// WithObject returns task event with specified object.
-func (e TaskEvent) WithObject(o Task) ObjectEvent[Task] {
+// SetObject sets event task.
+func (e *TaskEvent) SetObject(o Task) {
 	e.Task = o
-	return e
 }
 
 // TaskStore represents store for tasks.
 type TaskStore struct {
 	baseStore[Task, TaskEvent]
 	tasks    map[int64]Task
-	byStatus index[int64]
+	byStatus index[TaskStatus]
 }
 
 // Get returns task by id.
@@ -163,7 +162,7 @@ func (s *TaskStore) FindByStatus(status TaskStatus) ([]Task, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var tasks []Task
-	for id := range s.byStatus[int64(status)] {
+	for id := range s.byStatus[status] {
 		if task, ok := s.tasks[id]; ok {
 			tasks = append(tasks, task.Clone())
 		}
@@ -195,7 +194,7 @@ func (s *TaskStore) PopQueued(
 	}
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	for id := range s.byStatus[int64(Queued)] {
+	for id := range s.byStatus[Queued] {
 		if task, ok := s.tasks[id]; ok && filter(task.Kind) {
 			// We should make clone of action, because we do not
 			// want to corrupt Store in-memory cache.
@@ -214,25 +213,25 @@ func (s *TaskStore) PopQueued(
 
 func (s *TaskStore) reset() {
 	s.tasks = map[int64]Task{}
-	s.byStatus = makeIndex[int64]()
+	s.byStatus = makeIndex[TaskStatus]()
 }
 
 func (s *TaskStore) makeObject(id int64) Task {
 	return Task{ID: id}
 }
 
-func (s *TaskStore) makeObjectEvent(typ EventType) ObjectEvent[Task] {
+func (s *TaskStore) makeObjectEvent(typ EventType) TaskEvent {
 	return TaskEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *TaskStore) onCreateObject(task Task) {
 	s.tasks[task.ID] = task
-	s.byStatus.Create(int64(task.Status), task.ID)
+	s.byStatus.Create(task.Status, task.ID)
 }
 
 func (s *TaskStore) onDeleteObject(id int64) {
 	if task, ok := s.tasks[id]; ok {
-		s.byStatus.Delete(int64(task.Status), task.ID)
+		s.byStatus.Delete(task.Status, task.ID)
 		delete(s.tasks, task.ID)
 	}
 }

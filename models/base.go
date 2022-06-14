@@ -40,7 +40,14 @@ func (m index[K]) Delete(key K, id int64) {
 	}
 }
 
-type pairInt64 [2]int64
+type pair[F, S any] struct {
+	First  F
+	Second S
+}
+
+func makePair[F, S any](f F, s S) pair[F, S] {
+	return pair[F, S]{First: f, Second: s}
+}
 
 // NInt64 represents nullable int64 with zero value means null value.
 type NInt64 int64
@@ -198,8 +205,14 @@ type ObjectEvent[T db.Object] interface {
 	EventType() EventType
 	// Object should return struct with object data.
 	Object() T
-	// WithObject should return copy of event with replaced object.
-	WithObject(T) ObjectEvent[T]
+}
+
+type ObjectEventPtr[T db.Object] interface {
+	ObjectEvent[T]
+	// SetObject should replace event object.
+	SetObject(T)
+	// SetAccountID should set account ID for specified object event.
+	SetAccountID(int64)
 }
 
 // baseEvent represents base for all events.
@@ -210,6 +223,8 @@ type baseEvent struct {
 	BaseEventType EventType `db:"event_type"`
 	// BaseEventTime contains event type.
 	BaseEventTime int64 `db:"event_time"`
+	// EventAccountID contains account id.
+	EventAccountID NInt64 `db:"event_account_id"`
 }
 
 // EventId returns id of this event.
@@ -227,15 +242,19 @@ func (e baseEvent) EventType() EventType {
 	return e.BaseEventType
 }
 
+func (e *baseEvent) SetAccountID(accountID int64) {
+	e.EventAccountID = NInt64(accountID)
+}
+
 // makeBaseEvent creates baseEvent with specified type.
 func makeBaseEvent(t EventType) baseEvent {
 	return baseEvent{BaseEventType: t, BaseEventTime: time.Now().Unix()}
 }
 
-type baseStoreImpl[T db.Object] interface {
+type baseStoreImpl[T db.Object, E ObjectEvent[T]] interface {
 	reset()
 	makeObject(id int64) T
-	makeObjectEvent(EventType) ObjectEvent[T]
+	makeObjectEvent(EventType) E
 	onCreateObject(T)
 	onDeleteObject(int64)
 	onUpdateObject(T)
@@ -253,7 +272,7 @@ type baseStore[T db.Object, E ObjectEvent[T]] struct {
 	objects  db.ObjectStore[T]
 	events   db.EventStore[E]
 	consumer db.EventConsumer[E]
-	impl     baseStoreImpl[T]
+	impl     baseStoreImpl[T, E]
 	mutex    sync.RWMutex
 }
 
@@ -324,7 +343,9 @@ func (s *baseStore[T, E]) Sync(ctx context.Context) error {
 
 // Create creates object and returns copy with valid ID.
 func (s *baseStore[T, E]) Create(ctx context.Context, object *T) error {
-	event := s.impl.makeObjectEvent(CreateEvent).WithObject(*object).(E)
+	event := s.impl.makeObjectEvent(CreateEvent)
+	eventPtr := any(&event).(ObjectEventPtr[T])
+	eventPtr.SetObject(*object)
 	if err := s.createObjectEvent(ctx, &event); err != nil {
 		return err
 	}
@@ -334,14 +355,17 @@ func (s *baseStore[T, E]) Create(ctx context.Context, object *T) error {
 
 // Update updates object with specified ID.
 func (s *baseStore[T, E]) Update(ctx context.Context, object T) error {
-	event := s.impl.makeObjectEvent(UpdateEvent).WithObject(object).(E)
+	event := s.impl.makeObjectEvent(UpdateEvent)
+	eventPtr := any(&event).(ObjectEventPtr[T])
+	eventPtr.SetObject(object)
 	return s.createObjectEvent(ctx, &event)
 }
 
 // Delete deletes compiler with specified ID.
 func (s *baseStore[T, E]) Delete(ctx context.Context, id int64) error {
-	object := s.impl.makeObject(id)
-	event := s.impl.makeObjectEvent(DeleteEvent).WithObject(object).(E)
+	event := s.impl.makeObjectEvent(DeleteEvent)
+	eventPtr := any(&event).(ObjectEventPtr[T])
+	eventPtr.SetObject(s.impl.makeObject(id))
 	return s.createObjectEvent(ctx, &event)
 }
 
@@ -359,17 +383,19 @@ func (s *baseStore[T, E]) createObjectEvent(
 			return s.createObjectEvent(db.WithTx(ctx, tx), event)
 		}, sqlRepeatableRead)
 	}
-	switch object := (*event).Object(); (*event).EventType() {
+	eventPtr := any(event).(ObjectEventPtr[T])
+	// eventPtr.SetAccountID()
+	switch object := eventPtr.Object(); eventPtr.EventType() {
 	case CreateEvent:
 		if err := s.objects.CreateObject(ctx, &object); err != nil {
 			return err
 		}
-		*event = (*event).WithObject(object).(E)
+		eventPtr.SetObject(object)
 	case UpdateEvent:
 		if err := s.objects.UpdateObject(ctx, &object); err != nil {
 			return err
 		}
-		*event = (*event).WithObject(object).(E)
+		eventPtr.SetObject(object)
 	case DeleteEvent:
 		if err := s.objects.DeleteObject(ctx, object.ObjectID()); err != nil {
 			return err
@@ -408,15 +434,19 @@ func (s *baseStore[T, E]) consumeEvent(e E) error {
 }
 
 func makeBaseStore[T db.Object, E ObjectEvent[T]](
-	dbConn *gosql.DB,
+	conn *gosql.DB,
 	table, eventTable string,
-	impl baseStoreImpl[T],
+	impl baseStoreImpl[T, E],
 ) baseStore[T, E] {
+	var event E
+	if _, ok := any(&event).(ObjectEventPtr[T]); !ok {
+		panic(fmt.Errorf("event %T does not implement ObjectEventPtr[T]", event))
+	}
 	return baseStore[T, E]{
-		db:      dbConn,
+		db:      conn,
 		table:   table,
-		objects: db.NewObjectStore[T]("id", table, dbConn),
-		events:  db.NewEventStore[E]("event_id", eventTable, dbConn),
+		objects: db.NewObjectStore[T]("id", table, conn),
+		events:  db.NewEventStore[E]("event_id", eventTable, conn),
 		impl:    impl,
 	}
 }

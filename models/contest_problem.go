@@ -39,10 +39,9 @@ func (e ContestProblemEvent) Object() ContestProblem {
 	return e.ContestProblem
 }
 
-// WithObject returns event with replaced ContestProblem.
-func (e ContestProblemEvent) WithObject(o ContestProblem) ObjectEvent[ContestProblem] {
+// SetObject sets event contest problem.
+func (e *ContestProblemEvent) SetObject(o ContestProblem) {
 	e.ContestProblem = o
-	return e
 }
 
 // ContestProblemStore represents a problem store.
@@ -89,7 +88,7 @@ func (s *ContestProblemStore) makeObject(id int64) ContestProblem {
 	return ContestProblem{ID: id}
 }
 
-func (s *ContestProblemStore) makeObjectEvent(typ EventType) ObjectEvent[ContestProblem] {
+func (s *ContestProblemStore) makeObjectEvent(typ EventType) ContestProblemEvent {
 	return ContestProblemEvent{baseEvent: makeBaseEvent(typ)}
 }
 

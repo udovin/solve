@@ -72,8 +72,8 @@ func (o ContestParticipant) Clone() ContestParticipant {
 	return o
 }
 
-func (o ContestParticipant) contestAccountKey() pairInt64 {
-	return pairInt64{o.ContestID, o.AccountID}
+func (o ContestParticipant) contestAccountKey() pair[int64, int64] {
+	return makePair(o.ContestID, o.AccountID)
 }
 
 // ContestParticipant represents participant event.
@@ -87,10 +87,9 @@ func (e ContestParticipantEvent) Object() ContestParticipant {
 	return e.ContestParticipant
 }
 
-// WithObject returns event with replaced ContestParticipant.
-func (e ContestParticipantEvent) WithObject(o ContestParticipant) ObjectEvent[ContestParticipant] {
+// SetObject sets event contest participant.
+func (e *ContestParticipantEvent) SetObject(o ContestParticipant) {
 	e.ContestParticipant = o
-	return e
 }
 
 // ContestParticipantStore represents a participant store.
@@ -98,7 +97,7 @@ type ContestParticipantStore struct {
 	baseStore[ContestParticipant, ContestParticipantEvent]
 	participants     map[int64]ContestParticipant
 	byContest        index[int64]
-	byContestAccount index[pairInt64]
+	byContestAccount index[pair[int64, int64]]
 }
 
 // Get returns participant by ID.
@@ -135,7 +134,7 @@ func (s *ContestParticipantStore) FindByContestAccount(
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var participants []ContestParticipant
-	for id := range s.byContestAccount[pairInt64{contestID, accountID}] {
+	for id := range s.byContestAccount[makePair(contestID, accountID)] {
 		if participant, ok := s.participants[id]; ok {
 			participants = append(participants, participant.Clone())
 		}
@@ -146,14 +145,14 @@ func (s *ContestParticipantStore) FindByContestAccount(
 func (s *ContestParticipantStore) reset() {
 	s.participants = map[int64]ContestParticipant{}
 	s.byContest = makeIndex[int64]()
-	s.byContestAccount = makeIndex[pairInt64]()
+	s.byContestAccount = makeIndex[pair[int64, int64]]()
 }
 
 func (s *ContestParticipantStore) makeObject(id int64) ContestParticipant {
 	return ContestParticipant{ID: id}
 }
 
-func (s *ContestParticipantStore) makeObjectEvent(typ EventType) ObjectEvent[ContestParticipant] {
+func (s *ContestParticipantStore) makeObjectEvent(typ EventType) ContestParticipantEvent {
 	return ContestParticipantEvent{baseEvent: makeBaseEvent(typ)}
 }
 

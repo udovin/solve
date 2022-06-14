@@ -57,7 +57,7 @@ type EventROStore[T Event] interface {
 type EventStore[T Event] interface {
 	EventROStore[T]
 	// CreateEvent should create a new event and return copy
-	// that has correct EventID.
+	// that has correct ID.
 	CreateEvent(ctx context.Context, event *T) error
 }
 

@@ -37,10 +37,9 @@ func (e RoleEdgeEvent) Object() RoleEdge {
 	return e.RoleEdge
 }
 
-// WithObject returns event with replaced RoleEdge.
-func (e RoleEdgeEvent) WithObject(o RoleEdge) ObjectEvent[RoleEdge] {
+// SetObject sets event role edge.
+func (e *RoleEdgeEvent) SetObject(o RoleEdge) {
 	e.RoleEdge = o
-	return e
 }
 
 // RoleEdgeStore represents a role edge store.
@@ -85,7 +84,7 @@ func (s *RoleEdgeStore) makeObject(id int64) RoleEdge {
 	return RoleEdge{ID: id}
 }
 
-func (s *RoleEdgeStore) makeObjectEvent(typ EventType) ObjectEvent[RoleEdge] {
+func (s *RoleEdgeStore) makeObjectEvent(typ EventType) RoleEdgeEvent {
 	return RoleEdgeEvent{baseEvent: makeBaseEvent(typ)}
 }
 

@@ -50,10 +50,9 @@ func (e UserEvent) Object() User {
 	return e.User
 }
 
-// WithObject return copy of event with replaced user.
-func (e UserEvent) WithObject(o User) ObjectEvent[User] {
+// SetObject sets event user.
+func (e *UserEvent) SetObject(o User) {
 	e.User = o
-	return e
 }
 
 // UserStore represents users store.
@@ -131,7 +130,7 @@ func (s *UserStore) makeObject(id int64) User {
 	return User{ID: id}
 }
 
-func (s *UserStore) makeObjectEvent(typ EventType) ObjectEvent[User] {
+func (s *UserStore) makeObjectEvent(typ EventType) UserEvent {
 	return UserEvent{baseEvent: makeBaseEvent(typ)}
 }
 

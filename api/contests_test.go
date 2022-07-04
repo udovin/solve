@@ -13,6 +13,11 @@ var testSimpleContest = createContestForm{
 	Title: getPtr("Test contest"),
 }
 
+var testSimpleConfiguredContest = createContestForm{
+	Title:  getPtr("Test configured contest"),
+	Config: &models.ContestConfig{},
+}
+
 func TestContestSimpleScenario(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
@@ -41,6 +46,13 @@ func TestContestSimpleScenario(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	testCheck(contest)
+	{
+		resp, err := testAPI.CreateContest(testSimpleConfiguredContest)
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		testCheck(resp)
+	}
 	testSyncManagers(t)
 	{
 		contests, err := testAPI.ObserveContests()
@@ -56,10 +68,10 @@ func TestContestSimpleScenario(t *testing.T) {
 		}
 		testCheck(created)
 	}
-	{
+	for i := 0; i < 3; i++ {
 		c := testView.core
 		problem := models.Problem{
-			Title: "Test problem 1",
+			Title: fmt.Sprintf("Test problem %d", i+1),
 		}
 		err := c.Problems.Create(context.Background(), &problem)
 		if err != nil {
@@ -67,7 +79,7 @@ func TestContestSimpleScenario(t *testing.T) {
 		}
 		testSyncManagers(t)
 		form := createContestProblemForm{
-			Code:      "A",
+			Code:      fmt.Sprintf("%c", 'A'+i),
 			ProblemID: problem.ID,
 		}
 		contestProblem, err := testAPI.CreateContestProblem(contest.ID, form)

@@ -8,6 +8,7 @@ require (
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/labstack/gommon v0.3.1
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
+	github.com/nsf/jsondiff v0.0.0-20210926074059-1e845ec5d249
 	github.com/opencontainers/runc v1.1.3
 	github.com/spf13/cobra v1.5.0
 	github.com/udovin/gosql v0.0.0-20220426203332-0ec503d9d791
@@ -36,7 +37,6 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/moby/sys/mountinfo v0.6.1 // indirect
 	github.com/mrunalp/fileutils v0.5.0 // indirect
-	github.com/nsf/jsondiff v0.0.0-20210926074059-1e845ec5d249 // indirect
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417 // indirect
 	github.com/opencontainers/selinux v1.10.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

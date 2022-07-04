@@ -11,7 +11,33 @@
     ]
   },
   {
+    "id": 2,
+    "title": "Test configured contest",
+    "permissions": [
+      "update_contest",
+      "delete_contest"
+    ]
+  },
+  {
     "contests": [
+      {
+        "id": 2,
+        "title": "Test configured contest",
+        "permissions": [
+          "update_contest",
+          "delete_contest",
+          "observe_contest_problems",
+          "create_contest_problem",
+          "delete_contest_problem",
+          "observe_contest_participants",
+          "create_contest_participant",
+          "delete_contest_participant",
+          "observe_contest_solutions",
+          "create_contest_solution",
+          "update_contest_solution",
+          "delete_contest_solution"
+        ]
+      },
       {
         "id": 1,
         "title": "Test contest",
@@ -55,5 +81,17 @@
     "title": "Test problem 1",
     "contest_id": 1,
     "code": "A"
+  },
+  {
+    "id": 2,
+    "title": "Test problem 2",
+    "contest_id": 1,
+    "code": "B"
+  },
+  {
+    "id": 3,
+    "title": "Test problem 3",
+    "contest_id": 1,
+    "code": "C"
   }
 ]

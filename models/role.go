@@ -163,6 +163,8 @@ const (
 	UpdateContestRole = "update_contest"
 	// DeleteContestRole represents role for deleting contest.
 	DeleteContestRole = "delete_contest"
+	// RegisterContestRole represents role for register to contest.
+	RegisterContestRole = "register_contest"
 )
 
 var builtInRoles = map[string]struct{}{
@@ -228,6 +230,16 @@ var builtInRoles = map[string]struct{}{
 	UpdateContestRole:              {},
 	DeleteContestRole:              {},
 	DeleteSessionRole:              {},
+	RegisterContestRole:            {},
+}
+
+// GetBuildInRoles returns all built-in roles.
+func GetBuiltInRoles() []string {
+	var roles []string
+	for role := range builtInRoles {
+		roles = append(roles, role)
+	}
+	return roles
 }
 
 // ObjectID return ID of role.

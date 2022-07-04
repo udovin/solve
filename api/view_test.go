@@ -14,6 +14,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
+	"github.com/nsf/jsondiff"
 
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
@@ -44,13 +45,16 @@ func (s *testCheckState) Check(data any) {
 		}
 		s.tb.Fatalf("Unexpected check with data: %s", raw)
 	}
-	if string(s.checks[s.pos]) != string(raw) {
+	options := jsondiff.DefaultConsoleOptions()
+	diff, report := jsondiff.Compare(s.checks[s.pos], raw, &options)
+	if diff != jsondiff.FullMatch {
 		if s.reset {
 			s.checks[s.pos] = raw
 			s.pos++
 			return
 		}
-		s.tb.Fatalf("Unexpected check with data: %s, expected: %s", raw, s.checks[s.pos])
+		s.tb.Error("Unexpected result difference:")
+		s.tb.Fatalf(report)
 	}
 	s.pos++
 }
@@ -375,6 +379,7 @@ func (c *testClient) doRequest(req *http.Request, code int, respData any) error 
 		if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 			return err
 		}
+		respData.Code = resp.StatusCode
 		return &respData
 	}
 	c.cookies = append(c.cookies, resp.Cookies()...)

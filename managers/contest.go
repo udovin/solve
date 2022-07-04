@@ -2,6 +2,8 @@ package managers
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
@@ -39,34 +41,80 @@ func addContestManagerPermissions(permissions PermissionSet) {
 	)
 }
 
+func addContestRegularPermissions(permissions PermissionSet) {
+	permissions.AddPermission(
+		models.ObserveContestRole,
+	)
+}
+
+func addContestVirtualPermissions(permissions PermissionSet) {
+	permissions.AddPermission(
+		models.ObserveContestRole,
+	)
+}
+
+func addContestUpsolvingPermissions(permissions PermissionSet) {
+	permissions.AddPermission(
+		models.ObserveContestRole,
+	)
+}
+
 func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contest) (*ContestContext, error) {
+	config, err := contest.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("unable to build contest context: %w", err)
+	}
 	c := ContestContext{
 		AccountContext: ctx,
 		Contest:        contest,
 		Permissions:    PermissionSet{},
 	}
+	now := time.Now().Unix()
 	if account := ctx.Account; account != nil {
 		if contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
 			addContestManagerPermissions(c.Permissions)
 			c.Permissions.AddPermission(models.DeleteContestRole)
 		}
-		participants, err := m.Participants.FindByContestAccount(contest.ID, ctx.Account.ID)
+		participants, err := m.Participants.FindByContestAccount(contest.ID, account.ID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to build contest context: %w", err)
 		}
+		hasRegular := false
+		hasUpsolving := false
 		for _, participant := range participants {
 			switch participant.Kind {
 			case models.RegularParticipant:
-				c.Permissions.AddPermission(models.ObserveContestRole)
+				hasRegular = true
+				addContestRegularPermissions(c.Permissions)
 			case models.UpsolvingParticipant:
-				c.Permissions.AddPermission(models.ObserveContestRole)
+				hasUpsolving = true
+				addContestUpsolvingPermissions(c.Permissions)
 			case models.VirtualParticipant:
-				c.Permissions.AddPermission(models.ObserveContestRole)
+				addContestVirtualPermissions(c.Permissions)
 			case models.ManagerParticipant:
 				addContestManagerPermissions(c.Permissions)
 			}
 		}
 		c.Participants = participants
+		if config.BeginTime != 0 {
+			beginTime := int64(config.BeginTime)
+			endTime := beginTime + int64(config.Duration)
+			if !hasRegular && config.EnableRegistration &&
+				now < beginTime {
+				c.Permissions.AddPermission(models.ObserveContestRole)
+				c.Permissions.AddPermission(models.RegisterContestRole)
+			}
+			if !hasUpsolving && config.EnableUpsolving &&
+				now > endTime && (hasRegular || config.EnableRegistration) {
+				// Add virtual participant for upsolving.
+				c.Participants = append(c.Participants, models.ContestParticipant{
+					Kind:      models.UpsolvingParticipant,
+					ContestID: contest.ID,
+					AccountID: account.ID,
+				})
+				addContestUpsolvingPermissions(c.Permissions)
+			}
+		}
 	}
 	return &c, nil
 }

@@ -128,6 +128,11 @@ type errorResponse struct {
 	InvalidFields errorFields `json:"invalid_fields,omitempty"`
 }
 
+// StatusCode returns response status code.
+func (r errorResponse) StatusCode() int {
+	return r.Code
+}
+
 // Error returns response error message.
 func (r errorResponse) Error() string {
 	var result strings.Builder
@@ -142,17 +147,34 @@ func (r errorResponse) Error() string {
 		}
 		result.WriteRune(')')
 	}
+	if len(r.InvalidFields) > 0 {
+		result.WriteString(" (invalid fields: ")
+		i := 0
+		for field := range r.InvalidFields {
+			if i > 0 {
+				result.WriteString(", ")
+			}
+			result.WriteString(field)
+			i++
+		}
+		result.WriteRune(')')
+	}
 	return result.String()
+}
+
+type statusCodeResponse interface {
+	StatusCode() int
 }
 
 func wrapErrorResponse(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		err := next(c)
-		if resp, ok := err.(errorResponse); ok {
-			if resp.Code == 0 {
-				resp.Code = http.StatusInternalServerError
+		if resp, ok := err.(statusCodeResponse); ok {
+			code := resp.StatusCode()
+			if code == 0 {
+				code = http.StatusInternalServerError
 			}
-			return c.JSON(resp.Code, resp)
+			return c.JSON(code, resp)
 		}
 		return err
 	}

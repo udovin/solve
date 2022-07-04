@@ -248,16 +248,23 @@ func (v *View) observeContest(c echo.Context) error {
 }
 
 type updateContestForm struct {
-	Title *string `json:"title"`
+	Title  *string               `json:"title"`
+	Config *models.ContestConfig `json:"config"`
 }
 
-func (f updateContestForm) validate() *errorResponse {
+func (f updateContestForm) Update(contest *models.Contest) *errorResponse {
 	errors := errorFields{}
 	if f.Title != nil {
 		if len(*f.Title) < 4 {
 			errors["title"] = errorField{Message: "title is too short"}
 		} else if len(*f.Title) > 64 {
 			errors["title"] = errorField{Message: "title is too long"}
+		}
+		contest.Title = *f.Title
+	}
+	if f.Config != nil {
+		if err := contest.SetConfig(*f.Config); err != nil {
+			errors["config"] = errorField{Message: "invalid config json"}
 		}
 	}
 	if len(errors) > 0 {
@@ -266,16 +273,6 @@ func (f updateContestForm) validate() *errorResponse {
 			Message:       "form has invalid fields",
 			InvalidFields: errors,
 		}
-	}
-	return nil
-}
-
-func (f updateContestForm) Update(contest *models.Contest) *errorResponse {
-	if err := f.validate(); err != nil {
-		return err
-	}
-	if f.Title != nil {
-		contest.Title = *f.Title
 	}
 	return nil
 }

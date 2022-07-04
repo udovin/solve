@@ -31,6 +31,9 @@ func (o Compiler) Clone() Compiler {
 
 func (o Compiler) GetConfig() (CompilerConfig, error) {
 	var config CompilerConfig
+	if len(o.Config) == 0 {
+		return config, nil
+	}
 	err := json.Unmarshal(o.Config, &config)
 	return config, err
 }

@@ -2,9 +2,17 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"github.com/udovin/gosql"
 )
+
+type ContestConfig struct {
+	BeginTime          NInt64 `json:"begin_time"`
+	Duration           int    `json:"duration"`
+	EnableRegistration bool   `json:"enable_registration"`
+	EnableUpsolving    bool   `json:"enable_upsolving"`
+}
 
 // Contest represents a contest.
 type Contest struct {
@@ -23,6 +31,24 @@ func (o Contest) ObjectID() int64 {
 func (o Contest) Clone() Contest {
 	o.Config = o.Config.Clone()
 	return o
+}
+
+func (o Contest) GetConfig() (ContestConfig, error) {
+	var config ContestConfig
+	if len(o.Config) == 0 {
+		return config, nil
+	}
+	err := json.Unmarshal(o.Config, &config)
+	return config, err
+}
+
+func (o *Contest) SetConfig(config ContestConfig) error {
+	raw, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	o.Config = raw
+	return nil
 }
 
 // ContestEvent represents a contest event.

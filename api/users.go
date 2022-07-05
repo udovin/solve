@@ -469,12 +469,12 @@ func (f registerUserForm) validate() *errorResponse {
 
 // registerUserForm represents form for register new user.
 type registerUserForm struct {
-	Login      string `json:"login"`
-	Email      string `json:"email"`
-	Password   string `json:"password"`
-	FirstName  string `json:"first_name"`
-	LastName   string `json:"last_name"`
-	MiddleName string `json:"middle_name"`
+	Login      string `json:"login" form:"login"`
+	Email      string `json:"email" form:"email"`
+	Password   string `json:"password" form:"password"`
+	FirstName  string `json:"first_name" form:"first_name"`
+	LastName   string `json:"last_name" form:"last_name"`
+	MiddleName string `json:"middle_name" form:"middle_name"`
 }
 
 func (f registerUserForm) Update(

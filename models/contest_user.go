@@ -22,6 +22,11 @@ func (o ContestUser) ObjectID() int64 {
 	return o.ID
 }
 
+// SetObjectID sets ID of contest user.
+func (o *ContestUser) SetObjectID(id int64) {
+	o.ID = id
+}
+
 // Clone creates copy of user.
 func (o ContestUser) Clone() ContestUser {
 	return o

@@ -62,13 +62,19 @@ type ContestParticipant struct {
 	Config JSON `db:"config"`
 }
 
-// ObjectID return ID of problem.
+// ObjectID return ID of contest participant.
 func (o ContestParticipant) ObjectID() int64 {
 	return o.ID
 }
 
-// Clone creates copy of participant.
+// SetObjectID sets ID of contest participant.
+func (o *ContestParticipant) SetObjectID(id int64) {
+	o.ID = id
+}
+
+// Clone creates copy of contest participant.
 func (o ContestParticipant) Clone() ContestParticipant {
+	o.Config = o.Config.Clone()
 	return o
 }
 

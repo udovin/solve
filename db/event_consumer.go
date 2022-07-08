@@ -8,7 +8,7 @@ import (
 )
 
 // EventConsumer represents consumer for events.
-type EventConsumer[T Event] interface {
+type EventConsumer[T any, TPtr EventPtr[T]] interface {
 	// BeginEventID should return smallest ID of next possibly consumed event.
 	BeginEventID() int64
 	// ConsumeEvents should consume new events.
@@ -16,20 +16,20 @@ type EventConsumer[T Event] interface {
 }
 
 // eventConsumer represents a base implementation for EventConsumer.
-type eventConsumer[T Event] struct {
+type eventConsumer[T any, TPtr EventPtr[T]] struct {
 	store  EventROStore[T]
 	ranges []EventRange
 	mutex  sync.Mutex
 }
 
 // BeginEventID returns ID of beginning event.
-func (c *eventConsumer[T]) BeginEventID() int64 {
+func (c *eventConsumer[T, TPtr]) BeginEventID() int64 {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.ranges[0].Begin
 }
 
-func (c *eventConsumer[T]) removeEmptyRanges() {
+func (c *eventConsumer[T, TPtr]) removeEmptyRanges() {
 	newLen := 0
 	for i, rng := range c.ranges {
 		if rng.Begin != rng.End {
@@ -44,7 +44,7 @@ func (c *eventConsumer[T]) removeEmptyRanges() {
 }
 
 // ConsumeEvents consumes new events from event store.
-func (c *eventConsumer[T]) ConsumeEvents(ctx context.Context, fn func(T) error) error {
+func (c *eventConsumer[T, TPtr]) ConsumeEvents(ctx context.Context, fn func(T) error) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	events, err := c.store.LoadEvents(ctx, c.ranges)
@@ -57,7 +57,7 @@ func (c *eventConsumer[T]) ConsumeEvents(ctx context.Context, fn func(T) error) 
 	it := 0
 	for events.Next() {
 		event := events.Row()
-		eventID := event.EventID()
+		eventID := TPtr(&event).EventID()
 		for it < len(c.ranges) && !c.ranges[it].contains(eventID) {
 			it++
 		}
@@ -94,8 +94,10 @@ const eventGapSkipTimeout = 5 * time.Minute
 //
 // TODO(udovin): Add support for gapSkipTimeout.
 // TODO(udovin): Add support for limit.
-func NewEventConsumer[T Event](store EventROStore[T], beginID int64) EventConsumer[T] {
-	return &eventConsumer[T]{
+func NewEventConsumer[T any, TPtr EventPtr[T]](
+	store EventROStore[T], beginID int64,
+) EventConsumer[T, TPtr] {
+	return &eventConsumer[T, TPtr]{
 		store:  store,
 		ranges: []EventRange{{Begin: beginID}},
 	}

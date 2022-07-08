@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
-
-	"github.com/udovin/solve/db"
 )
 
 type taskStoreTest struct{}
@@ -42,21 +40,21 @@ func (t *taskStoreTest) newStore() Store {
 	return NewTaskStore(testDB, "task", "task_event")
 }
 
-func (t *taskStoreTest) newObject() db.Object {
+func (t *taskStoreTest) newObject() Object {
 	return Task{}
 }
 
 func (t *taskStoreTest) createObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	task := o.(Task)
 	err := s.(*TaskStore).Create(wrapContext(tx), &task)
 	return task, err
 }
 
 func (t *taskStoreTest) updateObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	return o, s.(*TaskStore).Update(wrapContext(tx), o.(Task))
 }
 

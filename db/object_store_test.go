@@ -22,6 +22,10 @@ func (o testObject) ObjectID() int64 {
 	return o.ID
 }
 
+func (o *testObject) SetObjectID(id int64) {
+	o.ID = id
+}
+
 func testSetupObjectStore(t testing.TB, store ObjectStore[testObject]) []testObject {
 	objects := []testObject{
 		{C: 8}, {C: 16}, {C: 5}, {C: 3},

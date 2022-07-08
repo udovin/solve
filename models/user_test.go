@@ -3,8 +3,6 @@ package models
 import (
 	"database/sql"
 	"testing"
-
-	"github.com/udovin/solve/db"
 )
 
 type userStoreTest struct{}
@@ -47,13 +45,13 @@ func (t *userStoreTest) newStore() Store {
 	return NewUserStore(testDB, "user", "user_event", "")
 }
 
-func (t *userStoreTest) newObject() db.Object {
+func (t *userStoreTest) newObject() Object {
 	return User{}
 }
 
 func (t *userStoreTest) createObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	user := o.(User)
 	if err := s.(*UserStore).Create(wrapContext(tx), &user); err != nil {
 		return User{}, err
@@ -62,8 +60,8 @@ func (t *userStoreTest) createObject(
 }
 
 func (t *userStoreTest) updateObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	return o, s.(*UserStore).Update(wrapContext(tx), o.(User))
 }
 

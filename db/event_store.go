@@ -9,10 +9,13 @@ import (
 	"github.com/udovin/gosql"
 )
 
-// Event represents an event from store.
-type Event interface {
+// EventPtr represents a mutable event from store.
+type EventPtr[T any] interface {
+	*T
 	// EventID should return sequential ID of event.
 	EventID() int64
+	// SetEventID should set sequential ID of event.
+	SetEventID(int64)
 	// EventTime should return time when event occurred.
 	EventTime() time.Time
 }
@@ -45,7 +48,7 @@ func (r EventRange) getWhere(name string) gosql.BoolExpression {
 }
 
 // EventROStore represents read-only store for events.
-type EventROStore[T Event] interface {
+type EventROStore[T any] interface {
 	// LastEventID should return last event ID or sql.ErrNoRows
 	// if there is no events.
 	LastEventID(ctx context.Context) (int64, error)
@@ -54,14 +57,14 @@ type EventROStore[T Event] interface {
 }
 
 // EventStore represents persistent store for events.
-type EventStore[T Event] interface {
+type EventStore[T any, TPtr EventPtr[T]] interface {
 	EventROStore[T]
 	// CreateEvent should create a new event and return copy
 	// that has correct ID.
-	CreateEvent(ctx context.Context, event *T) error
+	CreateEvent(ctx context.Context, event TPtr) error
 }
 
-type eventStore[T Event] struct {
+type eventStore[T any, TPtr EventPtr[T]] struct {
 	db      *gosql.DB
 	id      string
 	table   string
@@ -70,7 +73,7 @@ type eventStore[T Event] struct {
 
 // LastEventID returns last event ID or sql.ErrNoRows
 // if there is no events.
-func (s *eventStore[T]) LastEventID(ctx context.Context) (int64, error) {
+func (s *eventStore[T, TPtr]) LastEventID(ctx context.Context) (int64, error) {
 	row := GetRunner(ctx, s.db).QueryRowContext(
 		ctx, fmt.Sprintf("SELECT max(%q) FROM %q", s.id, s.table),
 	)
@@ -84,7 +87,7 @@ func (s *eventStore[T]) LastEventID(ctx context.Context) (int64, error) {
 	return *id, nil
 }
 
-func (s *eventStore[T]) getEventsWhere(ranges []EventRange) gosql.BoolExpression {
+func (s *eventStore[T, TPtr]) getEventsWhere(ranges []EventRange) gosql.BoolExpression {
 	if len(ranges) == 0 {
 		return nil
 	}
@@ -95,7 +98,7 @@ func (s *eventStore[T]) getEventsWhere(ranges []EventRange) gosql.BoolExpression
 	return where
 }
 
-func (s *eventStore[T]) LoadEvents(
+func (s *eventStore[T, TPtr]) LoadEvents(
 	ctx context.Context, ranges []EventRange,
 ) (RowReader[T], error) {
 	builder := s.db.Select(s.table)
@@ -113,13 +116,13 @@ func (s *eventStore[T]) LoadEvents(
 	return newRowReader[T](rows), nil
 }
 
-func (s *eventStore[T]) CreateEvent(ctx context.Context, event *T) error {
-	return insertRow(ctx, s.db, event, s.id, s.table)
+func (s *eventStore[T, TPtr]) CreateEvent(ctx context.Context, event TPtr) error {
+	return insertRow(ctx, s.db, (*T)(event), s.id, s.table)
 }
 
 // NewEventStore creates a new store for events of specified type.
-func NewEventStore[T Event](id, table string, db *gosql.DB) EventStore[T] {
-	return &eventStore[T]{
+func NewEventStore[T any, TPtr EventPtr[T]](id, table string, db *gosql.DB) EventStore[T, TPtr] {
+	return &eventStore[T, TPtr]{
 		db:      db,
 		id:      id,
 		table:   table,

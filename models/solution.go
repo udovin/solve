@@ -97,6 +97,11 @@ func (o Solution) ObjectID() int64 {
 	return o.ID
 }
 
+// SetObjectID sets ID of solution.
+func (o *Solution) SetObjectID(id int64) {
+	o.ID = id
+}
+
 // Clone creates copy of solution.
 func (o Solution) Clone() Solution {
 	o.Report = o.Report.Clone()

@@ -5,8 +5,6 @@ import (
 	"log"
 	"reflect"
 	"testing"
-
-	"github.com/udovin/solve/db"
 )
 
 type contestStoreTest struct{}
@@ -40,21 +38,21 @@ func (t *contestStoreTest) newStore() Store {
 	return NewContestStore(testDB, "contest", "contest_event")
 }
 
-func (t *contestStoreTest) newObject() db.Object {
+func (t *contestStoreTest) newObject() Object {
 	return Contest{}
 }
 
 func (t *contestStoreTest) createObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	contest := o.(Contest)
 	err := s.(*ContestStore).Create(wrapContext(tx), &contest)
 	return contest, err
 }
 
 func (t *contestStoreTest) updateObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	return o, s.(*ContestStore).Update(wrapContext(tx), o.(Contest))
 }
 

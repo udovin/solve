@@ -21,6 +21,11 @@ func (o AccountRole) ObjectID() int64 {
 	return o.ID
 }
 
+// SetObjectID sets ID of account role.
+func (o *AccountRole) SetObjectID(id int64) {
+	o.ID = id
+}
+
 // Clone creates copy of account role.
 func (o AccountRole) Clone() AccountRole {
 	return o

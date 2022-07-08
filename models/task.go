@@ -89,6 +89,11 @@ func (o Task) ObjectID() int64 {
 	return o.ID
 }
 
+// SetObjectID sets ID of task.
+func (o *Task) SetObjectID(id int64) {
+	o.ID = id
+}
+
 // Clone create copy of task.
 func (o Task) Clone() Task {
 	o.Config = o.Config.Clone()

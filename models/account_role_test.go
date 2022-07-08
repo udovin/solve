@@ -3,8 +3,6 @@ package models
 import (
 	"database/sql"
 	"testing"
-
-	"github.com/udovin/solve/db"
 )
 
 type accountRoleStoreTest struct{}
@@ -35,13 +33,13 @@ func (t *accountRoleStoreTest) newStore() Store {
 	return NewAccountRoleStore(testDB, "account_role", "account_role_event")
 }
 
-func (t *accountRoleStoreTest) newObject() db.Object {
+func (t *accountRoleStoreTest) newObject() Object {
 	return AccountRole{}
 }
 
 func (t *accountRoleStoreTest) createObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	role := o.(AccountRole)
 	if err := s.(*AccountRoleStore).Create(wrapContext(tx), &role); err != nil {
 		return AccountRole{}, err
@@ -50,8 +48,8 @@ func (t *accountRoleStoreTest) createObject(
 }
 
 func (t *accountRoleStoreTest) updateObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	return o, s.(*AccountRoleStore).Update(wrapContext(tx), o.(AccountRole))
 }
 

@@ -37,6 +37,10 @@ func (o migration) ObjectID() int64 {
 	return o.ID
 }
 
+func (o *migration) SetObjectID(id int64) {
+	o.ID = id
+}
+
 const migrationTableName = "solve_db_migration"
 
 // Apply applies all migrations to the specified core.

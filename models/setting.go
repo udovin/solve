@@ -18,6 +18,11 @@ func (o Setting) ObjectID() int64 {
 	return o.ID
 }
 
+// SetObjectID sets ID of setting.
+func (o *Setting) SetObjectID(id int64) {
+	o.ID = id
+}
+
 // Clone creates copy of setting.
 func (o Setting) Clone() Setting {
 	return o

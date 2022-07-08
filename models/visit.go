@@ -31,6 +31,11 @@ func (o Visit) EventID() int64 {
 	return o.ID
 }
 
+// SetEventID sets ID of visit.
+func (o *Visit) SetEventID(id int64) {
+	o.ID = id
+}
+
 // EventTime return time of visit.
 func (o Visit) EventTime() time.Time {
 	return time.Unix(o.Time, 0)

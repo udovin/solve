@@ -21,6 +21,11 @@ func (o RoleEdge) ObjectID() int64 {
 	return o.ID
 }
 
+// SetObjectID sets ID of role edge.
+func (o *RoleEdge) SetObjectID(id int64) {
+	o.ID = id
+}
+
 // Clone creates copy of role edge.
 func (o RoleEdge) Clone() RoleEdge {
 	return o

@@ -3,8 +3,6 @@ package models
 import (
 	"database/sql"
 	"testing"
-
-	"github.com/udovin/solve/db"
 )
 
 type contestProblemStoreTest struct{}
@@ -37,21 +35,21 @@ func (t *contestProblemStoreTest) newStore() Store {
 	return NewContestProblemStore(testDB, "contest_problem", "contest_problem_event")
 }
 
-func (t *contestProblemStoreTest) newObject() db.Object {
+func (t *contestProblemStoreTest) newObject() Object {
 	return ContestProblem{}
 }
 
 func (t *contestProblemStoreTest) createObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	object := o.(ContestProblem)
 	err := s.(*ContestProblemStore).Create(wrapContext(tx), &object)
 	return object, err
 }
 
 func (t *contestProblemStoreTest) updateObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	return o, s.(*ContestProblemStore).Update(wrapContext(tx), o.(ContestProblem))
 }
 

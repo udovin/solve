@@ -19,6 +19,11 @@ func (o Problem) ObjectID() int64 {
 	return o.ID
 }
 
+// SetObjectID sets ID of problem.
+func (o *Problem) SetObjectID(id int64) {
+	o.ID = id
+}
+
 // Clone creates copy of problem.
 func (o Problem) Clone() Problem {
 	o.Config = o.Config.Clone()

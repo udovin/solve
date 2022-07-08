@@ -36,6 +36,11 @@ func (o Session) ObjectID() int64 {
 	return o.ID
 }
 
+// SetObjectID sets ID of session.
+func (o *Session) SetObjectID(id int64) {
+	o.ID = id
+}
+
 // Clone creates copy of session.
 func (o Session) Clone() Session {
 	return o

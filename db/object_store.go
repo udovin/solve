@@ -7,25 +7,16 @@ import (
 )
 
 // Object represents an object from store.
-type Object interface {
+type ObjectPtr[T any] interface {
+	*T
 	// ObjectID should return sequential ID of object.
 	ObjectID() int64
-}
-
-// ObjectReader represents reader for objects.
-type ObjectReader[T Object] interface {
-	// Next should read next object and return true if object exists.
-	Next() bool
-	// Object should return current object.
-	Object() T
-	// Close should close reader.
-	Close() error
-	// Err should return error that occurred during reading.
-	Err() error
+	// SetObjectID should set sequential ID of object.
+	SetObjectID(int64)
 }
 
 // ObjectROStore represents read-only store for objects.
-type ObjectROStore[T Object] interface {
+type ObjectROStore[T any] interface {
 	// LoadObjects should load objects from store.
 	LoadObjects(ctx context.Context) (RowReader[T], error)
 	// FindObjects should bind objects with specified expression.
@@ -35,24 +26,24 @@ type ObjectROStore[T Object] interface {
 }
 
 // ObjectStore represents persistent store for objects.
-type ObjectStore[T Object] interface {
+type ObjectStore[T any, TPtr ObjectPtr[T]] interface {
 	ObjectROStore[T]
 	// CreateObject should create a new object set valid ID.
-	CreateObject(ctx context.Context, object *T) error
+	CreateObject(ctx context.Context, object TPtr) error
 	// UpdateObject should update object with specified ID.
-	UpdateObject(ctx context.Context, object *T) error
+	UpdateObject(ctx context.Context, object TPtr) error
 	// DeleteObject should delete existing object from the store.
 	DeleteObject(ctx context.Context, id int64) error
 }
 
-type objectStore[T Object] struct {
+type objectStore[T any, TPtr ObjectPtr[T]] struct {
 	db      *gosql.DB
 	id      string
 	table   string
 	columns []string
 }
 
-func (s *objectStore[T]) LoadObjects(ctx context.Context) (RowReader[T], error) {
+func (s *objectStore[T, TPtr]) LoadObjects(ctx context.Context) (RowReader[T], error) {
 	builder := s.db.Select(s.table)
 	builder.SetNames(s.columns...)
 	builder.SetOrderBy(gosql.Ascending(s.id))
@@ -66,7 +57,7 @@ func (s *objectStore[T]) LoadObjects(ctx context.Context) (RowReader[T], error) 
 	return newRowReader[T](rows), nil
 }
 
-func (s *objectStore[T]) FindObjects(
+func (s *objectStore[T, TPtr]) FindObjects(
 	ctx context.Context, where gosql.BoolExpression,
 ) (RowReader[T], error) {
 	builder := s.db.Select(s.table)
@@ -84,23 +75,23 @@ func (s *objectStore[T]) FindObjects(
 	return newRowReader[T](rows), nil
 }
 
-func (s *objectStore[T]) CreateObject(ctx context.Context, object *T) error {
-	return insertRow(ctx, s.db, object, s.id, s.table)
+func (s *objectStore[T, TPtr]) CreateObject(ctx context.Context, object TPtr) error {
+	return insertRow(ctx, s.db, (*T)(object), s.id, s.table)
 }
 
-func (s *objectStore[T]) UpdateObject(ctx context.Context, object *T) error {
-	return updateRow(ctx, s.db, object, s.id, s.table)
+func (s *objectStore[T, TPtr]) UpdateObject(ctx context.Context, object TPtr) error {
+	return updateRow(ctx, s.db, (*T)(object), s.id, s.table)
 }
 
-func (s *objectStore[T]) DeleteObject(ctx context.Context, id int64) error {
+func (s *objectStore[T, TPtr]) DeleteObject(ctx context.Context, id int64) error {
 	return deleteRow(ctx, s.db, id, s.id, s.table)
 }
 
 // NewObjectStore creates a new store for objects of specified type.
-func NewObjectStore[T Object](
+func NewObjectStore[T any, TPtr ObjectPtr[T]](
 	id, table string, db *gosql.DB,
-) ObjectStore[T] {
-	return &objectStore[T]{
+) ObjectStore[T, TPtr] {
+	return &objectStore[T, TPtr]{
 		db:      db,
 		id:      id,
 		table:   table,

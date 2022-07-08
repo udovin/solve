@@ -18,9 +18,14 @@ type ContestProblem struct {
 	Code string `db:"code"`
 }
 
-// ObjectID return ID of problem.
+// ObjectID return ID of contest problem.
 func (o ContestProblem) ObjectID() int64 {
 	return o.ID
+}
+
+// SetObjectID sets ID of contest problem.
+func (o *ContestProblem) SetObjectID(id int64) {
+	o.ID = id
 }
 
 // Clone creates copy of contest problem.

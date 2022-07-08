@@ -3,8 +3,6 @@ package models
 import (
 	"database/sql"
 	"testing"
-
-	"github.com/udovin/solve/db"
 )
 
 type roleEdgeStoreTest struct{}
@@ -35,21 +33,21 @@ func (t *roleEdgeStoreTest) newStore() Store {
 	return NewRoleEdgeStore(testDB, "role_edge", "role_edge_event")
 }
 
-func (t *roleEdgeStoreTest) newObject() db.Object {
+func (t *roleEdgeStoreTest) newObject() Object {
 	return RoleEdge{}
 }
 
 func (t *roleEdgeStoreTest) createObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	object := o.(RoleEdge)
 	err := s.(*RoleEdgeStore).Create(wrapContext(tx), &object)
 	return object, err
 }
 
 func (t *roleEdgeStoreTest) updateObject(
-	s Store, tx *sql.Tx, o db.Object,
-) (db.Object, error) {
+	s Store, tx *sql.Tx, o Object,
+) (Object, error) {
 	return o, s.(*RoleEdgeStore).Update(wrapContext(tx), o.(RoleEdge))
 }
 

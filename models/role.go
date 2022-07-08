@@ -247,6 +247,11 @@ func (o Role) ObjectID() int64 {
 	return o.ID
 }
 
+// SetObjectID sets ID of role.
+func (o *Role) SetObjectID(id int64) {
+	o.ID = id
+}
+
 // IsBuiltIn returns flag that role is built-in.
 func (o Role) IsBuiltIn() bool {
 	_, ok := builtInRoles[o.Name]

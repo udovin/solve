@@ -65,6 +65,10 @@ func (o testObject) ObjectID() int64 {
 	return o.ID
 }
 
+func (o *testObject) SetObjectID(id int64) {
+	o.ID = id
+}
+
 type testObjectEvent struct {
 	baseEvent
 	testObject
@@ -449,12 +453,16 @@ func TestJSON_clone(t *testing.T) {
 	}
 }
 
+type Object interface {
+	ObjectID() int64
+}
+
 type StoreTestHelper interface {
 	prepareDB(tx *sql.Tx) error
 	newStore() Store
-	newObject() db.Object
-	createObject(s Store, tx *sql.Tx, o db.Object) (db.Object, error)
-	updateObject(s Store, tx *sql.Tx, o db.Object) (db.Object, error)
+	newObject() Object
+	createObject(s Store, tx *sql.Tx, o Object) (Object, error)
+	updateObject(s Store, tx *sql.Tx, o Object) (Object, error)
 	deleteObject(s Store, tx *sql.Tx, id int64) error
 }
 
@@ -524,8 +532,8 @@ func (s *StoreTester) Test(t testing.TB) {
 	s.testFailedTx(t, master)
 }
 
-func (s *StoreTester) createObjects(t testing.TB, mgr Store) []db.Object {
-	var objects []db.Object
+func (s *StoreTester) createObjects(t testing.TB, mgr Store) []Object {
+	var objects []Object
 	for i := 0; i < 100; i++ {
 		object := s.helper.newObject()
 		if err := withTestTx(func(tx *sql.Tx) error {

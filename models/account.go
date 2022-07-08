@@ -27,6 +27,11 @@ func (o Account) ObjectID() int64 {
 	return o.ID
 }
 
+// SetObjectID sets ID of account.
+func (o *Account) SetObjectID(id int64) {
+	o.ID = id
+}
+
 // Clone creates copy of account.
 func (o Account) Clone() Account {
 	return o

@@ -23,6 +23,10 @@ func (e mockEvent) EventID() int64 {
 	return e.ID
 }
 
+func (e *mockEvent) SetEventID(id int64) {
+	e.ID = id
+}
+
 func (e mockEvent) EventTime() time.Time {
 	if e.Time == 0 {
 		return time.Now()

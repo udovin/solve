@@ -23,6 +23,11 @@ func (o Compiler) ObjectID() int64 {
 	return o.ID
 }
 
+// SetObjectID sets ID of compiler.
+func (o *Compiler) SetObjectID(id int64) {
+	o.ID = id
+}
+
 // Clone create copy of compiler.
 func (o Compiler) Clone() Compiler {
 	o.Config = o.Config.Clone()

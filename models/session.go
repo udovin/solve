@@ -15,8 +15,7 @@ import (
 
 // Session represents account session.
 type Session struct {
-	// ID contains ID of session.
-	ID int64 `db:"id"`
+	baseObject
 	// AccountID contains ID of account.
 	AccountID int64 `db:"account_id"`
 	// Secret contains secret string of session.
@@ -29,16 +28,6 @@ type Session struct {
 	RemoteAddr string `db:"remote_addr"`
 	// UserAgent contains user agent header for created session.
 	UserAgent string `db:"user_agent"`
-}
-
-// ObjectID returns session ID.
-func (o Session) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of session.
-func (o *Session) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone creates copy of session.
@@ -129,14 +118,6 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 func (s *SessionStore) reset() {
 	s.sessions = map[int64]Session{}
 	s.byAccount = makeIndex[int64]()
-}
-
-func (s *SessionStore) makeObject(id int64) Session {
-	return Session{ID: id}
-}
-
-func (s *SessionStore) makeObjectEvent(typ EventType) SessionEvent {
-	return SessionEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *SessionStore) onCreateObject(session Session) {

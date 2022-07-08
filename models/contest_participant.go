@@ -50,8 +50,7 @@ func (k *ParticipantKind) UnmarshalText(data []byte) error {
 
 // ContestParticipant represents participant.
 type ContestParticipant struct {
-	// ID contains ID of participant.
-	ID int64 `db:"id"`
+	baseObject
 	// ContestID contains ID of contest.
 	ContestID int64 `db:"contest_id"`
 	// AccountID contains ID of account.
@@ -60,16 +59,6 @@ type ContestParticipant struct {
 	Kind ParticipantKind `db:"kind"`
 	// Config contains participant config.
 	Config JSON `db:"config"`
-}
-
-// ObjectID return ID of contest participant.
-func (o ContestParticipant) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of contest participant.
-func (o *ContestParticipant) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone creates copy of contest participant.
@@ -152,14 +141,6 @@ func (s *ContestParticipantStore) reset() {
 	s.participants = map[int64]ContestParticipant{}
 	s.byContest = makeIndex[int64]()
 	s.byContestAccount = makeIndex[pair[int64, int64]]()
-}
-
-func (s *ContestParticipantStore) makeObject(id int64) ContestParticipant {
-	return ContestParticipant{ID: id}
-}
-
-func (s *ContestParticipantStore) makeObjectEvent(typ EventType) ContestParticipantEvent {
-	return ContestParticipantEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *ContestParticipantStore) onCreateObject(participant ContestParticipant) {

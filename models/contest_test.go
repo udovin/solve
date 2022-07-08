@@ -70,7 +70,8 @@ func TestContestStore(t *testing.T) {
 }
 
 func TestContestClone(t *testing.T) {
-	contest := Contest{ID: 12345, Config: JSON("{}")}
+	contest := Contest{Config: JSON("{}")}
+	contest.ID = 12345
 	clone := contest.Clone()
 	if !reflect.DeepEqual(contest, clone) {
 		t.Fatalf("Contest clone is invalid, %v != %v", contest, clone)

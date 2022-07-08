@@ -8,22 +8,11 @@ import (
 
 // RoleEdge represents connection for roles.
 type RoleEdge struct {
-	// ID contains ID of role.
-	ID int64 `db:"id" json:"id"`
+	baseObject
 	// RoleID contains ID of parent role.
 	RoleID int64 `db:"role_id" json:"role_id"`
 	// ChildID contains ID of child role.
 	ChildID int64 `db:"child_id" json:"child_id"`
-}
-
-// ObjectID return ID of role edge.
-func (o RoleEdge) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of role edge.
-func (o *RoleEdge) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone creates copy of role edge.
@@ -83,14 +72,6 @@ func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
 func (s *RoleEdgeStore) reset() {
 	s.edges = map[int64]RoleEdge{}
 	s.byRole = makeIndex[int64]()
-}
-
-func (s *RoleEdgeStore) makeObject(id int64) RoleEdge {
-	return RoleEdge{ID: id}
-}
-
-func (s *RoleEdgeStore) makeObjectEvent(typ EventType) RoleEdgeEvent {
-	return RoleEdgeEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *RoleEdgeStore) onCreateObject(edge RoleEdge) {

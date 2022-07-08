@@ -8,19 +8,9 @@ import (
 
 // Setting represents setting.
 type Setting struct {
-	ID    int64  `db:"id"`
+	baseObject
 	Key   string `db:"key"`
 	Value string `db:"value"`
-}
-
-// ObjectID returns ID of setting.
-func (o Setting) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of setting.
-func (o *Setting) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone creates copy of setting.
@@ -87,14 +77,6 @@ func (s *SettingStore) All() ([]Setting, error) {
 func (s *SettingStore) reset() {
 	s.settings = map[int64]Setting{}
 	s.byKey = map[string]int64{}
-}
-
-func (s *SettingStore) makeObject(id int64) Setting {
-	return Setting{ID: id}
-}
-
-func (s *SettingStore) makeObjectEvent(typ EventType) SettingEvent {
-	return SettingEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *SettingStore) onCreateObject(setting Setting) {

@@ -8,20 +8,10 @@ import (
 
 // Problem represents a problem.
 type Problem struct {
-	ID      int64  `db:"id"`
+	baseObject
 	OwnerID NInt64 `db:"owner_id"`
 	Config  JSON   `db:"config"`
 	Title   string `db:"title"`
-}
-
-// ObjectID return ID of problem.
-func (o Problem) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of problem.
-func (o *Problem) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone creates copy of problem.
@@ -78,14 +68,6 @@ func (s *ProblemStore) All() ([]Problem, error) {
 
 func (s *ProblemStore) reset() {
 	s.problems = map[int64]Problem{}
-}
-
-func (s *ProblemStore) makeObject(id int64) Problem {
-	return Problem{ID: id}
-}
-
-func (s *ProblemStore) makeObjectEvent(typ EventType) ProblemEvent {
-	return ProblemEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *ProblemStore) onCreateObject(problem Problem) {

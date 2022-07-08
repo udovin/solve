@@ -16,20 +16,10 @@ type ContestConfig struct {
 
 // Contest represents a contest.
 type Contest struct {
-	ID      int64  `db:"id"`
+	baseObject
 	OwnerID NInt64 `db:"owner_id"`
 	Config  JSON   `db:"config"`
 	Title   string `db:"title"`
-}
-
-// ObjectID return ID of contest.
-func (o Contest) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of contest.
-func (o *Contest) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone creates copy of contest.
@@ -104,14 +94,6 @@ func (s *ContestStore) All() ([]Contest, error) {
 
 func (s *ContestStore) reset() {
 	s.contests = map[int64]Contest{}
-}
-
-func (s *ContestStore) makeObject(id int64) Contest {
-	return Contest{ID: id}
-}
-
-func (s *ContestStore) makeObjectEvent(typ EventType) ContestEvent {
-	return ContestEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *ContestStore) onCreateObject(contest Contest) {

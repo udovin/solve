@@ -8,8 +8,7 @@ import (
 
 // Role represents a role.
 type Role struct {
-	// ID contains ID of role.
-	ID int64 `db:"id"`
+	baseObject
 	// Name contains role name.
 	//
 	// Name should be unique for all roles in the events.
@@ -242,16 +241,6 @@ func GetBuiltInRoles() []string {
 	return roles
 }
 
-// ObjectID return ID of role.
-func (o Role) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of role.
-func (o *Role) SetObjectID(id int64) {
-	o.ID = id
-}
-
 // IsBuiltIn returns flag that role is built-in.
 func (o Role) IsBuiltIn() bool {
 	_, ok := builtInRoles[o.Name]
@@ -328,14 +317,6 @@ func (s *RoleStore) GetByName(name string) (Role, error) {
 func (s *RoleStore) reset() {
 	s.roles = map[int64]Role{}
 	s.byName = map[string]int64{}
-}
-
-func (s *RoleStore) makeObject(id int64) Role {
-	return Role{ID: id}
-}
-
-func (s *RoleStore) makeObjectEvent(typ EventType) RoleEvent {
-	return RoleEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *RoleStore) onCreateObject(role Role) {

@@ -8,24 +8,13 @@ import (
 
 // ContestProblem represents connection for problems.
 type ContestProblem struct {
-	// ID contains ID of role.
-	ID int64 `db:"id"`
+	baseObject
 	// ProblemID contains ID of problem.
 	ProblemID int64 `db:"problem_id"`
 	// ContestID contains ID of contest.
 	ContestID int64 `db:"contest_id"`
 	// Code contains code of problem.
 	Code string `db:"code"`
-}
-
-// ObjectID return ID of contest problem.
-func (o ContestProblem) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of contest problem.
-func (o *ContestProblem) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone creates copy of contest problem.
@@ -87,14 +76,6 @@ func (s *ContestProblemStore) FindByContest(
 func (s *ContestProblemStore) reset() {
 	s.problems = map[int64]ContestProblem{}
 	s.byContest = makeIndex[int64]()
-}
-
-func (s *ContestProblemStore) makeObject(id int64) ContestProblem {
-	return ContestProblem{ID: id}
-}
-
-func (s *ContestProblemStore) makeObjectEvent(typ EventType) ContestProblemEvent {
-	return ContestProblemEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *ContestProblemStore) onCreateObject(problem ContestProblem) {

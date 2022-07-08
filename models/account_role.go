@@ -8,22 +8,11 @@ import (
 
 // AccountRole represents a account role.
 type AccountRole struct {
-	// ID contains ID of account role.
-	ID int64 `db:"id"`
+	baseObject
 	// AccountID contains account ID.
 	AccountID int64 `db:"account_id"`
 	// RoleID contains role ID.
 	RoleID int64 `db:"role_id"`
-}
-
-// ObjectID return ID of account role.
-func (o AccountRole) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of account role.
-func (o *AccountRole) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone creates copy of account role.
@@ -83,14 +72,6 @@ func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
 func (s *AccountRoleStore) reset() {
 	s.roles = map[int64]AccountRole{}
 	s.byAccount = makeIndex[int64]()
-}
-
-func (s *AccountRoleStore) makeObject(id int64) AccountRole {
-	return AccountRole{ID: id}
-}
-
-func (s *AccountRoleStore) makeObjectEvent(typ EventType) AccountRoleEvent {
-	return AccountRoleEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *AccountRoleStore) onCreateObject(role AccountRole) {

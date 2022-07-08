@@ -12,20 +12,10 @@ type CompilerConfig struct {
 
 // Compiler represents compiler.
 type Compiler struct {
-	ID      int64  `db:"id"`
+	baseObject
 	OwnerID NInt64 `db:"owner_id"`
 	Name    string `db:"name"`
 	Config  JSON   `db:"config"`
-}
-
-// ObjectID returns ID of compiler.
-func (o Compiler) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of compiler.
-func (o *Compiler) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone create copy of compiler.
@@ -96,14 +86,6 @@ func (s *CompilerStore) All() ([]Compiler, error) {
 
 func (s *CompilerStore) reset() {
 	s.compilers = map[int64]Compiler{}
-}
-
-func (s *CompilerStore) makeObject(id int64) Compiler {
-	return Compiler{ID: id}
-}
-
-func (s *CompilerStore) makeObjectEvent(typ EventType) CompilerEvent {
-	return CompilerEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *CompilerStore) onCreateObject(compiler Compiler) {

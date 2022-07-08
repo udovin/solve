@@ -76,22 +76,12 @@ type JudgeSolutionTaskConfig struct {
 
 // Task represents async task.
 type Task struct {
-	ID         int64      `db:"id"`
+	baseObject
 	Status     TaskStatus `db:"status"`
 	Kind       TaskKind   `db:"kind"`
 	Config     JSON       `db:"config"`
 	State      JSON       `db:"state"`
 	ExpireTime int64      `db:"expire_time"`
-}
-
-// ObjectID returns ID of task.
-func (o Task) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of task.
-func (o *Task) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone create copy of task.
@@ -219,14 +209,6 @@ func (s *TaskStore) PopQueued(
 func (s *TaskStore) reset() {
 	s.tasks = map[int64]Task{}
 	s.byStatus = makeIndex[TaskStatus]()
-}
-
-func (s *TaskStore) makeObject(id int64) Task {
-	return Task{ID: id}
-}
-
-func (s *TaskStore) makeObjectEvent(typ EventType) TaskEvent {
-	return TaskEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *TaskStore) onCreateObject(task Task) {

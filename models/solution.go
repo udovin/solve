@@ -84,22 +84,12 @@ type SolutionReport struct {
 
 // Solution represents a solution.
 type Solution struct {
-	ID         int64 `db:"id"`
+	baseObject
 	ProblemID  int64 `db:"problem_id"`
 	CompilerID int64 `db:"compiler_id"`
 	AuthorID   int64 `db:"author_id"`
 	Report     JSON  `db:"report"`
 	CreateTime int64 `db:"create_time"`
-}
-
-// ObjectID return ID of solution.
-func (o Solution) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of solution.
-func (o *Solution) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone creates copy of solution.
@@ -173,14 +163,6 @@ func (s *SolutionStore) All() ([]Solution, error) {
 
 func (s *SolutionStore) reset() {
 	s.solutions = map[int64]Solution{}
-}
-
-func (s *SolutionStore) makeObject(id int64) Solution {
-	return Solution{ID: id}
-}
-
-func (s *SolutionStore) makeObjectEvent(typ EventType) SolutionEvent {
-	return SolutionEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *SolutionStore) onCreateObject(solution Solution) {

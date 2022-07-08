@@ -16,20 +16,9 @@ const (
 
 // Account represents an account.
 type Account struct {
-	// ID contains ID of account.
-	ID int64 `db:"id"`
+	baseObject
 	// Kind contains kind of account.
 	Kind AccountKind `db:"kind"`
-}
-
-// ObjectID return ID of account.
-func (o Account) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of account.
-func (o *Account) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone creates copy of account.
@@ -71,14 +60,6 @@ func (s *AccountStore) Get(id int64) (Account, error) {
 
 func (s *AccountStore) reset() {
 	s.accounts = map[int64]Account{}
-}
-
-func (s *AccountStore) makeObject(id int64) Account {
-	return Account{ID: id}
-}
-
-func (s *AccountStore) makeObjectEvent(typ EventType) AccountEvent {
-	return AccountEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *AccountStore) onCreateObject(account Account) {

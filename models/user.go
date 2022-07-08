@@ -13,7 +13,7 @@ import (
 
 // User contains common information about user.
 type User struct {
-	ID           int64   `db:"id"`
+	baseObject
 	AccountID    int64   `db:"account_id"`
 	Login        string  `db:"login"`
 	PasswordHash string  `db:"password_hash"`
@@ -27,16 +27,6 @@ type User struct {
 // AccountKind returns UserAccount kind.
 func (o User) AccountKind() AccountKind {
 	return UserAccount
-}
-
-// ObjectID returns ID of user.
-func (o User) ObjectID() int64 {
-	return o.ID
-}
-
-// SetObjectID sets ID of user.
-func (o *User) SetObjectID(id int64) {
-	o.ID = id
 }
 
 // Clone creates copy of user.
@@ -129,14 +119,6 @@ func (s *UserStore) reset() {
 	s.users = map[int64]User{}
 	s.byAccount = map[int64]int64{}
 	s.byLogin = map[string]int64{}
-}
-
-func (s *UserStore) makeObject(id int64) User {
-	return User{ID: id}
-}
-
-func (s *UserStore) makeObjectEvent(typ EventType) UserEvent {
-	return UserEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *UserStore) onCreateObject(user User) {

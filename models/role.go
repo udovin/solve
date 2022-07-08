@@ -281,7 +281,7 @@ func (e *RoleEvent) SetObject(o Role) {
 
 // RoleStore represents a role store.
 type RoleStore struct {
-	baseStore[Role, RoleEvent]
+	baseStore[Role, RoleEvent, *Role, *RoleEvent]
 	roles  map[int64]Role
 	byName map[string]int64
 }
@@ -355,7 +355,7 @@ func NewRoleStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleStore {
 	impl := &RoleStore{}
-	impl.baseStore = makeBaseStore[Role, RoleEvent](
+	impl.baseStore = makeBaseStore[Role, RoleEvent, *Role, *RoleEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

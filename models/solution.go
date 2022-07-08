@@ -143,7 +143,7 @@ func (e *SolutionEvent) SetObject(o Solution) {
 
 // SolutionStore represents store for solutions.
 type SolutionStore struct {
-	baseStore[Solution, SolutionEvent]
+	baseStore[Solution, SolutionEvent, *Solution, *SolutionEvent]
 	solutions map[int64]Solution
 }
 
@@ -198,7 +198,7 @@ func NewSolutionStore(
 	db *gosql.DB, table, eventTable string,
 ) *SolutionStore {
 	impl := &SolutionStore{}
-	impl.baseStore = makeBaseStore[Solution, SolutionEvent](
+	impl.baseStore = makeBaseStore[Solution, SolutionEvent, *Solution, *SolutionEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

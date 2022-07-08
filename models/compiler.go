@@ -70,7 +70,7 @@ func (e *CompilerEvent) SetObject(o Compiler) {
 
 // CompilerStore represents store for compilers.
 type CompilerStore struct {
-	baseStore[Compiler, CompilerEvent]
+	baseStore[Compiler, CompilerEvent, *Compiler, *CompilerEvent]
 	compilers map[int64]Compiler
 }
 
@@ -119,7 +119,7 @@ func (s *CompilerStore) onDeleteObject(id int64) {
 // NewCompilerStore creates a new instance of CompilerStore.
 func NewCompilerStore(db *gosql.DB, table, eventTable string) *CompilerStore {
 	impl := &CompilerStore{}
-	impl.baseStore = makeBaseStore[Compiler, CompilerEvent](
+	impl.baseStore = makeBaseStore[Compiler, CompilerEvent, *Compiler, *CompilerEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

@@ -49,7 +49,7 @@ func (e *AccountRoleEvent) SetObject(o AccountRole) {
 
 // AccountRoleStore represents store for account roles.
 type AccountRoleStore struct {
-	baseStore[AccountRole, AccountRoleEvent]
+	baseStore[AccountRole, AccountRoleEvent, *AccountRole, *AccountRoleEvent]
 	roles     map[int64]AccountRole
 	byAccount index[int64]
 }
@@ -105,14 +105,14 @@ func (s *AccountRoleStore) onDeleteObject(id int64) {
 	}
 }
 
-var _ baseStoreImpl[AccountRole, AccountRoleEvent] = (*AccountRoleStore)(nil)
+var _ baseStoreImpl[AccountRole, AccountRoleEvent, *AccountRole, *AccountRoleEvent] = (*AccountRoleStore)(nil)
 
 // NewAccountRoleStore creates a new instance of AccountRoleStore.
 func NewAccountRoleStore(
 	db *gosql.DB, table, eventTable string,
 ) *AccountRoleStore {
 	impl := &AccountRoleStore{}
-	impl.baseStore = makeBaseStore[AccountRole, AccountRoleEvent](
+	impl.baseStore = makeBaseStore[AccountRole, AccountRoleEvent, *AccountRole, *AccountRoleEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

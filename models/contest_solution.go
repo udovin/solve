@@ -53,7 +53,7 @@ func (e *ContestSolutionEvent) SetObject(o ContestSolution) {
 
 // ContestSolutionStore represents a solution store.
 type ContestSolutionStore struct {
-	baseStore[ContestSolution, ContestSolutionEvent]
+	baseStore[ContestSolution, ContestSolutionEvent, *ContestSolution, *ContestSolutionEvent]
 	solutions     map[int64]ContestSolution
 	byContest     index[int64]
 	byParticipant index[int64]
@@ -120,7 +120,7 @@ func NewContestSolutionStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestSolutionStore {
 	impl := &ContestSolutionStore{}
-	impl.baseStore = makeBaseStore[ContestSolution, ContestSolutionEvent](
+	impl.baseStore = makeBaseStore[ContestSolution, ContestSolutionEvent, *ContestSolution, *ContestSolutionEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

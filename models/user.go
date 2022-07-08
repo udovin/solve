@@ -62,7 +62,7 @@ func (e *UserEvent) SetObject(o User) {
 
 // UserStore represents users store.
 type UserStore struct {
-	baseStore[User, UserEvent]
+	baseStore[User, UserEvent, *User, *UserEvent]
 	users     map[int64]User
 	byAccount map[int64]int64
 	byLogin   map[string]int64
@@ -158,7 +158,7 @@ func NewUserStore(
 	db *gosql.DB, table, eventTable, salt string,
 ) *UserStore {
 	impl := &UserStore{salt: salt}
-	impl.baseStore = makeBaseStore[User, UserEvent](
+	impl.baseStore = makeBaseStore[User, UserEvent, *User, *UserEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

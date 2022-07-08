@@ -145,7 +145,7 @@ func (e *TaskEvent) SetObject(o Task) {
 
 // TaskStore represents store for tasks.
 type TaskStore struct {
-	baseStore[Task, TaskEvent]
+	baseStore[Task, TaskEvent, *Task, *TaskEvent]
 	tasks    map[int64]Task
 	byStatus index[TaskStatus]
 }
@@ -246,7 +246,7 @@ func NewTaskStore(
 	db *gosql.DB, table, eventTable string,
 ) *TaskStore {
 	impl := &TaskStore{}
-	impl.baseStore = makeBaseStore[Task, TaskEvent](
+	impl.baseStore = makeBaseStore[Task, TaskEvent, *Task, *TaskEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

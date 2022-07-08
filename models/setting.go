@@ -46,7 +46,7 @@ func (e *SettingEvent) SetObject(o Setting) {
 
 // SettingStore represents store for settings.
 type SettingStore struct {
-	baseStore[Setting, SettingEvent]
+	baseStore[Setting, SettingEvent, *Setting, *SettingEvent]
 	settings map[int64]Setting
 	byKey    map[string]int64
 }
@@ -112,7 +112,7 @@ func (s *SettingStore) onDeleteObject(id int64) {
 // NewSettingStore creates a new instance of SettingStore.
 func NewSettingStore(db *gosql.DB, table, eventTable string) *SettingStore {
 	impl := &SettingStore{}
-	impl.baseStore = makeBaseStore[Setting, SettingEvent](
+	impl.baseStore = makeBaseStore[Setting, SettingEvent, *Setting, *SettingEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

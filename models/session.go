@@ -82,7 +82,7 @@ func (e *SessionEvent) SetObject(o Session) {
 
 // SessionStore represents store for sessions.
 type SessionStore struct {
-	baseStore[Session, SessionEvent]
+	baseStore[Session, SessionEvent, *Session, *SessionEvent]
 	sessions  map[int64]Session
 	byAccount index[int64]
 }
@@ -156,7 +156,7 @@ func NewSessionStore(
 	db *gosql.DB, table, eventTable string,
 ) *SessionStore {
 	impl := &SessionStore{}
-	impl.baseStore = makeBaseStore[Session, SessionEvent](
+	impl.baseStore = makeBaseStore[Session, SessionEvent, *Session, *SessionEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

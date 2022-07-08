@@ -83,7 +83,7 @@ func (e *testObjectEvent) SetObject(o testObject) {
 }
 
 type testStore struct {
-	baseStore[testObject, testObjectEvent]
+	baseStore[testObject, testObjectEvent, *testObject, *testObjectEvent]
 	table, eventTable string
 	objects           map[int64]testObject
 }
@@ -170,7 +170,7 @@ func newTestStore() *testStore {
 		table:      "test_object",
 		eventTable: "test_object_event",
 	}
-	impl.baseStore = makeBaseStore[testObject, testObjectEvent](
+	impl.baseStore = makeBaseStore[testObject, testObjectEvent, *testObject, *testObjectEvent](
 		testDB, impl.table, impl.eventTable, impl,
 	)
 	return impl
@@ -303,7 +303,7 @@ func TestBaseStore_lockStore(t *testing.T) {
 }
 
 func TestBaseStore_consumeEvent(t *testing.T) {
-	store := baseStore[testObject, testObjectEvent]{}
+	store := baseStore[testObject, testObjectEvent, *testObject, *testObjectEvent]{}
 	if err := store.consumeEvent(testObjectEvent{
 		baseEvent: makeBaseEvent(-1),
 	}); err == nil {
@@ -318,7 +318,7 @@ func TestBaseStore_InitTx(t *testing.T) {
 		table:      "invalid_object",
 		eventTable: "invalid_object_event",
 	}
-	store.baseStore = makeBaseStore[testObject, testObjectEvent](
+	store.baseStore = makeBaseStore[testObject, testObjectEvent, *testObject, *testObjectEvent](
 		testDB, store.table, store.eventTable, store,
 	)
 	if err := store.Init(context.Background()); err == nil {
@@ -407,7 +407,7 @@ func TestJSON_Scan(t *testing.T) {
 	if err := a.Scan([]byte("{")); err == nil {
 		t.Fatal("Expected error")
 	}
-	if err := a.Scan(baseStore[testObject, testObjectEvent]{}); err == nil {
+	if err := a.Scan(baseStore[testObject, testObjectEvent, *testObject, *testObjectEvent]{}); err == nil {
 		t.Fatal("Expected error")
 	}
 }

@@ -49,7 +49,7 @@ func (e *RoleEdgeEvent) SetObject(o RoleEdge) {
 
 // RoleEdgeStore represents a role edge store.
 type RoleEdgeStore struct {
-	baseStore[RoleEdge, RoleEdgeEvent]
+	baseStore[RoleEdge, RoleEdgeEvent, *RoleEdge, *RoleEdgeEvent]
 	edges  map[int64]RoleEdge
 	byRole index[int64]
 }
@@ -110,7 +110,7 @@ func NewRoleEdgeStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleEdgeStore {
 	impl := &RoleEdgeStore{}
-	impl.baseStore = makeBaseStore[RoleEdge, RoleEdgeEvent](
+	impl.baseStore = makeBaseStore[RoleEdge, RoleEdgeEvent, *RoleEdge, *RoleEdgeEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

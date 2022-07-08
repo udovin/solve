@@ -42,20 +42,20 @@ func makePair[F, S any](f F, s S) pair[F, S] {
 	return pair[F, S]{First: f, Second: s}
 }
 
-// EventType represents type of object event.
-type EventType int8
+// EventKind represents kind of object event.
+type EventKind int8
 
 const (
 	// CreateEvent means that this is event of object creation.
-	CreateEvent EventType = 1
+	CreateEvent EventKind = 1
 	// DeleteEvent means that this is event of object deletion.
-	DeleteEvent EventType = 2
+	DeleteEvent EventKind = 2
 	// UpdateEvent means that this is event of object modification.
-	UpdateEvent EventType = 3
+	UpdateEvent EventKind = 3
 )
 
 // String returns string representation of event.
-func (t EventType) String() string {
+func (t EventKind) String() string {
 	switch t {
 	case CreateEvent:
 		return "create"
@@ -64,7 +64,7 @@ func (t EventType) String() string {
 	case UpdateEvent:
 		return "update"
 	default:
-		return fmt.Sprintf("EventType(%d)", t)
+		return fmt.Sprintf("EventKind(%d)", t)
 	}
 }
 
@@ -74,8 +74,8 @@ type ObjectEventPtr[T any, E any] interface {
 	SetEventID(int64)
 	EventTime() time.Time
 	SetEventTime(time.Time)
-	EventType() EventType
-	SetEventType(EventType)
+	EventKind() EventKind
+	SetEventKind(EventKind)
 	SetEventAccountID(int64)
 	Object() T
 	SetObject(T)
@@ -103,8 +103,8 @@ func (o *baseObject) SetObjectID(id int64) {
 type baseEvent struct {
 	// BaseEventID contains event id.
 	BaseEventID int64 `db:"event_id"`
-	// BaseEventType contains type of event.
-	BaseEventType EventType `db:"event_type"`
+	// BaseEventKind contains type of event.
+	BaseEventKind EventKind `db:"event_kind"`
 	// BaseEventTime contains event type.
 	BaseEventTime int64 `db:"event_time"`
 	// EventAccountID contains account id.
@@ -131,14 +131,14 @@ func (e *baseEvent) SetEventTime(t time.Time) {
 	e.BaseEventTime = t.Unix()
 }
 
-// EventType returns type of this event.
-func (e baseEvent) EventType() EventType {
-	return e.BaseEventType
+// EventKind returns type of this event.
+func (e baseEvent) EventKind() EventKind {
+	return e.BaseEventKind
 }
 
-// SetEventType updates type of this event.
-func (e *baseEvent) SetEventType(typ EventType) {
-	e.BaseEventType = typ
+// SetEventKind updates type of this event.
+func (e *baseEvent) SetEventKind(typ EventKind) {
+	e.BaseEventKind = typ
 }
 
 func (e *baseEvent) SetEventAccountID(accountID int64) {
@@ -160,8 +160,8 @@ func GetAccountID(ctx context.Context) int64 {
 }
 
 // makeBaseEvent creates baseEvent with specified type.
-func makeBaseEvent(t EventType) baseEvent {
-	return baseEvent{BaseEventType: t, BaseEventTime: time.Now().Unix()}
+func makeBaseEvent(t EventKind) baseEvent {
+	return baseEvent{BaseEventKind: t, BaseEventTime: time.Now().Unix()}
 }
 
 type baseStoreImpl[
@@ -256,11 +256,11 @@ func (s *baseStore[T, E, TPtr, EPtr]) Sync(ctx context.Context) error {
 	return s.consumer.ConsumeEvents(ctx, s.consumeEvent)
 }
 
-func (s *baseStore[T, E, TPtr, EPtr]) newObjectEvent(ctx context.Context, kind EventType) EPtr {
+func (s *baseStore[T, E, TPtr, EPtr]) newObjectEvent(ctx context.Context, kind EventKind) EPtr {
 	var event E
 	var eventPtr EPtr = &event
 	eventPtr.SetEventTime(time.Now())
-	eventPtr.SetEventType(kind)
+	eventPtr.SetEventKind(kind)
 	eventPtr.SetEventAccountID(GetAccountID(ctx))
 	return eventPtr
 }
@@ -304,7 +304,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) createObjectEvent(
 			return s.createObjectEvent(db.WithTx(ctx, tx), eventPtr)
 		}, sqlRepeatableRead)
 	}
-	switch object := eventPtr.Object(); eventPtr.EventType() {
+	switch object := eventPtr.Object(); eventPtr.EventKind() {
 	case CreateEvent:
 		if err := s.objects.CreateObject(ctx, &object); err != nil {
 			return err
@@ -340,7 +340,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) onUpdateObject(object T) {
 
 func (s *baseStore[T, E, TPtr, EPtr]) consumeEvent(event E) error {
 	var eventPtr EPtr = &event
-	switch object := eventPtr.Object(); eventPtr.EventType() {
+	switch object := eventPtr.Object(); eventPtr.EventKind() {
 	case CreateEvent:
 		s.impl.onCreateObject(object)
 	case DeleteEvent:
@@ -348,7 +348,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) consumeEvent(event E) error {
 	case UpdateEvent:
 		s.impl.onUpdateObject(object)
 	default:
-		return fmt.Errorf("unexpected event type: %v", eventPtr.EventType())
+		return fmt.Errorf("unexpected event type: %v", eventPtr.EventKind())
 	}
 	return nil
 }

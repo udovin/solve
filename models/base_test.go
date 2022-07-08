@@ -32,7 +32,7 @@ func testTeardown(tb testing.TB) {
 	_ = testDB.Close()
 }
 
-func TestEventType(t *testing.T) {
+func TestEventKind(t *testing.T) {
 	if s := fmt.Sprintf("%s", CreateEvent); s != "create" {
 		t.Errorf("Expected %q, got %q", "create", s)
 	}
@@ -42,8 +42,8 @@ func TestEventType(t *testing.T) {
 	if s := fmt.Sprintf("%s", DeleteEvent); s != "delete" {
 		t.Errorf("Expected %q, got %q", "delete", s)
 	}
-	if s := fmt.Sprintf("%s", EventType(-1)); s != "EventType(-1)" {
-		t.Errorf("Expected %q, got %q", "EventType(-1)", s)
+	if s := fmt.Sprintf("%s", EventKind(-1)); s != "EventKind(-1)" {
+		t.Errorf("Expected %q, got %q", "EventKind(-1)", s)
 	}
 }
 
@@ -99,7 +99,7 @@ func (s *testStore) makeObject(id int64) testObject {
 	return testObject{ID: id}
 }
 
-func (s *testStore) makeObjectEvent(typ EventType) testObjectEvent {
+func (s *testStore) makeObjectEvent(typ EventKind) testObjectEvent {
 	return testObjectEvent{baseEvent: makeBaseEvent(typ)}
 }
 
@@ -146,7 +146,7 @@ func migrateTestStore(t testing.TB, s *testStore) {
 	if _, err := tx.Exec(fmt.Sprintf(
 		`CREATE TABLE %q (`+
 			`"event_id" integer PRIMARY KEY,`+
-			`"event_type" int8 NOT NULL,`+
+			`"event_kind" int8 NOT NULL,`+
 			`"event_time" bigint NOT NULL,`+
 			`"event_account_id" integer NULL,`+
 			`"id" integer NOT NULL,`+

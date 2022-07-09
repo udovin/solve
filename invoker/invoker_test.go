@@ -1,6 +1,7 @@
 package invoker
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -26,7 +27,11 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Apply(c); err != nil {
+	manager, err := migrations.NewManager(c.DB)
+	if err != nil {
+		tb.Fatal("Error:", err)
+	}
+	if err := manager.Apply(context.Background()); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	if err := c.Start(); err != nil {

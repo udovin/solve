@@ -150,7 +150,11 @@ func clientMain(cmd *cobra.Command, _ []string) {
 	_ = client
 }
 
-func dbApplyMain(cmd *cobra.Command, _ []string) {
+func migrateMain(cmd *cobra.Command, args []string) {
+	createData, err := cmd.Flags().GetBool("create-data")
+	if err != nil {
+		panic(err)
+	}
 	cfg, err := getConfig(cmd)
 	if err != nil {
 		panic(err)
@@ -160,23 +164,21 @@ func dbApplyMain(cmd *cobra.Command, _ []string) {
 		panic(err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Apply(c); err != nil {
-		panic(err)
-	}
-}
-
-func dbUnapplyMain(cmd *cobra.Command, _ []string) {
-	cfg, err := getConfig(cmd)
+	manager, err := migrations.NewManager(c.DB)
 	if err != nil {
 		panic(err)
 	}
-	c, err := core.NewCore(cfg)
-	if err != nil {
+	var options []migrations.Option
+	if len(args) > 0 {
+		options = append(options, migrations.WithMigration(args[0]))
+	}
+	if err := manager.Apply(context.Background(), options...); err != nil {
 		panic(err)
 	}
-	c.SetupAllStores()
-	if err := migrations.Unapply(c, false); err != nil {
-		panic(err)
+	if len(args) == 0 && createData {
+		if err := core.CreateData(context.Background(), c); err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -193,7 +195,7 @@ func versionMain(cmd *cobra.Command, _ []string) {
 // API server will be run if "server" section was specified.
 // Invoker will be run if "invoker" section was specified.
 //
-// Also Solve has CLI interface like 'db'. This is a group of commands
+// Also Solve has CLI interface like 'migrate'. This is a group of commands
 // that work with database migrations.
 func main() {
 	rootCmd := cobra.Command{Use: os.Args[0]}
@@ -208,21 +210,13 @@ func main() {
 		Run:   clientMain,
 		Short: "Commands for managing server",
 	})
-	dbCmd := cobra.Command{
-		Use:   "db",
-		Short: "Commands for managing database",
+	migrateCmd := cobra.Command{
+		Use:   "migrate",
+		Run:   migrateMain,
+		Short: "Applies migrations to database",
 	}
-	dbCmd.AddCommand(&cobra.Command{
-		Use:   "apply",
-		Run:   dbApplyMain,
-		Short: "Applies all new migrations to database",
-	})
-	dbCmd.AddCommand(&cobra.Command{
-		Use:   "unapply",
-		Run:   dbUnapplyMain,
-		Short: "Rolls back all applied migrations",
-	})
-	rootCmd.AddCommand(&dbCmd)
+	migrateCmd.Flags().Bool("create-data", false, "Create default objects")
+	rootCmd.AddCommand(&migrateCmd)
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",
 		Run:   versionMain,

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -52,7 +53,11 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Apply(c); err != nil {
+	manager, err := migrations.NewManager(c.DB)
+	if err != nil {
+		tb.Fatal("Error:", err)
+	}
+	if err := manager.Apply(context.Background()); err != nil {
 		tb.Fatal("Error:", err)
 	}
 }
@@ -64,7 +69,11 @@ func testTeardown(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Unapply(c, true); err != nil {
+	manager, err := migrations.NewManager(c.DB)
+	if err != nil {
+		tb.Fatal("Error:", err)
+	}
+	if err := manager.Apply(context.Background(), migrations.WithZero); err != nil {
 		tb.Fatal("Error:", err)
 	}
 }
@@ -93,28 +102,17 @@ func TestClientMain(t *testing.T) {
 	clientMain(&cmd, nil)
 }
 
-func TestDBApplyMain(t *testing.T) {
+func TestMigrateMain(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 	cmd := cobra.Command{}
 	cmd.Flags().String("config", "", "")
+	cmd.Flags().Bool("create-data", false, "")
 	cmd.Flags().Set("config", testConfigFile.Name())
 	go func() {
 		shutdown <- os.Interrupt
 	}()
-	dbApplyMain(&cmd, nil)
-}
-
-func TestDBUnapplyMain(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	cmd := cobra.Command{}
-	cmd.Flags().String("config", "", "")
-	cmd.Flags().Set("config", testConfigFile.Name())
-	go func() {
-		shutdown <- os.Interrupt
-	}()
-	dbUnapplyMain(&cmd, nil)
+	migrateMain(&cmd, nil)
 }
 
 func TestVersionMain(t *testing.T) {

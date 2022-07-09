@@ -117,7 +117,12 @@ func (s *eventStore[T, TPtr]) LoadEvents(
 }
 
 func (s *eventStore[T, TPtr]) CreateEvent(ctx context.Context, event TPtr) error {
-	return insertRow(ctx, s.db, (*T)(event), s.id, s.table)
+	var id int64
+	if err := insertRow(ctx, s.db, *event, &id, s.id, s.table); err != nil {
+		return err
+	}
+	event.SetEventID(id)
+	return nil
 }
 
 // NewEventStore creates a new store for events of specified type.
@@ -126,6 +131,6 @@ func NewEventStore[T any, TPtr EventPtr[T]](id, table string, db *gosql.DB) Even
 		db:      db,
 		id:      id,
 		table:   table,
-		columns: prepareNames[T](),
+		columns: getColumns[T](),
 	}
 }

@@ -25,7 +25,11 @@ func TestNewCore(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Apply(c); err != nil {
+	manager, err := migrations.NewManager(c.DB)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := manager.Apply(context.Background()); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := c.Start(); err != nil {
@@ -66,7 +70,11 @@ func TestCore_WithTx(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Apply(c); err != nil {
+	manager, err := migrations.NewManager(c.DB)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := manager.Apply(context.Background()); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := c.Start(); err != nil {

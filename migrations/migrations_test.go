@@ -1,6 +1,7 @@
 package migrations_test
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"testing"
@@ -24,10 +25,14 @@ func TestMigrations(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Apply(c); err != nil {
+	manager, err := migrations.NewManager(c.DB)
+	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := migrations.Unapply(c, true); err != nil {
+	if err := manager.Apply(context.Background()); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := manager.Apply(context.Background(), migrations.WithZero); err != nil {
 		t.Fatal("Error:", err)
 	}
 }
@@ -65,10 +70,14 @@ func TestPostgresMigrations(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Apply(c); err != nil {
+	manager, err := migrations.NewManager(c.DB)
+	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := migrations.Unapply(c, true); err != nil {
+	if err := manager.Apply(context.Background()); err != nil {
+		t.Fatal("Error:", err)
+	}
+	if err := manager.Apply(context.Background(), migrations.WithZero); err != nil {
 		t.Fatal("Error:", err)
 	}
 }

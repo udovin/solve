@@ -3,11 +3,14 @@ package migrations
 import (
 	"context"
 
-	"github.com/udovin/solve/core"
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/db/schema"
-	"github.com/udovin/solve/models"
 )
+
+func init() {
+	registerMigration(&m001{})
+}
 
 type m001 struct{}
 
@@ -379,25 +382,10 @@ var m001Tables = []schema.Table{
 	},
 }
 
-func (m *m001) Apply(ctx context.Context, c *core.Core) error {
-	tx := db.GetRunner(ctx, c.DB)
+func (m *m001) Apply(ctx context.Context, conn *gosql.DB) error {
+	tx := db.GetRunner(ctx, conn)
 	for _, table := range m001Tables {
-		query, err := table.BuildCreateSQL(c.DB.Dialect(), false)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, query); err != nil {
-			return err
-		}
-	}
-	return m.createRoles(ctx, c)
-}
-
-func (m *m001) Unapply(ctx context.Context, c *core.Core) error {
-	tx := db.GetRunner(ctx, c.DB)
-	for i := 0; i < len(m001Tables); i++ {
-		table := m001Tables[len(m001Tables)-i-1]
-		query, err := table.BuildDropSQL(c.DB.Dialect(), false)
+		query, err := table.BuildCreateSQL(conn.Dialect(), false)
 		if err != nil {
 			return err
 		}
@@ -408,67 +396,15 @@ func (m *m001) Unapply(ctx context.Context, c *core.Core) error {
 	return nil
 }
 
-func (m *m001) createRoles(ctx context.Context, c *core.Core) error {
-	roles := map[string]int64{}
-	create := func(name string) error {
-		role := models.Role{Name: name}
-		err := c.Roles.Create(ctx, &role)
-		if err == nil {
-			roles[role.Name] = role.ID
-		}
-		return err
-	}
-	join := func(child, parent string) error {
-		edge := models.RoleEdge{
-			RoleID:  roles[parent],
-			ChildID: roles[child],
-		}
-		return c.RoleEdges.Create(ctx, &edge)
-	}
-	allRoles := models.GetBuiltInRoles()
-	allGroups := []string{
-		"guest_group",
-		"user_group",
-		"admin_group",
-	}
-	for _, role := range allRoles {
-		if err := create(role); err != nil {
+func (m *m001) Unapply(ctx context.Context, conn *gosql.DB) error {
+	tx := db.GetRunner(ctx, conn)
+	for i := 0; i < len(m001Tables); i++ {
+		table := m001Tables[len(m001Tables)-i-1]
+		query, err := table.BuildDropSQL(conn.Dialect(), false)
+		if err != nil {
 			return err
 		}
-	}
-	for _, role := range allGroups {
-		if err := create(role); err != nil {
-			return err
-		}
-	}
-	for _, role := range []string{
-		models.LoginRole,
-		models.RegisterRole,
-		models.StatusRole,
-		models.ObserveUserRole,
-		models.ObserveProblemsRole,
-		models.ObserveContestsRole,
-		models.ObserveSolutionsRole,
-	} {
-		if err := join(role, "guest_group"); err != nil {
-			return err
-		}
-	}
-	for _, role := range []string{
-		models.LoginRole,
-		models.LogoutRole,
-		models.StatusRole,
-		models.ObserveUserRole,
-		models.ObserveProblemsRole,
-		models.ObserveContestsRole,
-		models.ObserveSolutionsRole,
-	} {
-		if err := join(role, "user_group"); err != nil {
-			return err
-		}
-	}
-	for _, role := range allRoles {
-		if err := join(role, "admin_group"); err != nil {
+		if _, err := tx.ExecContext(ctx, query); err != nil {
 			return err
 		}
 	}

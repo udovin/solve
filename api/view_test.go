@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -125,10 +126,17 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Unapply(c, true); err != nil {
+	manager, err := migrations.NewManager(c.DB)
+	if err != nil {
 		tb.Fatal("Error:", err)
 	}
-	if err := migrations.Apply(c); err != nil {
+	if err := manager.Apply(context.Background(), migrations.WithZero); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	if err := manager.Apply(context.Background()); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	if err := core.CreateData(context.Background(), c); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	if err := c.Start(); err != nil {
@@ -145,7 +153,10 @@ func testSetup(tb testing.TB) {
 func testTeardown(tb testing.TB) {
 	testSrv.Close()
 	testView.core.Stop()
-	_ = migrations.Unapply(testView.core, true)
+	manager, err := migrations.NewManager(testView.core.DB)
+	if err == nil {
+		manager.Apply(context.Background(), migrations.WithZero)
+	}
 	testChecks.Close()
 }
 

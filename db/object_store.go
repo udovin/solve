@@ -76,11 +76,16 @@ func (s *objectStore[T, TPtr]) FindObjects(
 }
 
 func (s *objectStore[T, TPtr]) CreateObject(ctx context.Context, object TPtr) error {
-	return insertRow(ctx, s.db, (*T)(object), s.id, s.table)
+	var id int64
+	if err := insertRow(ctx, s.db, *object, &id, s.id, s.table); err != nil {
+		return err
+	}
+	object.SetObjectID(id)
+	return nil
 }
 
 func (s *objectStore[T, TPtr]) UpdateObject(ctx context.Context, object TPtr) error {
-	return updateRow(ctx, s.db, (*T)(object), s.id, s.table)
+	return updateRow(ctx, s.db, *object, object.ObjectID(), s.id, s.table)
 }
 
 func (s *objectStore[T, TPtr]) DeleteObject(ctx context.Context, id int64) error {
@@ -95,6 +100,6 @@ func NewObjectStore[T any, TPtr ObjectPtr[T]](
 		db:      db,
 		id:      id,
 		table:   table,
-		columns: prepareNames[T](),
+		columns: getColumns[T](),
 	}
 }

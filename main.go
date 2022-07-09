@@ -164,15 +164,11 @@ func migrateMain(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 	c.SetupAllStores()
-	manager, err := migrations.NewManager(c.DB)
-	if err != nil {
-		panic(err)
-	}
 	var options []migrations.Option
 	if len(args) > 0 {
 		options = append(options, migrations.WithMigration(args[0]))
 	}
-	if err := manager.Apply(context.Background(), options...); err != nil {
+	if err := migrations.Apply(context.Background(), c.DB, options...); err != nil {
 		panic(err)
 	}
 	if len(args) == 0 && createData {
@@ -183,7 +179,7 @@ func migrateMain(cmd *cobra.Command, args []string) {
 }
 
 func versionMain(cmd *cobra.Command, _ []string) {
-	println("solve version:", core.Version)
+	println("solve version:", config.Version)
 }
 
 // main is a main entry point.

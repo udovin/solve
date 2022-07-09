@@ -9,10 +9,21 @@ import (
 	"time"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/db/schema"
 )
+
+func Apply(ctx context.Context, conn *gosql.DB, options ...Option) error {
+	m := &manager{
+		db:    conn,
+		store: db.NewObjectStore[migration]("id", migrationTableName, conn),
+	}
+	if err := m.init(); err != nil {
+		return err
+	}
+	return m.Apply(ctx, options...)
+}
 
 // migrationImpl represents database migration.
 type migrationImpl interface {
@@ -40,12 +51,12 @@ type migrationState struct {
 	Supported bool
 }
 
-type Manager struct {
+type manager struct {
 	db    *gosql.DB
 	store db.ObjectStore[migration, *migration]
 }
 
-func (m *Manager) init() error {
+func (m *manager) init() error {
 	query, err := mirgationTable.BuildCreateSQL(m.db.Dialect(), false)
 	if err != nil {
 		return err
@@ -54,7 +65,7 @@ func (m *Manager) init() error {
 	return err
 }
 
-func (m *Manager) getMigrations() []migrationImpl {
+func getMigrations() []migrationImpl {
 	var migrations []migrationImpl
 	for _, migration := range registeredMigrations {
 		migrations = append(migrations, migration)
@@ -63,7 +74,7 @@ func (m *Manager) getMigrations() []migrationImpl {
 	return migrations
 }
 
-func (m *Manager) getAppliedMigrations(ctx context.Context) ([]migration, error) {
+func (m *manager) getAppliedMigrations(ctx context.Context) ([]migration, error) {
 	var migrations []migration
 	rows, err := m.store.LoadObjects(ctx)
 	if err != nil {
@@ -77,8 +88,8 @@ func (m *Manager) getAppliedMigrations(ctx context.Context) ([]migration, error)
 	return migrations, rows.Err()
 }
 
-func (m *Manager) getState(ctx context.Context) ([]migrationState, error) {
-	migrations := m.getMigrations()
+func (m *manager) getState(ctx context.Context) ([]migrationState, error) {
+	migrations := getMigrations()
 	applied, err := m.getAppliedMigrations(ctx)
 	if err != nil {
 		return nil, err
@@ -151,7 +162,7 @@ func WithZero(state []migrationState, endPos *int) error {
 	return nil
 }
 
-func (m *Manager) Apply(ctx context.Context, options ...Option) error {
+func (m *manager) Apply(ctx context.Context, options ...Option) error {
 	state, err := m.getState(ctx)
 	if err != nil {
 		return err
@@ -174,7 +185,7 @@ func (m *Manager) Apply(ctx context.Context, options ...Option) error {
 	return m.applyForward(ctx, state[beginPos:endPos])
 }
 
-func (m *Manager) applyForward(ctx context.Context, migrations []migrationState) error {
+func (m *manager) applyForward(ctx context.Context, migrations []migrationState) error {
 	if len(migrations) == 0 {
 		fmt.Println("No migrations to apply")
 		return nil
@@ -194,7 +205,7 @@ func (m *Manager) applyForward(ctx context.Context, migrations []migrationState)
 			// Save to database that migration was applied.
 			object := migration{
 				Name:    mgr.Name,
-				Version: core.Version,
+				Version: config.Version,
 				Time:    time.Now().Unix(),
 			}
 			return m.store.CreateObject(ctx, &object)
@@ -206,7 +217,7 @@ func (m *Manager) applyForward(ctx context.Context, migrations []migrationState)
 	return nil
 }
 
-func (m *Manager) getAppliedMigration(ctx context.Context, name string) (migration, error) {
+func (m *manager) getAppliedMigration(ctx context.Context, name string) (migration, error) {
 	rows, err := m.store.FindObjects(ctx, gosql.Column("name").Equal(name))
 	if err != nil {
 		return migration{}, err
@@ -223,7 +234,7 @@ func (m *Manager) getAppliedMigration(ctx context.Context, name string) (migrati
 	return migration{}, sql.ErrNoRows
 }
 
-func (m *Manager) applyBackward(ctx context.Context, migrations []migrationState) error {
+func (m *manager) applyBackward(ctx context.Context, migrations []migrationState) error {
 	if len(migrations) == 0 {
 		fmt.Println("No migrations to reverse apply")
 		return nil
@@ -254,15 +265,6 @@ func (m *Manager) applyBackward(ctx context.Context, migrations []migrationState
 		fmt.Println("Migration reverse applied:", mgr.Name)
 	}
 	return nil
-}
-
-func NewManager(conn *gosql.DB) (*Manager, error) {
-	m := &Manager{
-		db:    conn,
-		store: db.NewObjectStore[migration]("id", migrationTableName, conn),
-	}
-	err := m.init()
-	return m, err
 }
 
 type migration struct {

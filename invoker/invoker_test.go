@@ -27,11 +27,7 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	manager, err := migrations.NewManager(c.DB)
-	if err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := manager.Apply(context.Background()); err != nil {
+	if err := migrations.Apply(context.Background(), c.DB); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	if err := c.Start(); err != nil {

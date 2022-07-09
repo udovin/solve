@@ -126,14 +126,10 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	manager, err := migrations.NewManager(c.DB)
-	if err != nil {
+	if err := migrations.Apply(context.Background(), c.DB, migrations.WithZero); err != nil {
 		tb.Fatal("Error:", err)
 	}
-	if err := manager.Apply(context.Background(), migrations.WithZero); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := manager.Apply(context.Background()); err != nil {
+	if err := migrations.Apply(context.Background(), c.DB); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	if err := core.CreateData(context.Background(), c); err != nil {
@@ -153,10 +149,7 @@ func testSetup(tb testing.TB) {
 func testTeardown(tb testing.TB) {
 	testSrv.Close()
 	testView.core.Stop()
-	manager, err := migrations.NewManager(testView.core.DB)
-	if err == nil {
-		manager.Apply(context.Background(), migrations.WithZero)
-	}
+	_ = migrations.Apply(context.Background(), testView.core.DB, migrations.WithZero)
 	testChecks.Close()
 }
 

@@ -1,4 +1,4 @@
-package core_test
+package core
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/udovin/solve/config"
-	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/migrations"
 )
 
@@ -20,16 +19,12 @@ var testCfg = config.Config{
 }
 
 func TestNewCore(t *testing.T) {
-	c, err := core.NewCore(testCfg)
+	c, err := NewCore(testCfg)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	manager, err := migrations.NewManager(c.DB)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	if err := manager.Apply(context.Background()); err != nil {
+	if err := migrations.Apply(context.Background(), c.DB); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := c.Start(); err != nil {
@@ -46,11 +41,11 @@ func TestNewCore(t *testing.T) {
 
 func TestNewCore_Failure(t *testing.T) {
 	var cfg config.Config
-	if _, err := core.NewCore(cfg); err == nil {
+	if _, err := NewCore(cfg); err == nil {
 		t.Fatal("Expected error while creating core")
 	}
 	cfg.DB = config.DB{}
-	if _, err := core.NewCore(cfg); err == nil {
+	if _, err := NewCore(cfg); err == nil {
 		t.Fatal("Expected error while creating core")
 	}
 	cfg.DB = config.DB{
@@ -59,22 +54,18 @@ func TestNewCore_Failure(t *testing.T) {
 	cfg.Security = &config.Security{
 		PasswordSalt: "qwerty123",
 	}
-	if _, err := core.NewCore(cfg); err != nil {
+	if _, err := NewCore(cfg); err != nil {
 		t.Fatal("Error:", err)
 	}
 }
 
 func TestCore_WithTx(t *testing.T) {
-	c, err := core.NewCore(testCfg)
+	c, err := NewCore(testCfg)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	manager, err := migrations.NewManager(c.DB)
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	if err := manager.Apply(context.Background()); err != nil {
+	if err := migrations.Apply(context.Background(), c.DB); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := c.Start(); err != nil {

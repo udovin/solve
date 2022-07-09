@@ -1,3 +1,3 @@
-package core
+package config
 
 const Version = "development"

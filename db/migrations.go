@@ -1,5 +1,4 @@
-// Package migrations contains migrations for solve database.
-package migrations
+package db
 
 import (
 	"context"
@@ -10,14 +9,13 @@ import (
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/config"
-	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/db/schema"
 )
 
-func Apply(ctx context.Context, conn *gosql.DB, options ...Option) error {
+func ApplyMigrations(ctx context.Context, conn *gosql.DB, options ...MigrateOption) error {
 	m := &manager{
 		db:    conn,
-		store: db.NewObjectStore[migration]("id", migrationTableName, conn),
+		store: NewObjectStore[migration]("id", migrationTableName, conn),
 	}
 	if err := m.init(); err != nil {
 		return err
@@ -25,8 +23,8 @@ func Apply(ctx context.Context, conn *gosql.DB, options ...Option) error {
 	return m.Apply(ctx, options...)
 }
 
-// migrationImpl represents database migration.
-type migrationImpl interface {
+// Migration represents database migration.
+type Migration interface {
 	// Name should return unique migration name.
 	Name() string
 	// Apply should apply database migration.
@@ -35,9 +33,9 @@ type migrationImpl interface {
 	Unapply(ctx context.Context, conn *gosql.DB) error
 }
 
-var registeredMigrations = map[string]migrationImpl{}
+var registeredMigrations = map[string]Migration{}
 
-func registerMigration(m migrationImpl) {
+func RegisterMigration(m Migration) {
 	name := m.Name()
 	if _, ok := registeredMigrations[name]; ok {
 		panic(fmt.Errorf("migration %q already registered", name))
@@ -53,7 +51,7 @@ type migrationState struct {
 
 type manager struct {
 	db    *gosql.DB
-	store db.ObjectStore[migration, *migration]
+	store ObjectStore[migration, *migration]
 }
 
 func (m *manager) init() error {
@@ -65,8 +63,8 @@ func (m *manager) init() error {
 	return err
 }
 
-func getMigrations() []migrationImpl {
-	var migrations []migrationImpl
+func getMigrations() []Migration {
+	var migrations []Migration
 	for _, migration := range registeredMigrations {
 		migrations = append(migrations, migration)
 	}
@@ -140,11 +138,11 @@ func (m *manager) getState(ctx context.Context) ([]migrationState, error) {
 	return result, nil
 }
 
-type Option func(state []migrationState, endPos *int) error
+type MigrateOption func(state []migrationState, endPos *int) error
 
-func WithMigration(name string) Option {
+func WithMigration(name string) MigrateOption {
 	if name == "zero" {
-		return WithZero
+		return WithZeroMigration
 	}
 	return func(state []migrationState, endPos *int) error {
 		for i := 0; i < len(state); i++ {
@@ -157,12 +155,12 @@ func WithMigration(name string) Option {
 	}
 }
 
-func WithZero(state []migrationState, endPos *int) error {
+func WithZeroMigration(state []migrationState, endPos *int) error {
 	*endPos = 0
 	return nil
 }
 
-func (m *manager) Apply(ctx context.Context, options ...Option) error {
+func (m *manager) Apply(ctx context.Context, options ...MigrateOption) error {
 	state, err := m.getState(ctx)
 	if err != nil {
 		return err
@@ -197,7 +195,7 @@ func (m *manager) applyForward(ctx context.Context, migrations []migrationState)
 			return fmt.Errorf("migration %q is not supported", mgr.Name)
 		}
 		if err := gosql.WrapTx(ctx, m.db.DB, func(tx *sql.Tx) error {
-			ctx := db.WithTx(ctx, tx)
+			ctx := WithTx(ctx, tx)
 			// Apply migration.
 			if err := impl.Apply(ctx, m.db); err != nil {
 				return err
@@ -250,7 +248,7 @@ func (m *manager) applyBackward(ctx context.Context, migrations []migrationState
 			return fmt.Errorf("migration %q is not applied", mgr.Name)
 		}
 		if err := gosql.WrapTx(ctx, m.db.DB, func(tx *sql.Tx) error {
-			ctx := db.WithTx(ctx, tx)
+			ctx := WithTx(ctx, tx)
 			object, err := m.getAppliedMigration(ctx, mgr.Name)
 			if err != nil {
 				return err
@@ -308,7 +306,7 @@ func (v migrationSorter) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
 }
 
-type migrationImplSorter []migrationImpl
+type migrationImplSorter []Migration
 
 func (v migrationImplSorter) Len() int {
 	return len(v)

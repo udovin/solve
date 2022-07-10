@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	registerMigration(&m001{})
+	db.RegisterMigration(&m001{})
 }
 
 type m001 struct{}

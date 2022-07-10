@@ -1,4 +1,4 @@
-package migrations
+package db_test
 
 import (
 	"context"
@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/udovin/solve/config"
+	"github.com/udovin/solve/db"
+
+	_ "github.com/udovin/solve/migrations"
 )
 
 func TestMigrations(t *testing.T) {
@@ -18,14 +21,14 @@ func TestMigrations(t *testing.T) {
 			PasswordSalt: "qwerty123",
 		},
 	}
-	db, err := cfg.DB.Create()
+	conn, err := cfg.DB.Create()
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := Apply(context.Background(), db); err != nil {
+	if err := db.ApplyMigrations(context.Background(), conn); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := Apply(context.Background(), db, WithZero); err != nil {
+	if err := db.ApplyMigrations(context.Background(), conn, db.WithZeroMigration); err != nil {
 		t.Fatal("Error:", err)
 	}
 }
@@ -58,14 +61,14 @@ func TestPostgresMigrations(t *testing.T) {
 			PasswordSalt: "qwerty123",
 		},
 	}
-	db, err := cfg.DB.Create()
+	conn, err := cfg.DB.Create()
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := Apply(context.Background(), db); err != nil {
+	if err := db.ApplyMigrations(context.Background(), conn); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := Apply(context.Background(), db, WithZero); err != nil {
+	if err := db.ApplyMigrations(context.Background(), conn, db.WithZeroMigration); err != nil {
 		t.Fatal("Error:", err)
 	}
 }

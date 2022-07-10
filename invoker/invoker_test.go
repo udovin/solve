@@ -7,7 +7,9 @@ import (
 
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
-	"github.com/udovin/solve/migrations"
+	"github.com/udovin/solve/db"
+
+	_ "github.com/udovin/solve/migrations"
 )
 
 var testInvoker *Invoker
@@ -27,7 +29,7 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Apply(context.Background(), c.DB); err != nil {
+	if err := db.ApplyMigrations(context.Background(), c.DB); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	if err := c.Start(); err != nil {

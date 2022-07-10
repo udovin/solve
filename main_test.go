@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
-	"github.com/udovin/solve/migrations"
+	"github.com/udovin/solve/db"
 )
 
 var (
@@ -53,7 +53,7 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Apply(context.Background(), c.DB); err != nil {
+	if err := db.ApplyMigrations(context.Background(), c.DB); err != nil {
 		tb.Fatal("Error:", err)
 	}
 }
@@ -65,7 +65,7 @@ func testTeardown(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := migrations.Apply(context.Background(), c.DB, migrations.WithZero); err != nil {
+	if err := db.ApplyMigrations(context.Background(), c.DB, db.WithZeroMigration); err != nil {
 		tb.Fatal("Error:", err)
 	}
 }

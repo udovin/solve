@@ -17,8 +17,11 @@ import (
 	"github.com/udovin/solve/api"
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/invoker"
-	"github.com/udovin/solve/migrations"
+
+	// Register DB migrations.
+	_ "github.com/udovin/solve/migrations"
 )
 
 var shutdown = make(chan os.Signal, 1)
@@ -164,11 +167,11 @@ func migrateMain(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 	c.SetupAllStores()
-	var options []migrations.Option
+	var options []db.MigrateOption
 	if len(args) > 0 {
-		options = append(options, migrations.WithMigration(args[0]))
+		options = append(options, db.WithMigration(args[0]))
 	}
-	if err := migrations.Apply(context.Background(), c.DB, options...); err != nil {
+	if err := db.ApplyMigrations(context.Background(), c.DB, options...); err != nil {
 		panic(err)
 	}
 	if len(args) == 0 && createData {

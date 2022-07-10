@@ -106,12 +106,14 @@ func (s *ContestStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[Contest] = (*ContestStore)(nil)
+
 // NewContestStore creates a new instance of ContestStore.
 func NewContestStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestStore {
 	impl := &ContestStore{}
-	impl.baseStore = makeBaseStore[Contest, ContestEvent, *Contest, *ContestEvent](
+	impl.baseStore = makeBaseStore[Contest, ContestEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

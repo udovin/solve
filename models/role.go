@@ -331,12 +331,14 @@ func (s *RoleStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[Role] = (*RoleStore)(nil)
+
 // NewRoleStore creates a new instance of RoleStore.
 func NewRoleStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleStore {
 	impl := &RoleStore{}
-	impl.baseStore = makeBaseStore[Role, RoleEvent, *Role, *RoleEvent](
+	impl.baseStore = makeBaseStore[Role, RoleEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

@@ -80,12 +80,14 @@ func (s *ProblemStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[Problem] = (*ProblemStore)(nil)
+
 // NewProblemStore creates a new instance of ProblemStore.
 func NewProblemStore(
 	db *gosql.DB, table, eventTable string,
 ) *ProblemStore {
 	impl := &ProblemStore{}
-	impl.baseStore = makeBaseStore[Problem, ProblemEvent, *Problem, *ProblemEvent](
+	impl.baseStore = makeBaseStore[Problem, ProblemEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

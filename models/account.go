@@ -72,12 +72,14 @@ func (s *AccountStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[Account] = (*AccountStore)(nil)
+
 // NewAccountStore creates a new instance of AccountStore.
 func NewAccountStore(
 	db *gosql.DB, table, eventTable string,
 ) *AccountStore {
 	impl := &AccountStore{}
-	impl.baseStore = makeBaseStore[Account, AccountEvent, *Account, *AccountEvent](
+	impl.baseStore = makeBaseStore[Account, AccountEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

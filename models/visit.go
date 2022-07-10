@@ -70,6 +70,6 @@ func (s *VisitStore) Create(ctx context.Context, visit *Visit) error {
 func NewVisitStore(dbConn *gosql.DB, table string) *VisitStore {
 	return &VisitStore{
 		db:     dbConn,
-		events: db.NewEventStore[Visit, *Visit]("id", table, dbConn),
+		events: db.NewEventStore[Visit]("id", table, dbConn),
 	}
 }

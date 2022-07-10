@@ -117,7 +117,7 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 
 func (s *SessionStore) reset() {
 	s.sessions = map[int64]Session{}
-	s.byAccount = makeIndex[int64]()
+	s.byAccount = index[int64]{}
 }
 
 func (s *SessionStore) onCreateObject(session Session) {
@@ -132,12 +132,14 @@ func (s *SessionStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[Session] = (*SessionStore)(nil)
+
 // NewSessionStore creates a new instance of SessionStore.
 func NewSessionStore(
 	db *gosql.DB, table, eventTable string,
 ) *SessionStore {
 	impl := &SessionStore{}
-	impl.baseStore = makeBaseStore[Session, SessionEvent, *Session, *SessionEvent](
+	impl.baseStore = makeBaseStore[Session, SessionEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

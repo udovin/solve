@@ -208,7 +208,7 @@ func (s *TaskStore) PopQueued(
 
 func (s *TaskStore) reset() {
 	s.tasks = map[int64]Task{}
-	s.byStatus = makeIndex[TaskStatus]()
+	s.byStatus = index[TaskStatus]{}
 }
 
 func (s *TaskStore) onCreateObject(task Task) {
@@ -223,12 +223,14 @@ func (s *TaskStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[Task] = (*TaskStore)(nil)
+
 // NewTaskStore creates a new instance of TaskStore.
 func NewTaskStore(
 	db *gosql.DB, table, eventTable string,
 ) *TaskStore {
 	impl := &TaskStore{}
-	impl.baseStore = makeBaseStore[Task, TaskEvent, *Task, *TaskEvent](
+	impl.baseStore = makeBaseStore[Task, TaskEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

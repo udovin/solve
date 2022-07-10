@@ -75,7 +75,7 @@ func (s *ContestProblemStore) FindByContest(
 
 func (s *ContestProblemStore) reset() {
 	s.problems = map[int64]ContestProblem{}
-	s.byContest = makeIndex[int64]()
+	s.byContest = index[int64]{}
 }
 
 func (s *ContestProblemStore) onCreateObject(problem ContestProblem) {
@@ -90,12 +90,14 @@ func (s *ContestProblemStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[ContestProblem] = (*ContestProblemStore)(nil)
+
 // NewContestProblemStore creates a new instance of ContestProblemStore.
 func NewContestProblemStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestProblemStore {
 	impl := &ContestProblemStore{}
-	impl.baseStore = makeBaseStore[ContestProblem, ContestProblemEvent, *ContestProblem, *ContestProblemEvent](
+	impl.baseStore = makeBaseStore[ContestProblem, ContestProblemEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

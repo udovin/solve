@@ -71,7 +71,7 @@ func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
 
 func (s *AccountRoleStore) reset() {
 	s.roles = map[int64]AccountRole{}
-	s.byAccount = makeIndex[int64]()
+	s.byAccount = index[int64]{}
 }
 
 func (s *AccountRoleStore) onCreateObject(role AccountRole) {
@@ -86,14 +86,14 @@ func (s *AccountRoleStore) onDeleteObject(id int64) {
 	}
 }
 
-var _ baseStoreImpl[AccountRole, AccountRoleEvent, *AccountRole, *AccountRoleEvent] = (*AccountRoleStore)(nil)
+var _ baseStoreImpl[AccountRole] = (*AccountRoleStore)(nil)
 
 // NewAccountRoleStore creates a new instance of AccountRoleStore.
 func NewAccountRoleStore(
 	db *gosql.DB, table, eventTable string,
 ) *AccountRoleStore {
 	impl := &AccountRoleStore{}
-	impl.baseStore = makeBaseStore[AccountRole, AccountRoleEvent, *AccountRole, *AccountRoleEvent](
+	impl.baseStore = makeBaseStore[AccountRole, AccountRoleEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

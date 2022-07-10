@@ -139,8 +139,8 @@ func (s *ContestParticipantStore) FindByContestAccount(
 
 func (s *ContestParticipantStore) reset() {
 	s.participants = map[int64]ContestParticipant{}
-	s.byContest = makeIndex[int64]()
-	s.byContestAccount = makeIndex[pair[int64, int64]]()
+	s.byContest = index[int64]{}
+	s.byContestAccount = index[pair[int64, int64]]{}
 }
 
 func (s *ContestParticipantStore) onCreateObject(participant ContestParticipant) {
@@ -157,13 +157,15 @@ func (s *ContestParticipantStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[ContestParticipant] = (*ContestParticipantStore)(nil)
+
 // NewContestParticipantStore creates a new instance of
 // ContestParticipantStore.
 func NewContestParticipantStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestParticipantStore {
 	impl := &ContestParticipantStore{}
-	impl.baseStore = makeBaseStore[ContestParticipant, ContestParticipantEvent, *ContestParticipant, *ContestParticipantEvent](
+	impl.baseStore = makeBaseStore[ContestParticipant, ContestParticipantEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

@@ -71,7 +71,7 @@ func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
 
 func (s *RoleEdgeStore) reset() {
 	s.edges = map[int64]RoleEdge{}
-	s.byRole = makeIndex[int64]()
+	s.byRole = index[int64]{}
 }
 
 func (s *RoleEdgeStore) onCreateObject(edge RoleEdge) {
@@ -86,12 +86,14 @@ func (s *RoleEdgeStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[RoleEdge] = (*RoleEdgeStore)(nil)
+
 // NewRoleEdgeStore creates a new instance of RoleEdgeStore.
 func NewRoleEdgeStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleEdgeStore {
 	impl := &RoleEdgeStore{}
-	impl.baseStore = makeBaseStore[RoleEdge, RoleEdgeEvent, *RoleEdge, *RoleEdgeEvent](
+	impl.baseStore = makeBaseStore[RoleEdge, RoleEdgeEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

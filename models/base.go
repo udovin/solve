@@ -15,10 +15,6 @@ import (
 
 type index[K comparable] map[K]map[int64]struct{}
 
-func makeIndex[K comparable]() index[K] {
-	return map[K]map[int64]struct{}{}
-}
-
 func (m index[K]) Create(key K, id int64) {
 	if _, ok := m[key]; !ok {
 		m[key] = map[int64]struct{}{}
@@ -164,9 +160,7 @@ func makeBaseEvent(t EventKind) baseEvent {
 	return baseEvent{BaseEventKind: t, BaseEventTime: time.Now().Unix()}
 }
 
-type baseStoreImpl[
-	T any, E any, TPtr db.ObjectPtr[T], EPtr db.EventPtr[E],
-] interface {
+type baseStoreImpl[T any] interface {
 	reset()
 	onCreateObject(T)
 	onDeleteObject(int64)
@@ -187,7 +181,7 @@ type baseStore[
 	objects  db.ObjectStore[T, TPtr]
 	events   db.EventStore[E, EPtr]
 	consumer db.EventConsumer[E, EPtr]
-	impl     baseStoreImpl[T, E, TPtr, EPtr]
+	impl     baseStoreImpl[T]
 	mutex    sync.RWMutex
 }
 
@@ -356,7 +350,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) consumeEvent(event E) error {
 func makeBaseStore[T any, E any, TPtr db.ObjectPtr[T], EPtr ObjectEventPtr[T, E]](
 	conn *gosql.DB,
 	table, eventTable string,
-	impl baseStoreImpl[T, E, TPtr, EPtr],
+	impl baseStoreImpl[T],
 ) baseStore[T, E, TPtr, EPtr] {
 	return baseStore[T, E, TPtr, EPtr]{
 		db:      conn,

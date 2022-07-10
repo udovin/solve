@@ -91,10 +91,12 @@ func (s *SettingStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[Setting] = (*SettingStore)(nil)
+
 // NewSettingStore creates a new instance of SettingStore.
 func NewSettingStore(db *gosql.DB, table, eventTable string) *SettingStore {
 	impl := &SettingStore{}
-	impl.baseStore = makeBaseStore[Setting, SettingEvent, *Setting, *SettingEvent](
+	impl.baseStore = makeBaseStore[Setting, SettingEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

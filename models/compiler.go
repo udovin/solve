@@ -98,10 +98,12 @@ func (s *CompilerStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[Compiler] = (*CompilerStore)(nil)
+
 // NewCompilerStore creates a new instance of CompilerStore.
 func NewCompilerStore(db *gosql.DB, table, eventTable string) *CompilerStore {
 	impl := &CompilerStore{}
-	impl.baseStore = makeBaseStore[Compiler, CompilerEvent, *Compiler, *CompilerEvent](
+	impl.baseStore = makeBaseStore[Compiler, CompilerEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

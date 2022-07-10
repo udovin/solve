@@ -135,12 +135,14 @@ func (s *UserStore) onDeleteObject(id int64) {
 	}
 }
 
+var _ baseStoreImpl[User] = (*UserStore)(nil)
+
 // NewUserStore creates new instance of user store.
 func NewUserStore(
 	db *gosql.DB, table, eventTable, salt string,
 ) *UserStore {
 	impl := &UserStore{salt: salt}
-	impl.baseStore = makeBaseStore[User, UserEvent, *User, *UserEvent](
+	impl.baseStore = makeBaseStore[User, UserEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

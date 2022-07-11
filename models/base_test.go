@@ -33,16 +33,16 @@ func testTeardown(tb testing.TB) {
 }
 
 func TestEventKind(t *testing.T) {
-	if s := fmt.Sprintf("%s", CreateEvent); s != "create" {
+	if s := fmt.Sprint(CreateEvent); s != "create" {
 		t.Errorf("Expected %q, got %q", "create", s)
 	}
-	if s := fmt.Sprintf("%s", UpdateEvent); s != "update" {
+	if s := fmt.Sprint(UpdateEvent); s != "update" {
 		t.Errorf("Expected %q, got %q", "update", s)
 	}
-	if s := fmt.Sprintf("%s", DeleteEvent); s != "delete" {
+	if s := fmt.Sprint(DeleteEvent); s != "delete" {
 		t.Errorf("Expected %q, got %q", "delete", s)
 	}
-	if s := fmt.Sprintf("%s", EventKind(-1)); s != "EventKind(-1)" {
+	if s := fmt.Sprint(EventKind(-1)); s != "EventKind(-1)" {
 		t.Errorf("Expected %q, got %q", "EventKind(-1)", s)
 	}
 }
@@ -93,14 +93,6 @@ func (s *testStore) Get(id int64) (testObject, error) {
 		return object, nil
 	}
 	return testObject{}, sql.ErrNoRows
-}
-
-func (s *testStore) makeObject(id int64) testObject {
-	return testObject{ID: id}
-}
-
-func (s *testStore) makeObjectEvent(typ EventKind) testObjectEvent {
-	return testObjectEvent{baseEvent: makeBaseEvent(typ)}
 }
 
 func (s *testStore) reset() {
@@ -170,7 +162,7 @@ func newTestStore() *testStore {
 		table:      "test_object",
 		eventTable: "test_object_event",
 	}
-	impl.baseStore = makeBaseStore[testObject, testObjectEvent, *testObject, *testObjectEvent](
+	impl.baseStore = makeBaseStore[testObject, testObjectEvent](
 		testDB, impl.table, impl.eventTable, impl,
 	)
 	return impl
@@ -318,7 +310,7 @@ func TestBaseStore_InitTx(t *testing.T) {
 		table:      "invalid_object",
 		eventTable: "invalid_object_event",
 	}
-	store.baseStore = makeBaseStore[testObject, testObjectEvent, *testObject, *testObjectEvent](
+	store.baseStore = makeBaseStore[testObject, testObjectEvent](
 		testDB, store.table, store.eventTable, store,
 	)
 	if err := store.Init(context.Background()); err == nil {

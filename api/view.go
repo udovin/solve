@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
@@ -24,7 +25,7 @@ type View struct {
 
 // Register registers handlers in specified group.
 func (v *View) Register(g *echo.Group) {
-	g.Use(wrapErrorResponse, v.logVisit)
+	g.Use(wrapResponse, v.logVisit)
 	g.GET("/ping", v.ping)
 	g.GET("/health", v.health)
 	v.registerUserHandlers(g)
@@ -37,7 +38,7 @@ func (v *View) Register(g *echo.Group) {
 }
 
 func (v *View) RegisterSocket(g *echo.Group) {
-	g.Use(wrapErrorResponse, v.extractAuth(v.guestAuth))
+	g.Use(wrapResponse, v.extractAuth(v.guestAuth))
 	g.GET("/ping", v.ping)
 	g.GET("/health", v.health)
 	v.registerSocketUserHandlers(g)
@@ -166,8 +167,9 @@ type statusCodeResponse interface {
 	StatusCode() int
 }
 
-func wrapErrorResponse(next echo.HandlerFunc) echo.HandlerFunc {
+func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		c.Response().Header().Add("X-Solve-Version", config.Version)
 		err := next(c)
 		if resp, ok := err.(statusCodeResponse); ok {
 			code := resp.StatusCode()

@@ -4,7 +4,8 @@ WORKDIR /src/solve
 COPY go.mod go.sum /src/solve/
 RUN go mod download -x
 COPY . /src/solve
-RUN go build -o solve .
+ARG VERSION=development
+RUN go build -o solve -ldflags "-X github.com/udovin/solve/config.Version=${VERSION}" .
 
 FROM alpine
 RUN apk add --no-cache curl

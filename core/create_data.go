@@ -2,13 +2,12 @@ package core
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/udovin/solve/models"
 )
 
 func CreateData(ctx context.Context, c *Core) error {
-	fmt.Println("Creating default objects")
+	c.Logger().Info("Creating default objects")
 	roles := map[string]int64{}
 	create := func(name string) error {
 		role := models.Role{Name: name}

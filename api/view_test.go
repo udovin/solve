@@ -121,6 +121,7 @@ func testSetup(tb testing.TB) {
 		},
 	}
 	if _, ok := tb.(*testing.B); ok {
+		log.SetLevel(log.OFF)
 		cfg.LogLevel = config.LogLevel(log.OFF)
 	}
 	c, err := core.NewCore(cfg)

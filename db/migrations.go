@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/labstack/gommon/log"
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/db/schema"
@@ -185,11 +186,11 @@ func (m *manager) Apply(ctx context.Context, options ...MigrateOption) error {
 
 func (m *manager) applyForward(ctx context.Context, migrations []migrationState) error {
 	if len(migrations) == 0 {
-		fmt.Println("No migrations to apply")
+		log.Info("No migrations to apply")
 		return nil
 	}
 	for _, mgr := range migrations {
-		fmt.Println("Applying migration:", mgr.Name)
+		log.Info("Applying migration:", mgr.Name)
 		impl, ok := registeredMigrations[mgr.Name]
 		if !ok {
 			return fmt.Errorf("migration %q is not supported", mgr.Name)
@@ -210,7 +211,7 @@ func (m *manager) applyForward(ctx context.Context, migrations []migrationState)
 		}); err != nil {
 			return err
 		}
-		fmt.Println("Migration applied:", mgr.Name)
+		log.Info("Migration applied:", mgr.Name)
 	}
 	return nil
 }
@@ -234,12 +235,12 @@ func (m *manager) getAppliedMigration(ctx context.Context, name string) (migrati
 
 func (m *manager) applyBackward(ctx context.Context, migrations []migrationState) error {
 	if len(migrations) == 0 {
-		fmt.Println("No migrations to reverse apply")
+		log.Info("No migrations to reverse apply")
 		return nil
 	}
 	for i := 0; i < len(migrations); i++ {
 		mgr := migrations[len(migrations)-i-1]
-		fmt.Println("Reverse applying migration:", mgr.Name)
+		log.Info("Reverse applying migration:", mgr.Name)
 		impl, ok := registeredMigrations[mgr.Name]
 		if !ok {
 			return fmt.Errorf("migration %q is not supported", mgr.Name)
@@ -260,7 +261,7 @@ func (m *manager) applyBackward(ctx context.Context, migrations []migrationState
 		}); err != nil {
 			return err
 		}
-		fmt.Println("Migration reverse applied:", mgr.Name)
+		log.Info("Migration reverse applied:", mgr.Name)
 	}
 	return nil
 }

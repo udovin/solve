@@ -254,6 +254,8 @@ var m001Tables = []schema.Table{
 			{Name: "author_id", Type: schema.Int64},
 			{Name: "report", Type: schema.JSON},
 			{Name: "create_time", Type: schema.Int64},
+			{Name: "content", Type: schema.String, Nullable: true},
+			{Name: "content_id", Type: schema.Int64, Nullable: true},
 		},
 	},
 	{
@@ -269,6 +271,8 @@ var m001Tables = []schema.Table{
 			{Name: "author_id", Type: schema.Int64},
 			{Name: "report", Type: schema.JSON},
 			{Name: "create_time", Type: schema.Int64},
+			{Name: "content", Type: schema.String, Nullable: true},
+			{Name: "content_id", Type: schema.Int64, Nullable: true},
 		},
 	},
 	{

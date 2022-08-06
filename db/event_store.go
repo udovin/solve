@@ -111,7 +111,7 @@ func (s *eventStore[T, TPtr]) LoadEvents(
 		return nil, err
 	}
 	if err := checkColumns(rows, s.columns); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("store %q: %w", s.table, err)
 	}
 	return newRowReader[T](rows), nil
 }

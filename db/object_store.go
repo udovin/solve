@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/udovin/gosql"
 )
@@ -52,7 +53,7 @@ func (s *objectStore[T, TPtr]) LoadObjects(ctx context.Context) (RowReader[T], e
 		return nil, err
 	}
 	if err := checkColumns(rows, s.columns); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("store %q: %w", s.table, err)
 	}
 	return newRowReader[T](rows), nil
 }
@@ -70,7 +71,7 @@ func (s *objectStore[T, TPtr]) FindObjects(
 		return nil, err
 	}
 	if err := checkColumns(rows, s.columns); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("store %q: %w", s.table, err)
 	}
 	return newRowReader[T](rows), nil
 }

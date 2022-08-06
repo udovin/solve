@@ -104,6 +104,8 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 type Contest struct {
 	ID          int64    `json:"id"`
 	Title       string   `json:"title"`
+	BeginTime   NInt64   `json:"begin_time,omitempty"`
+	Duration    int      `json:"duration,omitempty"`
 	Permissions []string `json:"permissions,omitempty"`
 }
 
@@ -167,6 +169,10 @@ var contestPermissions = []string{
 
 func makeContest(contest models.Contest, permissions managers.Permissions, core *core.Core) Contest {
 	resp := Contest{ID: contest.ID, Title: contest.Title}
+	if config, err := contest.GetConfig(); err == nil {
+		resp.BeginTime = config.BeginTime
+		resp.Duration = config.Duration
+	}
 	for _, permission := range contestPermissions {
 		if permissions.HasPermission(permission) {
 			resp.Permissions = append(resp.Permissions, permission)
@@ -248,11 +254,12 @@ func (v *View) observeContest(c echo.Context) error {
 }
 
 type updateContestForm struct {
-	Title  *string               `json:"title"`
-	Config *models.ContestConfig `json:"config"`
+	Title     *string `json:"title" form:"title"`
+	BeginTime *NInt64 `json:"begin_time" form:"begin_time"`
+	Duration  *int    `json:"duration" form:"duration"`
 }
 
-func (f updateContestForm) Update(contest *models.Contest) *errorResponse {
+func (f *updateContestForm) Update(contest *models.Contest) error {
 	errors := errorFields{}
 	if f.Title != nil {
 		if len(*f.Title) < 4 {
@@ -262,10 +269,21 @@ func (f updateContestForm) Update(contest *models.Contest) *errorResponse {
 		}
 		contest.Title = *f.Title
 	}
-	if f.Config != nil {
-		if err := contest.SetConfig(*f.Config); err != nil {
-			errors["config"] = errorField{Message: "invalid config json"}
+	config, err := contest.GetConfig()
+	if err != nil {
+		return err
+	}
+	if f.BeginTime != nil {
+		config.BeginTime = *f.BeginTime
+	}
+	if f.Duration != nil {
+		if *f.Duration < 0 {
+			errors["duration"] = errorField{Message: "duration cannot be negative"}
 		}
+		config.Duration = *f.Duration
+	}
+	if err := contest.SetConfig(config); err != nil {
+		errors["config"] = errorField{Message: "invalid config"}
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
@@ -279,7 +297,7 @@ func (f updateContestForm) Update(contest *models.Contest) *errorResponse {
 
 type createContestForm updateContestForm
 
-func (f createContestForm) Update(contest *models.Contest) *errorResponse {
+func (f *createContestForm) Update(contest *models.Contest) error {
 	if f.Title == nil {
 		return &errorResponse{
 			Code:    http.StatusBadRequest,
@@ -289,7 +307,7 @@ func (f createContestForm) Update(contest *models.Contest) *errorResponse {
 			},
 		}
 	}
-	return updateContestForm(f).Update(contest)
+	return (*updateContestForm)(f).Update(contest)
 }
 
 func (v *View) createContest(c echo.Context) error {
@@ -307,7 +325,7 @@ func (v *View) createContest(c echo.Context) error {
 		return err
 	}
 	if account := accountCtx.Account; account != nil {
-		contest.OwnerID = models.NInt64(account.ID)
+		contest.OwnerID = NInt64(account.ID)
 	}
 	if err := v.core.Contests.Create(accountCtx, &contest); err != nil {
 		return err

@@ -87,7 +87,7 @@ type createCompilerForm struct {
 	Config models.CompilerConfig `form:"config" json:"config"`
 }
 
-func (f createCompilerForm) Update(compiler *models.Compiler) *errorResponse {
+func (f *createCompilerForm) Update(compiler *models.Compiler) error {
 	errors := errorFields{}
 	if len(f.Name) < 4 {
 		errors["name"] = errorField{Message: "name is too short"}
@@ -95,21 +95,15 @@ func (f createCompilerForm) Update(compiler *models.Compiler) *errorResponse {
 	if len(f.Name) > 64 {
 		errors["name"] = errorField{Message: "name is too long"}
 	}
+	compiler.Name = f.Name
+	if err := compiler.SetConfig(f.Config); err != nil {
+		errors["config"] = errorField{Message: "invalid config"}
+	}
 	if len(errors) > 0 {
 		return &errorResponse{
 			Code:          http.StatusBadRequest,
 			Message:       "form has invalid fields",
 			InvalidFields: errors,
-		}
-	}
-	compiler.Name = f.Name
-	if err := compiler.SetConfig(f.Config); err != nil {
-		return &errorResponse{
-			Code:    http.StatusBadRequest,
-			Message: "form has invalid fields",
-			InvalidFields: errorFields{
-				"config": {Message: "invalid config format"},
-			},
 		}
 	}
 	return nil

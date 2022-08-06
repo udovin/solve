@@ -87,6 +87,11 @@ const (
 	compilerKey           = "compiler"
 )
 
+type (
+	NInt64  = models.NInt64
+	NString = models.NString
+)
+
 // logVisit saves visit to visit store.
 func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
@@ -95,11 +100,11 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 			visit := c.Get(authVisitKey).(models.Visit)
 			if ctx, ok := c.Get(accountCtxKey).(*managers.AccountContext); ok {
 				if ctx.Account != nil {
-					visit.AccountID = models.NInt64(ctx.Account.ID)
+					visit.AccountID = NInt64(ctx.Account.ID)
 				}
 			}
 			if session, ok := c.Get(authSessionKey).(models.Session); ok {
-				visit.SessionID = models.NInt64(session.ID)
+				visit.SessionID = NInt64(session.ID)
 			}
 			visit.Status = c.Response().Status
 			if s := v.getBoolSetting(c, "log_visit."+c.Path()); s == nil || *s {

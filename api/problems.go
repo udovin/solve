@@ -132,7 +132,7 @@ type createProblemForm struct {
 	Title string `form:"title"`
 }
 
-func (f createProblemForm) validate() *errorResponse {
+func (f *createProblemForm) Update(problem *models.Problem) *errorResponse {
 	errors := errorFields{}
 	if len(f.Title) < 4 {
 		errors["title"] = errorField{Message: "title is too short"}
@@ -145,13 +145,6 @@ func (f createProblemForm) validate() *errorResponse {
 			Message:       "form has invalid fields",
 			InvalidFields: errors,
 		}
-	}
-	return nil
-}
-
-func (f createProblemForm) Update(problem *models.Problem) *errorResponse {
-	if err := f.validate(); err != nil {
-		return err
 	}
 	problem.Title = f.Title
 	return nil
@@ -172,7 +165,7 @@ func (v *View) createProblem(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err)
 	}
 	if account := accountCtx.Account; account != nil {
-		problem.OwnerID = models.NInt64(account.ID)
+		problem.OwnerID = NInt64(account.ID)
 	}
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
 		file, err := c.FormFile("file")

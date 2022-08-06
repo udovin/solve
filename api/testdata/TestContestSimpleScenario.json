@@ -13,6 +13,8 @@
   {
     "id": 2,
     "title": "Test configured contest",
+    "begin_time": 1577840400,
+    "duration": 7200,
     "permissions": [
       "update_contest",
       "delete_contest"
@@ -23,6 +25,8 @@
       {
         "id": 2,
         "title": "Test configured contest",
+        "begin_time": 1577840400,
+        "duration": 7200,
         "permissions": [
           "update_contest",
           "delete_contest",

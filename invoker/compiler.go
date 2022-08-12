@@ -10,8 +10,9 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/udovin/solve/core"
+
 	"github.com/gofrs/uuid"
-	"github.com/labstack/gommon/log"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
@@ -22,7 +23,7 @@ import (
 )
 
 type compiler struct {
-	Logger            *log.Logger
+	Logger            *core.Logger
 	Factory           libcontainer.Factory
 	ImagePath         string
 	CompileArgs       []string

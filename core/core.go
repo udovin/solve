@@ -57,7 +57,7 @@ type Core struct {
 	// DB stores database connection.
 	DB *gosql.DB
 	// logger contains logger.
-	logger *log.Logger
+	logger *Logger
 }
 
 // NewCore creates core instance from config.
@@ -66,14 +66,14 @@ func NewCore(cfg config.Config) (*Core, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger := log.New("core")
+	logger := Logger{Logger: log.New("")}
+	logger.SetHeader(`{"time":"${time_rfc3339_nano}","level":"${level}"}`)
 	logger.SetLevel(log.Lvl(cfg.LogLevel))
-	logger.EnableColor()
-	return &Core{Config: cfg, DB: conn, logger: logger}, nil
+	return &Core{Config: cfg, DB: conn, logger: &logger}, nil
 }
 
 // Logger returns logger instance.
-func (c *Core) Logger() *log.Logger {
+func (c *Core) Logger() *Logger {
 	return c.logger
 }
 

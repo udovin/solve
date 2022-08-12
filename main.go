@@ -11,7 +11,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/labstack/gommon/log"
 	"github.com/spf13/cobra"
 
 	"github.com/udovin/solve/api"
@@ -39,12 +38,12 @@ func isServerError(err error) bool {
 	return err != nil && err != http.ErrServerClosed
 }
 
-func newServer(logger *log.Logger) *echo.Echo {
+func newServer(logger *core.Logger) *echo.Echo {
 	srv := echo.New()
 	srv.Logger = logger
 	srv.HideBanner, srv.HidePort = true, true
 	srv.Pre(middleware.RemoveTrailingSlash())
-	srv.Use(middleware.Recover(), middleware.Gzip(), middleware.Logger())
+	srv.Use(middleware.Recover(), middleware.Gzip())
 	return srv
 }
 

@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -108,8 +110,10 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 			visit.Status = c.Response().Status
 			if s := v.getBoolSetting(c, "log_visit."+c.Path()); s == nil || *s {
-				if err := v.core.Visits.Create(getContext(c), &visit); err != nil {
-					c.Logger().Error(err)
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				if err := v.core.Visits.Create(ctx, &visit); err != nil {
+					c.Logger().Error("Unable to create visit", err)
 				}
 			}
 		}()
@@ -172,10 +176,47 @@ type statusCodeResponse interface {
 	StatusCode() int
 }
 
+var rnd = rand.NewSource(time.Now().UnixNano())
+
 func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		reqID := c.Request().Header.Get(echo.HeaderXRequestID)
+		if reqID == "" {
+			reqID = fmt.Sprintf("%d-%d", rnd.Int63(), time.Now().UnixNano())
+		}
+		logger := c.Logger().(*core.Logger).With(core.Any("req_id", reqID))
+		c.SetLogger(logger)
+		c.Response().Header().Add(echo.HeaderXRequestID, reqID)
 		c.Response().Header().Add("X-Solve-Version", config.Version)
+		start := time.Now()
 		err := next(c)
+		defer func() {
+			finish := time.Now()
+			status := c.Response().Status
+			message := fmt.Sprintf("%s %s", c.Request().Method, c.Request().RequestURI)
+			params := map[string]string{}
+			for _, name := range c.ParamNames() {
+				params[name] = c.Param(name)
+			}
+			args := []any{
+				message,
+				core.Any("status", status),
+				core.Any("method", c.Request().Method),
+				core.Any("path", c.Path()),
+				core.Any("params", params),
+				core.Any("remote_ip", c.RealIP()),
+				core.Any("latency", finish.Sub(start)),
+				err,
+			}
+			switch {
+			case status >= 500:
+				logger.Error(args...)
+			case status >= 400:
+				logger.Warn(args...)
+			default:
+				logger.Info(args...)
+			}
+		}()
 		if resp, ok := err.(statusCodeResponse); ok {
 			code := resp.StatusCode()
 			if code == 0 {

@@ -149,13 +149,13 @@ func (f updateUserForm) Update(user *models.User) *errorResponse {
 		}
 	}
 	if f.FirstName != nil {
-		user.FirstName = models.NString(*f.FirstName)
+		user.FirstName = NString(*f.FirstName)
 	}
 	if f.LastName != nil {
-		user.LastName = models.NString(*f.LastName)
+		user.LastName = NString(*f.LastName)
 	}
 	if f.MiddleName != nil {
-		user.MiddleName = models.NString(*f.MiddleName)
+		user.MiddleName = NString(*f.MiddleName)
 	}
 	return nil
 }
@@ -497,10 +497,10 @@ func (f registerUserForm) Update(
 	if err := store.SetPassword(user, f.Password); err != nil {
 		return &errorResponse{Message: "can not set password"}
 	}
-	user.Email = models.NString(f.Email)
-	user.FirstName = models.NString(f.FirstName)
-	user.LastName = models.NString(f.LastName)
-	user.MiddleName = models.NString(f.MiddleName)
+	user.Email = NString(f.Email)
+	user.FirstName = NString(f.FirstName)
+	user.LastName = NString(f.LastName)
+	user.MiddleName = NString(f.MiddleName)
 	return nil
 }
 

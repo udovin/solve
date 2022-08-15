@@ -53,7 +53,8 @@ func (s *Invoker) Start() error {
 		threads = 1
 	}
 	for i := 0; i < threads; i++ {
-		s.core.StartTask(s.runDaemon)
+		name := fmt.Sprintf("invoker-%d", i+1)
+		s.core.StartTask(name, s.runDaemon)
 	}
 	return nil
 }
@@ -86,20 +87,20 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	task, err := s.core.Tasks.PopQueued(ctx, isSupportedTask)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			s.core.Logger().Error("Error: ", err)
+			s.core.Logger().Error("Error", err)
 		}
 		return false
 	}
 	defer func() {
 		if r := recover(); r != nil {
 			task.Status = models.Failed
-			s.core.Logger().Error("Task panic: ", r)
+			s.core.Logger().Error("Task panic", r)
 			panic(r)
 		}
 		ctx, cancel := context.WithDeadline(context.Background(), time.Unix(task.ExpireTime, 0))
 		defer cancel()
 		if err := s.core.Tasks.Update(ctx, task); err != nil {
-			s.core.Logger().Error("Error: ", err)
+			s.core.Logger().Error("Error", err)
 		}
 	}()
 	var waiter sync.WaitGroup
@@ -122,13 +123,17 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 				default:
 				}
 				if time.Now().After(time.Unix(task.ExpireTime, 0)) {
-					s.core.Logger().Error("Task expired: ", task.ID)
+					s.core.Logger().Error("Task expired", core.Any("task", task.ID))
 					return
 				}
 				clone := task
 				clone.ExpireTime = time.Now().Add(5 * time.Second).Unix()
 				if err := s.core.Tasks.Update(ctx, clone); err != nil {
-					s.core.Logger().Warn("Unable to ping task: ", err)
+					s.core.Logger().Warn(
+						"Unable to ping task",
+						core.Any("task", task.ID),
+						err,
+					)
 				} else {
 					task.ExpireTime = clone.ExpireTime
 				}
@@ -139,7 +144,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	cancel()
 	waiter.Wait()
 	if err != nil {
-		s.core.Logger().Error("Task failed: ", err)
+		s.core.Logger().Error("Task failed", err)
 		task.Status = models.Failed
 	} else {
 		task.Status = models.Succeeded
@@ -148,12 +153,12 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 }
 
 func (s *Invoker) onTask(ctx context.Context, task models.Task) error {
-	s.core.Logger().Debug("Received new task: ", task.ID)
+	s.core.Logger().Debugf("Received new task %d", task.ID)
 	switch task.Kind {
 	case models.JudgeSolutionTask:
 		return s.onJudgeSolution(ctx, task)
 	default:
-		s.core.Logger().Error("Unknown task: ", task.Kind)
+		s.core.Logger().Errorf("Unknown task kind %d", task.Kind)
 		return fmt.Errorf("unknown task")
 	}
 }
@@ -192,7 +197,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 			s.core.Logger().Error(err)
 			return
 		}
-		s.core.Logger().Info("Report: ", string(solution.Report))
+		s.core.Logger().Info("Report", core.Any("report", report))
 		if err := s.core.Solutions.Update(ctx, solution); err != nil {
 			s.core.Logger().Error(err)
 			return
@@ -202,7 +207,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	if err != nil {
 		return err
 	}
-	s.core.Logger().Info(tempDir)
+	s.core.Logger().Debugf("Temp dir: %s", tempDir)
 	defer func() {
 		_ = os.RemoveAll(tempDir)
 	}()
@@ -248,10 +253,16 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	if err := compier.Compile(
 		ctx, solutionPath, tempSolutionPath, tempCompileLogPath,
 	); err != nil {
-		s.core.Logger().Warn("Unable to compile: ", err)
+		s.core.Logger().Warn(
+			"Unable to compile",
+			err,
+		)
 		compileLog, err := readFile(tempCompileLogPath, 1024)
 		if err != nil {
-			s.core.Logger().Warn("Unable to read compile logs: ", err)
+			s.core.Logger().Warn(
+				"Unable to read compile logs",
+				err,
+			)
 		}
 		report.CompileLog = compileLog
 		report.Verdict = models.CompilationError
@@ -259,7 +270,10 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	} else {
 		compileLog, err := readFile(tempCompileLogPath, 1024)
 		if err != nil {
-			s.core.Logger().Warn("Unable to read compile logs: ", err)
+			s.core.Logger().Warn(
+				"Unable to read compile logs",
+				err,
+			)
 		}
 		report.CompileLog = compileLog
 	}
@@ -276,7 +290,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 			tempOutputPath := filepath.Join(tempDir, fmt.Sprintf("output-%d.txt", len(report.Tests)))
 			inputText, err := readFile(inputPath, 1024)
 			if err != nil {
-				s.core.Logger().Error("Error: ", err)
+				s.core.Logger().Error("Error", err)
 				inputText = ""
 			}
 			if err := compier.Execute(
@@ -285,7 +299,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 			); err == nil {
 				outputText, err := readFile(tempOutputPath, 1024)
 				if err != nil {
-					s.core.Logger().Error("Error: ", err)
+					s.core.Logger().Error("Error", err)
 					outputText = ""
 				}
 				message, ok, err := compareFiles(tempOutputPath, answerPath)

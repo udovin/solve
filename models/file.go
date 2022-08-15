@@ -12,6 +12,7 @@ const (
 	PendingFile   FileStatus = 1
 	AvailableFile FileStatus = 2
 	DamagedFile   FileStatus = 3
+	DeletingFile  FileStatus = 4
 )
 
 // File represents a file.

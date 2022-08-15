@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -121,7 +122,9 @@ func serverMain(cmd *cobra.Command, _ []string) {
 			}
 		}()
 		defer func() {
-			if err := srv.Shutdown(context.Background()); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			if err := srv.Shutdown(ctx); err != nil {
 				c.Logger().Error(err)
 			}
 		}()

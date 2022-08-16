@@ -3,10 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sort"
 
 	"github.com/labstack/echo/v4"
@@ -126,31 +123,24 @@ func (v *View) createCompiler(c echo.Context) error {
 	if account := accountCtx.Account; account != nil {
 		compiler.OwnerID = models.NInt64(account.ID)
 	}
-	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
-		file, err := c.FormFile("file")
-		if err != nil {
-			return err
-		}
-		src, err := file.Open()
-		if err != nil {
-			return err
-		}
-		defer func() {
-			_ = src.Close()
-		}()
-		if err := v.core.Compilers.Create(ctx, &compiler); err != nil {
-			return err
-		}
-		dst, err := os.Create(filepath.Join(
-			v.core.Config.Storage.CompilersDir,
-			fmt.Sprintf("%d.zip", compiler.ID),
-		))
-		if err != nil {
-			return err
-		}
-		defer dst.Close()
-		_, err = io.Copy(dst, src)
+	formFile, err := c.FormFile("file")
+	if err != nil {
 		return err
+	}
+	fileFuture, err := v.Files.UploadFile(getContext(c), formFile)
+	if err != nil {
+		return err
+	}
+	file, err := fileFuture.Get(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+		if err := v.Files.ConfirmFile(ctx, &file); err != nil {
+			return err
+		}
+		compiler.ImageID = file.ID
+		return v.core.Compilers.Create(ctx, &compiler)
 	}, sqlRepeatableRead); err != nil {
 		return err
 	}

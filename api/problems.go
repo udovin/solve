@@ -4,10 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -167,31 +164,24 @@ func (v *View) createProblem(c echo.Context) error {
 	if account := accountCtx.Account; account != nil {
 		problem.OwnerID = NInt64(account.ID)
 	}
-	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
-		file, err := c.FormFile("file")
-		if err != nil {
-			return err
-		}
-		src, err := file.Open()
-		if err != nil {
-			return err
-		}
-		defer func() {
-			_ = src.Close()
-		}()
-		if err := v.core.Problems.Create(ctx, &problem); err != nil {
-			return err
-		}
-		dst, err := os.Create(filepath.Join(
-			v.core.Config.Storage.ProblemsDir,
-			fmt.Sprintf("%d.zip", problem.ID),
-		))
-		if err != nil {
-			return err
-		}
-		defer dst.Close()
-		_, err = io.Copy(dst, src)
+	formFile, err := c.FormFile("file")
+	if err != nil {
 		return err
+	}
+	fileFuture, err := v.Files.UploadFile(getContext(c), formFile)
+	if err != nil {
+		return err
+	}
+	file, err := fileFuture.Get(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+		if err := v.Files.ConfirmFile(ctx, &file); err != nil {
+			return err
+		}
+		problem.PackageID = file.ID
+		return v.core.Problems.Create(ctx, &problem)
 	}, sqlRepeatableRead); err != nil {
 		return err
 	}

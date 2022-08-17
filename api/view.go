@@ -23,6 +23,7 @@ type View struct {
 	core     *core.Core
 	Accounts *managers.AccountManager
 	Contests *managers.ContestManager
+	Files    *managers.FileManager
 }
 
 // Register registers handlers in specified group.
@@ -67,6 +68,7 @@ func NewView(core *core.Core) *View {
 		core:     core,
 		Accounts: managers.NewAccountManager(core),
 		Contests: managers.NewContestManager(core),
+		Files:    managers.NewFileManager(core),
 	}
 }
 
@@ -182,7 +184,7 @@ func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		reqID := c.Request().Header.Get(echo.HeaderXRequestID)
 		if reqID == "" {
-			reqID = fmt.Sprintf("%d-%d", rnd.Int63(), time.Now().UnixNano())
+			reqID = fmt.Sprintf("%d-%d", rnd.Int63(), time.Now().UnixMilli())
 		}
 		logger := c.Logger().(*core.Logger).With(core.Any("req_id", reqID))
 		c.SetLogger(logger)

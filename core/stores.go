@@ -16,6 +16,9 @@ func (c *Core) SetupAllStores() {
 	c.Tasks = models.NewTaskStore(
 		c.DB, "solve_task", "solve_task_event",
 	)
+	c.Files = models.NewFileStore(
+		c.DB, "solve_file", "solve_file_event",
+	)
 	c.Roles = models.NewRoleStore(
 		c.DB, "solve_role", "solve_role_event",
 	)
@@ -64,6 +67,7 @@ func (c *Core) SetupAllStores() {
 func (c *Core) startStores(start func(models.Store, time.Duration)) {
 	start(c.Settings, time.Second*5)
 	start(c.Tasks, time.Second)
+	start(c.Files, time.Second)
 	start(c.Roles, time.Second*5)
 	start(c.RoleEdges, time.Second*5)
 	start(c.Accounts, time.Second)

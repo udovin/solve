@@ -116,6 +116,8 @@ type Storage struct {
 	SolutionsDir string `json:"solutions_dir"`
 	// CompilersDir contains path to compilers directory.
 	CompilersDir string `json:"compilers_dir"`
+	// FilesDir contains path to files directory.
+	FilesDir string `json:"files_dir"`
 }
 
 var configFuncs = template.FuncMap{

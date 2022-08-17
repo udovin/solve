@@ -22,6 +22,8 @@ type Core struct {
 	Settings *models.SettingStore
 	// Tasks contains task store.
 	Tasks *models.TaskStore
+	// Files contains file store.
+	Files *models.FileStore
 	// Roles contains role store.
 	Roles *models.RoleStore
 	// RoleEdges contains role edge store.
@@ -111,11 +113,11 @@ func (c *Core) WrapTx(
 }
 
 // StartTask starts task in new goroutine.
-func (c *Core) StartTask(task func(ctx context.Context)) {
-	c.Logger().Debug("Start core task")
+func (c *Core) StartTask(name string, task func(ctx context.Context)) {
+	c.Logger().Info("Start task", Any("task", name))
 	c.waiter.Add(1)
 	go func() {
-		defer c.Logger().Debug("Core task finished")
+		defer c.Logger().Info("Task finished", Any("task", name))
 		defer c.waiter.Done()
 		task(c.context)
 	}()

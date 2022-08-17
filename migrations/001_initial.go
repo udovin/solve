@@ -230,6 +230,7 @@ var m001Tables = []schema.Table{
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "config", Type: schema.JSON},
 			{Name: "title", Type: schema.String},
+			{Name: "package_id", Type: schema.Int64},
 		},
 	},
 	{
@@ -243,6 +244,7 @@ var m001Tables = []schema.Table{
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "config", Type: schema.JSON},
 			{Name: "title", Type: schema.String},
+			{Name: "package_id", Type: schema.Int64},
 		},
 	},
 	{
@@ -352,6 +354,7 @@ var m001Tables = []schema.Table{
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "name", Type: schema.String},
 			{Name: "config", Type: schema.JSON},
+			{Name: "image_id", Type: schema.Int64},
 		},
 	},
 	{
@@ -365,6 +368,33 @@ var m001Tables = []schema.Table{
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "name", Type: schema.String},
 			{Name: "config", Type: schema.JSON},
+			{Name: "image_id", Type: schema.Int64},
+		},
+	},
+	{
+		Name: "solve_file",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "status", Type: schema.Int64},
+			{Name: "expire_time", Type: schema.Int64, Nullable: true},
+			{Name: "name", Type: schema.String},
+			{Name: "size", Type: schema.Int64},
+			{Name: "path", Type: schema.String},
+		},
+	},
+	{
+		Name: "solve_file_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_kind", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
+			{Name: "id", Type: schema.Int64},
+			{Name: "status", Type: schema.Int64},
+			{Name: "expire_time", Type: schema.Int64, Nullable: true},
+			{Name: "name", Type: schema.String},
+			{Name: "size", Type: schema.Int64},
+			{Name: "path", Type: schema.String},
 		},
 	},
 	{

@@ -9,9 +9,10 @@ import (
 // Problem represents a problem.
 type Problem struct {
 	baseObject
-	OwnerID NInt64 `db:"owner_id"`
-	Config  JSON   `db:"config"`
-	Title   string `db:"title"`
+	OwnerID   NInt64 `db:"owner_id"`
+	Config    JSON   `db:"config"`
+	Title     string `db:"title"`
+	PackageID int64  `db:"package_id"`
 }
 
 // Clone creates copy of problem.

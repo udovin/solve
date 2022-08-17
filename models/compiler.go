@@ -16,6 +16,7 @@ type Compiler struct {
 	OwnerID NInt64 `db:"owner_id"`
 	Name    string `db:"name"`
 	Config  JSON   `db:"config"`
+	ImageID int64  `db:"image_id"`
 }
 
 // Clone create copy of compiler.

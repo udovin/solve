@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/jackc/pgx/v4 v4.16.1
-	github.com/labstack/echo/v4 v4.7.2
+	github.com/labstack/echo/v4 v4.8.0
 	github.com/labstack/gommon v0.3.1
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/nsf/jsondiff v0.0.0-20210926074059-1e845ec5d249

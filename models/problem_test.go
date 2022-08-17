@@ -15,7 +15,8 @@ func (t *problemStoreTest) prepareDB(tx *sql.Tx) error {
 			`"id" integer PRIMARY KEY,` +
 			`"owner_id" integer,` +
 			`"config" text NOT NULL,` +
-			`"title" VARCHAR(255) NOT NULL)`,
+			`"title" VARCHAR(255) NOT NULL,` +
+			`"package_id" bigint NOT NULL)`,
 	); err != nil {
 		log.Println("Error", err)
 		return err
@@ -29,7 +30,8 @@ func (t *problemStoreTest) prepareDB(tx *sql.Tx) error {
 			`"id" integer NOT NULL,` +
 			`"owner_id" integer,` +
 			`"config" text NOT NULL,` +
-			`"title" VARCHAR(255) NOT NULL)`,
+			`"title" VARCHAR(255) NOT NULL,` +
+			`"package_id" bigint NOT NULL)`,
 	)
 	log.Println("Error", err)
 	return err

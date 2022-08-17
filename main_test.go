@@ -28,6 +28,7 @@ var (
 		Security: &config.Security{
 			PasswordSalt: "qwerty123",
 		},
+		Storage: &config.Storage{},
 	}
 )
 
@@ -36,9 +37,10 @@ func init() {
 }
 
 func testSetup(tb testing.TB) {
+	testConfig.Storage.FilesDir = tb.TempDir()
 	var err error
 	func() {
-		testConfigFile, err = ioutil.TempFile(os.TempDir(), "test-")
+		testConfigFile, err = ioutil.TempFile(tb.TempDir(), "test-")
 		if err != nil {
 			tb.Fatal("Error:", err)
 		}
@@ -59,7 +61,6 @@ func testSetup(tb testing.TB) {
 }
 
 func testTeardown(tb testing.TB) {
-	os.RemoveAll(testConfigFile.Name())
 	c, err := core.NewCore(testConfig)
 	if err != nil {
 		tb.Fatal("Error:", err)

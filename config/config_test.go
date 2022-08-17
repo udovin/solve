@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,10 +12,6 @@ import (
 )
 
 func TestLoadFromFile(t *testing.T) {
-	file, err := ioutil.TempFile(os.TempDir(), "solve-test-")
-	if err != nil {
-		t.Error("Error: ", err)
-	}
 	expectedConfig := Config{
 		Server: &Server{
 			Host: "localhost",
@@ -31,16 +26,17 @@ func TestLoadFromFile(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	_, err = file.Write(expectedConfigData)
-	_ = file.Close()
-	defer func() {
-		_ = os.Remove(file.Name())
-	}()
+	file, err := ioutil.TempFile(t.TempDir(), "solve-test-")
 	if err != nil {
-		t.Fatal("Error: ", err)
+		t.Error("Error: ", err)
 	}
-	_, err = LoadFromFile(filepath.Join(os.TempDir(), "solve-test-deleted"))
-	if err == nil {
+	func() {
+		defer func() { _ = file.Close() }()
+		if _, err := file.Write(expectedConfigData); err != nil {
+			t.Fatal("Error: ", err)
+		}
+	}()
+	if _, err := LoadFromFile(filepath.Join(t.TempDir(), "solve-test-deleted")); err == nil {
 		t.Fatal("Expected error for config from deleted file")
 	}
 	config, err := LoadFromFile(file.Name())
@@ -70,29 +66,27 @@ const templateConfig = `
 `
 
 func TestLoadFromTemplateFile(t *testing.T) {
-	secretFile, err := ioutil.TempFile(os.TempDir(), "solve-test-secret-")
+	secretFile, err := ioutil.TempFile(t.TempDir(), "solve-test-secret-")
 	if err != nil {
 		t.Error("Error: ", err)
 	}
-	if _, err := secretFile.Write([]byte("secret")); err != nil {
-		t.Fatal("Error: ", err)
-	}
-	_ = secretFile.Close()
-	defer func() {
-		_ = os.Remove(secretFile.Name())
+	func() {
+		defer func() { _ = secretFile.Close() }()
+		if _, err := secretFile.Write([]byte("secret")); err != nil {
+			t.Fatal("Error: ", err)
+		}
 	}()
-	file, err := ioutil.TempFile(os.TempDir(), "solve-test-")
+	file, err := ioutil.TempFile(t.TempDir(), "solve-test-")
 	if err != nil {
 		t.Error("Error: ", err)
 	}
-	if _, err = file.Write([]byte(strings.ReplaceAll(
-		templateConfig, "SECRET_FILE", secretFile.Name(),
-	))); err != nil {
-		t.Fatal("Error: ", err)
-	}
-	_ = file.Close()
-	defer func() {
-		_ = os.Remove(file.Name())
+	func() {
+		defer func() { _ = file.Close() }()
+		if _, err := file.Write([]byte(strings.ReplaceAll(
+			templateConfig, "SECRET_FILE", secretFile.Name(),
+		))); err != nil {
+			t.Fatal("Error: ", err)
+		}
 	}()
 	cfg, err := LoadFromFile(file.Name())
 	if err != nil {
@@ -107,17 +101,15 @@ func TestLoadFromTemplateFile(t *testing.T) {
 }
 
 func TestLoadFromInvalidFile(t *testing.T) {
-	file, err := ioutil.TempFile(os.TempDir(), "solve-test-")
+	file, err := ioutil.TempFile(t.TempDir(), "solve-test-")
 	if err != nil {
 		t.Error("Error: ", err)
 	}
-	_, err = file.Write([]byte("invalid data"))
-	if err != nil {
-		t.Fatal("Error: ", err)
-	}
-	_ = file.Close()
-	defer func() {
-		_ = os.Remove(file.Name())
+	func() {
+		defer func() { _ = file.Close() }()
+		if _, err := file.Write([]byte("invalid data")); err != nil {
+			t.Fatal("Error: ", err)
+		}
 	}()
 	if _, err := LoadFromFile(file.Name()); err == nil {
 		t.Fatal("Expected error for invalid config file")
@@ -125,17 +117,15 @@ func TestLoadFromInvalidFile(t *testing.T) {
 }
 
 func TestLoadFromInvalidTemplateFile(t *testing.T) {
-	file, err := ioutil.TempFile(os.TempDir(), "solve-test-")
+	file, err := ioutil.TempFile(t.TempDir(), "solve-test-")
 	if err != nil {
 		t.Error("Error: ", err)
 	}
-	_, err = file.Write([]byte(`{"server": {{ invalid }} }`))
-	if err != nil {
-		t.Fatal("Error: ", err)
-	}
-	_ = file.Close()
-	defer func() {
-		_ = os.Remove(file.Name())
+	func() {
+		defer func() { _ = file.Close() }()
+		if _, err := file.Write([]byte(`{"server": {{ invalid }} }`)); err != nil {
+			t.Fatal("Error: ", err)
+		}
 	}()
 	if _, err := LoadFromFile(file.Name()); err == nil {
 		t.Fatal("Expected error for invalid config file")
@@ -143,17 +133,16 @@ func TestLoadFromInvalidTemplateFile(t *testing.T) {
 }
 
 func TestLoadFromInvalidTemplateFile2(t *testing.T) {
-	file, err := ioutil.TempFile(os.TempDir(), "solve-test-")
+	file, err := ioutil.TempFile(t.TempDir(), "solve-test-")
 	if err != nil {
 		t.Error("Error: ", err)
 	}
-	_, err = file.Write([]byte(`{"server": { {{ .unknown }} } }`))
-	if err != nil {
-		t.Fatal("Error: ", err)
-	}
-	_ = file.Close()
-	defer func() {
-		_ = os.Remove(file.Name())
+	func() {
+		defer func() { _ = file.Close() }()
+		_, err = file.Write([]byte(`{"server": { {{ .unknown }} } }`))
+		if err != nil {
+			t.Fatal("Error: ", err)
+		}
 	}()
 	if _, err := LoadFromFile(file.Name()); err == nil {
 		t.Fatal("Expected error for invalid config file")

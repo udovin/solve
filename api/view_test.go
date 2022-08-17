@@ -119,6 +119,9 @@ func testSetup(tb testing.TB) {
 		Security: &config.Security{
 			PasswordSalt: "qwerty123",
 		},
+		Storage: &config.Storage{
+			FilesDir: tb.TempDir(),
+		},
 	}
 	if _, ok := tb.(*testing.B); ok {
 		log.SetLevel(log.OFF)
@@ -142,6 +145,7 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	testEcho = echo.New()
+	testEcho.Logger = c.Logger()
 	testView = NewView(c)
 	testView.Register(testEcho.Group("/api"))
 	testView.RegisterSocket(testEcho.Group("/socket"))
@@ -171,6 +175,22 @@ func newTestClient(endpoint string) *testClient {
 		Endpoint: endpoint,
 		client:   http.Client{Timeout: time.Second},
 	}
+}
+
+func (c *testClient) Ping() error {
+	req, err := http.NewRequest(http.MethodGet, c.getURL("/ping"), nil)
+	if err != nil {
+		return err
+	}
+	return c.doRequest(req, http.StatusOK, nil)
+}
+
+func (c *testClient) Health() error {
+	req, err := http.NewRequest(http.MethodGet, c.getURL("/health"), nil)
+	if err != nil {
+		return err
+	}
+	return c.doRequest(req, http.StatusOK, nil)
 }
 
 func (c *testClient) Register(form registerUserForm) (User, error) {
@@ -384,7 +404,9 @@ func (c *testClient) doRequest(req *http.Request, code int, respData any) error 
 	if resp.StatusCode != code {
 		var respData errorResponse
 		if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
-			return err
+			respData = errorResponse{
+				Message: err.Error(),
+			}
 		}
 		respData.Code = resp.StatusCode
 		return &respData
@@ -440,23 +462,17 @@ func testHandler(req *http.Request, rec *httptest.ResponseRecorder) error {
 func TestPing(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/api/ping", nil)
-	rec := httptest.NewRecorder()
-	if err := testHandler(req, rec); err != nil {
+	if err := testAPI.Ping(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	expectStatus(t, http.StatusOK, rec.Code)
 }
 
 func TestHealth(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
-	rec := httptest.NewRecorder()
-	if err := testHandler(req, rec); err != nil {
+	if err := testAPI.Health(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	expectStatus(t, http.StatusOK, rec.Code)
 }
 
 func TestHealthUnhealthy(t *testing.T) {
@@ -465,12 +481,12 @@ func TestHealthUnhealthy(t *testing.T) {
 	if err := testView.core.DB.Close(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
-	rec := httptest.NewRecorder()
-	if err := testHandler(req, rec); err != nil {
-		t.Fatal("Error:", err)
+	err := testAPI.Health()
+	resp, ok := err.(statusCodeResponse)
+	if !ok {
+		t.Fatal("Invalid error:", err)
 	}
-	expectStatus(t, http.StatusInternalServerError, rec.Code)
+	expectStatus(t, http.StatusInternalServerError, resp.StatusCode())
 }
 
 func expectStatus(tb testing.TB, expected, got int) {

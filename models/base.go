@@ -287,6 +287,11 @@ func (s *baseStore[T, E, TPtr, EPtr]) Delete(ctx context.Context, id int64) erro
 	return s.createObjectEvent(ctx, eventPtr)
 }
 
+// Find finds objects with specified query.
+func (s *baseStore[T, E, TPtr, EPtr]) Find(ctx context.Context, where gosql.BoolExpression) (db.RowReader[T], error) {
+	return s.objects.FindObjects(ctx, where)
+}
+
 var (
 	sqlRepeatableRead = gosql.WithIsolation(sql.LevelRepeatableRead)
 	sqlReadOnly       = gosql.WithReadOnly(true)

@@ -194,24 +194,28 @@ func (s *TaskStore) PopQueued(
 	if err := s.lockStore(tx); err != nil {
 		return Task{}, err
 	}
-	if err := s.Sync(ctx); err != nil {
+	reader, err := s.Find(ctx, gosql.Column("status").Equal(QueuedTask))
+	if err != nil {
 		return Task{}, err
 	}
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	for id := range s.byStatus[QueuedTask] {
-		if task, ok := s.tasks[id]; ok && filter(task.Kind) {
-			// We should make clone of action, because we do not
-			// want to corrupt Store in-memory cache.
-			task = task.Clone()
-			// Now we can do any manipulations with this action.
-			task.Status = RunningTask
-			task.ExpireTime = time.Now().Add(5 * time.Second).Unix()
-			if err := s.Update(ctx, task); err != nil {
-				return Task{}, err
-			}
-			return task, nil
+	defer reader.Close()
+	for reader.Next() {
+		task := reader.Row()
+		if !filter(task.Kind) {
+			continue
 		}
+		if task.Status != QueuedTask {
+			return Task{}, fmt.Errorf("unexpected status: %s", task.Status)
+		}
+		if err := reader.Close(); err != nil {
+			return Task{}, err
+		}
+		task.Status = RunningTask
+		task.ExpireTime = time.Now().Add(5 * time.Second).Unix()
+		if err := s.Update(ctx, task); err != nil {
+			return Task{}, err
+		}
+		return task, nil
 	}
 	return Task{}, sql.ErrNoRows
 }

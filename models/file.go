@@ -10,8 +10,8 @@ import (
 type FileStatus int
 
 const (
-	PendingFile   FileStatus = 1
-	AvailableFile FileStatus = 2
+	PendingFile   FileStatus = 0
+	AvailableFile FileStatus = 1
 )
 
 // String returns string representation.

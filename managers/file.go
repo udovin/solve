@@ -2,6 +2,7 @@ package managers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -19,65 +20,71 @@ import (
 )
 
 type FileManager struct {
-	Files *models.FileStore
-	Dir   string
+	Files         *models.FileStore
+	Dir           string
+	UploadTimeout time.Duration
 }
 
 func NewFileManager(core *core.Core) *FileManager {
 	return &FileManager{
-		Files: core.Files,
-		Dir:   core.Config.Storage.FilesDir,
+		Files:         core.Files,
+		Dir:           core.Config.Storage.FilesDir,
+		UploadTimeout: 10 * time.Minute,
 	}
 }
 
-func (m *FileManager) UploadFile(ctx context.Context, formFile *multipart.FileHeader) (Future[models.File], error) {
+// UploadFile adds file to file storage and starts upload.
+//
+// You shold call ConfirmUploadFile for marking file available.
+func (m *FileManager) UploadFile(ctx context.Context, formFile *multipart.FileHeader) (models.File, error) {
 	if tx := db.GetTx(ctx); tx != nil {
-		return nil, fmt.Errorf("cannot upload file in transaction")
+		return models.File{}, fmt.Errorf("cannot upload file in transaction")
 	}
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		deadline = time.Now().Add(10 * time.Minute)
+		deadline = time.Now().Add(m.UploadTimeout)
 	}
 	filePath, err := m.generatePath(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot generate path: %w", err)
+		return models.File{}, fmt.Errorf("cannot generate path: %w", err)
 	}
 	file := models.File{
 		Status:     models.PendingFile,
-		ExpireTime: models.NInt64(deadline.Unix()),
+		ExpireTime: models.NInt64(deadline.Add(time.Minute).Unix()),
 		Name:       formFile.Filename,
 		Size:       formFile.Size,
 		Path:       filePath,
 	}
 	src, err := formFile.Open()
 	if err != nil {
-		return nil, err
+		return models.File{}, err
 	}
+	defer func() { _ = src.Close() }()
 	if err := m.Files.Create(ctx, &file); err != nil {
 		_ = src.Close()
-		return nil, err
+		return models.File{}, err
 	}
-	return Async(func() (models.File, error) {
-		defer src.Close()
-		systemDir := filepath.Join(m.Dir, filepath.FromSlash(path.Dir(filePath)))
-		if err := os.MkdirAll(systemDir, 0777); err != nil {
-			return models.File{}, err
-		}
-		dst, err := os.Create(filepath.Join(m.Dir, filepath.FromSlash(filePath)))
-		if err != nil {
-			return models.File{}, err
-		}
-		defer dst.Close()
-		written, err := io.Copy(dst, src)
-		if err != nil {
-			return models.File{}, err
-		}
-		file.Size = written
-		return file, nil
-	}), nil
+	systemDir := filepath.Join(m.Dir, filepath.FromSlash(path.Dir(filePath)))
+	if err := os.MkdirAll(systemDir, 0777); err != nil {
+		return models.File{}, err
+	}
+	dst, err := os.Create(filepath.Join(m.Dir, filepath.FromSlash(filePath)))
+	if err != nil {
+		return models.File{}, err
+	}
+	defer func() { _ = dst.Close() }()
+	written, err := io.Copy(dst, src)
+	if err != nil {
+		return models.File{}, err
+	}
+	file.Size = written
+	return file, nil
 }
 
-func (m *FileManager) ConfirmFile(ctx context.Context, file *models.File) error {
+func (m *FileManager) ConfirmUploadFile(ctx context.Context, file *models.File) error {
+	if file.Status != models.PendingFile {
+		return fmt.Errorf("file shoud be in pending status")
+	}
 	clone := *file
 	clone.Status = models.AvailableFile
 	clone.ExpireTime = 0
@@ -86,6 +93,51 @@ func (m *FileManager) ConfirmFile(ctx context.Context, file *models.File) error 
 	}
 	*file = clone
 	return nil
+}
+
+func (m *FileManager) waitFileAvailable(ctx context.Context, file *models.File) error {
+	if file.Status == models.AvailableFile {
+		return nil
+	}
+	if file.Status != models.PendingFile {
+		return fmt.Errorf("file has invalid status: %s", file.Status)
+	}
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	expireTime := time.Unix(int64(file.ExpireTime), 0)
+	for file.Status == models.PendingFile && time.Now().Before(expireTime) {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+		}
+		if err := m.Files.Sync(ctx); err != nil {
+			return err
+		}
+		syncedFile, err := m.Files.Get(file.ID)
+		if err != nil {
+			return err
+		}
+		*file = syncedFile
+	}
+	if file.Status != models.AvailableFile {
+		return fmt.Errorf("file has invalid status: %s", file.Status)
+	}
+	return nil
+}
+
+func (m *FileManager) DownloadFile(ctx context.Context, id int64) (*os.File, error) {
+	file, err := m.Files.Get(id)
+	if err == sql.ErrNoRows {
+		err = m.Files.Sync(ctx)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := m.waitFileAvailable(ctx, &file); err != nil {
+		return nil, err
+	}
+	return os.Open(filepath.Join(m.Dir, filepath.FromSlash(file.Path)))
 }
 
 func (m *FileManager) generatePath(ctx context.Context) (string, error) {

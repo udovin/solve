@@ -17,6 +17,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer"
 
 	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg"
 	"github.com/udovin/solve/pkg/polygon"
@@ -25,12 +26,16 @@ import (
 // Invoker represents manager for asynchronous actions (invocations).
 type Invoker struct {
 	core    *core.Core
+	files   *managers.FileManager
 	factory libcontainer.Factory
 }
 
 // New creates a new instance of Invoker.
 func New(c *core.Core) *Invoker {
-	return &Invoker{core: c}
+	return &Invoker{
+		core:  c,
+		files: managers.NewFileManager(c),
+	}
 }
 
 // Start starts invoker daemons.
@@ -93,7 +98,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			task.Status = models.Failed
+			task.Status = models.FailedTask
 			s.core.Logger().Error("Task panic", r)
 			panic(r)
 		}
@@ -145,9 +150,9 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	waiter.Wait()
 	if err != nil {
 		s.core.Logger().Error("Task failed", err)
-		task.Status = models.Failed
+		task.Status = models.FailedTask
 	} else {
-		task.Status = models.Succeeded
+		task.Status = models.SucceededTask
 	}
 	return true
 }
@@ -211,22 +216,24 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	defer func() {
 		_ = os.RemoveAll(tempDir)
 	}()
-	problemPath := filepath.Join(
-		s.core.Config.Storage.ProblemsDir,
-		fmt.Sprintf("%d.zip", problem.ID),
-	)
+	problemFile, err := s.files.DownloadFile(ctx, problem.PackageID)
+	if err != nil {
+		return err
+	}
+	defer problemFile.Close()
 	tempProblemPath := filepath.Join(tempDir, "problem")
-	if err := pkg.ExtractZip(problemPath, tempProblemPath); err != nil {
+	if err := pkg.ExtractZip(problemFile.Name(), tempProblemPath); err != nil {
 		return err
 	}
 	compierPath := filepath.Join(
-		s.core.Config.Storage.CompilersDir,
+		s.core.Config.Storage.FilesDir,
 		"dosbox-tasm.tar.gz",
 	)
-	solutionPath := filepath.Join(
-		s.core.Config.Storage.SolutionsDir,
-		fmt.Sprintf("%d.txt", solution.ID),
-	)
+	solutionFile, err := s.files.DownloadFile(ctx, int64(solution.ContentID))
+	if err != nil {
+		return err
+	}
+	defer solutionFile.Close()
 	tempSolutionPath := filepath.Join(tempDir, "solution.txt")
 	tempCompileLogPath := filepath.Join(tempDir, "compile_log.txt")
 	tempImagePath := filepath.Join(tempDir, "rootfs")
@@ -251,7 +258,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 		ExecuteOutputPath: "/home/solution/OUTPUT.TXT",
 	}
 	if err := compier.Compile(
-		ctx, solutionPath, tempSolutionPath, tempCompileLogPath,
+		ctx, solutionFile.Name(), tempSolutionPath, tempCompileLogPath,
 	); err != nil {
 		s.core.Logger().Warn(
 			"Unable to compile",

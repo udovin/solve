@@ -245,6 +245,9 @@ func (s *baseStore[T, E, TPtr, EPtr]) initObjects(ctx context.Context) error {
 }
 
 func (s *baseStore[T, E, TPtr, EPtr]) Sync(ctx context.Context) error {
+	if tx := db.GetTx(ctx); tx != nil {
+		return fmt.Errorf("sync cannot be run in transaction")
+	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.consumer.ConsumeEvents(ctx, s.consumeEvent)

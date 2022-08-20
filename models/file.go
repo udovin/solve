@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/udovin/gosql"
 )
@@ -12,6 +13,18 @@ const (
 	PendingFile   FileStatus = 1
 	AvailableFile FileStatus = 2
 )
+
+// String returns string representation.
+func (t FileStatus) String() string {
+	switch t {
+	case PendingFile:
+		return "pending"
+	case AvailableFile:
+		return "available"
+	default:
+		return fmt.Sprintf("FileStatus(%d)", t)
+	}
+}
 
 // File represents a file.
 type File struct {

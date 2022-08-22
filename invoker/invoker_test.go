@@ -23,6 +23,9 @@ func testSetup(tb testing.TB) {
 		Security: &config.Security{
 			PasswordSalt: "qwerty123",
 		},
+		Storage: &config.Storage{
+			FilesDir: tb.TempDir(),
+		},
 	}
 	c, err := core.NewCore(cfg)
 	if err != nil {

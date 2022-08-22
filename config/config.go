@@ -110,12 +110,6 @@ type Invoker struct {
 
 // Storage contains storage config.
 type Storage struct {
-	// ProblemsDir contains path to problems directory.
-	ProblemsDir string `json:"problems_dir"`
-	// SolutionsDir contains path to solutions directory.
-	SolutionsDir string `json:"solutions_dir"`
-	// CompilersDir contains path to compilers directory.
-	CompilersDir string `json:"compilers_dir"`
 	// FilesDir contains path to files directory.
 	FilesDir string `json:"files_dir"`
 }

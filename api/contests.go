@@ -4,10 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -688,18 +685,19 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		ParticipantID: participants[0].ID,
 		ProblemID:     problem.ID,
 	}
+	formFile, err := c.FormFile("file")
+	if err != nil {
+		return err
+	}
+	file, err := v.Files.UploadFile(getContext(c), formFile)
+	if err != nil {
+		return err
+	}
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
-		file, err := c.FormFile("file")
-		if err != nil {
+		if err := v.Files.ConfirmUploadFile(ctx, &file); err != nil {
 			return err
 		}
-		src, err := file.Open()
-		if err != nil {
-			return err
-		}
-		defer func() {
-			_ = src.Close()
-		}()
+		solution.ContentID = models.NInt64(file.ID)
 		if err := v.core.Solutions.Create(ctx, &solution); err != nil {
 			return err
 		}
@@ -707,25 +705,13 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		if err := v.core.ContestSolutions.Create(ctx, &contestSolution); err != nil {
 			return err
 		}
-		task := models.Task{Kind: models.JudgeSolutionTask}
+		task := models.Task{}
 		if err := task.SetConfig(models.JudgeSolutionTaskConfig{
 			SolutionID: solution.ID,
 		}); err != nil {
 			return err
 		}
-		if err := v.core.Tasks.Create(ctx, &task); err != nil {
-			return err
-		}
-		dst, err := os.Create(filepath.Join(
-			v.core.Config.Storage.SolutionsDir,
-			fmt.Sprintf("%d.txt", solution.ID),
-		))
-		if err != nil {
-			return err
-		}
-		defer dst.Close()
-		_, err = io.Copy(dst, src)
-		return err
+		return v.core.Tasks.Create(ctx, &task)
 	}, sqlRepeatableRead); err != nil {
 		return err
 	}

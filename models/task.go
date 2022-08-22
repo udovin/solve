@@ -15,26 +15,26 @@ import (
 type TaskStatus int
 
 const (
-	// Queued means that task in queue and should be processed.
-	Queued TaskStatus = 0
-	// Running means that task already in processing.
-	Running TaskStatus = 1
-	// Succeeded means that task is processed with success.
-	Succeeded TaskStatus = 2
-	// Failed means that task is processed with failure.
-	Failed TaskStatus = 3
+	// QueuedTask means that task in queue and should be processed.
+	QueuedTask TaskStatus = 0
+	// RunningTask means that task already in processing.
+	RunningTask TaskStatus = 1
+	// SucceededTask means that task is processed with success.
+	SucceededTask TaskStatus = 2
+	// FailedTask means that task is processed with failure.
+	FailedTask TaskStatus = 3
 )
 
 // String returns string representation.
 func (t TaskStatus) String() string {
 	switch t {
-	case Queued:
+	case QueuedTask:
 		return "queued"
-	case Running:
+	case RunningTask:
 		return "running"
-	case Succeeded:
+	case SucceededTask:
 		return "succeeded"
-	case Failed:
+	case FailedTask:
 		return "failed"
 	default:
 		return fmt.Sprintf("TaskStatus(%d)", t)
@@ -74,12 +74,20 @@ type JudgeSolutionTaskConfig struct {
 	SolutionID int64 `json:"solution_id"`
 }
 
+func (c JudgeSolutionTaskConfig) TaskKind() TaskKind {
+	return JudgeSolutionTask
+}
+
+type TaskConfig interface {
+	TaskKind() TaskKind
+}
+
 // Task represents async task.
 type Task struct {
 	baseObject
-	Status     TaskStatus `db:"status"`
 	Kind       TaskKind   `db:"kind"`
 	Config     JSON       `db:"config"`
+	Status     TaskStatus `db:"status"`
 	State      JSON       `db:"state"`
 	ExpireTime int64      `db:"expire_time"`
 }
@@ -91,15 +99,17 @@ func (o Task) Clone() Task {
 	return o
 }
 
-func (o Task) ScanConfig(config any) error {
+func (o Task) ScanConfig(config TaskConfig) error {
 	return json.Unmarshal(o.Config, config)
 }
 
-func (o *Task) SetConfig(config any) error {
+// SetConfig updates kind and config of task.
+func (o *Task) SetConfig(config TaskConfig) error {
 	raw, err := json.Marshal(config)
 	if err != nil {
 		return err
 	}
+	o.Kind = config.TaskKind()
 	o.Config = raw
 	return nil
 }
@@ -184,24 +194,28 @@ func (s *TaskStore) PopQueued(
 	if err := s.lockStore(tx); err != nil {
 		return Task{}, err
 	}
-	if err := s.Sync(ctx); err != nil {
+	reader, err := s.Find(ctx, gosql.Column("status").Equal(QueuedTask))
+	if err != nil {
 		return Task{}, err
 	}
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	for id := range s.byStatus[Queued] {
-		if task, ok := s.tasks[id]; ok && filter(task.Kind) {
-			// We should make clone of action, because we do not
-			// want to corrupt Store in-memory cache.
-			task = task.Clone()
-			// Now we can do any manipulations with this action.
-			task.Status = Running
-			task.ExpireTime = time.Now().Add(5 * time.Second).Unix()
-			if err := s.Update(ctx, task); err != nil {
-				return Task{}, err
-			}
-			return task, nil
+	defer reader.Close()
+	for reader.Next() {
+		task := reader.Row()
+		if !filter(task.Kind) {
+			continue
 		}
+		if task.Status != QueuedTask {
+			return Task{}, fmt.Errorf("unexpected status: %s", task.Status)
+		}
+		if err := reader.Close(); err != nil {
+			return Task{}, err
+		}
+		task.Status = RunningTask
+		task.ExpireTime = time.Now().Add(5 * time.Second).Unix()
+		if err := s.Update(ctx, task); err != nil {
+			return Task{}, err
+		}
+		return task, nil
 	}
 	return Task{}, sql.ErrNoRows
 }

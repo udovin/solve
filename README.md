@@ -27,14 +27,14 @@ Then create config file `config.json` with following contents:
   "server": {
     "port": 4242
   },
-  "invoker": {},
+  "invoker": {
+    "threads": 1
+  },
   "security": {
     "password_salt": "qwerty123"
   },
   "storage": {
-    "problems_dir": ".data/problems",
-    "solutions_dir": ".data/solutions",
-    "compilers_dir": ".data/compilers"
+    "files_dir": ".data/files"
   },
   "log_level": "debug"
 }

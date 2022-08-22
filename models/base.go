@@ -245,6 +245,9 @@ func (s *baseStore[T, E, TPtr, EPtr]) initObjects(ctx context.Context) error {
 }
 
 func (s *baseStore[T, E, TPtr, EPtr]) Sync(ctx context.Context) error {
+	if tx := db.GetTx(ctx); tx != nil {
+		return fmt.Errorf("sync cannot be run in transaction")
+	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.consumer.ConsumeEvents(ctx, s.consumeEvent)
@@ -282,6 +285,11 @@ func (s *baseStore[T, E, TPtr, EPtr]) Delete(ctx context.Context, id int64) erro
 	eventPtr := s.newObjectEvent(ctx, DeleteEvent)
 	eventPtr.SetObjectID(id)
 	return s.createObjectEvent(ctx, eventPtr)
+}
+
+// Find finds objects with specified query.
+func (s *baseStore[T, E, TPtr, EPtr]) Find(ctx context.Context, where gosql.BoolExpression) (db.RowReader[T], error) {
+	return s.objects.FindObjects(ctx, where)
 }
 
 var (

@@ -85,21 +85,27 @@ func (c Column) BuildSQL(d gosql.Dialect) (string, error) {
 	}
 }
 
-// Table represents table.
-type Table struct {
+type Operation interface {
+	BuildApply(gosql.Dialect) (string, error)
+	BuildUnapply(gosql.Dialect) (string, error)
+}
+
+// CreateTable represents create table query.
+type CreateTable struct {
 	Name    string
 	Columns []Column
+	Strict  bool
 }
 
 // BuildCreateSQL returns create SQL query in specified dialect.
-func (t Table) BuildCreateSQL(d gosql.Dialect, strict bool) (string, error) {
+func (q CreateTable) BuildApply(d gosql.Dialect) (string, error) {
 	var query strings.Builder
 	query.WriteString("CREATE TABLE ")
-	if !strict {
+	if !q.Strict {
 		query.WriteString("IF NOT EXISTS ")
 	}
-	query.WriteString(fmt.Sprintf("%q (", t.Name))
-	for i, column := range t.Columns {
+	query.WriteString(fmt.Sprintf("%q (", q.Name))
+	for i, column := range q.Columns {
 		if i > 0 {
 			query.WriteString(", ")
 		}
@@ -113,12 +119,12 @@ func (t Table) BuildCreateSQL(d gosql.Dialect, strict bool) (string, error) {
 	return query.String(), nil
 }
 
-func (t Table) BuildDropSQL(d gosql.Dialect, strict bool) (string, error) {
+func (q CreateTable) BuildUnapply(d gosql.Dialect) (string, error) {
 	var query strings.Builder
 	query.WriteString("DROP TABLE ")
-	if !strict {
+	if !q.Strict {
 		query.WriteString("IF EXISTS ")
 	}
-	query.WriteString(fmt.Sprintf("%q", t.Name))
+	query.WriteString(fmt.Sprintf("%q", q.Name))
 	return query.String(), nil
 }

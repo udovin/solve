@@ -34,6 +34,51 @@ type Migration interface {
 	Unapply(ctx context.Context, conn *gosql.DB) error
 }
 
+type simpleMigration struct {
+	name       string
+	operations []schema.Operation
+}
+
+func (m simpleMigration) Name() string {
+	return m.name
+}
+
+func (m simpleMigration) Apply(ctx context.Context, conn *gosql.DB) error {
+	tx := GetRunner(ctx, conn)
+	for _, table := range m.operations {
+		query, err := table.BuildApply(conn.Dialect())
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, query); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m simpleMigration) Unapply(ctx context.Context, conn *gosql.DB) error {
+	tx := GetRunner(ctx, conn)
+	for i := 0; i < len(m.operations); i++ {
+		table := m.operations[len(m.operations)-i-1]
+		query, err := table.BuildUnapply(conn.Dialect())
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, query); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func NewMigration(name string, operations []schema.Operation) Migration {
+	return &simpleMigration{
+		name:       name,
+		operations: operations,
+	}
+}
+
 var registeredMigrations = map[string]Migration{}
 
 func RegisterMigration(m Migration) {
@@ -56,7 +101,7 @@ type manager struct {
 }
 
 func (m *manager) init() error {
-	query, err := mirgationTable.BuildCreateSQL(m.db.Dialect(), false)
+	query, err := mirgationTable.BuildApply(m.db.Dialect())
 	if err != nil {
 		return err
 	}
@@ -283,7 +328,7 @@ func (o *migration) SetObjectID(id int64) {
 
 const migrationTableName = "solve_db_migration"
 
-var mirgationTable = schema.Table{
+var mirgationTable = schema.CreateTable{
 	Name: migrationTableName,
 	Columns: []schema.Column{
 		{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},

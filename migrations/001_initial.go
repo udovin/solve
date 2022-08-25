@@ -1,25 +1,16 @@
 package migrations
 
 import (
-	"context"
-
-	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/db/schema"
 )
 
 func init() {
-	db.RegisterMigration(&m001{})
+	db.RegisterMigration(db.NewMigration("001_initial", m001))
 }
 
-type m001 struct{}
-
-func (m *m001) Name() string {
-	return "001_initial"
-}
-
-var m001Tables = []schema.Table{
-	{
+var m001 = []schema.Operation{
+	schema.CreateTable{
 		Name: "solve_setting",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -27,7 +18,7 @@ var m001Tables = []schema.Table{
 			{Name: "value", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_setting_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -39,7 +30,7 @@ var m001Tables = []schema.Table{
 			{Name: "value", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_task",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -50,7 +41,7 @@ var m001Tables = []schema.Table{
 			{Name: "expire_time", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_task_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -65,14 +56,14 @@ var m001Tables = []schema.Table{
 			{Name: "expire_time", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_role",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "name", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_role_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -83,7 +74,7 @@ var m001Tables = []schema.Table{
 			{Name: "name", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_role_edge",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -91,7 +82,7 @@ var m001Tables = []schema.Table{
 			{Name: "child_id", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_role_edge_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -103,14 +94,14 @@ var m001Tables = []schema.Table{
 			{Name: "child_id", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_account",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "kind", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_account_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -121,7 +112,7 @@ var m001Tables = []schema.Table{
 			{Name: "kind", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_account_role",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -129,7 +120,7 @@ var m001Tables = []schema.Table{
 			{Name: "role_id", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_account_role_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -141,7 +132,7 @@ var m001Tables = []schema.Table{
 			{Name: "role_id", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_session",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -153,7 +144,7 @@ var m001Tables = []schema.Table{
 			{Name: "user_agent", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_session_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -169,7 +160,7 @@ var m001Tables = []schema.Table{
 			{Name: "user_agent", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_user",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -183,7 +174,7 @@ var m001Tables = []schema.Table{
 			{Name: "middle_name", Type: schema.String, Nullable: true},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_user_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -201,7 +192,7 @@ var m001Tables = []schema.Table{
 			{Name: "middle_name", Type: schema.String, Nullable: true},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_contest",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -210,7 +201,7 @@ var m001Tables = []schema.Table{
 			{Name: "title", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_contest_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -223,7 +214,7 @@ var m001Tables = []schema.Table{
 			{Name: "title", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_problem",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -233,7 +224,7 @@ var m001Tables = []schema.Table{
 			{Name: "package_id", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_problem_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -247,7 +238,7 @@ var m001Tables = []schema.Table{
 			{Name: "package_id", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_solution",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -260,7 +251,7 @@ var m001Tables = []schema.Table{
 			{Name: "content_id", Type: schema.Int64, Nullable: true},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_solution_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -277,7 +268,7 @@ var m001Tables = []schema.Table{
 			{Name: "content_id", Type: schema.Int64, Nullable: true},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_contest_problem",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -286,7 +277,7 @@ var m001Tables = []schema.Table{
 			{Name: "code", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_contest_problem_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -299,7 +290,7 @@ var m001Tables = []schema.Table{
 			{Name: "code", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_contest_participant",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -309,7 +300,7 @@ var m001Tables = []schema.Table{
 			{Name: "config", Type: schema.JSON},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_contest_participant_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -323,7 +314,7 @@ var m001Tables = []schema.Table{
 			{Name: "config", Type: schema.JSON},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_contest_solution",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -333,7 +324,7 @@ var m001Tables = []schema.Table{
 			{Name: "problem_id", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_contest_solution_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -347,7 +338,7 @@ var m001Tables = []schema.Table{
 			{Name: "problem_id", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_compiler",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -357,7 +348,7 @@ var m001Tables = []schema.Table{
 			{Name: "image_id", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_compiler_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -371,7 +362,7 @@ var m001Tables = []schema.Table{
 			{Name: "image_id", Type: schema.Int64},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_file",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -382,7 +373,7 @@ var m001Tables = []schema.Table{
 			{Name: "path", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_file_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -397,7 +388,7 @@ var m001Tables = []schema.Table{
 			{Name: "path", Type: schema.String},
 		},
 	},
-	{
+	schema.CreateTable{
 		Name: "solve_visit",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -414,33 +405,4 @@ var m001Tables = []schema.Table{
 			{Name: "status", Type: schema.Int64},
 		},
 	},
-}
-
-func (m *m001) Apply(ctx context.Context, conn *gosql.DB) error {
-	tx := db.GetRunner(ctx, conn)
-	for _, table := range m001Tables {
-		query, err := table.BuildCreateSQL(conn.Dialect(), false)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, query); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (m *m001) Unapply(ctx context.Context, conn *gosql.DB) error {
-	tx := db.GetRunner(ctx, conn)
-	for i := 0; i < len(m001Tables); i++ {
-		table := m001Tables[len(m001Tables)-i-1]
-		query, err := table.BuildDropSQL(conn.Dialect(), false)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, query); err != nil {
-			return err
-		}
-	}
-	return nil
 }

@@ -105,39 +105,41 @@ func TestColumnInvalid(t *testing.T) {
 	}
 }
 
-func TestTableSimple(t *testing.T) {
-	t1 := Table{
+func TestCreateTableSimple(t *testing.T) {
+	t1 := CreateTable{
 		Name: "test_table",
 		Columns: []Column{
 			{Name: "id", Type: Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "name", Type: String},
 		},
+		Strict: true,
 	}
 	t1SQLite := `CREATE TABLE "test_table" ("id" integer PRIMARY KEY AUTOINCREMENT, "name" text NOT NULL)`
-	if sql, err := t1.BuildCreateSQL(gosql.SQLiteDialect, true); err != nil {
+	if sql, err := t1.BuildApply(gosql.SQLiteDialect); err != nil {
 		t.Fatal("Error:", err)
 	} else if sql != t1SQLite {
 		t.Fatal("Wrong SQL:", sql)
 	}
 	t1Postgres := `CREATE TABLE "test_table" ("id" bigserial PRIMARY KEY, "name" text NOT NULL)`
-	if sql, err := t1.BuildCreateSQL(gosql.PostgresDialect, true); err != nil {
+	if sql, err := t1.BuildApply(gosql.PostgresDialect); err != nil {
 		t.Fatal("Error:", err)
 	} else if sql != t1Postgres {
 		t.Fatal("Wrong SQL:", sql)
 	}
 }
 
-func TestTableInvalidColumn(t *testing.T) {
-	t1 := Table{
+func TestCreateTableInvalidColumn(t *testing.T) {
+	t1 := CreateTable{
 		Name: "test_table",
 		Columns: []Column{
 			{Name: "id", Type: 228},
 		},
+		Strict: true,
 	}
-	if _, err := t1.BuildCreateSQL(gosql.SQLiteDialect, true); err == nil {
+	if _, err := t1.BuildApply(gosql.SQLiteDialect); err == nil {
 		t.Fatal("Expected error")
 	}
-	if _, err := t1.BuildCreateSQL(gosql.PostgresDialect, true); err == nil {
+	if _, err := t1.BuildApply(gosql.PostgresDialect); err == nil {
 		t.Fatal("Expected error")
 	}
 }

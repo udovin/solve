@@ -73,6 +73,7 @@ func NewView(core *core.Core) *View {
 }
 
 const (
+	nowKey                = "now"
 	authVisitKey          = "auth_visit"
 	authSessionKey        = "auth_session"
 	accountCtxKey         = "account_ctx"
@@ -414,11 +415,23 @@ func (v *View) getBoolSetting(ctx echo.Context, key string) *bool {
 }
 
 func getContext(c echo.Context) context.Context {
-	ctx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
-	if !ok || ctx.Account == nil {
-		return c.Request().Context()
+	ctx := c.Request().Context()
+	if t, ok := c.Get(nowKey).(time.Time); ok {
+		ctx = models.WithNow(ctx, t)
 	}
-	return models.WithAccountID(c.Request().Context(), ctx.Account.ID)
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if ok && accountCtx.Account != nil {
+		ctx = models.WithAccountID(ctx, accountCtx.Account.ID)
+	}
+	return ctx
+}
+
+func getNow(c echo.Context) time.Time {
+	t, ok := c.Get(nowKey).(time.Time)
+	if !ok {
+		return time.Now()
+	}
+	return t
 }
 
 func getPtr[T any](object T) *T {

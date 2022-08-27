@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -655,6 +654,7 @@ type ContestSolution struct {
 }
 
 func (v *View) submitContestProblemSolution(c echo.Context) error {
+	now := getNow(c)
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
 		return fmt.Errorf("contest not extracted")
@@ -678,7 +678,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	solution := models.Solution{
 		ProblemID:  problem.ProblemID,
 		AuthorID:   account.ID,
-		CreateTime: time.Now().Unix(),
+		CreateTime: now.Unix(),
 	}
 	contestSolution := models.ContestSolution{
 		ContestID:     contest.ID,

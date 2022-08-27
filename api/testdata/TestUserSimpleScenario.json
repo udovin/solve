@@ -11,7 +11,9 @@
       "login": "test"
     },
     "session": {
-      "id": 1
+      "id": 1,
+      "create_time": 1577872800,
+      "expire_time": 1585648800
     },
     "permissions": [
       "login",

@@ -143,6 +143,7 @@ func (e *baseEvent) SetEventAccountID(accountID int64) {
 
 type accountIDKey struct{}
 
+// WithAccountID replaces account ID.
 func WithAccountID(ctx context.Context, id int64) context.Context {
 	return context.WithValue(ctx, accountIDKey{}, id)
 }
@@ -153,6 +154,21 @@ func GetAccountID(ctx context.Context) int64 {
 		return id
 	}
 	return 0
+}
+
+type nowKey struct{}
+
+// WithNow replaces time.Now.
+func WithNow(ctx context.Context, now time.Time) context.Context {
+	return context.WithValue(ctx, nowKey{}, now)
+}
+
+// GetNow returns time.Now.
+func GetNow(ctx context.Context) time.Time {
+	if t, ok := ctx.Value(nowKey{}).(time.Time); ok {
+		return t
+	}
+	return time.Now()
 }
 
 // makeBaseEvent creates baseEvent with specified type.

@@ -37,9 +37,6 @@ func TestUserSimpleScenario(t *testing.T) {
 	if status, err := testAPI.Status(); err != nil {
 		t.Fatal("Error:", err)
 	} else {
-		// Canonical tests does not support current timestamps.
-		status.Session.CreateTime = 0
-		status.Session.ExpireTime = 0
 		testCheck(status)
 	}
 	if user, err := testAPI.ObserveUser("test"); err != nil {

@@ -3,7 +3,6 @@ package managers
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
@@ -69,7 +68,7 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 		Contest:        contest,
 		Permissions:    PermissionSet{},
 	}
-	now := time.Now().Unix()
+	now := models.GetNow(ctx).Unix()
 	if account := ctx.Account; account != nil {
 		if contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
 			addContestManagerPermissions(c.Permissions)

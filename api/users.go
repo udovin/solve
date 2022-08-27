@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -328,16 +327,16 @@ func (v *View) status(c echo.Context) error {
 
 // loginAccount creates a new session for account.
 func (v *View) loginAccount(c echo.Context) error {
+	now := getNow(c)
 	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
 		c.Logger().Error("auth not extracted")
 		return fmt.Errorf("auth not extracted")
 	}
-	created := time.Now()
-	expires := created.Add(time.Hour * 24 * 90)
+	expires := now.AddDate(0, 0, 90)
 	session := models.Session{
 		AccountID:  accountCtx.Account.ID,
-		CreateTime: created.Unix(),
+		CreateTime: now.Unix(),
 		ExpireTime: expires.Unix(),
 		RemoteAddr: c.Request().RemoteAddr,
 		UserAgent:  c.Request().UserAgent(),

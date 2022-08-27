@@ -108,7 +108,15 @@ var (
 	testSrv    *httptest.Server
 	testChecks *testCheckState
 	testAPI    *testClient
+	testNow    = time.Date(2020, 1, 1, 10, 0, 0, 0, time.UTC)
 )
+
+func wrapTestNow(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		c.Set(nowKey, testNow)
+		return next(c)
+	}
+}
 
 func testSetup(tb testing.TB) {
 	testChecks = newTestCheckState(tb)
@@ -147,6 +155,7 @@ func testSetup(tb testing.TB) {
 	testEcho = echo.New()
 	testEcho.Logger = c.Logger()
 	testView = NewView(c)
+	testEcho.Use(wrapTestNow)
 	testView.Register(testEcho.Group("/api"))
 	testView.RegisterSocket(testEcho.Group("/socket"))
 	testSrv = httptest.NewServer(testEcho)

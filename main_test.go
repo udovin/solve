@@ -3,12 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"os"
+	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/udovin/solve/config"
@@ -22,9 +20,8 @@ var (
 		DB: config.DB{
 			Options: config.SQLiteOptions{Path: ":memory:"},
 		},
-		SocketFile: fmt.Sprintf("/tmp/test-solve-%d.sock", rand.Int63()),
-		Server:     &config.Server{},
-		Invoker:    &config.Invoker{},
+		Server:  &config.Server{},
+		Invoker: &config.Invoker{},
 		Security: &config.Security{
 			PasswordSalt: "qwerty123",
 		},
@@ -32,12 +29,9 @@ var (
 	}
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
 func testSetup(tb testing.TB) {
-	testConfig.Storage.FilesDir = tb.TempDir()
+	testConfig.SocketFile = filepath.Join(tb.TempDir(), "solve-server.sock")
+	testConfig.Storage.FilesDir = filepath.Join(tb.TempDir(), "files")
 	var err error
 	func() {
 		testConfigFile, err = ioutil.TempFile(tb.TempDir(), "test-")

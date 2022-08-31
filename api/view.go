@@ -21,9 +21,9 @@ import (
 // View represents API view.
 type View struct {
 	core     *core.Core
-	Accounts *managers.AccountManager
-	Contests *managers.ContestManager
-	Files    *managers.FileManager
+	accounts *managers.AccountManager
+	contests *managers.ContestManager
+	files    *managers.FileManager
 }
 
 // Register registers handlers in specified group.
@@ -64,12 +64,15 @@ func (v *View) health(c echo.Context) error {
 
 // NewView returns a new instance of view.
 func NewView(core *core.Core) *View {
-	return &View{
+	v := View{
 		core:     core,
-		Accounts: managers.NewAccountManager(core),
-		Contests: managers.NewContestManager(core),
-		Files:    managers.NewFileManager(core),
+		accounts: managers.NewAccountManager(core),
+		contests: managers.NewContestManager(core),
 	}
+	if core.Config.Storage != nil {
+		v.files = managers.NewFileManager(core)
+	}
+	return &v
 }
 
 const (
@@ -274,7 +277,7 @@ func (v *View) sessionAuth(c echo.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	accountCtx, err := v.Accounts.MakeContext(getContext(c), &account)
+	accountCtx, err := v.accounts.MakeContext(getContext(c), &account)
 	if err != nil {
 		return false, err
 	}
@@ -326,7 +329,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 		)
 		return false, fmt.Errorf("invalid account kind %q", account.Kind)
 	}
-	accountCtx, err := v.Accounts.MakeContext(getContext(c), &account)
+	accountCtx, err := v.accounts.MakeContext(getContext(c), &account)
 	if err != nil {
 		return false, err
 	}
@@ -336,7 +339,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 }
 
 func (v *View) guestAuth(c echo.Context) (bool, error) {
-	ctx, err := v.Accounts.MakeContext(getContext(c), nil)
+	ctx, err := v.accounts.MakeContext(getContext(c), nil)
 	if err != nil {
 		return false, err
 	}

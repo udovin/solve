@@ -228,12 +228,12 @@ func (v *View) observeContests(c echo.Context) error {
 		if !filter.Filter(contest) {
 			continue
 		}
-		contextCtx, err := v.Contests.BuildContext(accountCtx, contest)
+		contestCtx, err := v.contests.BuildContext(accountCtx, contest)
 		if err != nil {
 			return err
 		}
-		if contextCtx.HasPermission(models.ObserveContestRole) {
-			resp.Contests = append(resp.Contests, makeContest(contest, contextCtx, v.core))
+		if contestCtx.HasPermission(models.ObserveContestRole) {
+			resp.Contests = append(resp.Contests, makeContest(contest, contestCtx, v.core))
 		}
 	}
 	sort.Sort(contestSorter(resp.Contests))
@@ -689,12 +689,12 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	file, err := v.Files.UploadFile(getContext(c), formFile)
+	file, err := v.files.UploadFile(getContext(c), formFile)
 	if err != nil {
 		return err
 	}
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
-		if err := v.Files.ConfirmUploadFile(ctx, &file); err != nil {
+		if err := v.files.ConfirmUploadFile(ctx, &file); err != nil {
 			return err
 		}
 		solution.ContentID = models.NInt64(file.ID)
@@ -808,7 +808,7 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 		if !ok {
 			return fmt.Errorf("account not extracted")
 		}
-		contestCtx, err := v.Contests.BuildContext(accountCtx, contest)
+		contestCtx, err := v.contests.BuildContext(accountCtx, contest)
 		if err != nil {
 			return err
 		}

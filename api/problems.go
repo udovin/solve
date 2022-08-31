@@ -168,12 +168,12 @@ func (v *View) createProblem(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	file, err := v.Files.UploadFile(getContext(c), formFile)
+	file, err := v.files.UploadFile(getContext(c), formFile)
 	if err != nil {
 		return err
 	}
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
-		if err := v.Files.ConfirmUploadFile(ctx, &file); err != nil {
+		if err := v.files.ConfirmUploadFile(ctx, &file); err != nil {
 			return err
 		}
 		problem.PackageID = file.ID

@@ -31,11 +31,14 @@ type Invoker struct {
 }
 
 // New creates a new instance of Invoker.
-func New(c *core.Core) *Invoker {
-	return &Invoker{
-		core:  c,
-		files: managers.NewFileManager(c),
+func New(core *core.Core) *Invoker {
+	s := Invoker{
+		core: core,
 	}
+	if core.Config.Storage != nil {
+		s.files = managers.NewFileManager(core)
+	}
+	return &s
 }
 
 // Start starts invoker daemons.
@@ -89,7 +92,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 		return true
 	default:
 	}
-	task, err := s.core.Tasks.PopQueued(ctx, isSupportedTask)
+	task, err := s.core.Tasks.PopQueued(ctx, pingDuration, isSupportedTask)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			s.core.Logger().Error("Error", err)

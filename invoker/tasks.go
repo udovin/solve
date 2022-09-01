@@ -51,13 +51,14 @@ func popQueuedTask(ctx context.Context, store *models.TaskStore) (*taskGuard, er
 	return guard, nil
 }
 
-func newTaskContext(ctx context.Context, task *taskGuard) TaskContext {
+func newTaskContext(ctx context.Context, task *taskGuard) *taskContext {
 	taskCtx, cancel := context.WithCancel(ctx)
 	taskPinger := &taskContext{
 		taskGuard: task,
 		ctx:       taskCtx,
 		cancel:    cancel,
 	}
+	taskPinger.waiter.Add(1)
 	go taskPinger.pinger()
 	return taskPinger
 }

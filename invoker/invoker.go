@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/opencontainers/runc/libcontainer"
@@ -92,70 +91,32 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 		return true
 	default:
 	}
-	task, err := s.core.Tasks.PopQueued(ctx, pingDuration, isSupportedTask)
+	task, err := popQueuedTask(ctx, s.core.Tasks)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			s.core.Logger().Error("Error", err)
 		}
 		return false
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			task.Status = models.FailedTask
-			s.core.Logger().Error("Task panic", r)
-			panic(r)
+	logger := s.core.Logger().With(core.Any("task_id", task.ObjectID()))
+	taskCtx := newTaskContext(ctx, task)
+	defer taskCtx.Close()
+	factory, ok := registeredTasks[task.Kind()]
+	if !ok {
+		logger.Errorf("Unsupported task %v", task.Kind())
+		return true
+	}
+	impl := factory.New(s)
+	if err := impl.Execute(taskCtx); err != nil {
+		s.core.Logger().Errorf("Task failed")
+		if err := task.SetStatus(ctx, models.FailedTask); err != nil {
+			logger.Error("Unable to set failed task status", err)
 		}
-		ctx, cancel := context.WithDeadline(context.Background(), time.Unix(task.ExpireTime, 0))
-		defer cancel()
-		if err := s.core.Tasks.Update(ctx, task); err != nil {
-			s.core.Logger().Error("Error", err)
-		}
-	}()
-	var waiter sync.WaitGroup
-	defer waiter.Wait()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	waiter.Add(1)
-	go func() {
-		defer waiter.Done()
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-				if time.Now().After(time.Unix(task.ExpireTime, 0)) {
-					s.core.Logger().Error("Task expired", core.Any("task", task.ID))
-					return
-				}
-				clone := task
-				clone.ExpireTime = time.Now().Add(5 * time.Second).Unix()
-				if err := s.core.Tasks.Update(ctx, clone); err != nil {
-					s.core.Logger().Warn(
-						"Unable to ping task",
-						core.Any("task", task.ID),
-						err,
-					)
-				} else {
-					task.ExpireTime = clone.ExpireTime
-				}
-			}
-		}
-	}()
-	err = s.onTask(ctx, task)
-	cancel()
-	waiter.Wait()
-	if err != nil {
-		s.core.Logger().Error("Task failed", err)
-		task.Status = models.FailedTask
-	} else {
-		task.Status = models.SucceededTask
+		return true
+	}
+	if err := task.SetStatus(ctx, models.SucceededTask); err != nil {
+		logger.Error("Unable to set succeeded task status", err)
+		return true
 	}
 	return true
 }

@@ -108,7 +108,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	}
 	impl := factory.New(s)
 	if err := impl.Execute(taskCtx); err != nil {
-		s.core.Logger().Errorf("Task failed")
+		s.core.Logger().Error("Task failed", err)
 		if err := task.SetStatus(ctx, models.FailedTask); err != nil {
 			logger.Error("Unable to set failed task status", err)
 		}

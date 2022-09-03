@@ -38,7 +38,7 @@ var m001 = []schema.Operation{
 			{Name: "kind", Type: schema.Int64},
 			{Name: "config", Type: schema.JSON},
 			{Name: "state", Type: schema.JSON},
-			{Name: "expire_time", Type: schema.Int64},
+			{Name: "expire_time", Type: schema.Int64, Nullable: true},
 		},
 	},
 	schema.CreateTable{
@@ -53,7 +53,7 @@ var m001 = []schema.Operation{
 			{Name: "kind", Type: schema.Int64},
 			{Name: "config", Type: schema.JSON},
 			{Name: "state", Type: schema.JSON},
-			{Name: "expire_time", Type: schema.Int64},
+			{Name: "expire_time", Type: schema.Int64, Nullable: true},
 		},
 	},
 	schema.CreateTable{

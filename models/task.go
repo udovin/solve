@@ -89,7 +89,7 @@ type Task struct {
 	Config     JSON       `db:"config"`
 	Status     TaskStatus `db:"status"`
 	State      JSON       `db:"state"`
-	ExpireTime int64      `db:"expire_time"`
+	ExpireTime NInt64     `db:"expire_time"`
 }
 
 // Clone create copy of task.
@@ -163,13 +163,15 @@ func (s *TaskStore) Get(id int64) (Task, error) {
 }
 
 // FindByStatus returns a list of tasks with specified status.
-func (s *TaskStore) FindByStatus(status TaskStatus) ([]Task, error) {
+func (s *TaskStore) FindByStatus(statuses ...TaskStatus) ([]Task, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var tasks []Task
-	for id := range s.byStatus[status] {
-		if task, ok := s.tasks[id]; ok {
-			tasks = append(tasks, task.Clone())
+	for _, status := range statuses {
+		for id := range s.byStatus[status] {
+			if task, ok := s.tasks[id]; ok {
+				tasks = append(tasks, task.Clone())
+			}
 		}
 	}
 	return tasks, nil
@@ -212,7 +214,7 @@ func (s *TaskStore) PopQueued(
 			return Task{}, err
 		}
 		task.Status = RunningTask
-		task.ExpireTime = time.Now().Add(duration).Unix()
+		task.ExpireTime = NInt64(time.Now().Add(duration).Unix())
 		if err := s.Update(ctx, task); err != nil {
 			return Task{}, err
 		}

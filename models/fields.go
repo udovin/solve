@@ -48,10 +48,11 @@ const nullJSON = "null"
 
 // Value returns value.
 func (v JSON) Value() (driver.Value, error) {
-	if len(v) == 0 {
-		return nullJSON, nil
+	data, err := v.MarshalJSON()
+	if err != nil {
+		return nil, err
 	}
-	return string(v), nil
+	return string(data), nil
 }
 
 // Scan scans value.
@@ -74,19 +75,22 @@ func (v JSON) MarshalJSON() ([]byte, error) {
 	if len(v) == 0 {
 		return []byte(nullJSON), nil
 	}
+	if !json.Valid(v) {
+		return nil, fmt.Errorf("invalid JSON value")
+	}
 	return v, nil
 }
 
 // UnmarshalJSON unmarshals JSON.
-func (v *JSON) UnmarshalJSON(bytes []byte) error {
-	if !json.Valid(bytes) {
+func (v *JSON) UnmarshalJSON(data []byte) error {
+	if !json.Valid(data) {
 		return fmt.Errorf("invalid JSON value")
 	}
-	if string(bytes) == nullJSON {
+	if string(data) == nullJSON {
 		*v = nil
 		return nil
 	}
-	*v = bytes
+	*v = data
 	return nil
 }
 

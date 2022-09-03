@@ -55,60 +55,65 @@ func (v solutionSorter) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
 }
 
-func makeBaseSolutionReport(solution models.Solution) *SolutionReport {
-	report, err := solution.GetReport()
-	if err != nil || report == nil {
-		return nil
+func (v *View) findSolutionTask(id int64) (models.Task, error) {
+	tasks, err := v.core.Tasks.FindByStatus(models.QueuedTask, models.RunningTask)
+	if err != nil {
+		return models.Task{}, err
 	}
-	resp := SolutionReport{
-		Verdict: report.Verdict,
-	}
-	return &resp
-}
-
-func makeSolutionReport(solution models.Solution) *SolutionReport {
-	report, err := solution.GetReport()
-	if err != nil || report == nil {
-		return nil
-	}
-	resp := SolutionReport{
-		Verdict:    report.Verdict,
-		CompileLog: report.CompileLog,
-	}
-	for _, test := range report.Tests {
-		resp.Tests = append(resp.Tests, TestReport{
-			Verdict:  test.Verdict,
-			CheckLog: test.CheckLog,
-		})
-	}
-	return &resp
-}
-
-func (v *View) makeBaseSolution(
-	ctx *managers.AccountContext, solution models.Solution,
-) Solution {
-	resp := Solution{
-		ID:         solution.ID,
-		CreateTime: solution.CreateTime,
-	}
-	if problem, err := v.core.Problems.Get(solution.ProblemID); err == nil {
-		problemResp := makeProblem(problem)
-		resp.Problem = &problemResp
-	}
-	if account, err := v.core.Accounts.Get(solution.AuthorID); err == nil {
-		switch account.Kind {
-		case models.UserAccount:
-			if user, err := v.core.Users.GetByAccount(account.ID); err == nil {
-				resp.User = &User{ID: user.ID, Login: user.Login}
+	for _, task := range tasks {
+		if task.Kind == models.JudgeSolutionTask {
+			var config models.JudgeSolutionTaskConfig
+			if err := task.ScanConfig(&config); err != nil {
+				continue
+			}
+			if config.SolutionID == id {
+				return task, nil
 			}
 		}
 	}
-	resp.Report = makeBaseSolutionReport(solution)
-	return resp
+	return models.Task{}, sql.ErrNoRows
+}
+
+func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, withLogs bool) *SolutionReport {
+	report, err := solution.GetReport()
+	if err != nil {
+		return &SolutionReport{
+			Verdict: models.FailedTask.String(),
+		}
+	}
+	if report == nil {
+		task, err := v.findSolutionTask(solution.ID)
+		if err != nil {
+			if err == sql.ErrNoRows && getNow(c).Unix() < solution.CreateTime+10 {
+				return &SolutionReport{
+					Verdict: models.QueuedTask.String(),
+				}
+			}
+			return &SolutionReport{
+				Verdict: models.FailedTask.String(),
+			}
+		}
+		return &SolutionReport{
+			Verdict: task.Status.String(),
+		}
+	}
+	resp := SolutionReport{
+		Verdict: report.Verdict.String(),
+	}
+	if withLogs {
+		resp.CompileLog = report.CompileLog
+		for _, test := range report.Tests {
+			resp.Tests = append(resp.Tests, TestReport{
+				Verdict:  test.Verdict,
+				CheckLog: test.CheckLog,
+			})
+		}
+	}
+	return &resp
 }
 
 func (v *View) makeSolution(
-	ctx *managers.AccountContext, solution models.Solution,
+	c echo.Context, ctx *managers.AccountContext, solution models.Solution, withLogs bool,
 ) Solution {
 	resp := Solution{
 		ID:         solution.ID,
@@ -126,7 +131,7 @@ func (v *View) makeSolution(
 			}
 		}
 	}
-	resp.Report = makeSolutionReport(solution)
+	resp.Report = v.makeSolutionReport(c, solution, withLogs)
 	return resp
 }
 
@@ -145,7 +150,7 @@ func (v *View) observeSolutions(c echo.Context) error {
 	for _, solution := range solutions {
 		permissions := v.getSolutionPermissions(accountCtx, solution)
 		if permissions.HasPermission(models.ObserveSolutionRole) {
-			resp.Solutions = append(resp.Solutions, v.makeBaseSolution(accountCtx, solution))
+			resp.Solutions = append(resp.Solutions, v.makeSolution(c, accountCtx, solution, false))
 		}
 	}
 	sort.Sort(solutionSorter(resp.Solutions))
@@ -163,7 +168,7 @@ func (v *View) observeSolution(c echo.Context) error {
 		c.Logger().Error("auth not extracted")
 		return fmt.Errorf("auth not extracted")
 	}
-	return c.JSON(http.StatusOK, v.makeSolution(accountCtx, solution))
+	return c.JSON(http.StatusOK, v.makeSolution(c, accountCtx, solution, true))
 }
 
 func (v *View) extractSolution(next echo.HandlerFunc) echo.HandlerFunc {

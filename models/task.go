@@ -180,13 +180,14 @@ func (s *TaskStore) FindByStatus(status TaskStatus) ([]Task, error) {
 // Note that events is not synchronized after tasks is popped.
 func (s *TaskStore) PopQueued(
 	ctx context.Context,
+	duration time.Duration,
 	filter func(TaskKind) bool,
 ) (Task, error) {
 	tx := db.GetTx(ctx)
 	if tx == nil {
 		var task Task
 		err := gosql.WrapTx(ctx, s.db, func(tx *sql.Tx) (err error) {
-			task, err = s.PopQueued(db.WithTx(ctx, tx), filter)
+			task, err = s.PopQueued(db.WithTx(ctx, tx), duration, filter)
 			return err
 		}, sqlRepeatableRead)
 		return task, err
@@ -201,7 +202,7 @@ func (s *TaskStore) PopQueued(
 	defer reader.Close()
 	for reader.Next() {
 		task := reader.Row()
-		if !filter(task.Kind) {
+		if filter != nil && !filter(task.Kind) {
 			continue
 		}
 		if task.Status != QueuedTask {
@@ -211,7 +212,7 @@ func (s *TaskStore) PopQueued(
 			return Task{}, err
 		}
 		task.Status = RunningTask
-		task.ExpireTime = time.Now().Add(5 * time.Second).Unix()
+		task.ExpireTime = time.Now().Add(duration).Unix()
 		if err := s.Update(ctx, task); err != nil {
 			return Task{}, err
 		}

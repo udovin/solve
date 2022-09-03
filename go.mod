@@ -9,7 +9,7 @@ require (
 	github.com/labstack/gommon v0.3.1
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/nsf/jsondiff v0.0.0-20210926074059-1e845ec5d249
-	github.com/opencontainers/runc v1.1.3
+	github.com/opencontainers/runc v1.1.4
 	github.com/spf13/cobra v1.5.0
 	github.com/udovin/gosql v0.0.0-20220426203332-0ec503d9d791
 	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d

@@ -55,7 +55,7 @@ func (v solutionSorter) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
 }
 
-func (v *View) findSolutionTask(id int64) (models.Task, error) {
+func (v *View) tryFindSolutionTask(id int64) (models.Task, error) {
 	tasks, err := v.core.Tasks.FindByStatus(models.QueuedTask, models.RunningTask)
 	if err != nil {
 		return models.Task{}, err
@@ -74,6 +74,17 @@ func (v *View) findSolutionTask(id int64) (models.Task, error) {
 	return models.Task{}, sql.ErrNoRows
 }
 
+func (v *View) findSolutionTask(c echo.Context, id int64) (models.Task, error) {
+	tasks, err := v.tryFindSolutionTask(id)
+	if err == sql.ErrNoRows {
+		if err := v.core.Tasks.Sync(getContext(c)); err != nil {
+			return models.Task{}, err
+		}
+		return v.tryFindSolutionTask(id)
+	}
+	return tasks, err
+}
+
 func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, withLogs bool) *SolutionReport {
 	report, err := solution.GetReport()
 	if err != nil {
@@ -82,13 +93,8 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 		}
 	}
 	if report == nil {
-		task, err := v.findSolutionTask(solution.ID)
+		task, err := v.findSolutionTask(c, solution.ID)
 		if err != nil {
-			if err == sql.ErrNoRows && getNow(c).Unix() < solution.CreateTime+10 {
-				return &SolutionReport{
-					Verdict: models.QueuedTask.String(),
-				}
-			}
 			return &SolutionReport{
 				Verdict: models.FailedTask.String(),
 			}

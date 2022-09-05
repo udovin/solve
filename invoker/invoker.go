@@ -121,17 +121,6 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	return true
 }
 
-func (s *Invoker) onTask(ctx context.Context, task models.Task) error {
-	s.core.Logger().Debugf("Received new task %d", task.ID)
-	switch task.Kind {
-	case models.JudgeSolutionTask:
-		return s.onJudgeSolution(ctx, task)
-	default:
-		s.core.Logger().Errorf("Unknown task kind %d", task.Kind)
-		return fmt.Errorf("unknown task")
-	}
-}
-
 func (s *Invoker) getSolution(id int64) (models.Solution, error) {
 	solution, err := s.core.Solutions.Get(id)
 	if err == sql.ErrNoRows {

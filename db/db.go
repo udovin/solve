@@ -104,11 +104,11 @@ func checkColumns(rows *sql.Rows, cols []string) error {
 		return err
 	}
 	if len(cols) != len(rowCols) {
-		return fmt.Errorf("result has invalid column sequence")
+		return fmt.Errorf("result has invalid column sequence: %v != %v", cols, rowCols)
 	}
 	for i := 0; i < len(cols); i++ {
 		if cols[i] != rowCols[i] {
-			return fmt.Errorf("result has invalid column sequence")
+			return fmt.Errorf("result has invalid column sequence: %v != %v", cols, rowCols)
 		}
 	}
 	return nil

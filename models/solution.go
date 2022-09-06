@@ -102,6 +102,9 @@ func (o Solution) Clone() Solution {
 
 // GetReport returns solution report.
 func (o Solution) GetReport() (*SolutionReport, error) {
+	if o.Report == nil {
+		return nil, nil
+	}
 	var report *SolutionReport
 	err := json.Unmarshal(o.Report, &report)
 	return report, err

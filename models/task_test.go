@@ -16,7 +16,7 @@ func (t *taskStoreTest) prepareDB(tx *sql.Tx) error {
 			`"kind" integer NOT NULL,` +
 			`"config" blob NOT NULL,` +
 			`"state" blob NOT NULL,` +
-			`"expire_time" integer NOT NULL)`,
+			`"expire_time" integer)`,
 	); err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func (t *taskStoreTest) prepareDB(tx *sql.Tx) error {
 			`"kind" integer NOT NULL,` +
 			`"config" blob NOT NULL,` +
 			`"state" blob NOT NULL,` +
-			`"expire_time" integer NOT NULL)`,
+			`"expire_time" integer)`,
 	)
 	return err
 }

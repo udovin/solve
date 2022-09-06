@@ -615,7 +615,7 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 	for _, solution := range solutions {
 		permissions := v.getContestSolutionPermissions(contestCtx, solution)
 		if permissions.HasPermission(models.ObserveContestSolutionRole) {
-			resp.Solutions = append(resp.Solutions, makeBaseContestSolution(c, solution, v.core))
+			resp.Solutions = append(resp.Solutions, v.makeContestSolution(c, solution, false))
 		}
 	}
 	sort.Sort(contestSolutionSorter(resp.Solutions))
@@ -627,7 +627,7 @@ func (v *View) observeContestSolution(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("solution not extracted")
 	}
-	resp := makeContestSolution(c, solution, v.core)
+	resp := v.makeContestSolution(c, solution, true)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -639,9 +639,9 @@ type TestReport struct {
 }
 
 type SolutionReport struct {
-	Verdict    models.Verdict `json:"verdict"`
-	Tests      []TestReport   `json:"tests,omitempty"`
-	CompileLog string         `json:"compile_log,omitempty"`
+	Verdict    string       `json:"verdict"`
+	Tests      []TestReport `json:"tests,omitempty"`
+	CompileLog string       `json:"compile_log,omitempty"`
 }
 
 type ContestSolution struct {
@@ -715,44 +715,24 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	}, sqlRepeatableRead); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeContestSolution(c, contestSolution, v.core))
+	return c.JSON(http.StatusCreated, v.makeContestSolution(c, contestSolution, true))
 }
 
-func makeBaseContestSolution(c echo.Context, solution models.ContestSolution, core *core.Core) ContestSolution {
+func (v *View) makeContestSolution(c echo.Context, solution models.ContestSolution, withLogs bool) ContestSolution {
 	resp := ContestSolution{
 		ID:        solution.ID,
 		ContestID: solution.ContestID,
 	}
-	if baseSolution, err := core.Solutions.Get(solution.SolutionID); err == nil {
+	if baseSolution, err := v.core.Solutions.Get(solution.SolutionID); err == nil {
 		resp.CreateTime = baseSolution.CreateTime
-		resp.Report = makeBaseSolutionReport(baseSolution)
+		resp.Report = v.makeSolutionReport(c, baseSolution, withLogs)
 	}
-	if problem, err := core.ContestProblems.Get(solution.ProblemID); err == nil {
-		problemResp := makeContestProblem(problem, core.Problems)
+	if problem, err := v.core.ContestProblems.Get(solution.ProblemID); err == nil {
+		problemResp := makeContestProblem(problem, v.core.Problems)
 		resp.Problem = &problemResp
 	}
-	if participant, err := core.ContestParticipants.Get(solution.ParticipantID); err == nil {
-		participantResp := makeContestParticipant(c, participant, core)
-		resp.Participant = &participantResp
-	}
-	return resp
-}
-
-func makeContestSolution(c echo.Context, solution models.ContestSolution, core *core.Core) ContestSolution {
-	resp := ContestSolution{
-		ID:        solution.ID,
-		ContestID: solution.ContestID,
-	}
-	if baseSolution, err := core.Solutions.Get(solution.SolutionID); err == nil {
-		resp.CreateTime = baseSolution.CreateTime
-		resp.Report = makeSolutionReport(baseSolution)
-	}
-	if problem, err := core.ContestProblems.Get(solution.ProblemID); err == nil {
-		problemResp := makeContestProblem(problem, core.Problems)
-		resp.Problem = &problemResp
-	}
-	if participant, err := core.ContestParticipants.Get(solution.ParticipantID); err == nil {
-		participantResp := makeContestParticipant(c, participant, core)
+	if participant, err := v.core.ContestParticipants.Get(solution.ParticipantID); err == nil {
+		participantResp := makeContestParticipant(c, participant, v.core)
 		resp.Participant = &participantResp
 	}
 	return resp

@@ -187,7 +187,7 @@ func (t *taskGuard) Ping(ctx context.Context, duration time.Duration) error {
 		return err
 	}
 	clone := t.task.Clone()
-	clone.ExpireTime = time.Now().Add(duration).Unix()
+	clone.ExpireTime = models.NInt64(time.Now().Add(duration).Unix())
 	return t.update(ctx, clone)
 }
 
@@ -195,14 +195,14 @@ func (t *taskGuard) check() error {
 	if t.task.Status != models.RunningTask {
 		return fmt.Errorf("task is not running")
 	}
-	if time.Now().Unix() >= t.task.ExpireTime {
+	if time.Now().Unix() >= int64(t.task.ExpireTime) {
 		return fmt.Errorf("task is expired")
 	}
 	return nil
 }
 
 func (t *taskGuard) update(ctx context.Context, task models.Task) error {
-	updateCtx, cancel := context.WithDeadline(ctx, time.Unix(t.task.ExpireTime, 0))
+	updateCtx, cancel := context.WithDeadline(ctx, time.Unix(int64(t.task.ExpireTime), 0))
 	defer cancel()
 	if err := t.store.Update(updateCtx, task); err != nil {
 		return err
@@ -214,5 +214,5 @@ func (t *taskGuard) update(ctx context.Context, task models.Task) error {
 func (t *taskGuard) getDeadline() time.Time {
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
-	return time.Unix(t.task.ExpireTime, 0)
+	return time.Unix(int64(t.task.ExpireTime), 0)
 }

@@ -7,7 +7,18 @@ import (
 	"github.com/udovin/gosql"
 )
 
+type CompilerCommandConfig struct {
+	Command string   `json:"command"`
+	Environ []string `json:"environ"`
+	Workdir string   `json:"workdir"`
+	Source  *string  `json:"source,omitempty"`
+	Binary  *string  `json:"binary,omitempty"`
+}
+
 type CompilerConfig struct {
+	Extensions []string               `json:"extensions"`
+	Compile    *CompilerCommandConfig `json:"compile,omitempty"`
+	Execute    *CompilerCommandConfig `json:"execute,omitempty"`
 }
 
 // Compiler represents compiler.

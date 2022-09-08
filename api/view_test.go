@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -175,14 +177,31 @@ func testCheck(data any) {
 
 type testClient struct {
 	Endpoint string
-	cookies  []*http.Cookie
 	client   http.Client
+}
+
+type testJar struct {
+	mutex   sync.Mutex
+	cookies []*http.Cookie
+}
+
+func (j *testJar) Cookies(*url.URL) []*http.Cookie {
+	return j.cookies
+}
+
+func (j *testJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+	j.mutex.Lock()
+	defer j.mutex.Unlock()
+	j.cookies = append(j.cookies, cookies...)
 }
 
 func newTestClient(endpoint string) *testClient {
 	return &testClient{
 		Endpoint: endpoint,
-		client:   http.Client{Timeout: time.Second},
+		client: http.Client{
+			Timeout: time.Second,
+			Jar:     &testJar{},
+		},
 	}
 }
 
@@ -403,9 +422,6 @@ func (c *testClient) getURL(path string, args ...any) string {
 
 func (c *testClient) doRequest(req *http.Request, code int, respData any) error {
 	req.Header.Add("Content-Type", "application/json")
-	for _, cookie := range c.cookies {
-		req.AddCookie(cookie)
-	}
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return err
@@ -420,7 +436,6 @@ func (c *testClient) doRequest(req *http.Request, code int, respData any) error 
 		respData.Code = resp.StatusCode
 		return &respData
 	}
-	c.cookies = append(c.cookies, resp.Cookies()...)
 	if respData != nil {
 		return json.NewDecoder(resp.Body).Decode(respData)
 	}

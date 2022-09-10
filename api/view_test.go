@@ -176,8 +176,7 @@ func testCheck(data any) {
 }
 
 type testClient struct {
-	Endpoint string
-	client   http.Client
+	Client
 }
 
 type testJar struct {
@@ -197,28 +196,14 @@ func (j *testJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 
 func newTestClient(endpoint string) *testClient {
 	return &testClient{
-		Endpoint: endpoint,
-		client: http.Client{
-			Timeout: time.Second,
-			Jar:     &testJar{},
+		Client: Client{
+			endpoint: endpoint,
+			client: http.Client{
+				Timeout: time.Second,
+				Jar:     &testJar{},
+			},
 		},
 	}
-}
-
-func (c *testClient) Ping() error {
-	req, err := http.NewRequest(http.MethodGet, c.getURL("/ping"), nil)
-	if err != nil {
-		return err
-	}
-	return c.doRequest(req, http.StatusOK, nil)
-}
-
-func (c *testClient) Health() error {
-	req, err := http.NewRequest(http.MethodGet, c.getURL("/health"), nil)
-	if err != nil {
-		return err
-	}
-	return c.doRequest(req, http.StatusOK, nil)
 }
 
 func (c *testClient) Register(form registerUserForm) (User, error) {
@@ -252,32 +237,13 @@ func (c *testClient) Register(form registerUserForm) (User, error) {
 	return respData, nil
 }
 
-func (c *testClient) Login(login, password string) (Session, error) {
-	data, err := json.Marshal(map[string]string{
-		"login":    login,
-		"password": password,
-	})
-	if err != nil {
-		return Session{}, err
-	}
-	req, err := http.NewRequest(
-		http.MethodPost, c.getURL("/v0/login"),
-		bytes.NewReader(data),
-	)
-	if err != nil {
-		return Session{}, err
-	}
-	var respData Session
-	err = c.doRequest(req, http.StatusCreated, &respData)
-	return respData, err
-}
-
 func (c *testClient) Logout() error {
 	req, err := http.NewRequest(http.MethodPost, c.getURL("/v0/logout"), nil)
 	if err != nil {
 		return err
 	}
-	return c.doRequest(req, http.StatusOK, nil)
+	_, err = c.doRequest(req, http.StatusOK, nil)
+	return err
 }
 
 func (c *testClient) Status() (Status, error) {
@@ -286,7 +252,7 @@ func (c *testClient) Status() (Status, error) {
 		return Status{}, err
 	}
 	var respData Status
-	err = c.doRequest(req, http.StatusOK, &respData)
+	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
 }
 
@@ -298,7 +264,7 @@ func (c *testClient) ObserveUser(login string) (User, error) {
 		return User{}, err
 	}
 	var respData User
-	err = c.doRequest(req, http.StatusOK, &respData)
+	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
 }
 
@@ -310,7 +276,7 @@ func (c *testClient) ObserveContests() (Contests, error) {
 		return Contests{}, err
 	}
 	var respData Contests
-	err = c.doRequest(req, http.StatusOK, &respData)
+	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
 }
 
@@ -322,7 +288,7 @@ func (c *testClient) ObserveContest(id int64) (Contest, error) {
 		return Contest{}, err
 	}
 	var respData Contest
-	err = c.doRequest(req, http.StatusOK, &respData)
+	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
 }
 
@@ -339,7 +305,7 @@ func (c *testClient) CreateContest(form createContestForm) (Contest, error) {
 		return Contest{}, err
 	}
 	var respData Contest
-	err = c.doRequest(req, http.StatusCreated, &respData)
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
 	return respData, err
 }
 
@@ -360,7 +326,7 @@ func (c *testClient) CreateContestProblem(
 		return ContestProblem{}, err
 	}
 	var respData ContestProblem
-	err = c.doRequest(req, http.StatusCreated, &respData)
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
 	return respData, err
 }
 
@@ -373,7 +339,7 @@ func (c *testClient) CreateRoleRole(role string, child string) (Roles, error) {
 		return Roles{}, err
 	}
 	var respData Roles
-	err = c.doRequest(req, http.StatusCreated, &respData)
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
 	return respData, err
 }
 
@@ -386,7 +352,7 @@ func (c *testClient) DeleteRoleRole(role string, child string) (Roles, error) {
 		return Roles{}, err
 	}
 	var respData Roles
-	err = c.doRequest(req, http.StatusOK, &respData)
+	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
 }
 
@@ -399,7 +365,7 @@ func (c *testClient) CreateUserRole(login string, role string) (Roles, error) {
 		return Roles{}, err
 	}
 	var respData Roles
-	err = c.doRequest(req, http.StatusCreated, &respData)
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
 	return respData, err
 }
 
@@ -412,34 +378,8 @@ func (c *testClient) DeleteUserRole(login string, role string) (Roles, error) {
 		return Roles{}, err
 	}
 	var respData Roles
-	err = c.doRequest(req, http.StatusOK, &respData)
+	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
-}
-
-func (c *testClient) getURL(path string, args ...any) string {
-	return c.Endpoint + fmt.Sprintf(path, args...)
-}
-
-func (c *testClient) doRequest(req *http.Request, code int, respData any) error {
-	req.Header.Add("Content-Type", "application/json")
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != code {
-		var respData errorResponse
-		if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
-			respData = errorResponse{
-				Message: err.Error(),
-			}
-		}
-		respData.Code = resp.StatusCode
-		return &respData
-	}
-	if respData != nil {
-		return json.NewDecoder(resp.Body).Decode(respData)
-	}
-	return nil
 }
 
 func testSocketCreateUserRole(login string, role string) (Roles, error) {
@@ -486,7 +426,7 @@ func testHandler(req *http.Request, rec *httptest.ResponseRecorder) error {
 func TestPing(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	if err := testAPI.Ping(); err != nil {
+	if err := testAPI.Ping(context.Background()); err != nil {
 		t.Fatal("Error:", err)
 	}
 }
@@ -494,7 +434,7 @@ func TestPing(t *testing.T) {
 func TestHealth(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	if err := testAPI.Health(); err != nil {
+	if err := testAPI.Health(context.Background()); err != nil {
 		t.Fatal("Error:", err)
 	}
 }
@@ -505,7 +445,7 @@ func TestHealthUnhealthy(t *testing.T) {
 	if err := testView.core.DB.Close(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	err := testAPI.Health()
+	err := testAPI.Health(context.Background())
 	resp, ok := err.(statusCodeResponse)
 	if !ok {
 		t.Fatal("Invalid error:", err)

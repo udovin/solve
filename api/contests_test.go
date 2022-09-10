@@ -33,7 +33,7 @@ func TestContestSimpleScenario(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)
-	if _, err := testAPI.Login("test", "qwerty123"); err != nil {
+	if _, err := testAPI.Login(context.Background(), "test", "qwerty123"); err != nil {
 		t.Fatal("Error:", err)
 	}
 	{
@@ -106,7 +106,7 @@ func BenchmarkContests(b *testing.B) {
 		b.Fatal("Error:", err)
 	}
 	testSyncManagers(b)
-	if _, err := testAPI.Login("test", "qwerty123"); err != nil {
+	if _, err := testAPI.Login(context.Background(), "test", "qwerty123"); err != nil {
 		b.Fatal("Error:", err)
 	}
 	b.ResetTimer()

@@ -31,7 +31,7 @@ func TestUserSimpleScenario(t *testing.T) {
 		testCheck(user)
 	}
 	testSocketObserveUserRoles(t, "test")
-	if _, err := testAPI.Login("test", "qwerty123"); err != nil {
+	if _, err := testAPI.Login(context.Background(), "test", "qwerty123"); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if status, err := testAPI.Status(); err != nil {

@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -44,7 +45,7 @@ func TestRoleSimpleScenario(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	testSyncManagers(t)
-	if _, err := testAPI.Login("test", "qwerty123"); err != nil {
+	if _, err := testAPI.Login(context.Background(), "test", "qwerty123"); err != nil {
 		t.Fatal("Error:", err)
 	}
 	testSocketCreateUserRole("test", "admin_group")

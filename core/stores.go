@@ -1,7 +1,6 @@
 package core
 
 import (
-	"log"
 	"reflect"
 	"time"
 
@@ -99,7 +98,6 @@ func (c *Core) startStoreLoops() error {
 	for i := 0; i < count; i++ {
 		lastErr := <-errs
 		if lastErr != nil {
-			log.Println("Error:", lastErr)
 			err = lastErr
 		}
 	}
@@ -113,6 +111,7 @@ func (c *Core) runStoreLoop(
 	err := s.Init(c.context)
 	errs <- err
 	if err != nil {
+		c.Logger().Error("Cannot init store", err)
 		return
 	}
 	ticker := time.NewTicker(d)
@@ -123,7 +122,7 @@ func (c *Core) runStoreLoop(
 			return
 		case <-ticker.C:
 			if err := s.Sync(c.context); err != nil {
-				log.Println("Error:", err)
+				c.Logger().Warn("Cannot sync store", err)
 			}
 		}
 	}

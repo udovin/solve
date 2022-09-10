@@ -449,3 +449,11 @@ var (
 	sqlRepeatableRead = gosql.WithIsolation(sql.LevelRepeatableRead)
 	sqlReadOnly       = gosql.WithReadOnly(true)
 )
+
+type JSON struct {
+	models.JSON
+}
+
+func (v *JSON) UnmarshalParam(data string) error {
+	return v.JSON.UnmarshalJSON([]byte(data))
+}

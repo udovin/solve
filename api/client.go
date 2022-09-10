@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"time"
 )
@@ -62,6 +64,34 @@ func (c *Client) Login(ctx context.Context, login, password string) (Session, er
 		return Session{}, err
 	}
 	var respData Session
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
+func (c *Client) CreateCompiler(ctx context.Context, form CreateCompilerForm) (Compiler, error) {
+	buf := bytes.Buffer{}
+	w := multipart.NewWriter(&buf)
+	if err := w.WriteField("name", form.Name); err != nil {
+		return Compiler{}, err
+	}
+	if config, err := form.Config.MarshalJSON(); err != nil {
+		return Compiler{}, err
+	} else if err := w.WriteField("config", string(config)); err != nil {
+		return Compiler{}, err
+	}
+	if fw, err := w.CreateFormFile("file", form.ImageFile.Name()); err != nil {
+		return Compiler{}, err
+	} else if _, err := io.Copy(fw, form.ImageFile); err != nil {
+		return Compiler{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPost, c.getURL("/v0/compilers"), &buf,
+	)
+	if err != nil {
+		return Compiler{}, err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	var respData Compiler
 	_, err = c.doRequest(req, http.StatusCreated, &respData)
 	return respData, err
 }

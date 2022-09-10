@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
 
 	"github.com/labstack/echo/v4"
@@ -35,9 +36,9 @@ func (v *View) registerCompilerHandlers(g *echo.Group) {
 }
 
 type Compiler struct {
-	ID     int64       `json:"id"`
-	Name   string      `json:"name"`
-	Config models.JSON `json:"config"`
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Config JSON   `json:"config"`
 }
 
 type Compilers struct {
@@ -79,12 +80,13 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-type createCompilerForm struct {
-	Name   string                `form:"name" json:"name"`
-	Config models.CompilerConfig `form:"config" json:"config"`
+type CreateCompilerForm struct {
+	Name      string   `form:"name" json:"name"`
+	Config    JSON     `form:"config" json:"config"`
+	ImageFile *os.File `json:"-"`
 }
 
-func (f *createCompilerForm) Update(compiler *models.Compiler) error {
+func (f *CreateCompilerForm) Update(compiler *models.Compiler) error {
 	errors := errorFields{}
 	if len(f.Name) < 4 {
 		errors["name"] = errorField{Message: "name is too short"}
@@ -93,8 +95,11 @@ func (f *createCompilerForm) Update(compiler *models.Compiler) error {
 		errors["name"] = errorField{Message: "name is too long"}
 	}
 	compiler.Name = f.Name
-	if err := compiler.SetConfig(f.Config); err != nil {
-		errors["config"] = errorField{Message: "invalid config"}
+	compiler.Config = f.Config.JSON
+	if config, err := compiler.GetConfig(); err != nil {
+		errors["name"] = errorField{Message: "invalid config"}
+	} else if err := compiler.SetConfig(config); err != nil {
+		errors["name"] = errorField{Message: "invalid config"}
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
@@ -111,7 +116,7 @@ func (v *View) createCompiler(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("account not extracted")
 	}
-	var form createCompilerForm
+	var form CreateCompilerForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
@@ -162,7 +167,7 @@ func makeCompiler(compiler models.Compiler) Compiler {
 	return Compiler{
 		ID:     compiler.ID,
 		Name:   compiler.Name,
-		Config: compiler.Config,
+		Config: JSON{compiler.Config},
 	}
 }
 

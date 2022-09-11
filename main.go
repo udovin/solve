@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"os"
@@ -26,13 +27,32 @@ import (
 
 var shutdown = make(chan os.Signal, 1)
 
+func resolveFile(files ...string) (string, error) {
+	for _, file := range files {
+		if len(file) == 0 {
+			continue
+		}
+		if _, err := os.Stat(file); err == nil {
+			return file, nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+	}
+	return "", os.ErrNotExist
+}
+
 // getConfig reads config with filename from '--config' flag.
 func getConfig(cmd *cobra.Command) (config.Config, error) {
-	filename, err := cmd.Flags().GetString("config")
+	flagFilename, err := cmd.Flags().GetString("config")
 	if err != nil {
 		return config.Config{}, err
 	}
-	return config.LoadFromFile(filename)
+	envFilename := os.Getenv("SOLVE_CONFIG")
+	resolved, err := resolveFile(flagFilename, envFilename)
+	if err != nil {
+		return config.Config{}, err
+	}
+	return config.LoadFromFile(resolved)
 }
 
 func isServerError(err error) bool {
@@ -190,8 +210,9 @@ func versionMain(cmd *cobra.Command, _ []string) {
 // main is a main entry point.
 //
 // Solve is divided into two main parts:
-//  * API server - server that provides HTTP API (http + socket).
-//  * Invoker - server that performs asynchronous runs.
+//   - API server - server that provides HTTP API (http + socket).
+//   - Invoker - server that performs asynchronous runs.
+//
 // This two parts was running from serverMain with respect of configuration.
 // API server will be run if "server" section was specified.
 // Invoker will be run if "invoker" section was specified.

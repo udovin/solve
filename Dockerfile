@@ -13,4 +13,5 @@ RUN addgroup -S solve -g 1000 && adduser -S solve -G solve -u 1000
 COPY --from=build /src/solve/solve /bin/solve
 USER solve
 VOLUME ["/tmp"]
+ENV SOLVE_CONFIG=/etc/solve/config.json
 ENTRYPOINT ["/bin/solve"]

@@ -1,159 +1,112 @@
 package api
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
 func TestObserveRoles(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	req := httptest.NewRequest(http.MethodGet, "/roles", nil)
-	rec := httptest.NewRecorder()
-	c := testEcho.NewContext(req, rec)
-	if err := testView.observeRoles(c); err != nil {
+	e := NewTestEnv(t)
+	defer e.Close()
+	roles, err := e.Socket.ObserveRoles(context.Background())
+	if err != nil {
 		t.Fatal("Error:", err)
+	} else {
+		e.Check(roles)
 	}
-	expectStatus(t, http.StatusOK, rec.Code)
 }
 
 func TestCreateDeleteRole(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	created := createRole(t, "test_role")
-	testCheck(created)
-	testSyncManagers(t)
-	deleted := deleteRole(t, created.ID)
+	e := NewTestEnv(t)
+	defer e.Close()
+	created, err := e.Socket.CreateRole(context.Background(), "test_role")
+	if err != nil {
+		t.Error("Error:", err)
+	}
+	e.Check(created)
+	e.SyncStores()
+	deleted, err := e.Socket.DeleteRole(context.Background(), created.ID)
+	if err != nil {
+		t.Error("Error:", err)
+	}
 	if created != deleted {
 		t.Fatal("Invalid deleted role:", deleted)
 	}
 }
 
 func TestRoleSimpleScenario(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	e := NewTestEnv(t)
+	defer e.Close()
 	for i := 1; i < 5; i++ {
-		role := createRole(t, fmt.Sprintf("role%d", i))
-		testCheck(role)
-	}
-	if _, err := testAPI.Register(testSimpleUser); err != nil {
-		t.Fatal("Error:", err)
-	}
-	testSyncManagers(t)
-	if _, err := testAPI.Login(context.Background(), "test", "qwerty123"); err != nil {
-		t.Fatal("Error:", err)
-	}
-	testSocketCreateUserRole("test", "admin_group")
-	testSyncManagers(t)
-	for i := 2; i < 5; i++ {
-		roles, err := testAPI.CreateRoleRole("role1", fmt.Sprintf("role%d", i))
+		role, err := e.Socket.CreateRole(context.Background(), fmt.Sprintf("role%d", i))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		testCheck(roles)
-		testSyncManagers(t)
+		e.Check(role)
+	}
+	user := NewTestUser(e)
+	user.LoginClient()
+	user.AddRoles("admin_group")
+	for i := 2; i < 5; i++ {
+		roles, err := e.Client.CreateRoleRole("role1", fmt.Sprintf("role%d", i))
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		e.Check(roles)
+		e.SyncStores()
 	}
 	for i := 2; i < 5; i++ {
-		roles, err := testAPI.DeleteRoleRole("role1", fmt.Sprintf("role%d", i))
+		roles, err := e.Client.DeleteRoleRole("role1", fmt.Sprintf("role%d", i))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		testCheck(roles)
-		testSyncManagers(t)
+		e.Check(roles)
+		e.SyncStores()
 	}
 	{
-		if _, err := testAPI.DeleteRoleRole("role1", "role2"); err == nil {
+		if _, err := e.Client.DeleteRoleRole("role1", "role2"); err == nil {
 			t.Fatal("Expected error")
 		} else {
-			testCheck(err)
+			e.Check(err)
 		}
-		if _, err := testAPI.DeleteRoleRole("role1", "role100"); err == nil {
+		if _, err := e.Client.DeleteRoleRole("role1", "role100"); err == nil {
 			t.Fatal("Expected error")
 		} else {
-			testCheck(err)
+			e.Check(err)
 		}
 	}
 	for i := 1; i < 5; i++ {
-		roles, err := testAPI.CreateUserRole("test", fmt.Sprintf("role%d", i))
+		roles, err := e.Client.CreateUserRole(context.Background(), user.Login, fmt.Sprintf("role%d", i))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		testCheck(roles)
-		testSyncManagers(t)
+		e.Check(roles)
+		e.SyncStores()
 	}
 	for i := 1; i < 5; i++ {
-		roles, err := testAPI.DeleteUserRole("test", fmt.Sprintf("role%d", i))
+		roles, err := e.Client.DeleteUserRole(user.Login, fmt.Sprintf("role%d", i))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		testCheck(roles)
-		testSyncManagers(t)
+		e.Check(roles)
+		e.SyncStores()
 	}
 	{
-		if _, err := testAPI.DeleteUserRole("test", "role2"); err == nil {
+		if _, err := e.Client.DeleteUserRole(user.Login, "role2"); err == nil {
 			t.Fatal("Expected error")
 		} else {
-			testCheck(err)
+			e.Check(err)
 		}
-		if _, err := testAPI.DeleteUserRole("test", "role100"); err == nil {
+		if _, err := e.Client.DeleteUserRole(user.Login, "role100"); err == nil {
 			t.Fatal("Expected error")
 		} else {
-			testCheck(err)
+			e.Check(err)
 		}
-		if _, err := testAPI.DeleteUserRole("user100", "role2"); err == nil {
+		if _, err := e.Client.DeleteUserRole("user100", "role2"); err == nil {
 			t.Fatal("Expected error")
 		} else {
-			testCheck(err)
+			e.Check(err)
 		}
 	}
-}
-
-func createRole(tb testing.TB, name string) Role {
-	data, err := json.Marshal(map[string]string{
-		"name": name,
-	})
-	if err != nil {
-		tb.Fatal("Error:", err)
-	}
-	req := httptest.NewRequest(
-		http.MethodPost, "/roles", bytes.NewReader(data),
-	)
-	req.Header.Add("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	c := testEcho.NewContext(req, rec)
-	if err := testView.createRole(c); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	expectStatus(tb, http.StatusCreated, rec.Code)
-	var resp Role
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	return resp
-}
-
-func deleteRole(tb testing.TB, role int64) Role {
-	req := httptest.NewRequest(
-		http.MethodDelete, fmt.Sprintf("/roles/%d", role), nil,
-	)
-	req.Header.Add("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	c := testEcho.NewContext(req, rec)
-	c.SetParamNames("role")
-	c.SetParamValues(fmt.Sprint(role))
-	handler := testView.extractRole(testView.deleteRole)
-	if err := handler(c); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	expectStatus(tb, http.StatusOK, rec.Code)
-	var resp Role
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	return resp
 }

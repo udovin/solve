@@ -1,0 +1,270 @@
+[
+  {
+    "roles": [
+      {
+        "id": 66,
+        "name": "admin_group"
+      },
+      {
+        "id": 65,
+        "name": "user_group"
+      },
+      {
+        "id": 64,
+        "name": "guest_group"
+      },
+      {
+        "id": 63,
+        "name": "update_user_password"
+      },
+      {
+        "id": 62,
+        "name": "update_user_middle_name"
+      },
+      {
+        "id": 61,
+        "name": "update_user_last_name"
+      },
+      {
+        "id": 60,
+        "name": "update_user_first_name"
+      },
+      {
+        "id": 59,
+        "name": "update_user_email"
+      },
+      {
+        "id": 58,
+        "name": "update_user"
+      },
+      {
+        "id": 57,
+        "name": "update_setting"
+      },
+      {
+        "id": 56,
+        "name": "update_problem"
+      },
+      {
+        "id": 55,
+        "name": "update_contest_solution"
+      },
+      {
+        "id": 54,
+        "name": "update_contest"
+      },
+      {
+        "id": 53,
+        "name": "update_compiler"
+      },
+      {
+        "id": 52,
+        "name": "submit_contest_solution"
+      },
+      {
+        "id": 51,
+        "name": "status"
+      },
+      {
+        "id": 50,
+        "name": "register_contest"
+      },
+      {
+        "id": 49,
+        "name": "register"
+      },
+      {
+        "id": 48,
+        "name": "observe_user_sessions"
+      },
+      {
+        "id": 47,
+        "name": "observe_user_roles"
+      },
+      {
+        "id": 46,
+        "name": "observe_user_middle_name"
+      },
+      {
+        "id": 45,
+        "name": "observe_user_last_name"
+      },
+      {
+        "id": 44,
+        "name": "observe_user_first_name"
+      },
+      {
+        "id": 43,
+        "name": "observe_user_email"
+      },
+      {
+        "id": 42,
+        "name": "observe_user"
+      },
+      {
+        "id": 41,
+        "name": "observe_solutions"
+      },
+      {
+        "id": 40,
+        "name": "observe_solution"
+      },
+      {
+        "id": 39,
+        "name": "observe_settings"
+      },
+      {
+        "id": 38,
+        "name": "observe_session"
+      },
+      {
+        "id": 37,
+        "name": "observe_roles"
+      },
+      {
+        "id": 36,
+        "name": "observe_role_roles"
+      },
+      {
+        "id": 35,
+        "name": "observe_problems"
+      },
+      {
+        "id": 34,
+        "name": "observe_problem"
+      },
+      {
+        "id": 33,
+        "name": "observe_contests"
+      },
+      {
+        "id": 32,
+        "name": "observe_contest_solutions"
+      },
+      {
+        "id": 31,
+        "name": "observe_contest_solution"
+      },
+      {
+        "id": 30,
+        "name": "observe_contest_problems"
+      },
+      {
+        "id": 29,
+        "name": "observe_contest_problem"
+      },
+      {
+        "id": 28,
+        "name": "observe_contest_participants"
+      },
+      {
+        "id": 27,
+        "name": "observe_contest_participant"
+      },
+      {
+        "id": 26,
+        "name": "observe_contest"
+      },
+      {
+        "id": 25,
+        "name": "observe_compilers"
+      },
+      {
+        "id": 24,
+        "name": "observe_compiler"
+      },
+      {
+        "id": 23,
+        "name": "logout"
+      },
+      {
+        "id": 22,
+        "name": "login"
+      },
+      {
+        "id": 21,
+        "name": "delete_user_role"
+      },
+      {
+        "id": 20,
+        "name": "delete_setting"
+      },
+      {
+        "id": 19,
+        "name": "delete_session"
+      },
+      {
+        "id": 18,
+        "name": "delete_role_role"
+      },
+      {
+        "id": 17,
+        "name": "delete_role"
+      },
+      {
+        "id": 16,
+        "name": "delete_problem"
+      },
+      {
+        "id": 15,
+        "name": "delete_contest_solution"
+      },
+      {
+        "id": 14,
+        "name": "delete_contest_problem"
+      },
+      {
+        "id": 13,
+        "name": "delete_contest_participant"
+      },
+      {
+        "id": 12,
+        "name": "delete_contest"
+      },
+      {
+        "id": 11,
+        "name": "delete_compiler"
+      },
+      {
+        "id": 10,
+        "name": "create_user_role"
+      },
+      {
+        "id": 9,
+        "name": "create_setting"
+      },
+      {
+        "id": 8,
+        "name": "create_role_role"
+      },
+      {
+        "id": 7,
+        "name": "create_role"
+      },
+      {
+        "id": 6,
+        "name": "create_problem"
+      },
+      {
+        "id": 5,
+        "name": "create_contest_solution"
+      },
+      {
+        "id": 4,
+        "name": "create_contest_problem"
+      },
+      {
+        "id": 3,
+        "name": "create_contest_participant"
+      },
+      {
+        "id": 2,
+        "name": "create_contest"
+      },
+      {
+        "id": 1,
+        "name": "create_compiler"
+      }
+    ]
+  }
+]

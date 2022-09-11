@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -21,57 +20,47 @@ var testSimpleConfiguredContest = createContestForm{
 }
 
 func TestContestSimpleScenario(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	if _, err := testAPI.Register(testSimpleUser); err != nil {
-		t.Fatal("Error:", err)
-	}
-	testSyncManagers(t)
-	if err := testSocketCreateUserRoles(
-		"test", "observe_contest", "create_contest", "update_contest", "delete_contest",
-	); err != nil {
-		t.Fatal("Error:", err)
-	}
-	testSyncManagers(t)
-	if _, err := testAPI.Login(context.Background(), "test", "qwerty123"); err != nil {
-		t.Fatal("Error:", err)
-	}
+	e := NewTestEnv(t)
+	defer e.Close()
+	user := NewTestUser(e)
+	user.AddRoles("observe_contest", "create_contest", "update_contest", "delete_contest")
+	user.LoginClient()
 	{
-		contests, err := testAPI.ObserveContests()
+		contests, err := e.Client.ObserveContests()
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		testCheck(contests)
+		e.Check(contests)
 	}
-	contest, err := testAPI.CreateContest(testSimpleContest)
+	contest, err := e.Client.CreateContest(testSimpleContest)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	testCheck(contest)
+	e.Check(contest)
 	{
-		resp, err := testAPI.CreateContest(testSimpleConfiguredContest)
+		resp, err := e.Client.CreateContest(testSimpleConfiguredContest)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		testCheck(resp)
+		e.Check(resp)
 	}
-	testSyncManagers(t)
+	e.SyncStores()
 	{
-		contests, err := testAPI.ObserveContests()
+		contests, err := e.Client.ObserveContests()
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		testCheck(contests)
+		e.Check(contests)
 	}
 	{
-		created, err := testAPI.ObserveContest(contest.ID)
+		created, err := e.Client.ObserveContest(contest.ID)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		testCheck(created)
+		e.Check(created)
 	}
 	for i := 0; i < 3; i++ {
-		c := testView.core
+		c := e.Core
 		problem := models.Problem{
 			Title: fmt.Sprintf("Test problem %d", i+1),
 		}
@@ -79,54 +68,43 @@ func TestContestSimpleScenario(t *testing.T) {
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		testSyncManagers(t)
+		e.SyncStores()
 		form := createContestProblemForm{
 			Code:      fmt.Sprintf("%c", 'A'+i),
 			ProblemID: problem.ID,
 		}
-		contestProblem, err := testAPI.CreateContestProblem(contest.ID, form)
+		contestProblem, err := e.Client.CreateContestProblem(contest.ID, form)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		testCheck(contestProblem)
+		e.Check(contestProblem)
 	}
 }
 
 func BenchmarkContests(b *testing.B) {
-	rnd := rand.New(rand.NewSource(42))
-	testSetup(b)
-	defer testTeardown(b)
-	if _, err := testAPI.Register(testSimpleUser); err != nil {
-		b.Fatal("Error:", err)
-	}
-	testSyncManagers(b)
-	if err := testSocketCreateUserRoles(
-		"test", "observe_contest", "create_contest", "update_contest", "delete_contest",
-	); err != nil {
-		b.Fatal("Error:", err)
-	}
-	testSyncManagers(b)
-	if _, err := testAPI.Login(context.Background(), "test", "qwerty123"); err != nil {
-		b.Fatal("Error:", err)
-	}
+	e := NewTestEnv(b)
+	defer e.Close()
+	user := NewTestUser(e)
+	user.AddRoles("observe_contest", "create_contest", "update_contest", "delete_contest")
+	user.LoginClient()
 	b.ResetTimer()
 	var ids []int64
 	for i := 0; i < b.N; i++ {
 		form := createContestForm{
 			Title: getPtr(fmt.Sprintf("Contest %d", i+1)),
 		}
-		contest, err := testAPI.CreateContest(form)
+		contest, err := e.Client.CreateContest(form)
 		if err != nil {
 			b.Fatal("Error:", err)
 		}
-		testSyncManagers(b)
+		e.SyncStores()
 		ids = append(ids, contest.ID)
 	}
-	rnd.Shuffle(len(ids), func(i, j int) {
+	e.Rand.Shuffle(len(ids), func(i, j int) {
 		ids[i], ids[j] = ids[j], ids[i]
 	})
 	for _, id := range ids {
-		contest, err := testAPI.ObserveContest(id)
+		contest, err := e.Client.ObserveContest(id)
 		if err != nil {
 			b.Fatal("Error:", err)
 		}

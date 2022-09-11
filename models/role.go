@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"sort"
 
 	"github.com/udovin/gosql"
 )
@@ -238,6 +239,7 @@ func GetBuiltInRoles() []string {
 	for role := range builtInRoles {
 		roles = append(roles, role)
 	}
+	sort.Strings(roles)
 	return roles
 }
 

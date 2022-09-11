@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -25,6 +26,163 @@ import (
 
 	_ "github.com/udovin/solve/migrations"
 )
+
+type TestEnv struct {
+	tb     testing.TB
+	checks *testCheckState
+	Core   *core.Core
+	Server *httptest.Server
+	Client *testClient
+	Socket *testClient
+	Now    time.Time
+	Rand   *rand.Rand
+}
+
+func (e *TestEnv) SyncStores() {
+	ctx := context.Background()
+	if err := e.Core.Accounts.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+	if err := e.Core.Users.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+	if err := e.Core.Roles.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+	if err := e.Core.RoleEdges.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+	if err := e.Core.AccountRoles.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+	if err := e.Core.Contests.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+	if err := e.Core.Problems.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+}
+
+func (e *TestEnv) CreateUserRoles(login string, roles ...string) error {
+	for _, role := range roles {
+		if _, err := e.Socket.CreateUserRole(context.Background(), login, role); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *TestEnv) Check(data any) {
+	e.checks.Check(data)
+}
+
+func (e *TestEnv) Close() {
+	e.Server.Close()
+	e.Core.Stop()
+	_ = db.ApplyMigrations(context.Background(), e.Core.DB, db.WithZeroMigration)
+	e.checks.Close()
+}
+
+func NewTestEnv(tb testing.TB) *TestEnv {
+	env := TestEnv{
+		tb:     tb,
+		checks: newTestCheckState(tb),
+		Now:    time.Date(2020, 1, 1, 10, 0, 0, 0, time.UTC),
+		Rand:   rand.New(rand.NewSource(42)),
+	}
+	cfg := config.Config{
+		DB: config.DB{
+			Options: config.SQLiteOptions{Path: ":memory:"},
+		},
+		Security: &config.Security{
+			PasswordSalt: "qwerty123",
+		},
+		Storage: &config.Storage{
+			FilesDir: tb.TempDir(),
+		},
+	}
+	if _, ok := tb.(*testing.B); ok {
+		log.SetLevel(log.OFF)
+		cfg.LogLevel = config.LogLevel(log.OFF)
+	}
+	if c, err := core.NewCore(cfg); err != nil {
+		tb.Fatal("Error:", err)
+	} else {
+		env.Core = c
+	}
+	env.Core.SetupAllStores()
+	if err := db.ApplyMigrations(context.Background(), env.Core.DB, db.WithZeroMigration); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	if err := db.ApplyMigrations(context.Background(), env.Core.DB); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	if err := core.CreateData(context.Background(), env.Core); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	if err := env.Core.Start(); err != nil {
+		tb.Fatal("Error:", err)
+	}
+	e := echo.New()
+	e.Logger = env.Core.Logger()
+	view := NewView(env.Core)
+	nowFn := func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set(nowKey, env.Now)
+			return next(c)
+		}
+	}
+	e.Use(nowFn)
+	view.Register(e.Group("/api"))
+	view.RegisterSocket(e.Group("/socket"))
+	env.Server = httptest.NewServer(e)
+	env.Client = newTestClient(env.Server.URL + "/api")
+	env.Socket = newTestClient(env.Server.URL + "/socket")
+	return &env
+}
+
+type TestUser struct {
+	User
+	Password string
+	env      *TestEnv
+}
+
+func (u *TestUser) LoginClient() {
+	_, err := u.env.Client.Login(context.Background(), u.User.Login, u.Password)
+	if err != nil {
+		u.env.tb.Fatal("Error:", err)
+	}
+	u.env.SyncStores()
+}
+
+func (u *TestUser) AddRoles(names ...string) {
+	if err := u.env.CreateUserRoles(u.User.Login, names...); err != nil {
+		u.env.tb.Fatal("Error:", err)
+	}
+	u.env.SyncStores()
+}
+
+func NewTestUser(e *TestEnv) *TestUser {
+	login := fmt.Sprintf("login-%d", e.Rand.Int31())
+	password := fmt.Sprintf("password-%d", e.Rand.Int63())
+	user, err := e.Client.Register(registerUserForm{
+		Login:      login,
+		Email:      login + "@example.com",
+		Password:   password,
+		FirstName:  "First",
+		LastName:   "Last",
+		MiddleName: "Middle",
+	})
+	if err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+	e.SyncStores()
+	return &TestUser{
+		User:     user,
+		Password: password,
+		env:      e,
+	}
+}
 
 type testCheckState struct {
 	tb     testing.TB
@@ -104,79 +262,8 @@ func newTestCheckState(tb testing.TB) *testCheckState {
 	return &state
 }
 
-var (
-	testView   *View
-	testEcho   *echo.Echo
-	testSrv    *httptest.Server
-	testChecks *testCheckState
-	testAPI    *testClient
-	testNow    = time.Date(2020, 1, 1, 10, 0, 0, 0, time.UTC)
-)
-
-func wrapTestNow(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		c.Set(nowKey, testNow)
-		return next(c)
-	}
-}
-
-func testSetup(tb testing.TB) {
-	testChecks = newTestCheckState(tb)
-	cfg := config.Config{
-		DB: config.DB{
-			Options: config.SQLiteOptions{Path: ":memory:"},
-		},
-		Security: &config.Security{
-			PasswordSalt: "qwerty123",
-		},
-		Storage: &config.Storage{
-			FilesDir: tb.TempDir(),
-		},
-	}
-	if _, ok := tb.(*testing.B); ok {
-		log.SetLevel(log.OFF)
-		cfg.LogLevel = config.LogLevel(log.OFF)
-	}
-	c, err := core.NewCore(cfg)
-	if err != nil {
-		tb.Fatal("Error:", err)
-	}
-	c.SetupAllStores()
-	if err := db.ApplyMigrations(context.Background(), c.DB, db.WithZeroMigration); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := db.ApplyMigrations(context.Background(), c.DB); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := core.CreateData(context.Background(), c); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := c.Start(); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	testEcho = echo.New()
-	testEcho.Logger = c.Logger()
-	testView = NewView(c)
-	testEcho.Use(wrapTestNow)
-	testView.Register(testEcho.Group("/api"))
-	testView.RegisterSocket(testEcho.Group("/socket"))
-	testSrv = httptest.NewServer(testEcho)
-	testAPI = newTestClient(testSrv.URL + "/api")
-}
-
-func testTeardown(tb testing.TB) {
-	testSrv.Close()
-	testView.core.Stop()
-	_ = db.ApplyMigrations(context.Background(), testView.core.DB, db.WithZeroMigration)
-	testChecks.Close()
-}
-
-func testCheck(data any) {
-	testChecks.Check(data)
-}
-
 type testClient struct {
-	Client
+	*Client
 }
 
 type testJar struct {
@@ -195,15 +282,9 @@ func (j *testJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 }
 
 func newTestClient(endpoint string) *testClient {
-	return &testClient{
-		Client: Client{
-			endpoint: endpoint,
-			client: http.Client{
-				Timeout: time.Second,
-				Jar:     &testJar{},
-			},
-		},
-	}
+	client := NewClient(endpoint)
+	client.client.Jar = &testJar{}
+	return &testClient{client}
 }
 
 func (c *testClient) Register(form registerUserForm) (User, error) {
@@ -356,19 +437,6 @@ func (c *testClient) DeleteRoleRole(role string, child string) (Roles, error) {
 	return respData, err
 }
 
-func (c *testClient) CreateUserRole(login string, role string) (Roles, error) {
-	req, err := http.NewRequest(
-		http.MethodPost, c.getURL("/v0/users/%s/roles/%s", login, role),
-		nil,
-	)
-	if err != nil {
-		return Roles{}, err
-	}
-	var respData Roles
-	_, err = c.doRequest(req, http.StatusCreated, &respData)
-	return respData, err
-}
-
 func (c *testClient) DeleteUserRole(login string, role string) (Roles, error) {
 	req, err := http.NewRequest(
 		http.MethodDelete, c.getURL("/v0/users/%s/roles/%s", login, role),
@@ -382,70 +450,29 @@ func (c *testClient) DeleteUserRole(login string, role string) (Roles, error) {
 	return respData, err
 }
 
-func testSocketCreateUserRole(login string, role string) (Roles, error) {
-	req := httptest.NewRequest(
-		http.MethodPost,
-		fmt.Sprintf("/socket/v0/users/%s/roles/%s", login, role), nil,
-	)
-	var resp Roles
-	err := doSocketRequest(req, http.StatusCreated, &resp)
-	return resp, err
-}
-
-func testSocketCreateUserRoles(login string, roles ...string) error {
-	for _, role := range roles {
-		if _, err := testSocketCreateUserRole(login, role); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func doSocketRequest(req *http.Request, code int, resp any) error {
-	req.Header.Add("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	if err := testHandler(req, rec); err != nil {
-		return err
-	}
-	if rec.Code != code {
-		var resp errorResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-			return err
-		}
-		return &resp
-	}
-	return json.NewDecoder(rec.Body).Decode(resp)
-}
-
-func testHandler(req *http.Request, rec *httptest.ResponseRecorder) error {
-	c := testEcho.NewContext(req, rec)
-	testEcho.Router().Find(req.Method, req.URL.Path, c)
-	return c.Handler()(c)
-}
-
 func TestPing(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	if err := testAPI.Ping(context.Background()); err != nil {
+	e := NewTestEnv(t)
+	defer e.Close()
+	if err := e.Client.Ping(context.Background()); err != nil {
 		t.Fatal("Error:", err)
 	}
 }
 
 func TestHealth(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	if err := testAPI.Health(context.Background()); err != nil {
+	e := NewTestEnv(t)
+	defer e.Close()
+	if err := e.Client.Health(context.Background()); err != nil {
 		t.Fatal("Error:", err)
 	}
 }
 
 func TestHealthUnhealthy(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	if err := testView.core.DB.Close(); err != nil {
+	e := NewTestEnv(t)
+	defer e.Close()
+	if err := e.Core.DB.Close(); err != nil {
 		t.Fatal("Error:", err)
 	}
-	err := testAPI.Health(context.Background())
+	err := e.Client.Health(context.Background())
 	resp, ok := err.(statusCodeResponse)
 	if !ok {
 		t.Fatal("Invalid error:", err)

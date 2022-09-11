@@ -2,90 +2,35 @@ package api
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
-var testSimpleUser = registerUserForm{
-	Login:      "test",
-	Password:   "qwerty123",
-	FirstName:  "First",
-	LastName:   "Last",
-	MiddleName: "Middle",
-	Email:      "text@example.com",
-}
-
 func TestUserSimpleScenario(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-	if _, err := testAPI.Register(testSimpleUser); err != nil {
-		t.Fatal("Error:", err)
-	}
-	testSyncManagers(t)
-	if user, err := testAPI.ObserveUser("test"); err != nil {
+	e := NewTestEnv(t)
+	defer e.Close()
+	user := NewTestUser(e)
+	if user, err := e.Client.ObserveUser(user.Login); err != nil {
 		t.Fatal("Error:", err)
 	} else {
-		testCheck(user)
+		e.Check(user)
 	}
-	testSocketObserveUserRoles(t, "test")
-	if _, err := testAPI.Login(context.Background(), "test", "qwerty123"); err != nil {
-		t.Fatal("Error:", err)
-	}
-	if status, err := testAPI.Status(); err != nil {
+	if roles, err := e.Socket.ObserveUserRoles(context.Background(), user.Login); err != nil {
 		t.Fatal("Error:", err)
 	} else {
-		testCheck(status)
+		e.Check(roles)
 	}
-	if user, err := testAPI.ObserveUser("test"); err != nil {
+	user.LoginClient()
+	if status, err := e.Client.Status(); err != nil {
 		t.Fatal("Error:", err)
 	} else {
-		testCheck(user)
+		e.Check(status)
 	}
-	if err := testAPI.Logout(); err != nil {
+	if user, err := e.Client.ObserveUser(user.Login); err != nil {
+		t.Fatal("Error:", err)
+	} else {
+		e.Check(user)
+	}
+	if err := e.Client.Logout(); err != nil {
 		t.Fatal("Error:", err)
 	}
-}
-
-func testSyncManagers(tb testing.TB) {
-	ctx := context.Background()
-	if err := testView.core.Accounts.Sync(ctx); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := testView.core.Users.Sync(ctx); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := testView.core.Roles.Sync(ctx); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := testView.core.RoleEdges.Sync(ctx); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := testView.core.AccountRoles.Sync(ctx); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := testView.core.Contests.Sync(ctx); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := testView.core.Problems.Sync(ctx); err != nil {
-		tb.Fatal("Error:", err)
-	}
-}
-
-func testSocketObserveUserRoles(tb testing.TB, login string) Roles {
-	req := httptest.NewRequest(
-		http.MethodGet, fmt.Sprintf("/socket/v0/users/%s/roles", login), nil,
-	)
-	rec := httptest.NewRecorder()
-	if err := testHandler(req, rec); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	expectStatus(tb, http.StatusOK, rec.Code)
-	var resp Roles
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	return resp
 }

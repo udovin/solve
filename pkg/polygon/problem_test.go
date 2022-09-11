@@ -11,7 +11,7 @@ import (
 func TestProblem(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "problem")
 	if err := pkg.ExtractZip(
-		filepath.Join("testdata", "a-plus-b.zip"),
+		filepath.Join("../../testdata", "a-plus-b.zip"),
 		dir,
 	); err != nil {
 		t.Fatal("Error:", err)
@@ -33,7 +33,7 @@ func TestNotFoundProblem(t *testing.T) {
 func TestInvalidProblem(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "invalid-problem")
 	if err := pkg.ExtractZip(
-		filepath.Join("testdata", "a-plus-b.zip"),
+		filepath.Join("../../testdata", "a-plus-b.zip"),
 		dir,
 	); err != nil {
 		t.Fatal("Error:", err)

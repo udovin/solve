@@ -3,8 +3,8 @@ package api
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
-	"os"
 	"sort"
 
 	"github.com/labstack/echo/v4"
@@ -81,9 +81,9 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 }
 
 type CreateCompilerForm struct {
-	Name      string   `form:"name" json:"name"`
-	Config    JSON     `form:"config" json:"config"`
-	ImageFile *os.File `json:"-"`
+	Name      string    `form:"name" json:"name"`
+	Config    JSON      `form:"config" json:"config"`
+	ImageFile io.Reader `json:"-"`
 }
 
 func (f *CreateCompilerForm) Update(compiler *models.Compiler) error {

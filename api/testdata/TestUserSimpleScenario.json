@@ -1,14 +1,17 @@
 [
   {
     "id": 1,
-    "login": "test",
+    "login": "login-801072305",
     "first_name": "First",
     "last_name": "Last"
   },
   {
+    "roles": null
+  },
+  {
     "user": {
       "id": 1,
-      "login": "test"
+      "login": "login-801072305"
     },
     "session": {
       "id": 1,
@@ -27,8 +30,8 @@
   },
   {
     "id": 1,
-    "login": "test",
-    "email": "text@example.com",
+    "login": "login-801072305",
+    "email": "login-801072305@example.com",
     "first_name": "First",
     "last_name": "Last",
     "middle_name": "Middle"

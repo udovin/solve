@@ -288,6 +288,39 @@ var m001 = []schema.Operation{
 		},
 	},
 	schema.CreateTable{
+		Name: "solve_compiler",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "owner_id", Type: schema.Int64, Nullable: true},
+			{Name: "name", Type: schema.String},
+			{Name: "config", Type: schema.JSON},
+			{Name: "image_id", Type: schema.Int64},
+		},
+		ForeignKeys: []schema.ForeignKey{
+			{Column: "owner_id", ParentTable: "solve_account", ParentColumn: "id"},
+			{Column: "image_id", ParentTable: "solve_file", ParentColumn: "id"},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_compiler",
+		Columns: []string{"name"},
+		Unique:  true,
+	},
+	schema.CreateTable{
+		Name: "solve_compiler_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_kind", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
+			{Name: "id", Type: schema.Int64},
+			{Name: "owner_id", Type: schema.Int64, Nullable: true},
+			{Name: "name", Type: schema.String},
+			{Name: "config", Type: schema.JSON},
+			{Name: "image_id", Type: schema.Int64},
+		},
+	},
+	schema.CreateTable{
 		Name: "solve_problem",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -453,39 +486,6 @@ var m001 = []schema.Operation{
 			{Name: "contest_id", Type: schema.Int64},
 			{Name: "participant_id", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},
-		},
-	},
-	schema.CreateTable{
-		Name: "solve_compiler",
-		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
-			{Name: "owner_id", Type: schema.Int64, Nullable: true},
-			{Name: "name", Type: schema.String},
-			{Name: "config", Type: schema.JSON},
-			{Name: "image_id", Type: schema.Int64},
-		},
-		ForeignKeys: []schema.ForeignKey{
-			{Column: "owner_id", ParentTable: "solve_account", ParentColumn: "id"},
-			{Column: "image_id", ParentTable: "solve_file", ParentColumn: "id"},
-		},
-	},
-	schema.CreateIndex{
-		Table:   "solve_compiler",
-		Columns: []string{"name"},
-		Unique:  true,
-	},
-	schema.CreateTable{
-		Name: "solve_compiler_event",
-		Columns: []schema.Column{
-			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
-			{Name: "event_kind", Type: schema.Int64},
-			{Name: "event_time", Type: schema.Int64},
-			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
-			{Name: "id", Type: schema.Int64},
-			{Name: "owner_id", Type: schema.Int64, Nullable: true},
-			{Name: "name", Type: schema.String},
-			{Name: "config", Type: schema.JSON},
-			{Name: "image_id", Type: schema.Int64},
 		},
 	},
 	schema.CreateTable{

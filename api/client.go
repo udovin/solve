@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"time"
 )
@@ -18,8 +19,25 @@ type Client struct {
 	client   http.Client
 }
 
+type ClientOption func(*Client)
+
+func WithSessionCookie(value string) ClientOption {
+	return func(c *Client) {
+		u, err := url.Parse(c.endpoint)
+		if err != nil {
+			panic(err)
+		}
+		c.client.Jar.SetCookies(u, []*http.Cookie{
+			{
+				Name:  sessionCookie,
+				Value: value,
+			},
+		})
+	}
+}
+
 // NewClient returns new API client.
-func NewClient(endpoint string) *Client {
+func NewClient(endpoint string, options ...ClientOption) *Client {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		panic(err)
@@ -30,6 +48,9 @@ func NewClient(endpoint string) *Client {
 			Timeout: 5 * time.Second,
 			Jar:     jar,
 		},
+	}
+	for _, option := range options {
+		option(&c)
 	}
 	return &c
 }

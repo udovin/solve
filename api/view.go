@@ -266,6 +266,9 @@ func (v *View) sessionAuth(c echo.Context) (bool, error) {
 		}
 		return false, err
 	}
+	if len(cookie.Value) == 0 {
+		return false, nil
+	}
 	session, err := v.getSessionByCookie(getContext(c), cookie.Value)
 	if err != nil {
 		if err == sql.ErrNoRows {

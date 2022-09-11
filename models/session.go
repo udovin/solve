@@ -101,13 +101,16 @@ func (s *SessionStore) FindByAccount(id int64) ([]Session, error) {
 
 // GetByCookie returns session for specified cookie value.
 func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
 	parts := strings.SplitN(cookie, "_", 2)
+	if len(parts) != 2 {
+		return Session{}, fmt.Errorf("invalid cookie")
+	}
 	id, err := strconv.ParseInt(parts[0], 10, 60)
 	if err != nil {
 		return Session{}, err
 	}
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	session, ok := s.sessions[id]
 	if !ok || session.Secret != parts[1] {
 		return Session{}, sql.ErrNoRows

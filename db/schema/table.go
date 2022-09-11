@@ -90,14 +90,21 @@ type Operation interface {
 	BuildUnapply(gosql.Dialect) (string, error)
 }
 
-// CreateTable represents create table query.
-type CreateTable struct {
-	Name    string
-	Columns []Column
-	Strict  bool
+type ForeignKey struct {
+	Column       string
+	ParentTable  string
+	ParentColumn string
 }
 
-// BuildCreateSQL returns create SQL query in specified dialect.
+// CreateTable represents create table query.
+type CreateTable struct {
+	Name        string
+	Columns     []Column
+	ForeignKeys []ForeignKey
+	Strict      bool
+}
+
+// BuildApply returns create SQL query in specified dialect.
 func (q CreateTable) BuildApply(d gosql.Dialect) (string, error) {
 	var query strings.Builder
 	query.WriteString("CREATE TABLE ")
@@ -115,6 +122,11 @@ func (q CreateTable) BuildApply(d gosql.Dialect) (string, error) {
 		}
 		query.WriteString(sql)
 	}
+	for _, fk := range q.ForeignKeys {
+		query.WriteString(", ")
+		query.WriteString(fmt.Sprintf("FOREIGN KEY (%q) ", fk.Column))
+		query.WriteString(fmt.Sprintf("REFERENCES %q (%q)", fk.ParentTable, fk.ParentColumn))
+	}
 	query.WriteRune(')')
 	return query.String(), nil
 }
@@ -126,5 +138,49 @@ func (q CreateTable) BuildUnapply(d gosql.Dialect) (string, error) {
 		query.WriteString("IF EXISTS ")
 	}
 	query.WriteString(fmt.Sprintf("%q", q.Name))
+	return query.String(), nil
+}
+
+type CreateIndex struct {
+	Table   string
+	Columns []string
+	Unique  bool
+	Strict  bool
+}
+
+func (q CreateIndex) getName() string {
+	return fmt.Sprintf("%s_%s_idx", q.Table, strings.Join(q.Columns, "_"))
+}
+
+// BuildApply returns create SQL query in specified dialect.
+func (q CreateIndex) BuildApply(d gosql.Dialect) (string, error) {
+	var query strings.Builder
+	query.WriteString("CREATE ")
+	if q.Unique {
+		query.WriteString("UNIQUE ")
+	}
+	query.WriteString("INDEX ")
+	if !q.Strict {
+		query.WriteString("IF NOT EXISTS ")
+	}
+	query.WriteString(fmt.Sprintf("%q ", q.getName()))
+	query.WriteString(fmt.Sprintf("ON %q (", q.Table))
+	for i, column := range q.Columns {
+		if i > 0 {
+			query.WriteString(", ")
+		}
+		query.WriteString(fmt.Sprintf("%q", column))
+	}
+	query.WriteRune(')')
+	return query.String(), nil
+}
+
+func (q CreateIndex) BuildUnapply(d gosql.Dialect) (string, error) {
+	var query strings.Builder
+	query.WriteString("DROP INDEX ")
+	if !q.Strict {
+		query.WriteString("IF EXISTS ")
+	}
+	query.WriteString(fmt.Sprintf("%q", q.getName()))
 	return query.String(), nil
 }

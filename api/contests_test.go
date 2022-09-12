@@ -59,12 +59,19 @@ func TestContestSimpleScenario(t *testing.T) {
 		}
 		e.Check(created)
 	}
-	for i := 0; i < 3; i++ {
-		c := e.Core
-		problem := models.Problem{
-			Title: fmt.Sprintf("Test problem %d", i+1),
+	var fakeFile models.File
+	{
+		err := e.Core.Files.Create(context.Background(), &fakeFile)
+		if err != nil {
+			t.Fatal("Error:", err)
 		}
-		err := c.Problems.Create(context.Background(), &problem)
+	}
+	for i := 0; i < 3; i++ {
+		problem := models.Problem{
+			Title:     fmt.Sprintf("Test problem %d", i+1),
+			PackageID: fakeFile.ID,
+		}
+		err := e.Core.Problems.Create(context.Background(), &problem)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}

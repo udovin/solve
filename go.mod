@@ -7,11 +7,11 @@ require (
 	github.com/jackc/pgx/v4 v4.17.1
 	github.com/labstack/echo/v4 v4.8.0
 	github.com/labstack/gommon v0.3.1
-	github.com/mattn/go-sqlite3 v2.0.3+incompatible
+	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/nsf/jsondiff v0.0.0-20210926074059-1e845ec5d249
 	github.com/opencontainers/runc v1.1.4
 	github.com/spf13/cobra v1.5.0
-	github.com/udovin/gosql v0.0.0-20220426203332-0ec503d9d791
+	github.com/udovin/gosql v0.0.1
 	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d
 	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
 )

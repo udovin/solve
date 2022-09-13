@@ -653,6 +653,28 @@ type ContestSolution struct {
 	CreateTime  int64               `json:"create_time"`
 }
 
+type SubmitSolutionForm struct {
+	CompilerID  int64       `form:"compiler_id" json:"compiler_id"`
+	ContentFile *FileReader `json:"-"`
+}
+
+func (f *SubmitSolutionForm) Parse(c echo.Context) error {
+	if err := c.Bind(f); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	formFile, err := c.FormFile("file")
+	if err != nil {
+		return err
+	}
+	file, err := managers.NewMultipartFileReader(formFile)
+	if err != nil {
+		return err
+	}
+	f.ContentFile = file
+	return nil
+}
+
 func (v *View) submitContestProblemSolution(c echo.Context) error {
 	now := getNow(c)
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
@@ -675,9 +697,24 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 			Message: "participant not found",
 		}
 	}
+	var form SubmitSolutionForm
+	if err := form.Parse(c); err != nil {
+		return err
+	}
+	defer func() { _ = form.ContentFile.Close() }()
+	if _, err := v.core.Compilers.Get(form.CompilerID); err != nil {
+		if err == sql.ErrNoRows {
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: "compiler not found",
+			}
+		}
+		return err
+	}
 	solution := models.Solution{
 		ProblemID:  problem.ProblemID,
 		AuthorID:   account.ID,
+		CompilerID: form.CompilerID,
 		CreateTime: now.Unix(),
 	}
 	contestSolution := models.ContestSolution{
@@ -685,11 +722,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		ParticipantID: participants[0].ID,
 		ProblemID:     problem.ID,
 	}
-	formFile, err := c.FormFile("file")
-	if err != nil {
-		return err
-	}
-	file, err := v.files.UploadFile(getContext(c), formFile)
+	file, err := v.files.UploadFile(getContext(c), form.ContentFile)
 	if err != nil {
 		return err
 	}

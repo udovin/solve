@@ -96,9 +96,18 @@ const (
 )
 
 type (
-	NInt64  = models.NInt64
-	NString = models.NString
+	NInt64     = models.NInt64
+	NString    = models.NString
+	FileReader = managers.FileReader
 )
+
+type JSON struct {
+	models.JSON
+}
+
+func (v *JSON) UnmarshalParam(data string) error {
+	return v.JSON.UnmarshalJSON([]byte(data))
+}
 
 // logVisit saves visit to visit store.
 func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
@@ -452,11 +461,3 @@ var (
 	sqlRepeatableRead = gosql.WithIsolation(sql.LevelRepeatableRead)
 	sqlReadOnly       = gosql.WithReadOnly(true)
 )
-
-type JSON struct {
-	models.JSON
-}
-
-func (v *JSON) UnmarshalParam(data string) error {
-	return v.JSON.UnmarshalJSON([]byte(data))
-}

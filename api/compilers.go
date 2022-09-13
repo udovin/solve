@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
 
@@ -81,9 +80,26 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 }
 
 type CreateCompilerForm struct {
-	Name      string    `form:"name" json:"name"`
-	Config    JSON      `form:"config" json:"config"`
-	ImageFile io.Reader `json:"-"`
+	Name      string      `form:"name" json:"name"`
+	Config    JSON        `form:"config" json:"config"`
+	ImageFile *FileReader `json:"-"`
+}
+
+func (f *CreateCompilerForm) Parse(c echo.Context) error {
+	if err := c.Bind(f); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	formFile, err := c.FormFile("file")
+	if err != nil {
+		return err
+	}
+	file, err := managers.NewMultipartFileReader(formFile)
+	if err != nil {
+		return err
+	}
+	f.ImageFile = file
+	return nil
 }
 
 func (f *CreateCompilerForm) Update(compiler *models.Compiler) error {
@@ -117,10 +133,10 @@ func (v *View) createCompiler(c echo.Context) error {
 		return fmt.Errorf("account not extracted")
 	}
 	var form CreateCompilerForm
-	if err := c.Bind(&form); err != nil {
-		c.Logger().Warn(err)
-		return c.NoContent(http.StatusBadRequest)
+	if err := form.Parse(c); err != nil {
+		return err
 	}
+	defer func() { _ = form.ImageFile.Close() }()
 	var compiler models.Compiler
 	if err := form.Update(&compiler); err != nil {
 		return err
@@ -128,11 +144,7 @@ func (v *View) createCompiler(c echo.Context) error {
 	if account := accountCtx.Account; account != nil {
 		compiler.OwnerID = models.NInt64(account.ID)
 	}
-	formFile, err := c.FormFile("file")
-	if err != nil {
-		return err
-	}
-	file, err := v.files.UploadFile(getContext(c), formFile)
+	file, err := v.files.UploadFile(getContext(c), form.ImageFile)
 	if err != nil {
 		return err
 	}

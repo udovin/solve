@@ -2,12 +2,12 @@ package managers
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"mime/multipart"
 	"os"
 	"path"
@@ -33,10 +33,37 @@ func NewFileManager(core *core.Core) *FileManager {
 	}
 }
 
+type FileReader struct {
+	Name   string
+	Size   int64
+	Reader io.Reader
+}
+
+func (f *FileReader) Close() error {
+	if closer, ok := f.Reader.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
+}
+
+func NewMultipartFileReader(file *multipart.FileHeader) (*FileReader, error) {
+	f := FileReader{
+		Name: file.Filename,
+		Size: file.Size,
+	}
+	reader, err := file.Open()
+	if err != nil {
+		return nil, err
+	}
+	f.Reader = reader
+	return &f, nil
+}
+
 // UploadFile adds file to file storage and starts upload.
 //
 // You shold call ConfirmUploadFile for marking file available.
-func (m *FileManager) UploadFile(ctx context.Context, formFile *multipart.FileHeader) (models.File, error) {
+func (m *FileManager) UploadFile(ctx context.Context, fileReader *FileReader) (models.File, error) {
+	defer func() { _ = fileReader.Close() }()
 	if tx := db.GetTx(ctx); tx != nil {
 		return models.File{}, fmt.Errorf("cannot upload file in transaction")
 	}
@@ -51,17 +78,11 @@ func (m *FileManager) UploadFile(ctx context.Context, formFile *multipart.FileHe
 	file := models.File{
 		Status:     models.PendingFile,
 		ExpireTime: models.NInt64(deadline.Add(time.Minute).Unix()),
-		Name:       formFile.Filename,
-		Size:       formFile.Size,
+		Name:       fileReader.Name,
+		Size:       fileReader.Size,
 		Path:       filePath,
 	}
-	src, err := formFile.Open()
-	if err != nil {
-		return models.File{}, err
-	}
-	defer func() { _ = src.Close() }()
 	if err := m.Files.Create(ctx, &file); err != nil {
-		_ = src.Close()
 		return models.File{}, err
 	}
 	systemDir := filepath.Join(m.Dir, filepath.FromSlash(path.Dir(filePath)))
@@ -73,7 +94,7 @@ func (m *FileManager) UploadFile(ctx context.Context, formFile *multipart.FileHe
 		return models.File{}, err
 	}
 	defer func() { _ = dst.Close() }()
-	written, err := io.Copy(dst, src)
+	written, err := io.Copy(dst, fileReader.Reader)
 	if err != nil {
 		return models.File{}, err
 	}

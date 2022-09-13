@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
 
@@ -28,9 +29,12 @@ func TestCompilersSimpleScenario(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	compiler, err := e.Client.CreateCompiler(context.Background(), CreateCompilerForm{
-		Name:      "test",
-		Config:    JSON{rawConfig},
-		ImageFile: file,
+		Name:   "test",
+		Config: JSON{rawConfig},
+		ImageFile: &managers.FileReader{
+			Name:   file.Name(),
+			Reader: file,
+		},
 	})
 	if err != nil {
 		t.Fatal("Error:", err)

@@ -126,7 +126,25 @@ func (v *View) observeProblem(c echo.Context) error {
 }
 
 type createProblemForm struct {
-	Title string `form:"title"`
+	Title       string      `form:"title"`
+	PackageFile *FileReader `json:"-"`
+}
+
+func (f *createProblemForm) Parse(c echo.Context) error {
+	if err := c.Bind(f); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	formFile, err := c.FormFile("file")
+	if err != nil {
+		return err
+	}
+	file, err := managers.NewMultipartFileReader(formFile)
+	if err != nil {
+		return err
+	}
+	f.PackageFile = file
+	return nil
 }
 
 func (f *createProblemForm) Update(problem *models.Problem) *errorResponse {
@@ -153,10 +171,10 @@ func (v *View) createProblem(c echo.Context) error {
 		return fmt.Errorf("account not extracted")
 	}
 	var form createProblemForm
-	if err := c.Bind(&form); err != nil {
-		c.Logger().Warn(err)
-		return c.NoContent(http.StatusBadRequest)
+	if err := form.Parse(c); err != nil {
+		return err
 	}
+	defer func() { _ = form.PackageFile.Close() }()
 	var problem models.Problem
 	if err := form.Update(&problem); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
@@ -164,11 +182,7 @@ func (v *View) createProblem(c echo.Context) error {
 	if account := accountCtx.Account; account != nil {
 		problem.OwnerID = NInt64(account.ID)
 	}
-	formFile, err := c.FormFile("file")
-	if err != nil {
-		return err
-	}
-	file, err := v.files.UploadFile(getContext(c), formFile)
+	file, err := v.files.UploadFile(getContext(c), form.PackageFile)
 	if err != nil {
 		return err
 	}

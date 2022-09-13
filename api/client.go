@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"os"
 	"time"
 )
 
@@ -97,9 +96,7 @@ func (c *Client) Login(ctx context.Context, login, password string) (Session, er
 }
 
 func (c *Client) CreateCompiler(ctx context.Context, form CreateCompilerForm) (Compiler, error) {
-	if closer, ok := form.ImageFile.(io.Closer); ok {
-		defer func() { _ = closer.Close() }()
-	}
+	defer func() { _ = form.ImageFile.Close() }()
 	buf := bytes.Buffer{}
 	w := multipart.NewWriter(&buf)
 	if err := w.WriteField("name", form.Name); err != nil {
@@ -110,13 +107,9 @@ func (c *Client) CreateCompiler(ctx context.Context, form CreateCompilerForm) (C
 	} else if err := w.WriteField("config", string(config)); err != nil {
 		return Compiler{}, err
 	}
-	fileName := "unnamed.tar.gz"
-	if f, ok := form.ImageFile.(*os.File); ok {
-		fileName = f.Name()
-	}
-	if fw, err := w.CreateFormFile("file", fileName); err != nil {
+	if fw, err := w.CreateFormFile("file", form.ImageFile.Name); err != nil {
 		return Compiler{}, err
-	} else if _, err := io.Copy(fw, form.ImageFile); err != nil {
+	} else if _, err := io.Copy(fw, form.ImageFile.Reader); err != nil {
 		return Compiler{}, err
 	}
 	if err := w.Close(); err != nil {
@@ -143,6 +136,37 @@ func (c *Client) ObserveRoles(ctx context.Context) (Roles, error) {
 	}
 	var respData Roles
 	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) SubmitContestSolution(
+	ctx context.Context, contest int64, problem string, form SubmitSolutionForm,
+) (ContestSolution, error) {
+	defer func() { _ = form.ContentFile.Close() }()
+	buf := bytes.Buffer{}
+	w := multipart.NewWriter(&buf)
+	if err := w.WriteField("config", fmt.Sprint(form.CompilerID)); err != nil {
+		return ContestSolution{}, err
+	}
+	if fw, err := w.CreateFormFile("file", form.ContentFile.Name); err != nil {
+		return ContestSolution{}, err
+	} else if _, err := io.Copy(fw, form.ContentFile.Reader); err != nil {
+		return ContestSolution{}, err
+	}
+	if err := w.Close(); err != nil {
+		return ContestSolution{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPost,
+		c.getURL("/v0/contests/%d/problems/%s/submit", contest, problem),
+		&buf,
+	)
+	if err != nil {
+		return ContestSolution{}, err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	var respData ContestSolution
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
 	return respData, err
 }
 

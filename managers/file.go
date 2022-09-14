@@ -167,10 +167,9 @@ func (m *FileManager) generatePath(ctx context.Context) (string, error) {
 		return "", err
 	}
 	filePath := path.Join(
-		hex.EncodeToString(bytes[0:3]),
-		hex.EncodeToString(bytes[3:6]),
-		hex.EncodeToString(bytes[6:9]),
-		hex.EncodeToString(bytes[9:]),
+		hex.EncodeToString(bytes[0:2]),
+		hex.EncodeToString(bytes[2:4]),
+		hex.EncodeToString(bytes[4:]),
 	)
 	systemPath := filepath.Join(m.Dir, filepath.FromSlash(filePath))
 	if _, err := os.Stat(systemPath); err == nil {

@@ -58,12 +58,12 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
 	problemFile, err := t.invoker.files.DownloadFile(ctx, t.problem.PackageID)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot download problem: %w", err)
 	}
 	defer problemFile.Close()
 	tempProblemPath := filepath.Join(t.tempDir, "problem")
 	if err := pkg.ExtractZip(problemFile.Name(), tempProblemPath); err != nil {
-		return err
+		return fmt.Errorf("cannot extract problem: %w", err)
 	}
 	t.problemPath = tempProblemPath
 	return nil
@@ -72,12 +72,12 @@ func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
 func (t *judgeSolutionTask) prepareCompiler(ctx TaskContext) error {
 	compilerFile, err := t.invoker.files.DownloadFile(ctx, t.compiler.ImageID)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot download rootfs: %w", err)
 	}
 	defer compilerFile.Close()
 	tempCompilerPath := filepath.Join(t.tempDir, "compiler")
 	if err := pkg.ExtractTarGz(compilerFile.Name(), tempCompilerPath); err != nil {
-		return err
+		return fmt.Errorf("cannot extract rootfs: %w", err)
 	}
 	t.compilerPath = tempCompilerPath
 	return nil
@@ -88,24 +88,24 @@ func (t *judgeSolutionTask) prepareSolution(ctx TaskContext) error {
 		tempSolutionPath := filepath.Join(t.tempDir, "solution.txt")
 		err := ioutil.WriteFile(tempSolutionPath, []byte(t.solution.Content), fs.ModePerm)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot write solution: %w", err)
 		}
 		t.solutionPath = tempSolutionPath
 		return nil
 	}
 	solutionFile, err := t.invoker.files.DownloadFile(ctx, int64(t.solution.ContentID))
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot download solution: %w", err)
 	}
 	defer solutionFile.Close()
 	tempSolutionPath := filepath.Join(t.tempDir, "solution.bin")
 	file, err := os.Create(tempSolutionPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot create solution: %w", err)
 	}
 	defer file.Close()
 	if _, err := io.Copy(file, solutionFile); err != nil {
-		return err
+		return fmt.Errorf("cannot write solution: %w", err)
 	}
 	t.solutionPath = tempSolutionPath
 	return nil
@@ -121,13 +121,13 @@ func (t *judgeSolutionTask) executeImpl(ctx TaskContext) error {
 	}()
 	t.tempDir = tempDir
 	if err := t.prepareProblem(ctx); err != nil {
-		return err
+		return fmt.Errorf("cannot prepare problem: %w", err)
 	}
 	if err := t.prepareCompiler(ctx); err != nil {
-		return err
+		return fmt.Errorf("cannot prepare compiler: %w", err)
 	}
 	if err := t.prepareSolution(ctx); err != nil {
-		return err
+		return fmt.Errorf("cannot prepare solution: %w", err)
 	}
 	return fmt.Errorf("not implemented")
 }

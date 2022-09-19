@@ -71,9 +71,7 @@ func TestServerMain(t *testing.T) {
 	cmd := cobra.Command{}
 	cmd.Flags().String("config", "", "")
 	cmd.Flags().Set("config", testConfigFile.Name())
-	go func() {
-		shutdown <- os.Interrupt
-	}()
+	go testCancel()
 	serverMain(&cmd, nil)
 }
 
@@ -96,9 +94,7 @@ func TestMigrateMain(t *testing.T) {
 	cmd.Flags().String("config", "", "")
 	cmd.Flags().Bool("create-data", false, "")
 	cmd.Flags().Set("config", testConfigFile.Name())
-	go func() {
-		shutdown <- os.Interrupt
-	}()
+	go testCancel()
 	migrateMain(&cmd, nil)
 }
 

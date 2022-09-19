@@ -25,7 +25,7 @@ import (
 	_ "github.com/udovin/solve/migrations"
 )
 
-var shutdown = make(chan os.Signal, 1)
+var testCtx, testCancel = context.WithCancel(context.Background())
 
 func resolveFile(files ...string) (string, error) {
 	for _, file := range files {
@@ -95,18 +95,8 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	v := api.NewView(c)
 	var waiter sync.WaitGroup
 	defer waiter.Wait()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(testCtx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
-	waiter.Add(1)
-	go func() {
-		defer waiter.Done()
-		select {
-		case <-ctx.Done():
-		case <-shutdown:
-			cancel()
-		}
-	}()
 	if file := cfg.SocketFile; file != "" {
 		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
 			panic(err)

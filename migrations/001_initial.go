@@ -35,6 +35,10 @@ var m001 = []schema.Operation{
 			{Name: "value", Type: schema.String},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_setting_event",
+		Columns: []string{"id", "event_id"},
+	},
 	schema.CreateTable{
 		Name: "solve_task",
 		Columns: []schema.Column{
@@ -60,6 +64,10 @@ var m001 = []schema.Operation{
 			{Name: "state", Type: schema.JSON},
 			{Name: "expire_time", Type: schema.Int64, Nullable: true},
 		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_task_event",
+		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
 		Name: "solve_file",
@@ -87,6 +95,10 @@ var m001 = []schema.Operation{
 			{Name: "path", Type: schema.String},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_file_event",
+		Columns: []string{"id", "event_id"},
+	},
 	schema.CreateTable{
 		Name: "solve_role",
 		Columns: []schema.Column{
@@ -109,6 +121,10 @@ var m001 = []schema.Operation{
 			{Name: "id", Type: schema.Int64},
 			{Name: "name", Type: schema.String},
 		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_role_event",
+		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
 		Name: "solve_role_edge",
@@ -139,6 +155,10 @@ var m001 = []schema.Operation{
 			{Name: "child_id", Type: schema.Int64},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_role_edge_event",
+		Columns: []string{"id", "event_id"},
+	},
 	schema.CreateTable{
 		Name: "solve_account",
 		Columns: []schema.Column{
@@ -156,6 +176,10 @@ var m001 = []schema.Operation{
 			{Name: "id", Type: schema.Int64},
 			{Name: "kind", Type: schema.Int64},
 		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_account_event",
+		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
 		Name: "solve_account_role",
@@ -185,6 +209,10 @@ var m001 = []schema.Operation{
 			{Name: "account_id", Type: schema.Int64},
 			{Name: "role_id", Type: schema.Int64},
 		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_account_role_event",
+		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
 		Name: "solve_session",
@@ -216,6 +244,10 @@ var m001 = []schema.Operation{
 			{Name: "remote_addr", Type: schema.String},
 			{Name: "user_agent", Type: schema.String},
 		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_session_event",
+		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
 		Name: "solve_user",
@@ -262,6 +294,10 @@ var m001 = []schema.Operation{
 			{Name: "middle_name", Type: schema.String, Nullable: true},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_user_event",
+		Columns: []string{"id", "event_id"},
+	},
 	schema.CreateTable{
 		Name: "solve_contest",
 		Columns: []schema.Column{
@@ -286,6 +322,10 @@ var m001 = []schema.Operation{
 			{Name: "config", Type: schema.JSON},
 			{Name: "title", Type: schema.String},
 		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_contest_event",
+		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
 		Name: "solve_compiler",
@@ -320,6 +360,10 @@ var m001 = []schema.Operation{
 			{Name: "image_id", Type: schema.Int64},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_compiler_event",
+		Columns: []string{"id", "event_id"},
+	},
 	schema.CreateTable{
 		Name: "solve_problem",
 		Columns: []schema.Column{
@@ -347,6 +391,10 @@ var m001 = []schema.Operation{
 			{Name: "title", Type: schema.String},
 			{Name: "package_id", Type: schema.Int64},
 		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_problem_event",
+		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
 		Name: "solve_solution",
@@ -384,6 +432,10 @@ var m001 = []schema.Operation{
 			{Name: "content_id", Type: schema.Int64, Nullable: true},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_solution_event",
+		Columns: []string{"id", "event_id"},
+	},
 	schema.CreateTable{
 		Name: "solve_contest_problem",
 		Columns: []schema.Column{
@@ -420,6 +472,10 @@ var m001 = []schema.Operation{
 			{Name: "code", Type: schema.String},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_contest_problem_event",
+		Columns: []string{"id", "event_id"},
+	},
 	schema.CreateTable{
 		Name: "solve_contest_participant",
 		Columns: []schema.Column{
@@ -452,6 +508,10 @@ var m001 = []schema.Operation{
 			{Name: "kind", Type: schema.Int64},
 			{Name: "config", Type: schema.JSON},
 		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_contest_participant_event",
+		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
 		Name: "solve_contest_solution",
@@ -487,6 +547,10 @@ var m001 = []schema.Operation{
 			{Name: "participant_id", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},
 		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_contest_solution_event",
+		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
 		Name: "solve_visit",

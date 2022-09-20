@@ -85,7 +85,7 @@ func TestRoleSimpleScenario(t *testing.T) {
 		e.SyncStores()
 	}
 	for i := 1; i < 5; i++ {
-		roles, err := e.Client.DeleteUserRole(user.Login, fmt.Sprintf("role%d", i))
+		roles, err := e.Client.DeleteUserRole(context.Background(), user.Login, fmt.Sprintf("role%d", i))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
@@ -93,17 +93,17 @@ func TestRoleSimpleScenario(t *testing.T) {
 		e.SyncStores()
 	}
 	{
-		if _, err := e.Client.DeleteUserRole(user.Login, "role2"); err == nil {
+		if _, err := e.Client.DeleteUserRole(context.Background(), user.Login, "role2"); err == nil {
 			t.Fatal("Expected error")
 		} else {
 			e.Check(err)
 		}
-		if _, err := e.Client.DeleteUserRole(user.Login, "role100"); err == nil {
+		if _, err := e.Client.DeleteUserRole(context.Background(), user.Login, "role100"); err == nil {
 			t.Fatal("Expected error")
 		} else {
 			e.Check(err)
 		}
-		if _, err := e.Client.DeleteUserRole("user100", "role2"); err == nil {
+		if _, err := e.Client.DeleteUserRole(context.Background(), "user100", "role2"); err == nil {
 			t.Fatal("Expected error")
 		} else {
 			e.Check(err)

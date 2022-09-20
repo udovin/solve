@@ -16,63 +16,28 @@
     "name": "role4"
   },
   {
-    "roles": [
-      {
-        "id": 68,
-        "name": "role2"
-      }
-    ]
+    "id": 68,
+    "name": "role2"
   },
   {
-    "roles": [
-      {
-        "id": 69,
-        "name": "role3"
-      },
-      {
-        "id": 68,
-        "name": "role2"
-      }
-    ]
+    "id": 69,
+    "name": "role3"
   },
   {
-    "roles": [
-      {
-        "id": 70,
-        "name": "role4"
-      },
-      {
-        "id": 69,
-        "name": "role3"
-      },
-      {
-        "id": 68,
-        "name": "role2"
-      }
-    ]
+    "id": 70,
+    "name": "role4"
   },
   {
-    "roles": [
-      {
-        "id": 70,
-        "name": "role4"
-      },
-      {
-        "id": 69,
-        "name": "role3"
-      }
-    ]
+    "id": 68,
+    "name": "role2"
   },
   {
-    "roles": [
-      {
-        "id": 70,
-        "name": "role4"
-      }
-    ]
+    "id": 69,
+    "name": "role3"
   },
   {
-    "roles": null
+    "id": 70,
+    "name": "role4"
   },
   {
     "message": "role \"role1\" does not have child \"role2\""
@@ -81,132 +46,36 @@
     "message": "role \"role100\" not found"
   },
   {
-    "roles": [
-      {
-        "id": 67,
-        "name": "role1"
-      },
-      {
-        "id": 66,
-        "name": "admin_group"
-      }
-    ]
+    "id": 67,
+    "name": "role1"
   },
   {
-    "roles": [
-      {
-        "id": 68,
-        "name": "role2"
-      },
-      {
-        "id": 67,
-        "name": "role1"
-      },
-      {
-        "id": 66,
-        "name": "admin_group"
-      }
-    ]
+    "id": 68,
+    "name": "role2"
   },
   {
-    "roles": [
-      {
-        "id": 69,
-        "name": "role3"
-      },
-      {
-        "id": 68,
-        "name": "role2"
-      },
-      {
-        "id": 67,
-        "name": "role1"
-      },
-      {
-        "id": 66,
-        "name": "admin_group"
-      }
-    ]
+    "id": 69,
+    "name": "role3"
   },
   {
-    "roles": [
-      {
-        "id": 70,
-        "name": "role4"
-      },
-      {
-        "id": 69,
-        "name": "role3"
-      },
-      {
-        "id": 68,
-        "name": "role2"
-      },
-      {
-        "id": 67,
-        "name": "role1"
-      },
-      {
-        "id": 66,
-        "name": "admin_group"
-      }
-    ]
+    "id": 70,
+    "name": "role4"
   },
   {
-    "roles": [
-      {
-        "id": 70,
-        "name": "role4"
-      },
-      {
-        "id": 69,
-        "name": "role3"
-      },
-      {
-        "id": 68,
-        "name": "role2"
-      },
-      {
-        "id": 66,
-        "name": "admin_group"
-      }
-    ]
+    "id": 67,
+    "name": "role1"
   },
   {
-    "roles": [
-      {
-        "id": 70,
-        "name": "role4"
-      },
-      {
-        "id": 69,
-        "name": "role3"
-      },
-      {
-        "id": 66,
-        "name": "admin_group"
-      }
-    ]
+    "id": 68,
+    "name": "role2"
   },
   {
-    "roles": [
-      {
-        "id": 70,
-        "name": "role4"
-      },
-      {
-        "id": 66,
-        "name": "admin_group"
-      }
-    ]
+    "id": 69,
+    "name": "role3"
   },
   {
-    "roles": [
-      {
-        "id": 66,
-        "name": "admin_group"
-      }
-    ]
+    "id": 70,
+    "name": "role4"
   },
   {
     "message": "user \"login-801072305\" does not have role \"role2\""

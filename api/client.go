@@ -232,16 +232,31 @@ func (c *Client) ObserveUserRoles(
 
 func (c *Client) CreateUserRole(
 	ctx context.Context, login string, role string,
-) (Roles, error) {
+) (Role, error) {
 	req, err := http.NewRequestWithContext(
 		ctx, http.MethodPost,
 		c.getURL("/v0/users/%s/roles/%s", login, role), nil,
 	)
 	if err != nil {
-		return Roles{}, err
+		return Role{}, err
 	}
-	var respData Roles
+	var respData Role
 	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
+func (c *Client) DeleteUserRole(
+	ctx context.Context, login string, role string,
+) (Role, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodDelete,
+		c.getURL("/v0/users/%s/roles/%s", login, role), nil,
+	)
+	if err != nil {
+		return Role{}, err
+	}
+	var respData Role
+	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
 }
 

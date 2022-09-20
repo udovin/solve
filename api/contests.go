@@ -150,6 +150,7 @@ func (v contestSolutionSorter) Swap(i, j int) {
 var contestPermissions = []string{
 	models.UpdateContestRole,
 	models.DeleteContestRole,
+	models.RegisterContestRole,
 	models.ObserveContestProblemsRole,
 	models.CreateContestProblemRole,
 	models.DeleteContestProblemRole,
@@ -250,9 +251,11 @@ func (v *View) observeContest(c echo.Context) error {
 }
 
 type updateContestForm struct {
-	Title     *string `json:"title" form:"title"`
-	BeginTime *NInt64 `json:"begin_time" form:"begin_time"`
-	Duration  *int    `json:"duration" form:"duration"`
+	Title              *string `json:"title" form:"title"`
+	BeginTime          *NInt64 `json:"begin_time" form:"begin_time"`
+	Duration           *int    `json:"duration" form:"duration"`
+	EnableRegistration *bool   `json:"enable_registration" form:"enable_registration"`
+	EnableUpsolving    *bool   `json:"enable_upsolving" form:"enable_upsolving"`
 }
 
 func (f *updateContestForm) Update(contest *models.Contest) error {
@@ -277,6 +280,12 @@ func (f *updateContestForm) Update(contest *models.Contest) error {
 			errors["duration"] = errorField{Message: "duration cannot be negative"}
 		}
 		config.Duration = *f.Duration
+	}
+	if f.EnableRegistration != nil {
+		config.EnableRegistration = *f.EnableRegistration
+	}
+	if f.EnableUpsolving != nil {
+		config.EnableUpsolving = *f.EnableUpsolving
 	}
 	if err := contest.SetConfig(config); err != nil {
 		errors["config"] = errorField{Message: "invalid config"}
@@ -697,6 +706,15 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 			Message: "participant not found",
 		}
 	}
+	participant := participants[0]
+	if participant.ID == 0 {
+		if err := v.core.ContestParticipants.Create(getContext(c), &participant); err != nil {
+			return err
+		}
+	}
+	if participant.ID == 0 {
+		return fmt.Errorf("unable to register participant")
+	}
 	var form SubmitSolutionForm
 	if err := form.Parse(c); err != nil {
 		return err
@@ -719,7 +737,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	}
 	contestSolution := models.ContestSolution{
 		ContestID:     contest.ID,
-		ParticipantID: participants[0].ID,
+		ParticipantID: participant.ID,
 		ProblemID:     problem.ID,
 	}
 	file, err := v.files.UploadFile(getContext(c), form.ContentFile)

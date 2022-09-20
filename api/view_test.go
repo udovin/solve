@@ -46,6 +46,9 @@ func (e *TestEnv) SyncStores() {
 	if err := e.Core.Users.Sync(ctx); err != nil {
 		e.tb.Fatal("Error:", err)
 	}
+	if err := e.Core.Sessions.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
 	if err := e.Core.Roles.Sync(ctx); err != nil {
 		e.tb.Fatal("Error:", err)
 	}
@@ -155,6 +158,13 @@ func (u *TestUser) LoginClient() {
 	u.env.SyncStores()
 }
 
+func (u *TestUser) LogoutClient() {
+	if err := u.env.Client.Logout(context.Background()); err != nil {
+		u.env.tb.Fatal("Error:", err)
+	}
+	u.env.SyncStores()
+}
+
 func (u *TestUser) AddRoles(names ...string) {
 	if err := u.env.CreateUserRoles(u.User.Login, names...); err != nil {
 		u.env.tb.Fatal("Error:", err)
@@ -193,7 +203,7 @@ type testCheckState struct {
 }
 
 func (s *testCheckState) Check(data any) {
-	raw, err := json.MarshalIndent(data, "  ", "  ")
+	raw, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		s.tb.Fatal("Unable to marshal data:", data)
 	}
@@ -206,7 +216,8 @@ func (s *testCheckState) Check(data any) {
 			s.pos++
 			return
 		}
-		s.tb.Fatalf("Unexpected check with data: %s", raw)
+		s.tb.Errorf("Unexpected check with data: %s", raw)
+		s.tb.Fatalf("Maybe you should use: TEST_RESET_DATA=1")
 	}
 	options := jsondiff.DefaultConsoleOptions()
 	diff, report := jsondiff.Compare(s.checks[s.pos], raw, &options)
@@ -216,8 +227,8 @@ func (s *testCheckState) Check(data any) {
 			s.pos++
 			return
 		}
-		s.tb.Error("Unexpected result difference:")
-		s.tb.Fatalf(report)
+		s.tb.Errorf("Unexpected result difference: %s", report)
+		s.tb.Fatalf("Maybe you should use: TEST_RESET_DATA=1")
 	}
 	s.pos++
 }
@@ -268,17 +279,28 @@ type testClient struct {
 
 type testJar struct {
 	mutex   sync.Mutex
-	cookies []*http.Cookie
+	cookies map[string]*http.Cookie
 }
 
 func (j *testJar) Cookies(*url.URL) []*http.Cookie {
-	return j.cookies
+	j.mutex.Lock()
+	defer j.mutex.Unlock()
+	var cookies []*http.Cookie
+	for _, cookie := range j.cookies {
+		cookies = append(cookies, cookie)
+	}
+	return cookies
 }
 
 func (j *testJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 	j.mutex.Lock()
 	defer j.mutex.Unlock()
-	j.cookies = append(j.cookies, cookies...)
+	if j.cookies == nil {
+		j.cookies = map[string]*http.Cookie{}
+	}
+	for _, cookie := range cookies {
+		j.cookies[cookie.Name] = cookie
+	}
 }
 
 func newTestClient(endpoint string) *testClient {
@@ -318,15 +340,6 @@ func (c *testClient) Register(form registerUserForm) (User, error) {
 	return respData, nil
 }
 
-func (c *testClient) Logout() error {
-	req, err := http.NewRequest(http.MethodPost, c.getURL("/v0/logout"), nil)
-	if err != nil {
-		return err
-	}
-	_, err = c.doRequest(req, http.StatusOK, nil)
-	return err
-}
-
 func (c *testClient) Status() (Status, error) {
 	req, err := http.NewRequest(http.MethodGet, c.getURL("/v0/status"), nil)
 	if err != nil {
@@ -357,18 +370,6 @@ func (c *testClient) ObserveContests() (Contests, error) {
 		return Contests{}, err
 	}
 	var respData Contests
-	_, err = c.doRequest(req, http.StatusOK, &respData)
-	return respData, err
-}
-
-func (c *testClient) ObserveContest(id int64) (Contest, error) {
-	req, err := http.NewRequest(
-		http.MethodGet, c.getURL("/v0/contests/%d", id), nil,
-	)
-	if err != nil {
-		return Contest{}, err
-	}
-	var respData Contest
 	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
 }

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ func TestContestSimpleScenario(t *testing.T) {
 	user := NewTestUser(e)
 	user.AddRoles("observe_contest", "create_contest", "update_contest", "delete_contest")
 	user.LoginClient()
+	defer user.LogoutClient()
 	{
 		contests, err := e.Client.ObserveContests()
 		if err != nil {
@@ -53,7 +55,7 @@ func TestContestSimpleScenario(t *testing.T) {
 		e.Check(contests)
 	}
 	{
-		created, err := e.Client.ObserveContest(contest.ID)
+		created, err := e.Client.ObserveContest(context.Background(), contest.ID)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
@@ -88,6 +90,87 @@ func TestContestSimpleScenario(t *testing.T) {
 	}
 }
 
+func TestContestParticipation(t *testing.T) {
+	e := NewTestEnv(t)
+	defer e.Close()
+	var contest Contest
+	var contestProblem ContestProblem
+	func() {
+		user := NewTestUser(e)
+		user.AddRoles("observe_contest", "create_contest", "update_contest", "delete_contest")
+		user.LoginClient()
+		defer user.LogoutClient()
+		contestForm := createContestForm{
+			Title:              getPtr("Test contest"),
+			BeginTime:          getPtr(NInt64(e.Now.Add(time.Hour).Unix())),
+			Duration:           getPtr(7200),
+			EnableRegistration: getPtr(true),
+			EnableUpsolving:    getPtr(true),
+		}
+		var err error
+		if contest, err = e.Client.CreateContest(contestForm); err != nil {
+			t.Fatal("Error:", err)
+		}
+		var fakeFile models.File
+		{
+			err := e.Core.Files.Create(context.Background(), &fakeFile)
+			if err != nil {
+				t.Fatal("Error:", err)
+			}
+		}
+		e.SyncStores()
+		problem := models.Problem{
+			Title:     "Test problem",
+			PackageID: fakeFile.ID,
+		}
+		if err := e.Core.Problems.Create(context.Background(), &problem); err != nil {
+			t.Fatal("Error:", err)
+		}
+		e.SyncStores()
+		problemForm := createContestProblemForm{
+			Code:      "A",
+			ProblemID: problem.ID,
+		}
+		if contestProblem, err = e.Client.CreateContestProblem(contest.ID, problemForm); err != nil {
+			t.Fatal("Error:", err)
+		}
+	}()
+	_ = contestProblem
+	func() {
+		user := NewTestUser(e)
+		user.LoginClient()
+		defer user.LogoutClient()
+		now := e.Now
+		if resp, err := e.Client.ObserveContest(context.Background(), contest.ID); err != nil {
+			t.Fatal("Error:", err)
+		} else {
+			e.Check(resp)
+		}
+		e.Now = now.Add(time.Hour)
+		if _, err := e.Client.ObserveContest(context.Background(), contest.ID); err == nil {
+			t.Fatal("Expected error")
+		} else if resp, ok := err.(statusCodeResponse); !ok {
+			t.Fatal("Invalid error:", err)
+		} else {
+			expectStatus(t, http.StatusForbidden, resp.StatusCode())
+		}
+		e.Now = now.Add(3 * time.Hour)
+		if _, err := e.Client.ObserveContest(context.Background(), contest.ID); err == nil {
+			t.Fatal("Expected error")
+		} else if resp, ok := err.(statusCodeResponse); !ok {
+			t.Fatal("Invalid error:", err)
+		} else {
+			expectStatus(t, http.StatusForbidden, resp.StatusCode())
+		}
+		e.Now = now.Add(3*time.Hour + time.Second)
+		if resp, err := e.Client.ObserveContest(context.Background(), contest.ID); err != nil {
+			t.Fatal("Error:", err)
+		} else {
+			e.Check(resp)
+		}
+	}()
+}
+
 func BenchmarkContests(b *testing.B) {
 	e := NewTestEnv(b)
 	defer e.Close()
@@ -111,7 +194,7 @@ func BenchmarkContests(b *testing.B) {
 		ids[i], ids[j] = ids[j], ids[i]
 	})
 	for _, id := range ids {
-		contest, err := e.Client.ObserveContest(id)
+		contest, err := e.Client.ObserveContest(context.Background(), id)
 		if err != nil {
 			b.Fatal("Error:", err)
 		}

@@ -20,6 +20,7 @@ func TestUserSimpleScenario(t *testing.T) {
 		e.Check(roles)
 	}
 	user.LoginClient()
+	defer user.LogoutClient()
 	if status, err := e.Client.Status(); err != nil {
 		t.Fatal("Error:", err)
 	} else {
@@ -29,8 +30,5 @@ func TestUserSimpleScenario(t *testing.T) {
 		t.Fatal("Error:", err)
 	} else {
 		e.Check(user)
-	}
-	if err := e.Client.Logout(); err != nil {
-		t.Fatal("Error:", err)
 	}
 }

@@ -95,6 +95,17 @@ func (c *Client) Login(ctx context.Context, login, password string) (Session, er
 	return respData, err
 }
 
+func (c *Client) Logout(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPost, c.getURL("/v0/logout"), nil,
+	)
+	if err != nil {
+		return err
+	}
+	_, err = c.doRequest(req, http.StatusOK, nil)
+	return err
+}
+
 func (c *Client) CreateCompiler(ctx context.Context, form CreateCompilerForm) (Compiler, error) {
 	defer func() { _ = form.ImageFile.Close() }()
 	buf := bytes.Buffer{}
@@ -231,6 +242,20 @@ func (c *Client) CreateUserRole(
 	}
 	var respData Roles
 	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
+func (c *Client) ObserveContest(
+	ctx context.Context, id int64,
+) (Contest, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/contests/%d", id), nil,
+	)
+	if err != nil {
+		return Contest{}, err
+	}
+	var respData Contest
+	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
 }
 

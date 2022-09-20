@@ -251,18 +251,16 @@ func (v *View) extractAuth(authMethods ...authMethod) echo.MiddlewareFunc {
 			for _, method := range authMethods {
 				ok, err := method(c)
 				if err != nil {
-					c.Logger().Error(err)
 					return err
 				}
 				if ok {
 					return next(c)
 				}
 			}
-			resp := errorResponse{
+			return errorResponse{
 				Code:    http.StatusForbidden,
 				Message: "unable to authorize",
 			}
-			return c.JSON(http.StatusForbidden, resp)
 		}
 	}
 }
@@ -365,12 +363,13 @@ func (v *View) requirePermission(names ...string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			resp := errorResponse{
+				Code:    http.StatusForbidden,
 				Message: "account missing permissions",
 			}
 			ctx, ok := c.Get(permissionCtxKey).(managers.Permissions)
 			if !ok {
 				resp.MissingPermissions = names
-				return c.JSON(http.StatusForbidden, resp)
+				return resp
 			}
 			for _, name := range names {
 				if !ctx.HasPermission(name) {
@@ -378,7 +377,7 @@ func (v *View) requirePermission(names ...string) echo.MiddlewareFunc {
 				}
 			}
 			if len(resp.MissingPermissions) > 0 {
-				return c.JSON(http.StatusForbidden, resp)
+				return resp
 			}
 			return next(c)
 		}

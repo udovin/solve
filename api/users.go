@@ -366,6 +366,8 @@ func (v *View) logoutAccount(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
+	cookie := http.Cookie{Name: sessionCookie}
+	c.SetCookie(&cookie)
 	return c.NoContent(http.StatusOK)
 }
 
@@ -540,7 +542,6 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 		login := c.Param("user")
 		accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 		if !ok {
-			c.Logger().Error("auth not extracted")
 			return fmt.Errorf("auth not extracted")
 		}
 		id, err := strconv.ParseInt(login, 10, 64)
@@ -548,12 +549,11 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 			user, err := v.core.Users.GetByLogin(login)
 			if err != nil {
 				if err == sql.ErrNoRows {
-					resp := errorResponse{
+					return errorResponse{
+						Code:    http.StatusNotFound,
 						Message: fmt.Sprintf("user %q not found", login),
 					}
-					return c.JSON(http.StatusNotFound, resp)
 				}
-				c.Logger().Error(err)
 				return err
 			}
 			c.Set(userKey, user)
@@ -563,12 +563,11 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 		user, err := v.core.Users.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResponse{
+				return errorResponse{
+					Code:    http.StatusNotFound,
 					Message: fmt.Sprintf("user %d not found", id),
 				}
-				return c.JSON(http.StatusNotFound, resp)
 			}
-			c.Logger().Error(err)
 			return err
 		}
 		c.Set(userKey, user)

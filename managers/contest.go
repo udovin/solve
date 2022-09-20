@@ -55,6 +55,10 @@ func addContestVirtualPermissions(permissions PermissionSet) {
 func addContestUpsolvingPermissions(permissions PermissionSet) {
 	permissions.AddPermission(
 		models.ObserveContestRole,
+		models.ObserveContestProblemsRole,
+		models.ObserveContestProblemRole,
+		models.ObserveContestSolutionsRole,
+		models.SubmitContestSolutionRole,
 	)
 }
 

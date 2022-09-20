@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "title": "Test contest",
+    "begin_time": 1577876400,
+    "duration": 7200,
+    "permissions": [
+      "register_contest"
+    ]
+  },
+  {
+    "id": 1,
+    "title": "Test contest",
+    "begin_time": 1577876400,
+    "duration": 7200,
+    "permissions": [
+      "observe_contest_problems",
+      "observe_contest_solutions",
+      "submit_contest_solution"
+    ]
+  }
+]

@@ -147,24 +147,6 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	<-ctx.Done()
 }
 
-// clientMain applies changes on server.
-func clientMain(cmd *cobra.Command, _ []string) {
-	cfg, err := getConfig(cmd)
-	if err != nil {
-		panic(err)
-	}
-	if cfg.SocketFile == "" {
-		panic("Socket file is not configured")
-	}
-	dialer := func(_ context.Context, _, _ string) (net.Conn, error) {
-		return net.Dial("unix", cfg.SocketFile)
-	}
-	client := http.Client{
-		Transport: &http.Transport{DialContext: dialer},
-	}
-	_ = client
-}
-
 func migrateMain(cmd *cobra.Command, args []string) {
 	createData, err := cmd.Flags().GetBool("create-data")
 	if err != nil {
@@ -217,11 +199,6 @@ func main() {
 		Run:   serverMain,
 		Short: "Starts API server",
 	})
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "client",
-		Run:   clientMain,
-		Short: "Commands for managing server",
-	})
 	migrateCmd := cobra.Command{
 		Use:   "migrate",
 		Run:   migrateMain,
@@ -234,6 +211,7 @@ func main() {
 		Run:   versionMain,
 		Short: "Prints information about version",
 	})
+	rootCmd.AddCommand(&ClientCmd)
 	if err := rootCmd.Execute(); err != nil {
 		panic(err)
 	}

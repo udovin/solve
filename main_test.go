@@ -75,18 +75,6 @@ func TestServerMain(t *testing.T) {
 	serverMain(&cmd, nil)
 }
 
-func TestClientMain(t *testing.T) {
-	cmd := cobra.Command{}
-	cmd.Flags().String("config", "", "")
-	cmd.Flags().Set("config", "not-found")
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("Expected panic")
-		}
-	}()
-	clientMain(&cmd, nil)
-}
-
 func TestMigrateMain(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)

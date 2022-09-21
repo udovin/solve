@@ -94,6 +94,9 @@ func (v *View) registerSocketUserHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/users/:user", v.observeUser, v.extractUser,
 	)
+	g.POST(
+		"/v0/register", v.registerUser,
+	)
 }
 
 func makeUser(user models.User, permissions managers.Permissions) User {
@@ -445,7 +448,7 @@ func validateMiddleName(errors errorFields, middleName string) {
 	}
 }
 
-func (f registerUserForm) validate() *errorResponse {
+func (f RegisterUserForm) validate() *errorResponse {
 	errors := errorFields{}
 	validateLogin(errors, f.Login)
 	validateEmail(errors, f.Email)
@@ -468,8 +471,8 @@ func (f registerUserForm) validate() *errorResponse {
 	}
 }
 
-// registerUserForm represents form for register new user.
-type registerUserForm struct {
+// RegisterUserForm represents form for register new user.
+type RegisterUserForm struct {
 	Login      string `json:"login" form:"login"`
 	Email      string `json:"email" form:"email"`
 	Password   string `json:"password" form:"password"`
@@ -478,7 +481,7 @@ type registerUserForm struct {
 	MiddleName string `json:"middle_name" form:"middle_name"`
 }
 
-func (f registerUserForm) Update(
+func (f RegisterUserForm) Update(
 	user *models.User, store *models.UserStore,
 ) *errorResponse {
 	if err := f.validate(); err != nil {
@@ -507,7 +510,7 @@ func (f registerUserForm) Update(
 
 // registerUser registers user.
 func (v *View) registerUser(c echo.Context) error {
-	var form registerUserForm
+	var form RegisterUserForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)

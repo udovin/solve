@@ -175,7 +175,7 @@ func (u *TestUser) AddRoles(names ...string) {
 func NewTestUser(e *TestEnv) *TestUser {
 	login := fmt.Sprintf("login-%d", e.Rand.Int31())
 	password := fmt.Sprintf("password-%d", e.Rand.Int63())
-	user, err := e.Client.Register(registerUserForm{
+	user, err := e.Client.Register(context.Background(), RegisterUserForm{
 		Login:      login,
 		Email:      login + "@example.com",
 		Password:   password,
@@ -307,37 +307,6 @@ func newTestClient(endpoint string) *testClient {
 	client := NewClient(endpoint)
 	client.client.Jar = &testJar{}
 	return &testClient{client}
-}
-
-func (c *testClient) Register(form registerUserForm) (User, error) {
-	data, err := json.Marshal(form)
-	if err != nil {
-		return User{}, err
-	}
-	req, err := http.NewRequest(
-		http.MethodPost, c.getURL("/v0/register"),
-		bytes.NewReader(data),
-	)
-	if err != nil {
-		return User{}, err
-	}
-	req.Header.Add("Content-Type", "application/json")
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return User{}, err
-	}
-	if resp.StatusCode != http.StatusCreated {
-		var respData errorResponse
-		if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
-			return User{}, err
-		}
-		return User{}, &respData
-	}
-	var respData User
-	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
-		return User{}, err
-	}
-	return respData, nil
 }
 
 func (c *testClient) Status() (Status, error) {

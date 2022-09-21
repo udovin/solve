@@ -55,17 +55,9 @@ Then run server (API will be available on `http://localhost:4242`):
 Then you can register new `admin` user with password `qwerty123`:
 
 ```bash
-curl -XPOST \
-    -F 'email=admin@gmail.com' \
-    -F 'login=admin' \
-    -F 'password=qwerty123' \
-    'http://localhost:4242/api/v0/register'
-```
-
-After that you can grant this user admin permissions (`admin_group` role):
-
-```bash
-curl -XPOST \
-    --unix-socket '/tmp/solve-server.sock' \
-    's/socket/v0/users/admin/roles/admin_group'
+./solve client create-user \
+  --login admin \
+  --password qwerty123 \
+  --email admin@gmail.com \
+  --add-role admin_group
 ```

@@ -26,12 +26,16 @@ func WithSessionCookie(value string) ClientOption {
 		if err != nil {
 			panic(err)
 		}
-		c.client.Jar.SetCookies(u, []*http.Cookie{
-			{
-				Name:  sessionCookie,
-				Value: value,
-			},
-		})
+		c.client.Jar.SetCookies(u, []*http.Cookie{{
+			Name:  sessionCookie,
+			Value: value,
+		}})
+	}
+}
+
+func WithTransport(transport *http.Transport) ClientOption {
+	return func(c *Client) {
+		c.client.Transport = transport
 	}
 }
 
@@ -104,6 +108,25 @@ func (c *Client) Logout(ctx context.Context) error {
 	}
 	_, err = c.doRequest(req, http.StatusOK, nil)
 	return err
+}
+
+func (c *Client) Register(
+	ctx context.Context, form RegisterUserForm,
+) (User, error) {
+	data, err := json.Marshal(form)
+	if err != nil {
+		return User{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPost, c.getURL("/v0/register"),
+		bytes.NewReader(data),
+	)
+	if err != nil {
+		return User{}, err
+	}
+	var respData User
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
 }
 
 func (c *Client) CreateCompiler(ctx context.Context, form CreateCompilerForm) (Compiler, error) {

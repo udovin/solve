@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -460,3 +461,25 @@ var (
 	sqlRepeatableRead = gosql.WithIsolation(sql.LevelRepeatableRead)
 	sqlReadOnly       = gosql.WithReadOnly(true)
 )
+
+func sortFunc[T any](a []T, less func(T, T) bool) {
+	impl := sortFuncImpl[T]{data: a, less: less}
+	sort.Sort(&impl)
+}
+
+type sortFuncImpl[T any] struct {
+	data []T
+	less func(T, T) bool
+}
+
+func (s *sortFuncImpl[T]) Len() int {
+	return len(s.data)
+}
+
+func (s *sortFuncImpl[T]) Swap(i, j int) {
+	s.data[i], s.data[j] = s.data[j], s.data[i]
+}
+
+func (s *sortFuncImpl[T]) Less(i, j int) bool {
+	return s.less(s.data[i], s.data[j])
+}

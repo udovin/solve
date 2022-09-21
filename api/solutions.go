@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
@@ -39,20 +38,6 @@ type Solution struct {
 
 type Solutions struct {
 	Solutions []Solution `json:"solutions"`
-}
-
-type solutionSorter []Solution
-
-func (v solutionSorter) Len() int {
-	return len(v)
-}
-
-func (v solutionSorter) Less(i, j int) bool {
-	return v[i].ID > v[j].ID
-}
-
-func (v solutionSorter) Swap(i, j int) {
-	v[i], v[j] = v[j], v[i]
 }
 
 func (v *View) tryFindSolutionTask(id int64) (models.Task, error) {
@@ -159,7 +144,7 @@ func (v *View) observeSolutions(c echo.Context) error {
 			resp.Solutions = append(resp.Solutions, v.makeSolution(c, accountCtx, solution, false))
 		}
 	}
-	sort.Sort(solutionSorter(resp.Solutions))
+	sortFunc(resp.Solutions, solutionGreater)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -223,4 +208,8 @@ func (v *View) getSolutionPermissions(
 		permissions[models.ObserveSolutionRole] = struct{}{}
 	}
 	return permissions
+}
+
+func solutionGreater(l, r Solution) bool {
+	return l.ID > r.ID
 }

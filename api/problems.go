@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -43,20 +42,6 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 type Problem struct {
 	ID    int64  `json:"id"`
 	Title string `json:"title"`
-}
-
-type problemSorter []Problem
-
-func (v problemSorter) Len() int {
-	return len(v)
-}
-
-func (v problemSorter) Less(i, j int) bool {
-	return v[i].ID > v[j].ID
-}
-
-func (v problemSorter) Swap(i, j int) {
-	v[i], v[j] = v[j], v[i]
 }
 
 type Problems struct {
@@ -113,7 +98,7 @@ func (v *View) observeProblems(c echo.Context) error {
 			resp.Problems = append(resp.Problems, makeProblem(problem))
 		}
 	}
-	sort.Sort(problemSorter(resp.Problems))
+	sortFunc(resp.Problems, problemGreater)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -256,4 +241,8 @@ func (v *View) getProblemPermissions(
 		permissions[models.DeleteProblemRole] = struct{}{}
 	}
 	return permissions
+}
+
+func problemGreater(l, r Problem) bool {
+	return l.ID > r.ID
 }

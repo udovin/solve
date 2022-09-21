@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sort"
 
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/managers"
@@ -44,20 +43,6 @@ type Compilers struct {
 	Compilers []Compiler `json:"compilers"`
 }
 
-type compilerSorter []Compiler
-
-func (v compilerSorter) Len() int {
-	return len(v)
-}
-
-func (v compilerSorter) Less(i, j int) bool {
-	return v[i].ID > v[j].ID
-}
-
-func (v compilerSorter) Swap(i, j int) {
-	v[i], v[j] = v[j], v[i]
-}
-
 // ObserveCompilers returns list of available compilers.
 func (v *View) ObserveCompilers(c echo.Context) error {
 	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
@@ -75,7 +60,7 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 			resp.Compilers = append(resp.Compilers, makeCompiler(compiler))
 		}
 	}
-	sort.Sort(compilerSorter(resp.Compilers))
+	sortFunc(resp.Compilers, compilerGreater)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -189,4 +174,8 @@ func (v *View) getCompilerPermissions(
 	permissions := ctx.Permissions.Clone()
 	permissions[models.ObserveCompilerRole] = struct{}{}
 	return permissions
+}
+
+func compilerGreater(l, r Compiler) bool {
+	return l.ID > r.ID
 }

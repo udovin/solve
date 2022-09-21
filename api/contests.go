@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -119,34 +118,6 @@ type ContestProblems struct {
 	Problems []ContestProblem `json:"problems"`
 }
 
-type contestSorter []Contest
-
-func (v contestSorter) Len() int {
-	return len(v)
-}
-
-func (v contestSorter) Less(i, j int) bool {
-	return v[i].ID > v[j].ID
-}
-
-func (v contestSorter) Swap(i, j int) {
-	v[i], v[j] = v[j], v[i]
-}
-
-type contestSolutionSorter []ContestSolution
-
-func (v contestSolutionSorter) Len() int {
-	return len(v)
-}
-
-func (v contestSolutionSorter) Less(i, j int) bool {
-	return v[i].ID > v[j].ID
-}
-
-func (v contestSolutionSorter) Swap(i, j int) {
-	v[i], v[j] = v[j], v[i]
-}
-
 var contestPermissions = []string{
 	models.UpdateContestRole,
 	models.DeleteContestRole,
@@ -237,7 +208,7 @@ func (v *View) observeContests(c echo.Context) error {
 			resp.Contests = append(resp.Contests, makeContest(contest, contestCtx, v.core))
 		}
 	}
-	sort.Sort(contestSorter(resp.Contests))
+	sortFunc(resp.Contests, contestGreater)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -384,6 +355,7 @@ func (v *View) observeContestProblems(c echo.Context) error {
 	for _, problem := range problems {
 		resp.Problems = append(resp.Problems, makeContestProblem(problem, v.core.Problems))
 	}
+	sortFunc(resp.Problems, contestProblemLess)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -400,7 +372,9 @@ type createContestProblemForm struct {
 	ProblemID int64  `json:"problem_id"`
 }
 
-func (f createContestProblemForm) validate() *errorResponse {
+func (f createContestProblemForm) Update(
+	problem *models.ContestProblem, problems *models.ProblemStore,
+) *errorResponse {
 	errors := errorFields{}
 	if len(f.Code) == 0 {
 		errors["code"] = errorField{Message: "code is empty"}
@@ -414,15 +388,6 @@ func (f createContestProblemForm) validate() *errorResponse {
 			Message:       "form has invalid fields",
 			InvalidFields: errors,
 		}
-	}
-	return nil
-}
-
-func (f createContestProblemForm) Update(
-	problem *models.ContestProblem, problems *models.ProblemStore,
-) *errorResponse {
-	if err := f.validate(); err != nil {
-		return err
 	}
 	if _, err := problems.Get(f.ProblemID); err != nil {
 		return &errorResponse{
@@ -627,7 +592,7 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 			resp.Solutions = append(resp.Solutions, v.makeContestSolution(c, solution, false))
 		}
 	}
-	sort.Sort(contestSolutionSorter(resp.Solutions))
+	sortFunc(resp.Solutions, contestSolutionGreater)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -981,4 +946,19 @@ func (v *View) getContestSolutionPermissions(
 		}
 	}
 	return permissions
+}
+
+func contestGreater(l, r Contest) bool {
+	return l.ID > r.ID
+}
+
+func contestSolutionGreater(l, r ContestSolution) bool {
+	return l.ID > r.ID
+}
+
+func contestProblemLess(l, r ContestProblem) bool {
+	if l.ContestID == r.ContestID {
+		return l.Code < r.Code
+	}
+	return l.ID < r.ID
 }

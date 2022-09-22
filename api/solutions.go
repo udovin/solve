@@ -45,18 +45,22 @@ func (v *View) tryFindSolutionTask(id int64) (models.Task, error) {
 	if err != nil {
 		return models.Task{}, err
 	}
+	var lastTask models.Task
 	for _, task := range tasks {
 		if task.Kind == models.JudgeSolutionTask {
 			var config models.JudgeSolutionTaskConfig
 			if err := task.ScanConfig(&config); err != nil {
 				continue
 			}
-			if config.SolutionID == id {
-				return task, nil
+			if config.SolutionID == id && task.ID > lastTask.ID {
+				lastTask = task
 			}
 		}
 	}
-	return models.Task{}, sql.ErrNoRows
+	if lastTask.ID == 0 {
+		return models.Task{}, sql.ErrNoRows
+	}
+	return lastTask, sql.ErrNoRows
 }
 
 func (v *View) findSolutionTask(c echo.Context, id int64) (models.Task, error) {

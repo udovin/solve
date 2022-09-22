@@ -8,7 +8,9 @@
     "permissions": [
       "update_contest",
       "delete_contest"
-    ]
+    ],
+    "enable_registration": false,
+    "enable_upsolving": false
   },
   {
     "id": 2,
@@ -18,7 +20,9 @@
     "permissions": [
       "update_contest",
       "delete_contest"
-    ]
+    ],
+    "enable_registration": false,
+    "enable_upsolving": false
   },
   {
     "contests": [
@@ -40,7 +44,9 @@
           "create_contest_solution",
           "update_contest_solution",
           "delete_contest_solution"
-        ]
+        ],
+        "enable_registration": false,
+        "enable_upsolving": false
       },
       {
         "id": 1,
@@ -58,7 +64,9 @@
           "create_contest_solution",
           "update_contest_solution",
           "delete_contest_solution"
-        ]
+        ],
+        "enable_registration": false,
+        "enable_upsolving": false
       }
     ]
   },
@@ -78,7 +86,9 @@
       "create_contest_solution",
       "update_contest_solution",
       "delete_contest_solution"
-    ]
+    ],
+    "enable_registration": false,
+    "enable_upsolving": false
   },
   {
     "id": 1,

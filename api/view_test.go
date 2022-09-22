@@ -104,7 +104,7 @@ func NewTestEnv(tb testing.TB) *TestEnv {
 			FilesDir: tb.TempDir(),
 		},
 	}
-	if _, ok := tb.(*testing.B); ok {
+	if _, ok := tb.(*testing.B); ok || os.Getenv("TEST_ENABLE_LOGS") != "1" {
 		log.SetLevel(log.OFF)
 		cfg.LogLevel = config.LogLevel(log.OFF)
 	}

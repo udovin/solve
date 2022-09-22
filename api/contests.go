@@ -97,11 +97,13 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 }
 
 type Contest struct {
-	ID          int64    `json:"id"`
-	Title       string   `json:"title"`
-	BeginTime   NInt64   `json:"begin_time,omitempty"`
-	Duration    int      `json:"duration,omitempty"`
-	Permissions []string `json:"permissions,omitempty"`
+	ID                 int64    `json:"id"`
+	Title              string   `json:"title"`
+	BeginTime          NInt64   `json:"begin_time,omitempty"`
+	Duration           int      `json:"duration,omitempty"`
+	Permissions        []string `json:"permissions,omitempty"`
+	EnableRegistration bool     `json:"enable_registration"`
+	EnableUpsolving    bool     `json:"enable_upsolving"`
 }
 
 type Contests struct {
@@ -140,6 +142,8 @@ func makeContest(contest models.Contest, permissions managers.Permissions, core 
 	if config, err := contest.GetConfig(); err == nil {
 		resp.BeginTime = config.BeginTime
 		resp.Duration = config.Duration
+		resp.EnableRegistration = config.EnableRegistration
+		resp.EnableUpsolving = config.EnableUpsolving
 	}
 	for _, permission := range contestPermissions {
 		if permissions.HasPermission(permission) {

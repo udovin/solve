@@ -109,12 +109,16 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	impl := factory.New(s)
 	if err := impl.Execute(taskCtx); err != nil {
 		s.core.Logger().Error("Task failed", err)
-		if err := task.SetStatus(ctx, models.FailedTask); err != nil {
+		statusCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := task.SetStatus(statusCtx, models.FailedTask); err != nil {
 			logger.Error("Unable to set failed task status", err)
 		}
 		return true
 	}
-	if err := task.SetStatus(ctx, models.SucceededTask); err != nil {
+	statusCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := task.SetStatus(statusCtx, models.SucceededTask); err != nil {
 		logger.Error("Unable to set succeeded task status", err)
 		return true
 	}

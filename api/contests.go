@@ -626,6 +626,7 @@ type ContestSolution struct {
 	ID          int64               `json:"id"`
 	ContestID   int64               `json:"contest_id"`
 	Problem     *ContestProblem     `json:"problem,omitempty"`
+	Compiler    *Compiler           `json:"compiler,omitempty"`
 	Participant *ContestParticipant `json:"participant,omitempty"`
 	Report      *SolutionReport     `json:"report"`
 	CreateTime  int64               `json:"create_time"`
@@ -746,6 +747,10 @@ func (v *View) makeContestSolution(c echo.Context, solution models.ContestSoluti
 	if baseSolution, err := v.core.Solutions.Get(solution.SolutionID); err == nil {
 		resp.CreateTime = baseSolution.CreateTime
 		resp.Report = v.makeSolutionReport(c, baseSolution, withLogs)
+		if compiler, err := v.core.Compilers.Get(baseSolution.CompilerID); err == nil {
+			compilerResp := makeCompiler(compiler)
+			resp.Compiler = &compilerResp
+		}
 	}
 	if problem, err := v.core.ContestProblems.Get(solution.ProblemID); err == nil {
 		problemResp := makeContestProblem(problem, v.core.Problems)

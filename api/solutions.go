@@ -31,6 +31,7 @@ func (v *View) registerSolutionHandlers(g *echo.Group) {
 type Solution struct {
 	ID         int64           `json:"id"`
 	Problem    *Problem        `json:"problem"`
+	Compiler   *Compiler       `json:"compiler"`
 	User       *User           `json:"user"`
 	Report     *SolutionReport `json:"report"`
 	CreateTime int64           `json:"create_time"`
@@ -117,6 +118,10 @@ func (v *View) makeSolution(
 	if problem, err := v.core.Problems.Get(solution.ProblemID); err == nil {
 		problemResp := makeProblem(problem)
 		resp.Problem = &problemResp
+	}
+	if compiler, err := v.core.Compilers.Get(solution.CompilerID); err == nil {
+		compilerResp := makeCompiler(compiler)
+		resp.Compiler = &compilerResp
 	}
 	if account, err := v.core.Accounts.Get(solution.AuthorID); err == nil {
 		switch account.Kind {

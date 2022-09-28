@@ -69,20 +69,20 @@ func ExtractZip(source, target string) (errRes error) {
 func ExtractTarGz(source, target string) (errRes error) {
 	file, err := os.Open(source)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot open file: %w", err)
 	}
 	defer func() {
 		_ = file.Close()
 	}()
 	reader, err := gzip.NewReader(file)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot open gzip reader: %w", err)
 	}
 	defer func() {
 		_ = reader.Close()
 	}()
 	if err := os.MkdirAll(target, os.ModePerm); err != nil {
-		return err
+		return fmt.Errorf("cannot prepare target directory: %w", err)
 	}
 	defer func() {
 		if errRes != nil {
@@ -98,7 +98,7 @@ func ExtractTarGz(source, target string) (errRes error) {
 			break
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot get header: %w", err)
 		}
 		if header == nil {
 			continue
@@ -112,7 +112,7 @@ func ExtractTarGz(source, target string) (errRes error) {
 			if err := os.Mkdir(
 				path, os.FileMode(header.Mode),
 			); err != nil {
-				return err
+				return fmt.Errorf("cannot create directory %q: %w", header.Name, err)
 			}
 		case tar.TypeReg:
 			if err := func() error {
@@ -121,13 +121,15 @@ func ExtractTarGz(source, target string) (errRes error) {
 					os.FileMode(header.Mode),
 				)
 				if err != nil {
-					return err
+					return fmt.Errorf("cannot create file %q: %w", header.Name, err)
 				}
 				defer func() {
 					_ = output.Close()
 				}()
-				_, err = io.Copy(output, archive)
-				return err
+				if _, err := io.Copy(output, archive); err != nil {
+					return fmt.Errorf("cannot write file %q: %w", header.Name, err)
+				}
+				return nil
 			}(); err != nil {
 				return err
 			}
@@ -136,9 +138,7 @@ func ExtractTarGz(source, target string) (errRes error) {
 		case tar.TypeSymlink:
 			symlinks[path] = header.Linkname
 		default:
-			return fmt.Errorf(
-				"unsupported type %q in %s", header.Typeflag, header.Name,
-			)
+			return fmt.Errorf("unsupported type %q in %q", header.Typeflag, header.Name)
 		}
 	}
 	for path, link := range links {

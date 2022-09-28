@@ -61,7 +61,7 @@ func (v *View) tryFindSolutionTask(id int64) (models.Task, error) {
 	if lastTask.ID == 0 {
 		return models.Task{}, sql.ErrNoRows
 	}
-	return lastTask, sql.ErrNoRows
+	return lastTask, nil
 }
 
 func (v *View) findSolutionTask(c echo.Context, id int64) (models.Task, error) {

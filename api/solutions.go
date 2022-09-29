@@ -1,8 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -33,6 +35,7 @@ type Solution struct {
 	Problem    *Problem        `json:"problem"`
 	Compiler   *Compiler       `json:"compiler"`
 	User       *User           `json:"user"`
+	Content    string          `json:"omitempty"`
 	Report     *SolutionReport `json:"report"`
 	CreateTime int64           `json:"create_time"`
 }
@@ -73,6 +76,21 @@ func (v *View) findSolutionTask(c echo.Context, id int64) (models.Task, error) {
 		return v.tryFindSolutionTask(id)
 	}
 	return tasks, err
+}
+
+func (v *View) makeSolutionContent(c echo.Context, solution models.Solution) string {
+	if solution.Content != "" {
+		return string(solution.Content)
+	} else if solution.ContentID != 0 {
+		if file, err := v.files.DownloadFile(c.Request().Context(), int64(solution.ContentID)); err == nil {
+			defer file.Close()
+			var content bytes.Buffer
+			if _, err := io.CopyN(&content, file, 64*1024); err == nil || err == io.EOF {
+				return content.String()
+			}
+		}
+	}
+	return ""
 }
 
 func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, withLogs bool) *SolutionReport {
@@ -131,6 +149,7 @@ func (v *View) makeSolution(
 			}
 		}
 	}
+	resp.Content = v.makeSolutionContent(c, solution)
 	resp.Report = v.makeSolutionReport(c, solution, withLogs)
 	return resp
 }

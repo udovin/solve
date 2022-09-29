@@ -1,17 +1,25 @@
-package core
+package migrations
 
 import (
 	"context"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/models"
 )
 
-func CreateData(ctx context.Context, c *Core) error {
-	c.Logger().Info("Creating default objects")
+func init() {
+	Data.AddMigration("001_create_roles", d001{})
+}
+
+type d001 struct{}
+
+func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
+	roleStore := models.NewRoleStore(db, "solve_role", "solve_role_event")
+	roleEdgeStore := models.NewRoleEdgeStore(db, "solve_role_edge", "solve_role_edge_event")
 	roles := map[string]int64{}
 	create := func(name string) error {
 		role := models.Role{Name: name}
-		if err := c.Roles.Create(ctx, &role); err != nil {
+		if err := roleStore.Create(ctx, &role); err != nil {
 			return err
 
 		}
@@ -23,7 +31,7 @@ func CreateData(ctx context.Context, c *Core) error {
 			RoleID:  roles[parent],
 			ChildID: roles[child],
 		}
-		return c.RoleEdges.Create(ctx, &edge)
+		return roleEdgeStore.Create(ctx, &edge)
 	}
 	allRoles := models.GetBuiltInRoles()
 	allGroups := []string{
@@ -72,5 +80,9 @@ func CreateData(ctx context.Context, c *Core) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (m d001) Unapply(ctx context.Context, db *gosql.DB) error {
 	return nil
 }

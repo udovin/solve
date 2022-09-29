@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	db.RegisterMigration(db.NewMigration("001_initial", m001))
+	Schema.AddMigration("001_initial", db.NewMigration(m001))
 }
 
 var m001 = []schema.Operation{

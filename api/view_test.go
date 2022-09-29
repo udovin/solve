@@ -23,8 +23,7 @@ import (
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
-
-	_ "github.com/udovin/solve/migrations"
+	"github.com/udovin/solve/migrations"
 )
 
 type TestEnv struct {
@@ -82,7 +81,8 @@ func (e *TestEnv) Check(data any) {
 func (e *TestEnv) Close() {
 	e.Server.Close()
 	e.Core.Stop()
-	_ = db.ApplyMigrations(context.Background(), e.Core.DB, db.WithZeroMigration)
+	_ = db.ApplyMigrations(context.Background(), e.Core.DB, "solve", migrations.Schema, db.WithZeroMigration)
+	_ = db.ApplyMigrations(context.Background(), e.Core.DB, "solve_data", migrations.Data, db.WithZeroMigration)
 	e.checks.Close()
 }
 
@@ -114,13 +114,13 @@ func NewTestEnv(tb testing.TB) *TestEnv {
 		env.Core = c
 	}
 	env.Core.SetupAllStores()
-	if err := db.ApplyMigrations(context.Background(), env.Core.DB, db.WithZeroMigration); err != nil {
+	ctx := context.Background()
+	_ = db.ApplyMigrations(ctx, env.Core.DB, "solve", migrations.Schema, db.WithZeroMigration)
+	_ = db.ApplyMigrations(ctx, env.Core.DB, "solve_data", migrations.Data, db.WithZeroMigration)
+	if err := db.ApplyMigrations(ctx, env.Core.DB, "solve", migrations.Schema); err != nil {
 		tb.Fatal("Error:", err)
 	}
-	if err := db.ApplyMigrations(context.Background(), env.Core.DB); err != nil {
-		tb.Fatal("Error:", err)
-	}
-	if err := core.CreateData(context.Background(), env.Core); err != nil {
+	if err := db.ApplyMigrations(ctx, env.Core.DB, "solve_data", migrations.Data); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	if err := env.Core.Start(); err != nil {

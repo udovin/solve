@@ -20,9 +20,7 @@ import (
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/invoker"
-
-	// Register DB migrations.
-	_ "github.com/udovin/solve/migrations"
+	"github.com/udovin/solve/migrations"
 )
 
 var testCtx, testCancel = context.WithCancel(context.Background())
@@ -148,7 +146,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 }
 
 func migrateMain(cmd *cobra.Command, args []string) {
-	createData, err := cmd.Flags().GetBool("create-data")
+	withData, err := cmd.Flags().GetBool("with-data")
 	if err != nil {
 		panic(err)
 	}
@@ -165,11 +163,11 @@ func migrateMain(cmd *cobra.Command, args []string) {
 	if len(args) > 0 {
 		options = append(options, db.WithMigration(args[0]))
 	}
-	if err := db.ApplyMigrations(context.Background(), c.DB, options...); err != nil {
+	if err := db.ApplyMigrations(context.Background(), c.DB, "solve", migrations.Schema, options...); err != nil {
 		panic(err)
 	}
-	if len(args) == 0 && createData {
-		if err := core.CreateData(context.Background(), c); err != nil {
+	if len(args) == 0 && withData {
+		if err := db.ApplyMigrations(context.Background(), c.DB, "solve_data", migrations.Data, options...); err != nil {
 			panic(err)
 		}
 	}
@@ -204,7 +202,7 @@ func main() {
 		Run:   migrateMain,
 		Short: "Applies migrations to database",
 	}
-	migrateCmd.Flags().Bool("create-data", false, "Create default objects")
+	migrateCmd.Flags().Bool("with-data", false, "Enable data migrations")
 	rootCmd.AddCommand(&migrateCmd)
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",

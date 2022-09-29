@@ -43,7 +43,7 @@ Then create config file `config.json` with following contents:
 Then apply database migrations:
 
 ```bash
-./solve migrate --create-data
+./solve migrate --with-data
 ```
 
 Then run server (API will be available on `http://localhost:4242`):

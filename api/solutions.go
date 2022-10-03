@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"unicode/utf8"
 
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/managers"
@@ -79,18 +80,23 @@ func (v *View) findSolutionTask(c echo.Context, id int64) (models.Task, error) {
 }
 
 func (v *View) makeSolutionContent(c echo.Context, solution models.Solution) string {
+	var result string
 	if solution.Content != "" {
-		return string(solution.Content)
+		if s := string(solution.Content); utf8.ValidString(s) {
+			result = s
+		}
 	} else if solution.ContentID != 0 {
 		if file, err := v.files.DownloadFile(c.Request().Context(), int64(solution.ContentID)); err == nil {
 			defer file.Close()
 			var content bytes.Buffer
 			if _, err := io.CopyN(&content, file, 64*1024); err == nil || err == io.EOF {
-				return content.String()
+				if s := content.String(); utf8.ValidString(s) {
+					result = s
+				}
 			}
 		}
 	}
-	return ""
+	return result
 }
 
 func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, withLogs bool) *SolutionReport {

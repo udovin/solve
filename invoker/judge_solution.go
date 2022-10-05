@@ -37,7 +37,7 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 	if err := ctx.ScanConfig(&t.config); err != nil {
 		return fmt.Errorf("unable to scan task config: %w", err)
 	}
-	solution, err := t.invoker.getSolution(t.config.SolutionID)
+	solution, err := t.invoker.getSolution(ctx, t.config.SolutionID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch task solution: %w", err)
 	}

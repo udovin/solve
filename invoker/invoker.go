@@ -109,14 +109,14 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	impl := factory.New(s)
 	if err := impl.Execute(taskCtx); err != nil {
 		s.core.Logger().Error("Task failed", err)
-		statusCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		statusCtx, cancel := context.WithTimeout(s.core.Context(), 30*time.Second)
 		defer cancel()
 		if err := task.SetStatus(statusCtx, models.FailedTask); err != nil {
 			logger.Error("Unable to set failed task status", err)
 		}
 		return true
 	}
-	statusCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	statusCtx, cancel := context.WithTimeout(s.core.Context(), 30*time.Second)
 	defer cancel()
 	if err := task.SetStatus(statusCtx, models.SucceededTask); err != nil {
 		logger.Error("Unable to set succeeded task status", err)
@@ -125,10 +125,10 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	return true
 }
 
-func (s *Invoker) getSolution(id int64) (models.Solution, error) {
+func (s *Invoker) getSolution(ctx context.Context, id int64) (models.Solution, error) {
 	solution, err := s.core.Solutions.Get(id)
 	if err == sql.ErrNoRows {
-		if err := s.core.Solutions.Sync(context.Background()); err != nil {
+		if err := s.core.Solutions.Sync(ctx); err != nil {
 			return models.Solution{}, fmt.Errorf(
 				"unable to sync solutions: %w", err,
 			)
@@ -143,7 +143,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	if err := task.ScanConfig(&taskConfig); err != nil {
 		return fmt.Errorf("unable to scan task config: %w", err)
 	}
-	solution, err := s.getSolution(taskConfig.SolutionID)
+	solution, err := s.getSolution(ctx, taskConfig.SolutionID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch task solution: %w", err)
 	}

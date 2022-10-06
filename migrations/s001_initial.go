@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	db.RegisterMigration(db.NewMigration("001_initial", m001))
+	Schema.AddMigration("001_initial", db.NewMigration(s001))
 }
 
-var m001 = []schema.Operation{
+var s001 = []schema.Operation{
 	schema.CreateTable{
 		Name: "solve_setting",
 		Columns: []schema.Column{

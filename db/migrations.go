@@ -13,37 +13,40 @@ import (
 	"github.com/udovin/solve/db/schema"
 )
 
-func ApplyMigrations(ctx context.Context, conn *gosql.DB, options ...MigrateOption) error {
-	m := &manager{
-		db:    conn,
-		store: NewObjectStore[migration]("id", migrationTableName, conn),
-	}
-	if err := m.init(); err != nil {
-		return err
-	}
-	return m.Apply(ctx, options...)
-}
-
 // Migration represents database migration.
 type Migration interface {
-	// Name should return unique migration name.
-	Name() string
 	// Apply should apply database migration.
 	Apply(ctx context.Context, conn *gosql.DB) error
 	// Unapply should unapply database migration.
 	Unapply(ctx context.Context, conn *gosql.DB) error
 }
 
+type NamedMigration struct {
+	Name      string
+	Migration Migration
+}
+
+// MigrationGroup represents group of database migrations.
+type MigrationGroup interface {
+	// Register registers new migration to group.
+	AddMigration(name string, m Migration)
+	// GetMigration returns migration by name.
+	GetMigration(name string) Migration
+	// GetMigrations returns migrations by their order.
+	GetMigrations() []NamedMigration
+}
+
+func NewMigration(operations []schema.Operation) Migration {
+	return &simpleMigration{
+		operations: operations,
+	}
+}
+
 type simpleMigration struct {
-	name       string
 	operations []schema.Operation
 }
 
-func (m simpleMigration) Name() string {
-	return m.name
-}
-
-func (m simpleMigration) Apply(ctx context.Context, conn *gosql.DB) error {
+func (m *simpleMigration) Apply(ctx context.Context, conn *gosql.DB) error {
 	tx := GetRunner(ctx, conn)
 	for _, table := range m.operations {
 		query, err := table.BuildApply(conn.Dialect())
@@ -57,7 +60,7 @@ func (m simpleMigration) Apply(ctx context.Context, conn *gosql.DB) error {
 	return nil
 }
 
-func (m simpleMigration) Unapply(ctx context.Context, conn *gosql.DB) error {
+func (m *simpleMigration) Unapply(ctx context.Context, conn *gosql.DB) error {
 	tx := GetRunner(ctx, conn)
 	for i := 0; i < len(m.operations); i++ {
 		table := m.operations[len(m.operations)-i-1]
@@ -72,21 +75,61 @@ func (m simpleMigration) Unapply(ctx context.Context, conn *gosql.DB) error {
 	return nil
 }
 
-func NewMigration(name string, operations []schema.Operation) Migration {
-	return &simpleMigration{
-		name:       name,
-		operations: operations,
+func NewMigrationGroup() MigrationGroup {
+	return &migrationGroup{
+		migrations: map[string]Migration{},
 	}
 }
 
-var registeredMigrations = map[string]Migration{}
+type migrationGroup struct {
+	migrations map[string]Migration
+}
 
-func RegisterMigration(m Migration) {
-	name := m.Name()
-	if _, ok := registeredMigrations[name]; ok {
-		panic(fmt.Errorf("migration %q already registered", name))
+func (g *migrationGroup) AddMigration(name string, m Migration) {
+	if _, ok := g.migrations[name]; ok {
+		panic(fmt.Errorf("migration %q already exists", name))
 	}
-	registeredMigrations[name] = m
+	g.migrations[name] = m
+}
+
+func (g *migrationGroup) GetMigration(name string) Migration {
+	migration, ok := g.migrations[name]
+	if !ok {
+		panic(fmt.Errorf("migration %q does not exists", name))
+	}
+	return migration
+}
+
+func (g *migrationGroup) GetMigrations() []NamedMigration {
+	var names []string
+	for name := range g.migrations {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var migrations []NamedMigration
+	for _, name := range names {
+		migration, ok := g.migrations[name]
+		if !ok {
+			panic(fmt.Errorf("migration %q does not exists", name))
+		}
+		migrations = append(migrations, NamedMigration{
+			Name:      name,
+			Migration: migration,
+		})
+	}
+	return migrations
+}
+
+func ApplyMigrations(ctx context.Context, conn *gosql.DB, name string, g MigrationGroup, options ...MigrateOption) error {
+	m := &manager{
+		db:    conn,
+		group: name,
+		store: NewObjectStore[migration]("id", migrationTableName, conn),
+	}
+	if err := m.init(); err != nil {
+		return err
+	}
+	return m.Apply(ctx, g, options...)
 }
 
 type migrationState struct {
@@ -97,6 +140,7 @@ type migrationState struct {
 
 type manager struct {
 	db    *gosql.DB
+	group string
 	store ObjectStore[migration, *migration]
 }
 
@@ -109,15 +153,6 @@ func (m *manager) init() error {
 	return err
 }
 
-func getMigrations() []Migration {
-	var migrations []Migration
-	for _, migration := range registeredMigrations {
-		migrations = append(migrations, migration)
-	}
-	sort.Sort(migrationImplSorter(migrations))
-	return migrations
-}
-
 func (m *manager) getAppliedMigrations(ctx context.Context) ([]migration, error) {
 	var migrations []migration
 	rows, err := m.store.LoadObjects(ctx)
@@ -126,14 +161,16 @@ func (m *manager) getAppliedMigrations(ctx context.Context) ([]migration, error)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		migrations = append(migrations, rows.Row())
+		if row := rows.Row(); row.Group == m.group {
+			migrations = append(migrations, row)
+		}
 	}
 	sort.Sort(migrationSorter(migrations))
 	return migrations, rows.Err()
 }
 
-func (m *manager) getState(ctx context.Context) ([]migrationState, error) {
-	migrations := getMigrations()
+func (m *manager) getState(ctx context.Context, g MigrationGroup) ([]migrationState, error) {
+	migrations := g.GetMigrations()
 	applied, err := m.getAppliedMigrations(ctx)
 	if err != nil {
 		return nil, err
@@ -141,14 +178,14 @@ func (m *manager) getState(ctx context.Context) ([]migrationState, error) {
 	var result []migrationState
 	it, jt := 0, 0
 	for it < len(migrations) && jt < len(applied) {
-		if migrations[it].Name() < applied[jt].Name {
+		if migrations[it].Name < applied[jt].Name {
 			result = append(result, migrationState{
-				Name:      migrations[it].Name(),
+				Name:      migrations[it].Name,
 				Applied:   false,
 				Supported: true,
 			})
 			it++
-		} else if applied[jt].Name < migrations[it].Name() {
+		} else if applied[jt].Name < migrations[it].Name {
 			result = append(result, migrationState{
 				Name:      applied[jt].Name,
 				Applied:   true,
@@ -167,7 +204,7 @@ func (m *manager) getState(ctx context.Context) ([]migrationState, error) {
 	}
 	for it < len(migrations) {
 		result = append(result, migrationState{
-			Name:      migrations[it].Name(),
+			Name:      migrations[it].Name,
 			Applied:   false,
 			Supported: true,
 		})
@@ -206,8 +243,8 @@ func WithZeroMigration(state []migrationState, endPos *int) error {
 	return nil
 }
 
-func (m *manager) Apply(ctx context.Context, options ...MigrateOption) error {
-	state, err := m.getState(ctx)
+func (m *manager) Apply(ctx context.Context, g MigrationGroup, options ...MigrateOption) error {
+	state, err := m.getState(ctx, g)
 	if err != nil {
 		return err
 	}
@@ -224,22 +261,19 @@ func (m *manager) Apply(ctx context.Context, options ...MigrateOption) error {
 		}
 	}
 	if endPos < beginPos {
-		return m.applyBackward(ctx, state[endPos:beginPos])
+		return m.applyBackward(ctx, g, state[endPos:beginPos])
 	}
-	return m.applyForward(ctx, state[beginPos:endPos])
+	return m.applyForward(ctx, g, state[beginPos:endPos])
 }
 
-func (m *manager) applyForward(ctx context.Context, migrations []migrationState) error {
+func (m *manager) applyForward(ctx context.Context, g MigrationGroup, migrations []migrationState) error {
 	if len(migrations) == 0 {
-		log.Info("No migrations to apply")
+		log.Info("No migrations to apply: ", m.group)
 		return nil
 	}
 	for _, mgr := range migrations {
-		log.Info("Applying migration:", mgr.Name)
-		impl, ok := registeredMigrations[mgr.Name]
-		if !ok {
-			return fmt.Errorf("migration %q is not supported", mgr.Name)
-		}
+		log.Info("Applying migration: ", m.group, ".", mgr.Name)
+		impl := g.GetMigration(mgr.Name)
 		if err := gosql.WrapTx(ctx, m.db.DB, func(tx *sql.Tx) error {
 			ctx := WithTx(ctx, tx)
 			// Apply migration.
@@ -248,6 +282,7 @@ func (m *manager) applyForward(ctx context.Context, migrations []migrationState)
 			}
 			// Save to database that migration was applied.
 			object := migration{
+				Group:   m.group,
 				Name:    mgr.Name,
 				Version: config.Version,
 				Time:    time.Now().Unix(),
@@ -256,13 +291,13 @@ func (m *manager) applyForward(ctx context.Context, migrations []migrationState)
 		}); err != nil {
 			return err
 		}
-		log.Info("Migration applied:", mgr.Name)
+		log.Info("Migration applied: ", m.group, ".", mgr.Name)
 	}
 	return nil
 }
 
-func (m *manager) getAppliedMigration(ctx context.Context, name string) (migration, error) {
-	rows, err := m.store.FindObjects(ctx, gosql.Column("name").Equal(name))
+func (m *manager) getAppliedMigration(ctx context.Context, group string, name string) (migration, error) {
+	rows, err := m.store.FindObjects(ctx, gosql.Column("group").Equal(group).And(gosql.Column("name").Equal(name)))
 	if err != nil {
 		return migration{}, err
 	}
@@ -278,24 +313,21 @@ func (m *manager) getAppliedMigration(ctx context.Context, name string) (migrati
 	return migration{}, sql.ErrNoRows
 }
 
-func (m *manager) applyBackward(ctx context.Context, migrations []migrationState) error {
+func (m *manager) applyBackward(ctx context.Context, g MigrationGroup, migrations []migrationState) error {
 	if len(migrations) == 0 {
-		log.Info("No migrations to reverse apply")
+		log.Info("No migrations to reverse apply: ", m.group)
 		return nil
 	}
 	for i := 0; i < len(migrations); i++ {
 		mgr := migrations[len(migrations)-i-1]
-		log.Info("Reverse applying migration:", mgr.Name)
-		impl, ok := registeredMigrations[mgr.Name]
-		if !ok {
-			return fmt.Errorf("migration %q is not supported", mgr.Name)
-		}
+		log.Info("Reverse applying migration: ", m.group, ".", mgr.Name)
+		impl := g.GetMigration(mgr.Name)
 		if !mgr.Applied {
 			return fmt.Errorf("migration %q is not applied", mgr.Name)
 		}
 		if err := gosql.WrapTx(ctx, m.db.DB, func(tx *sql.Tx) error {
 			ctx := WithTx(ctx, tx)
-			object, err := m.getAppliedMigration(ctx, mgr.Name)
+			object, err := m.getAppliedMigration(ctx, m.group, mgr.Name)
 			if err != nil {
 				return err
 			}
@@ -306,13 +338,14 @@ func (m *manager) applyBackward(ctx context.Context, migrations []migrationState
 		}); err != nil {
 			return err
 		}
-		log.Info("Migration reverse applied:", mgr.Name)
+		log.Info("Migration reverse applied: ", m.group, ".", mgr.Name)
 	}
 	return nil
 }
 
 type migration struct {
 	ID      int64  `db:"id"`
+	Group   string `db:"group"`
 	Name    string `db:"name"`
 	Version string `db:"version"`
 	Time    int64  `db:"time"`
@@ -332,6 +365,7 @@ var mirgationTable = schema.CreateTable{
 	Name: migrationTableName,
 	Columns: []schema.Column{
 		{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+		{Name: "group", Type: schema.String},
 		{Name: "name", Type: schema.String},
 		{Name: "version", Type: schema.String},
 		{Name: "time", Type: schema.Int64},
@@ -349,19 +383,5 @@ func (v migrationSorter) Less(i, j int) bool {
 }
 
 func (v migrationSorter) Swap(i, j int) {
-	v[i], v[j] = v[j], v[i]
-}
-
-type migrationImplSorter []Migration
-
-func (v migrationImplSorter) Len() int {
-	return len(v)
-}
-
-func (v migrationImplSorter) Less(i, j int) bool {
-	return v[i].Name() < v[j].Name()
-}
-
-func (v migrationImplSorter) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
 }

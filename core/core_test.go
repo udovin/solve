@@ -7,8 +7,7 @@ import (
 
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/db"
-
-	_ "github.com/udovin/solve/migrations"
+	"github.com/udovin/solve/migrations"
 )
 
 var testCfg = config.Config{
@@ -26,7 +25,7 @@ func TestNewCore(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := db.ApplyMigrations(context.Background(), c.DB); err != nil {
+	if err := db.ApplyMigrations(context.Background(), c.DB, "solve", migrations.Schema); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := c.Start(); err != nil {
@@ -67,7 +66,7 @@ func TestCore_WithTx(t *testing.T) {
 		t.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := db.ApplyMigrations(context.Background(), c.DB); err != nil {
+	if err := db.ApplyMigrations(context.Background(), c.DB, "solve", migrations.Schema); err != nil {
 		t.Fatal("Error:", err)
 	}
 	if err := c.Start(); err != nil {

@@ -8,8 +8,7 @@ import (
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
-
-	_ "github.com/udovin/solve/migrations"
+	"github.com/udovin/solve/migrations"
 )
 
 var testInvoker *Invoker
@@ -32,7 +31,7 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := db.ApplyMigrations(context.Background(), c.DB); err != nil {
+	if err := db.ApplyMigrations(context.Background(), c.DB, "solve", migrations.Schema); err != nil {
 		tb.Fatal("Error:", err)
 	}
 	if err := c.Start(); err != nil {
@@ -42,6 +41,7 @@ func testSetup(tb testing.TB) {
 }
 
 func testTeardown(tb testing.TB) {
+	_ = db.ApplyMigrations(context.Background(), testInvoker.core.DB, "solve", migrations.Schema, db.WithZeroMigration)
 	testInvoker.core.Stop()
 }
 

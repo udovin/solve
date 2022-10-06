@@ -12,6 +12,7 @@ import (
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
+	"github.com/udovin/solve/migrations"
 )
 
 var (
@@ -49,7 +50,7 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := db.ApplyMigrations(context.Background(), c.DB); err != nil {
+	if err := db.ApplyMigrations(context.Background(), c.DB, "solve", migrations.Schema); err != nil {
 		tb.Fatal("Error:", err)
 	}
 }
@@ -60,7 +61,7 @@ func testTeardown(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := db.ApplyMigrations(context.Background(), c.DB, db.WithZeroMigration); err != nil {
+	if err := db.ApplyMigrations(context.Background(), c.DB, "solve", migrations.Schema, db.WithZeroMigration); err != nil {
 		tb.Fatal("Error:", err)
 	}
 }
@@ -80,7 +81,7 @@ func TestMigrateMain(t *testing.T) {
 	defer testTeardown(t)
 	cmd := cobra.Command{}
 	cmd.Flags().String("config", "", "")
-	cmd.Flags().Bool("create-data", false, "")
+	cmd.Flags().Bool("with-data", false, "")
 	cmd.Flags().Set("config", testConfigFile.Name())
 	go testCancel()
 	migrateMain(&cmd, nil)

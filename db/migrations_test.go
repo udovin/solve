@@ -8,8 +8,7 @@ import (
 
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/db"
-
-	_ "github.com/udovin/solve/migrations"
+	"github.com/udovin/solve/migrations"
 )
 
 func TestMigrations(t *testing.T) {
@@ -25,10 +24,10 @@ func TestMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := db.ApplyMigrations(context.Background(), conn); err != nil {
+	if err := db.ApplyMigrations(context.Background(), conn, "solve", migrations.Schema); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := db.ApplyMigrations(context.Background(), conn, db.WithZeroMigration); err != nil {
+	if err := db.ApplyMigrations(context.Background(), conn, "solve", migrations.Schema, db.WithZeroMigration); err != nil {
 		t.Fatal("Error:", err)
 	}
 }
@@ -65,10 +64,10 @@ func TestPostgresMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := db.ApplyMigrations(context.Background(), conn); err != nil {
+	if err := db.ApplyMigrations(context.Background(), conn, "solve", migrations.Schema); err != nil {
 		t.Fatal("Error:", err)
 	}
-	if err := db.ApplyMigrations(context.Background(), conn, db.WithZeroMigration); err != nil {
+	if err := db.ApplyMigrations(context.Background(), conn, "solve", migrations.Schema, db.WithZeroMigration); err != nil {
 		t.Fatal("Error:", err)
 	}
 }

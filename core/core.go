@@ -56,6 +56,10 @@ type Core struct {
 	context context.Context
 	cancel  context.CancelFunc
 	waiter  sync.WaitGroup
+	//
+	taskContext context.Context
+	taskCancel  context.CancelFunc
+	taskWaiter  sync.WaitGroup
 	// DB stores database connection.
 	DB *gosql.DB
 	// logger contains logger.
@@ -85,9 +89,14 @@ func (c *Core) Start() error {
 		return fmt.Errorf("core already started")
 	}
 	c.Logger().Debug("Starting core")
-	defer c.Logger().Debug("Core started")
 	c.context, c.cancel = context.WithCancel(context.Background())
-	return c.startStoreLoops()
+	c.taskContext, c.taskCancel = context.WithCancel(c.context)
+	if err := c.startStoreLoops(); err != nil {
+		c.Stop()
+		return err
+	}
+	c.Logger().Debug("Core started")
+	return nil
 }
 
 // Stop stops syncing stores.
@@ -97,9 +106,15 @@ func (c *Core) Stop() {
 	}
 	c.Logger().Debug("Stopping core")
 	defer c.Logger().Debug("Core stopped")
+	c.taskCancel()
+	c.taskWaiter.Wait()
 	c.cancel()
 	c.waiter.Wait()
 	c.context, c.cancel = nil, nil
+}
+
+func (c *Core) Context() context.Context {
+	return c.context
 }
 
 // WrapTx runs function with transaction.
@@ -115,10 +130,18 @@ func (c *Core) WrapTx(
 // StartTask starts task in new goroutine.
 func (c *Core) StartTask(name string, task func(ctx context.Context)) {
 	c.Logger().Info("Start task", Any("task", name))
+	c.taskWaiter.Add(1)
+	c.startCoreTask(func() {
+		defer c.taskWaiter.Done()
+		defer c.Logger().Info("Task finished", Any("task", name))
+		task(c.taskContext)
+	})
+}
+
+func (c *Core) startCoreTask(task func()) {
 	c.waiter.Add(1)
 	go func() {
-		defer c.Logger().Info("Task finished", Any("task", name))
 		defer c.waiter.Done()
-		task(c.context)
+		task()
 	}()
 }

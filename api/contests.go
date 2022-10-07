@@ -94,6 +94,11 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.extractContest, v.extractContestParticipant,
 		v.requirePermission(models.DeleteContestParticipantRole),
 	)
+	g.POST(
+		"/v0/contests/:contest/register", v.registerContest,
+		v.extractAuth(v.sessionAuth), v.extractContest,
+		v.requirePermission(models.RegisterContestRole),
+	)
 }
 
 type Contest struct {
@@ -493,7 +498,7 @@ type createContestParticipantForm struct {
 }
 
 func (f createContestParticipantForm) Update(
-	participant *models.ContestParticipant, core *core.Core,
+	c echo.Context, participant *models.ContestParticipant, core *core.Core,
 ) *errorResponse {
 	if f.UserID != nil {
 		user, err := core.Users.Get(*f.UserID)
@@ -521,7 +526,7 @@ func (f createContestParticipantForm) Update(
 	if participant.AccountID == 0 {
 		return &errorResponse{
 			Code:    http.StatusBadRequest,
-			Message: "participant account is not specified",
+			Message: localize(c, "Participant account is not specified"),
 		}
 	}
 	return nil
@@ -539,7 +544,7 @@ func (v *View) createContestParticipant(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 	var participant models.ContestParticipant
-	if err := form.Update(&participant, v.core); err != nil {
+	if err := form.Update(c, &participant, v.core); err != nil {
 		return err
 	}
 	participant.ContestID = contest.ID
@@ -551,8 +556,11 @@ func (v *View) createContestParticipant(c echo.Context) error {
 		for _, p := range participants {
 			if p.Kind == participant.Kind {
 				return errorResponse{
-					Code:    http.StatusBadRequest,
-					Message: fmt.Sprintf("participant with %q kind already exists", participant.Kind),
+					Code: http.StatusBadRequest,
+					Message: localize(
+						c, "Participant with {kind} kind already exists",
+						replaceField("kind", p.Kind),
+					),
 				}
 			}
 		}
@@ -572,6 +580,38 @@ func (v *View) deleteContestParticipant(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, makeContestParticipant(c, participant, v.core))
+}
+
+func (v *View) registerContest(c echo.Context) error {
+	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
+	if !ok {
+		return fmt.Errorf("contest not extracted")
+	}
+	contest := contestCtx.Contest
+	account := contestCtx.Account
+	if account == nil {
+		return fmt.Errorf("account not extracted")
+	}
+	participant := models.ContestParticipant{
+		Kind:      models.RegularParticipant,
+		ContestID: contest.ID,
+		AccountID: account.ID,
+	}
+	for _, p := range contestCtx.Participants {
+		if p.ID != 0 && p.Kind == participant.Kind {
+			return errorResponse{
+				Code: http.StatusBadRequest,
+				Message: localize(
+					c, "Participant with {kind} kind already exists",
+					replaceField("kind", p.Kind),
+				),
+			}
+		}
+	}
+	if err := v.core.ContestParticipants.Create(getContext(c), &participant); err != nil {
+		return err
+	}
+	return c.JSON(http.StatusCreated, makeContestParticipant(c, participant, v.core))
 }
 
 // ContestSolutions represents contest solutions response.

@@ -9,8 +9,10 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/labstack/echo/v4"
+	"golang.org/x/text/language"
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/config"
@@ -29,7 +31,7 @@ type View struct {
 
 // Register registers handlers in specified group.
 func (v *View) Register(g *echo.Group) {
-	g.Use(wrapResponse, v.logVisit)
+	g.Use(wrapResponse, v.logVisit, v.extractLocale)
 	g.GET("/ping", v.ping)
 	g.GET("/health", v.health)
 	v.registerUserHandlers(g)
@@ -94,6 +96,7 @@ const (
 	problemKey            = "problem"
 	solutionKey           = "solution"
 	compilerKey           = "compiler"
+	localeKey             = "locale"
 )
 
 type (
@@ -133,6 +136,28 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 				}
 			}
 		}()
+		return next(c)
+	}
+}
+
+func (v *View) extractLocale(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		acceptLanguage := c.Request().Header.Get("Accept-Language")
+		tags, _, err := language.ParseAcceptLanguage(acceptLanguage)
+		if err != nil {
+			return next(c)
+		}
+		for _, tag := range tags {
+			if tag.String() != "en" && tag.String() != "ru" {
+				continue
+			}
+			locale := settingLocale{
+				name:     tag.String(),
+				settings: v.core.Settings,
+			}
+			c.Set(localeKey, &locale)
+			break
+		}
 		return next(c)
 	}
 }
@@ -402,35 +427,110 @@ func (v *View) getSessionByCookie(
 	return session, nil
 }
 
-var (
-	truePtr  = getPtr(true)
-	falsePtr = getPtr(false)
-)
-
-func (v *View) getBoolSetting(ctx echo.Context, key string) *bool {
+func (v *View) getStringSetting(c echo.Context, key string) *string {
 	setting, err := v.core.Settings.GetByKey(key)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			ctx.Logger().Error(
+			c.Logger().Error(
 				"Unable to get setting",
 				core.Any("key", key), err,
 			)
 		}
 		return nil
 	}
-	switch strings.ToLower(setting.Value) {
+	if setting.Key != key {
+		panic(fmt.Errorf("unexpected key %q != %q", setting.Key, key))
+	}
+	return &setting.Value
+}
+
+func (v *View) getBoolSetting(c echo.Context, key string) *bool {
+	setting := v.getStringSetting(c, key)
+	if setting == nil {
+		return nil
+	}
+	switch strings.ToLower(*setting) {
 	case "1", "t", "true":
-		return truePtr
+		return getPtr(true)
 	case "0", "f", "false":
-		return falsePtr
+		return getPtr(false)
 	default:
-		ctx.Logger().Warn(
+		c.Logger().Warn(
 			"Setting has invalid value",
 			core.Any("key", key),
-			core.Any("value", setting.Value),
+			core.Any("value", *setting),
 		)
 		return nil
 	}
+}
+
+type Locale interface {
+	Localize(text string, options ...func(*string)) string
+}
+
+var stubLocaleValue stubLocale
+
+func getLocale(c echo.Context) Locale {
+	locale, ok := c.Get(localeKey).(Locale)
+	if ok {
+		return locale
+	}
+	return &stubLocaleValue
+}
+
+func localize(c echo.Context, text string, options ...func(*string)) string {
+	return getLocale(c).Localize(text, options...)
+}
+
+func replaceField(name string, value any) func(*string) {
+	return func(text *string) {
+		*text = strings.ReplaceAll(*text, "{"+name+"}", fmt.Sprint(value))
+	}
+}
+
+type stubLocale struct{}
+
+func (stubLocale) Localize(text string, options ...func(*string)) string {
+	for _, option := range options {
+		option(&text)
+	}
+	return text
+}
+
+type settingLocale struct {
+	name     string
+	settings *models.SettingStore
+}
+
+func (l *settingLocale) Localize(text string, options ...func(*string)) string {
+	key := l.getLocalizationKey(text)
+	if localized, err := l.settings.GetByKey(key); err == nil {
+		text = localized.Value
+	}
+	for _, option := range options {
+		option(&text)
+	}
+	return text
+}
+
+func (l *settingLocale) getLocalizationKey(text string) string {
+	var key strings.Builder
+	key.WriteString("localization.")
+	key.WriteString(l.name)
+	key.WriteRune('.')
+	split := false
+	for _, c := range text {
+		if unicode.IsLetter(c) {
+			if split {
+				key.WriteRune('_')
+				split = false
+			}
+			key.WriteRune(unicode.ToLower(c))
+		} else {
+			split = true
+		}
+	}
+	return key.String()
 }
 
 func getContext(c echo.Context) context.Context {

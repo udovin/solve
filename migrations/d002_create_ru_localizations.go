@@ -28,6 +28,7 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		"invalid_contest_id":                        "Неправильный ID соревнования.",
 		"invalid_filter":                            "Неправильный фильтр.",
 		"invalid_participant_id":                    "Неправильный ID участника.",
+		"invalid_password":                          "Неверный пароль.",
 		"invalid_solution_id":                       "Неправильный ID решения.",
 		"name_is_too_long":                          "Название слишком длинное.",
 		"name_is_too_short":                         "Название слишком короткое.",
@@ -41,8 +42,10 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		"title_is_required":                         "Заголовок является обязательным.",
 		"title_is_too_long":                         "Заголовок слишком длинный.",
 		"title_is_too_short":                        "Заголовок слишком короткий.",
+		"unable_to_authorize":                       "Авторизация не пройдена.",
 		"user_id_does_not_exists":                   "Пользователь {id} не существует.",
 		"user_login_does_not_exists":                "Пользователь \"{login}\" не существует.",
+		"user_not_found":                            "Пользователь не найден.",
 	}
 	for key, localization := range localizations {
 		setting := models.Setting{

@@ -285,7 +285,7 @@ func (v *View) extractAuth(authMethods ...authMethod) echo.MiddlewareFunc {
 			}
 			return errorResponse{
 				Code:    http.StatusForbidden,
-				Message: "unable to authorize",
+				Message: localize(c, "Unable to authorize."),
 			}
 		}
 	}
@@ -341,7 +341,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
 				Code:    http.StatusForbidden,
-				Message: "user not found",
+				Message: localize(c, "User not found."),
 			}
 			return false, resp
 		}
@@ -350,7 +350,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 	if !v.core.Users.CheckPassword(user, form.Password) {
 		resp := errorResponse{
 			Code:    http.StatusForbidden,
-			Message: "invalid password",
+			Message: localize(c, "Invalid password."),
 		}
 		return false, resp
 	}
@@ -390,7 +390,7 @@ func (v *View) requirePermission(names ...string) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			resp := errorResponse{
 				Code:    http.StatusForbidden,
-				Message: "account missing permissions",
+				Message: localize(c, "Account missing permissions."),
 			}
 			ctx, ok := c.Get(permissionCtxKey).(managers.Permissions)
 			if !ok {

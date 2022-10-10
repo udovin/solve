@@ -3,6 +3,7 @@ package managers
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/udovin/solve/core"
@@ -43,7 +44,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 				return nil, err
 			}
 			c.User = &user
-			role, err := m.getUserRole()
+			role, err := m.getUserRole(user.Status)
 			if err != nil {
 				return nil, err
 			}
@@ -82,9 +83,9 @@ func (m *AccountManager) getGuestRole() (models.Role, error) {
 	return m.Roles.GetByName(roleName)
 }
 
-func (m *AccountManager) getUserRole() (models.Role, error) {
-	roleName := "user_group"
-	roleNameSetting, err := m.Settings.GetByKey("accounts.user_role")
+func (m *AccountManager) getUserRole(status models.UserStatus) (models.Role, error) {
+	roleName := fmt.Sprintf("%s_user_group", status)
+	roleNameSetting, err := m.Settings.GetByKey(fmt.Sprintf("accounts.%s_user_role", status))
 	if err == nil {
 		roleName = roleNameSetting.Value
 	} else if err != sql.ErrNoRows {

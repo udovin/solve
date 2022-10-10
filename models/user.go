@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"fmt"
 	"strings"
 
 	"golang.org/x/crypto/sha3"
@@ -11,17 +12,40 @@ import (
 	"github.com/udovin/gosql"
 )
 
+type UserStatus int
+
+const (
+	PendingUser UserStatus = 0
+	ActiveUser  UserStatus = 1
+	BlockedUser UserStatus = 2
+)
+
+// String returns string representation.
+func (t UserStatus) String() string {
+	switch t {
+	case PendingUser:
+		return "pending"
+	case ActiveUser:
+		return "active"
+	case BlockedUser:
+		return "blocked"
+	default:
+		return fmt.Sprintf("UserStatus(%d)", t)
+	}
+}
+
 // User contains common information about user.
 type User struct {
 	baseObject
-	AccountID    int64   `db:"account_id"`
-	Login        string  `db:"login"`
-	PasswordHash string  `db:"password_hash"`
-	PasswordSalt string  `db:"password_salt"`
-	Email        NString `db:"email"`
-	FirstName    NString `db:"first_name"`
-	LastName     NString `db:"last_name"`
-	MiddleName   NString `db:"middle_name"`
+	AccountID    int64      `db:"account_id"`
+	Login        string     `db:"login"`
+	Status       UserStatus `db:"status"`
+	PasswordHash string     `db:"password_hash"`
+	PasswordSalt string     `db:"password_salt"`
+	Email        NString    `db:"email"`
+	FirstName    NString    `db:"first_name"`
+	LastName     NString    `db:"last_name"`
+	MiddleName   NString    `db:"middle_name"`
 }
 
 // AccountKind returns UserAccount kind.

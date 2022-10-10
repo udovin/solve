@@ -519,6 +519,7 @@ func (v *View) registerUser(c echo.Context) error {
 	if err := form.Update(&user, v.core.Users); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
+	user.Status = models.PendingUser
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
 		account := models.Account{Kind: user.AccountKind()}
 		if err := v.core.Accounts.Create(ctx, &account); err != nil {

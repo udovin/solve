@@ -13,6 +13,7 @@ func (t *userStoreTest) prepareDB(tx *sql.Tx) error {
 			`"id" integer PRIMARY KEY,` +
 			`"account_id" integer NOT NULL,` +
 			`"login" varchar(64) NOT NULL,` +
+			`"status" integer NOT NULL,` +
 			`"password_hash" varchar(255) NOT NULL,` +
 			`"password_salt" varchar(255) NOT NULL,` +
 			`"email" varchar(255),` +
@@ -31,6 +32,7 @@ func (t *userStoreTest) prepareDB(tx *sql.Tx) error {
 			`"id" integer NOT NULL,` +
 			`"account_id" integer NOT NULL,` +
 			`"login" varchar(64) NOT NULL,` +
+			`"status" integer NOT NULL,` +
 			`"password_hash" varchar(255) NOT NULL,` +
 			`"password_salt" varchar(255) NOT NULL,` +
 			`"email" varchar(255),` +

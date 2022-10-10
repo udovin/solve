@@ -2,68 +2,80 @@
   {
     "roles": [
       {
-        "id": 66,
+        "id": 69,
         "name": "admin_group"
       },
       {
-        "id": 65,
-        "name": "user_group"
+        "id": 68,
+        "name": "blocked_user_group"
       },
       {
-        "id": 64,
+        "id": 67,
+        "name": "active_user_group"
+      },
+      {
+        "id": 66,
+        "name": "pending_user_group"
+      },
+      {
+        "id": 65,
         "name": "guest_group"
       },
       {
-        "id": 63,
+        "id": 64,
         "name": "update_user_password"
       },
       {
-        "id": 62,
+        "id": 63,
         "name": "update_user_middle_name"
       },
       {
-        "id": 61,
+        "id": 62,
         "name": "update_user_last_name"
       },
       {
-        "id": 60,
+        "id": 61,
         "name": "update_user_first_name"
       },
       {
-        "id": 59,
+        "id": 60,
         "name": "update_user_email"
       },
       {
-        "id": 58,
+        "id": 59,
         "name": "update_user"
       },
       {
-        "id": 57,
+        "id": 58,
         "name": "update_setting"
       },
       {
-        "id": 56,
+        "id": 57,
         "name": "update_problem"
       },
       {
-        "id": 55,
+        "id": 56,
         "name": "update_contest_solution"
       },
       {
-        "id": 54,
+        "id": 55,
         "name": "update_contest"
       },
       {
-        "id": 53,
+        "id": 54,
         "name": "update_compiler"
       },
       {
-        "id": 52,
+        "id": 53,
         "name": "submit_contest_solution"
       },
       {
-        "id": 51,
+        "id": 52,
         "name": "status"
+      },
+      {
+        "id": 51,
+        "name": "register_contests"
       },
       {
         "id": 50,

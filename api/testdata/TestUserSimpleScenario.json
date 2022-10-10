@@ -21,9 +21,8 @@
     "permissions": [
       "login",
       "logout",
+      "observe_compilers",
       "observe_contests",
-      "observe_problems",
-      "observe_solutions",
       "observe_user",
       "status"
     ]

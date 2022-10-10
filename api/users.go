@@ -133,7 +133,7 @@ type updateUserForm struct {
 	MiddleName *string `json:"middle_name"`
 }
 
-func (f updateUserForm) Update(user *models.User) *errorResponse {
+func (f updateUserForm) Update(c echo.Context, user *models.User) *errorResponse {
 	errors := errorFields{}
 	if f.FirstName != nil && len(*f.FirstName) > 0 {
 		validateFirstName(errors, *f.FirstName)
@@ -146,7 +146,7 @@ func (f updateUserForm) Update(user *models.User) *errorResponse {
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
-			Message:       "passed invalid fields to form",
+			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
 	}
@@ -196,11 +196,11 @@ func (v *View) updateUser(c echo.Context) error {
 	}
 	if len(missingPermissions) > 0 {
 		return c.JSON(http.StatusForbidden, errorResponse{
-			Message:            "account missing permissions",
+			Message:            localize(c, "Account missing permissions."),
 			MissingPermissions: missingPermissions,
 		})
 	}
-	if err := form.Update(&user); err != nil {
+	if err := form.Update(c, &user); err != nil {
 		c.Logger().Warn(err)
 		return c.JSON(http.StatusBadRequest, err)
 	}

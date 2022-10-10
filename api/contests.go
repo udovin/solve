@@ -197,7 +197,7 @@ func (v *View) observeContests(c echo.Context) error {
 		c.Logger().Warn(err)
 		return errorResponse{
 			Code:    http.StatusBadRequest,
-			Message: "unable to parse filter",
+			Message: localize(c, "Invalid filter."),
 		}
 	}
 	var resp Contests
@@ -238,13 +238,17 @@ type updateContestForm struct {
 	EnableUpsolving    *bool   `json:"enable_upsolving" form:"enable_upsolving"`
 }
 
-func (f *updateContestForm) Update(contest *models.Contest) error {
+func (f *updateContestForm) Update(c echo.Context, contest *models.Contest) error {
 	errors := errorFields{}
 	if f.Title != nil {
 		if len(*f.Title) < 4 {
-			errors["title"] = errorField{Message: "title is too short"}
+			errors["title"] = errorField{
+				Message: localize(c, "Title is too short."),
+			}
 		} else if len(*f.Title) > 64 {
-			errors["title"] = errorField{Message: "title is too long"}
+			errors["title"] = errorField{
+				Message: localize(c, "Title is too long."),
+			}
 		}
 		contest.Title = *f.Title
 	}
@@ -257,7 +261,9 @@ func (f *updateContestForm) Update(contest *models.Contest) error {
 	}
 	if f.Duration != nil {
 		if *f.Duration < 0 {
-			errors["duration"] = errorField{Message: "duration cannot be negative"}
+			errors["duration"] = errorField{
+				Message: localize(c, "Duration cannot be negative."),
+			}
 		}
 		config.Duration = *f.Duration
 	}
@@ -268,12 +274,14 @@ func (f *updateContestForm) Update(contest *models.Contest) error {
 		config.EnableUpsolving = *f.EnableUpsolving
 	}
 	if err := contest.SetConfig(config); err != nil {
-		errors["config"] = errorField{Message: "invalid config"}
+		errors["config"] = errorField{
+			Message: localize(c, "Invalid config."),
+		}
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
 			Code:          http.StatusBadRequest,
-			Message:       "form has invalid fields",
+			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
 	}
@@ -282,17 +290,19 @@ func (f *updateContestForm) Update(contest *models.Contest) error {
 
 type createContestForm updateContestForm
 
-func (f *createContestForm) Update(contest *models.Contest) error {
+func (f *createContestForm) Update(c echo.Context, contest *models.Contest) error {
 	if f.Title == nil {
 		return &errorResponse{
 			Code:    http.StatusBadRequest,
-			Message: "form has invalid fields",
+			Message: localize(c, "Form has invalid fields."),
 			InvalidFields: errorFields{
-				"title": errorField{Message: "title is required"},
+				"title": errorField{
+					Message: localize(c, "Title is required."),
+				},
 			},
 		}
 	}
-	return (*updateContestForm)(f).Update(contest)
+	return (*updateContestForm)(f).Update(c, contest)
 }
 
 func (v *View) createContest(c echo.Context) error {
@@ -306,7 +316,7 @@ func (v *View) createContest(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 	var contest models.Contest
-	if err := form.Update(&contest); err != nil {
+	if err := form.Update(c, &contest); err != nil {
 		return err
 	}
 	if account := accountCtx.Account; account != nil {
@@ -329,7 +339,7 @@ func (v *View) updateContest(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	if err := form.Update(&contest); err != nil {
+	if err := form.Update(c, &contest); err != nil {
 		return err
 	}
 	if err := v.core.Contests.Update(getContext(c), contest); err != nil {
@@ -382,26 +392,33 @@ type createContestProblemForm struct {
 }
 
 func (f createContestProblemForm) Update(
-	problem *models.ContestProblem, problems *models.ProblemStore,
+	c echo.Context, problem *models.ContestProblem, problems *models.ProblemStore,
 ) *errorResponse {
 	errors := errorFields{}
 	if len(f.Code) == 0 {
-		errors["code"] = errorField{Message: "code is empty"}
+		errors["code"] = errorField{
+			Message: localize(c, "Code is empty."),
+		}
 	}
 	if len(f.Code) > 4 {
-		errors["code"] = errorField{Message: "code is too long"}
+		errors["code"] = errorField{
+			Message: localize(c, "Code is too long."),
+		}
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
 			Code:          http.StatusBadRequest,
-			Message:       "form has invalid fields",
+			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
 	}
 	if _, err := problems.Get(f.ProblemID); err != nil {
 		return &errorResponse{
-			Code:    http.StatusNotFound,
-			Message: fmt.Sprintf("problem %d does not exists", f.ProblemID),
+			Code: http.StatusNotFound,
+			Message: localize(
+				c, "Problem {id} does not exists.",
+				replaceField("id", f.ProblemID),
+			),
 		}
 	}
 	problem.Code = f.Code
@@ -421,7 +438,7 @@ func (v *View) createContestProblem(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 	var problem models.ContestProblem
-	if err := form.Update(&problem, v.core.Problems); err != nil {
+	if err := form.Update(c, &problem, v.core.Problems); err != nil {
 		return err
 	}
 	problem.ContestID = contest.ID
@@ -433,14 +450,20 @@ func (v *View) createContestProblem(c echo.Context) error {
 		for _, contestProblem := range problems {
 			if problem.Code == contestProblem.Code {
 				return errorResponse{
-					Code:    http.StatusBadRequest,
-					Message: fmt.Sprintf("problem with code %q already exists", problem.Code),
+					Code: http.StatusBadRequest,
+					Message: localize(
+						c, "Problem with code {code} already exists.",
+						replaceField("code", problem.Code),
+					),
 				}
 			}
 			if problem.ProblemID == contestProblem.ProblemID {
 				return errorResponse{
-					Code:    http.StatusBadRequest,
-					Message: fmt.Sprintf("problem %d already exists", problem.ProblemID),
+					Code: http.StatusBadRequest,
+					Message: localize(
+						c, "Problem {id} already exists.",
+						replaceField("id", problem.ProblemID),
+					),
 				}
 			}
 		}
@@ -504,8 +527,11 @@ func (f createContestParticipantForm) Update(
 		user, err := core.Users.Get(*f.UserID)
 		if err != nil {
 			return &errorResponse{
-				Code:    http.StatusBadRequest,
-				Message: fmt.Sprintf("user #%d does not exists", *f.UserID),
+				Code: http.StatusBadRequest,
+				Message: localize(
+					c, "User {id} does not exists.",
+					replaceField("id", *f.UserID),
+				),
 			}
 		}
 		participant.AccountID = user.AccountID
@@ -513,8 +539,11 @@ func (f createContestParticipantForm) Update(
 		user, err := core.Users.GetByLogin(*f.UserLogin)
 		if err != nil {
 			return &errorResponse{
-				Code:    http.StatusBadRequest,
-				Message: fmt.Sprintf("user %q does not exists", *f.UserLogin),
+				Code: http.StatusBadRequest,
+				Message: localize(
+					c, "User \"{login}\" does not exists.",
+					replaceField("login", *f.UserLogin),
+				),
 			}
 		}
 		participant.AccountID = user.AccountID
@@ -526,7 +555,7 @@ func (f createContestParticipantForm) Update(
 	if participant.AccountID == 0 {
 		return &errorResponse{
 			Code:    http.StatusBadRequest,
-			Message: localize(c, "Participant account is not specified"),
+			Message: localize(c, "Participant account is not specified."),
 		}
 	}
 	return nil
@@ -558,7 +587,7 @@ func (v *View) createContestParticipant(c echo.Context) error {
 				return errorResponse{
 					Code: http.StatusBadRequest,
 					Message: localize(
-						c, "Participant with {kind} kind already exists",
+						c, "Participant with {kind} kind already exists.",
 						replaceField("kind", p.Kind),
 					),
 				}
@@ -602,7 +631,7 @@ func (v *View) registerContest(c echo.Context) error {
 			return errorResponse{
 				Code: http.StatusBadRequest,
 				Message: localize(
-					c, "Participant with {kind} kind already exists",
+					c, "Participant with {kind} kind already exists.",
 					replaceField("kind", p.Kind),
 				),
 			}
@@ -714,7 +743,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	if len(participants) == 0 {
 		return errorResponse{
 			Code:    http.StatusForbidden,
-			Message: "participant not found",
+			Message: localize(c, "Participant not found."),
 		}
 	}
 	participant := participants[0]
@@ -735,7 +764,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		if err == sql.ErrNoRows {
 			return errorResponse{
 				Code:    http.StatusBadRequest,
-				Message: "compiler not found",
+				Message: localize(c, "Compiler not found."),
 			}
 		}
 		return err
@@ -832,7 +861,7 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Warn(err)
 			return errorResponse{
 				Code:    http.StatusBadRequest,
-				Message: "invalid contest ID",
+				Message: localize(c, "Invalid contest ID."),
 			}
 		}
 		contest, err := v.core.Contests.Get(id)
@@ -846,7 +875,7 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 			if err == sql.ErrNoRows {
 				return errorResponse{
 					Code:    http.StatusNotFound,
-					Message: "contest not found",
+					Message: localize(c, "Contest not found."),
 				}
 			}
 			return err
@@ -871,7 +900,7 @@ func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 		if len(code) == 0 {
 			return errorResponse{
 				Code:    http.StatusNotFound,
-				Message: "empty problem code",
+				Message: localize(c, "Empty problem code."),
 			}
 		}
 		contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
@@ -892,8 +921,11 @@ func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		if pos == -1 {
 			return errorResponse{
-				Code:    http.StatusNotFound,
-				Message: fmt.Sprintf("problem %q does not exists", code),
+				Code: http.StatusNotFound,
+				Message: localize(
+					c, "Problem {code} does not exists.",
+					replaceField("code", code),
+				),
 			}
 		}
 		c.Set(contestProblemKey, problems[pos])
@@ -908,7 +940,7 @@ func (v *View) extractContestParticipant(next echo.HandlerFunc) echo.HandlerFunc
 			c.Logger().Warn(err)
 			return errorResponse{
 				Code:    http.StatusBadRequest,
-				Message: "invalid participant ID",
+				Message: localize(c, "Invalid participant ID."),
 			}
 		}
 		participant, err := v.core.ContestParticipants.Get(id)
@@ -916,7 +948,7 @@ func (v *View) extractContestParticipant(next echo.HandlerFunc) echo.HandlerFunc
 			if err == sql.ErrNoRows {
 				return errorResponse{
 					Code:    http.StatusNotFound,
-					Message: "participant not found",
+					Message: localize(c, "Participant not found."),
 				}
 			}
 			return err
@@ -928,7 +960,7 @@ func (v *View) extractContestParticipant(next echo.HandlerFunc) echo.HandlerFunc
 		if contestCtx.Contest.ID != participant.ContestID {
 			return errorResponse{
 				Code:    http.StatusNotFound,
-				Message: "participant not found",
+				Message: localize(c, "Participant not found."),
 			}
 		}
 		c.Set(contestParticipantKey, participant)

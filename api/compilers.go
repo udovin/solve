@@ -87,25 +87,25 @@ func (f *CreateCompilerForm) Parse(c echo.Context) error {
 	return nil
 }
 
-func (f *CreateCompilerForm) Update(compiler *models.Compiler) error {
+func (f *CreateCompilerForm) Update(c echo.Context, compiler *models.Compiler) error {
 	errors := errorFields{}
 	if len(f.Name) < 4 {
-		errors["name"] = errorField{Message: "name is too short"}
+		errors["name"] = errorField{Message: localize(c, "Name is too short.")}
 	}
 	if len(f.Name) > 64 {
-		errors["name"] = errorField{Message: "name is too long"}
+		errors["name"] = errorField{Message: localize(c, "Name is too long.")}
 	}
 	compiler.Name = f.Name
 	compiler.Config = f.Config.JSON
 	if config, err := compiler.GetConfig(); err != nil {
-		errors["name"] = errorField{Message: "invalid config"}
+		errors["name"] = errorField{Message: localize(c, "Invalid config.")}
 	} else if err := compiler.SetConfig(config); err != nil {
-		errors["name"] = errorField{Message: "invalid config"}
+		errors["name"] = errorField{Message: localize(c, "Invalid config.")}
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
 			Code:          http.StatusBadRequest,
-			Message:       "form has invalid fields",
+			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
 	}
@@ -123,7 +123,7 @@ func (v *View) createCompiler(c echo.Context) error {
 	}
 	defer func() { _ = form.ImageFile.Close() }()
 	var compiler models.Compiler
-	if err := form.Update(&compiler); err != nil {
+	if err := form.Update(c, &compiler); err != nil {
 		return err
 	}
 	if account := accountCtx.Account; account != nil {

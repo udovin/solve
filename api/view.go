@@ -465,6 +465,7 @@ func (v *View) getBoolSetting(c echo.Context, key string) *bool {
 }
 
 type Locale interface {
+	Name() string
 	Localize(text string, options ...func(*string)) string
 }
 
@@ -490,6 +491,10 @@ func replaceField(name string, value any) func(*string) {
 
 type stubLocale struct{}
 
+func (stubLocale) Name() string {
+	return ""
+}
+
 func (stubLocale) Localize(text string, options ...func(*string)) string {
 	for _, option := range options {
 		option(&text)
@@ -500,6 +505,10 @@ func (stubLocale) Localize(text string, options ...func(*string)) string {
 type settingLocale struct {
 	name     string
 	settings *models.SettingStore
+}
+
+func (l *settingLocale) Name() string {
+	return l.name
 }
 
 func (l *settingLocale) Localize(text string, options ...func(*string)) string {

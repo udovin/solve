@@ -38,6 +38,7 @@ type Status struct {
 	User        *User    `json:"user,omitempty"`
 	Session     *Session `json:"session,omitempty"`
 	Permissions []string `json:"permissions"`
+	Locale      string   `json:"locale,omitempty"`
 }
 
 // registerUserHandlers registers handlers for user management.
@@ -323,6 +324,9 @@ func (v *View) status(c echo.Context) error {
 	}
 	for permission := range accountCtx.Permissions {
 		status.Permissions = append(status.Permissions, permission)
+	}
+	if l := getLocale(c); l != nil {
+		status.Locale = l.Name()
 	}
 	sort.Strings(status.Permissions)
 	return c.JSON(http.StatusOK, status)

@@ -43,7 +43,7 @@
     "message": "role \"role1\" does not have child \"role2\""
   },
   {
-    "message": "role \"role100\" not found"
+    "message": "Role \"role100\" not found."
   },
   {
     "id": 70,
@@ -81,7 +81,7 @@
     "message": "user \"login-801072305\" does not have role \"role2\""
   },
   {
-    "message": "role \"role100\" not found"
+    "message": "Role \"role100\" not found."
   },
   {
     "message": "user \"user100\" not found"

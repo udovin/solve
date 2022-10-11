@@ -975,7 +975,7 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Warn(err)
 			return errorResponse{
 				Code:    http.StatusBadRequest,
-				Message: "invalid solution ID",
+				Message: localize(c, "Invalid solution ID."),
 			}
 		}
 		solution, err := v.core.ContestSolutions.Get(id)
@@ -992,7 +992,7 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 			if err == sql.ErrNoRows {
 				return errorResponse{
 					Code:    http.StatusNotFound,
-					Message: "solution not found",
+					Message: localize(c, "Solution not found."),
 				}
 			}
 			return err
@@ -1004,7 +1004,7 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 		if contestCtx.Contest.ID != solution.ContestID {
 			return errorResponse{
 				Code:    http.StatusNotFound,
-				Message: "solution not found",
+				Message: localize(c, "Solution not found."),
 			}
 		}
 		c.Set(contestSolutionKey, solution)

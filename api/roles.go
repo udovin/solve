@@ -135,20 +135,26 @@ var roleNameRegexp = regexp.MustCompile(
 )
 
 func (f createRoleForm) Update(
-	role *models.Role, roles *models.RoleStore,
+	c echo.Context, role *models.Role, roles *models.RoleStore,
 ) error {
 	errors := errorFields{}
 	if len(f.Name) < 3 {
-		errors["name"] = errorField{Message: "name too short (<3)"}
+		errors["name"] = errorField{
+			Message: localize(c, "Name is too short."),
+		}
 	} else if len(f.Name) > 32 {
-		errors["name"] = errorField{Message: "name too long (>32)"}
+		errors["name"] = errorField{
+			Message: localize(c, "Name is too long."),
+		}
 	} else if !roleNameRegexp.MatchString(f.Name) {
-		errors["name"] = errorField{Message: "name has invalid format"}
+		errors["name"] = errorField{
+			Message: localize(c, "Name has invalid format."),
+		}
 	}
 	if len(errors) > 0 {
 		return errorResponse{
 			Code:          http.StatusBadRequest,
-			Message:       "passed invalid fields to form",
+			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
 	}
@@ -158,8 +164,11 @@ func (f createRoleForm) Update(
 			return err
 		}
 		return errorResponse{
-			Code:    http.StatusBadRequest,
-			Message: fmt.Sprintf("role %q already exists", role.Name),
+			Code: http.StatusBadRequest,
+			Message: localize(
+				c, "Role \"{role}\" already exists.",
+				replaceField("role", role.Name),
+			),
 		}
 	}
 	return nil
@@ -171,11 +180,11 @@ func (v *View) createRole(c echo.Context) error {
 		c.Logger().Warn(err)
 		return errorResponse{
 			Code:    http.StatusBadRequest,
-			Message: "unable to parse form",
+			Message: localize(c, "Invalid form."),
 		}
 	}
 	var role models.Role
-	if err := form.Update(&role, v.core.Roles); err != nil {
+	if err := form.Update(c, &role, v.core.Roles); err != nil {
 		return err
 	}
 	if err := v.core.Roles.Create(getContext(c), &role); err != nil {
@@ -429,7 +438,10 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 		role, err := getRoleByParam(v.core.Roles, name)
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
-				Message: fmt.Sprintf("role %q not found", name),
+				Message: localize(
+					c, "Role \"{role}\" not found.",
+					replaceField("role", name),
+				),
 			}
 			return c.JSON(http.StatusNotFound, resp)
 		} else if err != nil {
@@ -447,7 +459,10 @@ func (v *View) extractChildRole(next echo.HandlerFunc) echo.HandlerFunc {
 		role, err := getRoleByParam(v.core.Roles, name)
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
-				Message: fmt.Sprintf("role %q not found", name),
+				Message: localize(
+					c, "Role \"{role}\" not found.",
+					replaceField("role", name),
+				),
 			}
 			return c.JSON(http.StatusNotFound, resp)
 		} else if err != nil {

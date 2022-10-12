@@ -204,7 +204,7 @@ func (v *View) deleteRole(c echo.Context) error {
 	if role.IsBuiltIn() {
 		return errorResponse{
 			Code:    http.StatusBadRequest,
-			Message: "unable to delete builtin role",
+			Message: localize(c, "Unable to delete builtin role."),
 		}
 	}
 	if err := v.core.Roles.Delete(getContext(c), role.ID); err != nil {
@@ -261,9 +261,10 @@ func (v *View) createRoleRole(c echo.Context) error {
 		if edge.ChildID == childRole.ID {
 			return errorResponse{
 				Code: http.StatusBadRequest,
-				Message: fmt.Sprintf(
-					"role %q already has child %q",
-					role.Name, childRole.Name,
+				Message: localize(
+					c, "Role \"{role}\" already has child \"{child}\".",
+					replaceField("role", role.Name),
+					replaceField("child", childRole.Name),
 				),
 			}
 		}
@@ -304,9 +305,10 @@ func (v *View) deleteRoleRole(c echo.Context) error {
 	if edgePos == -1 {
 		return errorResponse{
 			Code: http.StatusBadRequest,
-			Message: fmt.Sprintf(
-				"role %q does not have child %q",
-				role.Name, childRole.Name,
+			Message: localize(
+				c, "Role \"{role}\" does not have child \"{child}\".",
+				replaceField("role", role.Name),
+				replaceField("child", childRole.Name),
 			),
 		}
 	}
@@ -365,9 +367,10 @@ func (v *View) createUserRole(c echo.Context) error {
 		if edge.RoleID == role.ID {
 			return errorResponse{
 				Code: http.StatusBadRequest,
-				Message: fmt.Sprintf(
-					"user %q already has role %q",
-					user.Login, role.Name,
+				Message: localize(
+					c, "User \"{user}\" already has role \"{role}\".",
+					replaceField("user", user.Login),
+					replaceField("role", role.Name),
 				),
 			}
 		}
@@ -408,9 +411,10 @@ func (v *View) deleteUserRole(c echo.Context) error {
 	if edgePos == -1 {
 		return errorResponse{
 			Code: http.StatusBadRequest,
-			Message: fmt.Sprintf(
-				"user %q does not have role %q",
-				user.Login, role.Name,
+			Message: localize(
+				c, "User \"{user}\" does not have role \"{role}\".",
+				replaceField("user", user.Login),
+				replaceField("role", role.Name),
 			),
 		}
 	}

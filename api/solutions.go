@@ -201,8 +201,10 @@ func (v *View) extractSolution(next echo.HandlerFunc) echo.HandlerFunc {
 		id, err := strconv.ParseInt(c.Param("solution"), 10, 64)
 		if err != nil {
 			c.Logger().Warn(err)
-			resp := errorResponse{Message: "invalid solution ID"}
-			return c.JSON(http.StatusBadRequest, resp)
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: localize(c, "Invalid solution ID."),
+			}
 		}
 		solution, err := v.core.Solutions.Get(id)
 		if err == sql.ErrNoRows {
@@ -213,8 +215,10 @@ func (v *View) extractSolution(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResponse{Message: "solution not found"}
-				return c.JSON(http.StatusNotFound, resp)
+				return errorResponse{
+					Code:    http.StatusNotFound,
+					Message: localize(c, "Solution not found."),
+				}
 			}
 			c.Logger().Error(err)
 			return err

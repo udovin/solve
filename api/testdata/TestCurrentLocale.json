@@ -1,0 +1,263 @@
+[
+  {},
+  {
+    "name": "en"
+  },
+  {
+    "name": "ru",
+    "localizations": [
+      {
+        "key": "invalid_config",
+        "text": "Неправильная конфигурация."
+      },
+      {
+        "key": "invalid_participant_id",
+        "text": "Неправильный ID участника."
+      },
+      {
+        "key": "title_is_too_long",
+        "text": "Заголовок слишком длинный."
+      },
+      {
+        "key": "invalid_solution_id",
+        "text": "Неправильный ID решения."
+      },
+      {
+        "key": "duration_cannot_be_negative",
+        "text": "Продолжительность не может быть отрицательной."
+      },
+      {
+        "key": "form_has_invalid_field",
+        "text": "Форма содержит неправильные значения."
+      },
+      {
+        "key": "role_role_already_exists",
+        "text": "Роль \"{role}\" уже существует."
+      },
+      {
+        "key": "code_is_empty",
+        "text": "Введен пустой код."
+      },
+      {
+        "key": "old_and_new_passwords_are_the_same",
+        "text": "Старый и новый пароли совпадают."
+      },
+      {
+        "key": "participant_account_is_not_specified",
+        "text": "Аккаунт участника не указан."
+      },
+      {
+        "key": "invalid_problem_id",
+        "text": "Неправильный ID задачи."
+      },
+      {
+        "key": "title_is_too_short",
+        "text": "Заголовок слишком короткий."
+      },
+      {
+        "key": "name_is_too_short",
+        "text": "Название слишком короткое."
+      },
+      {
+        "key": "user_with_login_login_already_exists",
+        "text": "Пользователь с логином \"{login}\" уже существует."
+      },
+      {
+        "key": "email_too_short",
+        "text": "E-mail слишком короткий."
+      },
+      {
+        "key": "role_role_not_found",
+        "text": "Роль \"{role}\" не найдена."
+      },
+      {
+        "key": "user_not_found",
+        "text": "Пользователь не найден."
+      },
+      {
+        "key": "login_too_short",
+        "text": "Логин слишком короткий"
+      },
+      {
+        "key": "problem_id_already_exists",
+        "text": "Задача {id} уже добавлена."
+      },
+      {
+        "key": "password_too_short",
+        "text": "Пароль слишком короткий."
+      },
+      {
+        "key": "problem_code_does_not_exists",
+        "text": "Задача {code} не существует."
+      },
+      {
+        "key": "solution_not_found",
+        "text": "Решение не найдено."
+      },
+      {
+        "key": "first_name_too_short",
+        "text": "Имя слишком короткое."
+      },
+      {
+        "key": "problem_with_code_code_already_exists",
+        "text": "Задача с кодом {code} уже добавлена."
+      },
+      {
+        "key": "email_too_long",
+        "text": "E-mail слишком длинный."
+      },
+      {
+        "key": "unknown_error",
+        "text": "Неизвестная ошибка."
+      },
+      {
+        "key": "middle_name_too_short",
+        "text": "Отчество слишком короткое."
+      },
+      {
+        "key": "password_too_long",
+        "text": "Пароль слишком длинный."
+      },
+      {
+        "key": "participant_with_kind_kind_already_exists",
+        "text": "Участник с типом {kind} уже существует."
+      },
+      {
+        "key": "account_missing_permissions",
+        "text": "Отсутсвуют необходимые права."
+      },
+      {
+        "key": "empty_problem_code",
+        "text": "Код задачи не указан."
+      },
+      {
+        "key": "can_not_set_password",
+        "text": "Не удалось установить пароль."
+      },
+      {
+        "key": "user_id_does_not_exists",
+        "text": "Пользователь {id} не существует."
+      },
+      {
+        "key": "mail_server_host_not_responding",
+        "text": "Почтовый сервер \"{host}\" не отвечает."
+      },
+      {
+        "key": "invalid_filter",
+        "text": "Неправильный фильтр."
+      },
+      {
+        "key": "last_name_too_short",
+        "text": "Фамилия слишком короткая."
+      },
+      {
+        "key": "problem_id_does_not_exists",
+        "text": "Задача {id} не существует."
+      },
+      {
+        "key": "old_password_should_not_be_empty",
+        "text": "Старый пароль не может быть пустым."
+      },
+      {
+        "key": "invalid_contest_id",
+        "text": "Неправильный ID соревнования."
+      },
+      {
+        "key": "invalid_form",
+        "text": "Неверная форма."
+      },
+      {
+        "key": "login_too_long",
+        "text": "Логин слишком длинный"
+      },
+      {
+        "key": "code_is_too_long",
+        "text": "Код слишком длинный."
+      },
+      {
+        "key": "user_user_does_not_have_role_role",
+        "text": "Пользователь \"{user}\" не имеет роли \"{role}\"."
+      },
+      {
+        "key": "role_role_already_has_child_child",
+        "text": "Роль \"{role}\" уже содержит роль \"{child}\"."
+      },
+      {
+        "key": "name_is_too_long",
+        "text": "Название слишком длинное."
+      },
+      {
+        "key": "participant_not_found",
+        "text": "Участник не найден."
+      },
+      {
+        "key": "invalid_password",
+        "text": "Неверный пароль."
+      },
+      {
+        "key": "unable_to_authorize",
+        "text": "Авторизация не пройдена."
+      },
+      {
+        "key": "role_role_does_not_have_child_child",
+        "text": "Роль \"{role}\" не содержит роль \"{child}\"."
+      },
+      {
+        "key": "contest_not_found",
+        "text": "Соревнование не найдено."
+      },
+      {
+        "key": "session_not_found",
+        "text": "Сессия не найдена."
+      },
+      {
+        "key": "unable_to_delete_builtin_role",
+        "text": "Не удалось удалить встроенную роль."
+      },
+      {
+        "key": "name_has_invalid_format",
+        "text": "Название не соотвествует формату."
+      },
+      {
+        "key": "first_name_too_long",
+        "text": "Имя слишком длинное."
+      },
+      {
+        "key": "login_has_invalid_format",
+        "text": "Логин не соотвествует формату."
+      },
+      {
+        "key": "problem_not_found",
+        "text": "Задача не найдена."
+      },
+      {
+        "key": "title_is_required",
+        "text": "Заголовок является обязательным."
+      },
+      {
+        "key": "middle_name_too_long",
+        "text": "Отчество слишком длинное."
+      },
+      {
+        "key": "last_name_too_long",
+        "text": "Фамилия слишком длинная."
+      },
+      {
+        "key": "user_login_does_not_exists",
+        "text": "Пользователь \"{login}\" не существует."
+      },
+      {
+        "key": "email_has_invalid_format",
+        "text": "E-mail не соотвествует формату."
+      },
+      {
+        "key": "user_user_already_has_role_role",
+        "text": "Пользователь \"{}\" уже имеет роль \"{role}\"."
+      },
+      {
+        "key": "compiler_not_found",
+        "text": "Компилятор не найден."
+      }
+    ]
+  }
+]

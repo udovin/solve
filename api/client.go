@@ -16,6 +16,7 @@ import (
 type Client struct {
 	endpoint string
 	client   http.Client
+	Headers  map[string]string
 }
 
 type ClientOption func(*Client)
@@ -78,6 +79,18 @@ func (c *Client) Health(ctx context.Context) error {
 	}
 	_, err = c.doRequest(req, http.StatusOK, nil)
 	return err
+}
+
+func (c *Client) Locale(ctx context.Context) (Locale, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/locale"), nil,
+	)
+	if err != nil {
+		return Locale{}, err
+	}
+	var respData Locale
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
 }
 
 func (c *Client) Login(ctx context.Context, login, password string) (Session, error) {
@@ -304,6 +317,9 @@ func (c *Client) getURL(path string, args ...any) string {
 func (c *Client) doRequest(req *http.Request, code int, respData any) (*http.Response, error) {
 	if len(req.Header.Get("Content-Type")) == 0 {
 		req.Header.Add("Content-Type", "application/json")
+	}
+	for key, value := range c.Headers {
+		req.Header.Add(key, value)
 	}
 	resp, err := c.client.Do(req)
 	if err != nil {

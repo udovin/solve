@@ -41,6 +41,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerProblemHandlers(g)
 	v.registerSolutionHandlers(g)
 	v.registerCompilerHandlers(g)
+	v.registerLocaleHandlers(g)
 }
 
 func (v *View) RegisterSocket(g *echo.Group) {
@@ -464,15 +465,16 @@ func (v *View) getBoolSetting(c echo.Context, key string) *bool {
 	}
 }
 
-type Locale interface {
+type locale interface {
 	Name() string
 	Localize(text string, options ...func(*string)) string
+	GetLocalizations() ([]Localization, error)
 }
 
 var stubLocaleValue stubLocale
 
-func getLocale(c echo.Context) Locale {
-	locale, ok := c.Get(localeKey).(Locale)
+func getLocale(c echo.Context) locale {
+	locale, ok := c.Get(localeKey).(locale)
 	if ok {
 		return locale
 	}
@@ -502,6 +504,10 @@ func (stubLocale) Localize(text string, options ...func(*string)) string {
 	return text
 }
 
+func (stubLocale) GetLocalizations() ([]Localization, error) {
+	return nil, nil
+}
+
 type settingLocale struct {
 	name     string
 	settings *models.SettingStore
@@ -520,6 +526,25 @@ func (l *settingLocale) Localize(text string, options ...func(*string)) string {
 		option(&text)
 	}
 	return text
+}
+
+func (l *settingLocale) GetLocalizations() ([]Localization, error) {
+	settings, err := l.settings.All()
+	if err != nil {
+		return nil, err
+	}
+	prefix := "localization." + l.name + "."
+	var localizations []Localization
+	for _, setting := range settings {
+		if strings.HasPrefix(setting.Key, prefix) {
+			localization := Localization{
+				Key:  setting.Key[len(prefix):],
+				Text: setting.Value,
+			}
+			localizations = append(localizations, localization)
+		}
+	}
+	return localizations, nil
 }
 
 func (l *settingLocale) getLocalizationKey(text string) string {

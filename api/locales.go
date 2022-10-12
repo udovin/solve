@@ -33,5 +33,10 @@ func (v *View) currentLocale(c echo.Context) error {
 		Name:          locale.Name(),
 		Localizations: localizations,
 	}
+	sortFunc(resp.Localizations, localizationLess)
 	return c.JSON(http.StatusOK, resp)
+}
+
+func localizationLess(lhs, rhs Localization) bool {
+	return lhs.Key < rhs.Key
 }

@@ -76,7 +76,7 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		"user_id_does_not_exists":                   "Пользователь {id} не существует.",
 		"user_login_does_not_exists":                "Пользователь \"{login}\" не существует.",
 		"user_not_found":                            "Пользователь не найден.",
-		"user_user_already_has_role_role":           "Пользователь \"{}\" уже имеет роль \"{role}\".",
+		"user_user_already_has_role_role":           "Пользователь \"{user}\" уже имеет роль \"{role}\".",
 		"user_user_does_not_have_role_role":         "Пользователь \"{user}\" не имеет роли \"{role}\".",
 		"user_with_login_login_already_exists":      "Пользователь с логином \"{login}\" уже существует.",
 	}

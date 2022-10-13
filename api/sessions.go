@@ -83,7 +83,9 @@ func (v *View) extractSession(next echo.HandlerFunc) echo.HandlerFunc {
 		session, err := v.core.Sessions.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				resp := errorResponse{Message: "session not found"}
+				resp := errorResponse{
+					Message: localize(c, "Session not found."),
+				}
 				return c.JSON(http.StatusNotFound, resp)
 			}
 			c.Logger().Error(err)

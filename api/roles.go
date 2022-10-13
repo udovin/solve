@@ -135,20 +135,26 @@ var roleNameRegexp = regexp.MustCompile(
 )
 
 func (f createRoleForm) Update(
-	role *models.Role, roles *models.RoleStore,
+	c echo.Context, role *models.Role, roles *models.RoleStore,
 ) error {
 	errors := errorFields{}
 	if len(f.Name) < 3 {
-		errors["name"] = errorField{Message: "name too short (<3)"}
+		errors["name"] = errorField{
+			Message: localize(c, "Name is too short."),
+		}
 	} else if len(f.Name) > 32 {
-		errors["name"] = errorField{Message: "name too long (>32)"}
+		errors["name"] = errorField{
+			Message: localize(c, "Name is too long."),
+		}
 	} else if !roleNameRegexp.MatchString(f.Name) {
-		errors["name"] = errorField{Message: "name has invalid format"}
+		errors["name"] = errorField{
+			Message: localize(c, "Name has invalid format."),
+		}
 	}
 	if len(errors) > 0 {
 		return errorResponse{
 			Code:          http.StatusBadRequest,
-			Message:       "passed invalid fields to form",
+			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
 	}
@@ -158,8 +164,11 @@ func (f createRoleForm) Update(
 			return err
 		}
 		return errorResponse{
-			Code:    http.StatusBadRequest,
-			Message: fmt.Sprintf("role %q already exists", role.Name),
+			Code: http.StatusBadRequest,
+			Message: localize(
+				c, "Role \"{role}\" already exists.",
+				replaceField("role", role.Name),
+			),
 		}
 	}
 	return nil
@@ -171,11 +180,11 @@ func (v *View) createRole(c echo.Context) error {
 		c.Logger().Warn(err)
 		return errorResponse{
 			Code:    http.StatusBadRequest,
-			Message: "unable to parse form",
+			Message: localize(c, "Invalid form."),
 		}
 	}
 	var role models.Role
-	if err := form.Update(&role, v.core.Roles); err != nil {
+	if err := form.Update(c, &role, v.core.Roles); err != nil {
 		return err
 	}
 	if err := v.core.Roles.Create(getContext(c), &role); err != nil {
@@ -195,7 +204,7 @@ func (v *View) deleteRole(c echo.Context) error {
 	if role.IsBuiltIn() {
 		return errorResponse{
 			Code:    http.StatusBadRequest,
-			Message: "unable to delete builtin role",
+			Message: localize(c, "Unable to delete builtin role."),
 		}
 	}
 	if err := v.core.Roles.Delete(getContext(c), role.ID); err != nil {
@@ -252,9 +261,10 @@ func (v *View) createRoleRole(c echo.Context) error {
 		if edge.ChildID == childRole.ID {
 			return errorResponse{
 				Code: http.StatusBadRequest,
-				Message: fmt.Sprintf(
-					"role %q already has child %q",
-					role.Name, childRole.Name,
+				Message: localize(
+					c, "Role \"{role}\" already has child \"{child}\".",
+					replaceField("role", role.Name),
+					replaceField("child", childRole.Name),
 				),
 			}
 		}
@@ -295,9 +305,10 @@ func (v *View) deleteRoleRole(c echo.Context) error {
 	if edgePos == -1 {
 		return errorResponse{
 			Code: http.StatusBadRequest,
-			Message: fmt.Sprintf(
-				"role %q does not have child %q",
-				role.Name, childRole.Name,
+			Message: localize(
+				c, "Role \"{role}\" does not have child \"{child}\".",
+				replaceField("role", role.Name),
+				replaceField("child", childRole.Name),
 			),
 		}
 	}
@@ -356,9 +367,10 @@ func (v *View) createUserRole(c echo.Context) error {
 		if edge.RoleID == role.ID {
 			return errorResponse{
 				Code: http.StatusBadRequest,
-				Message: fmt.Sprintf(
-					"user %q already has role %q",
-					user.Login, role.Name,
+				Message: localize(
+					c, "User \"{user}\" already has role \"{role}\".",
+					replaceField("user", user.Login),
+					replaceField("role", role.Name),
 				),
 			}
 		}
@@ -399,9 +411,10 @@ func (v *View) deleteUserRole(c echo.Context) error {
 	if edgePos == -1 {
 		return errorResponse{
 			Code: http.StatusBadRequest,
-			Message: fmt.Sprintf(
-				"user %q does not have role %q",
-				user.Login, role.Name,
+			Message: localize(
+				c, "User \"{user}\" does not have role \"{role}\".",
+				replaceField("user", user.Login),
+				replaceField("role", role.Name),
 			),
 		}
 	}
@@ -429,7 +442,10 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 		role, err := getRoleByParam(v.core.Roles, name)
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
-				Message: fmt.Sprintf("role %q not found", name),
+				Message: localize(
+					c, "Role \"{role}\" not found.",
+					replaceField("role", name),
+				),
 			}
 			return c.JSON(http.StatusNotFound, resp)
 		} else if err != nil {
@@ -447,7 +463,10 @@ func (v *View) extractChildRole(next echo.HandlerFunc) echo.HandlerFunc {
 		role, err := getRoleByParam(v.core.Roles, name)
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
-				Message: fmt.Sprintf("role %q not found", name),
+				Message: localize(
+					c, "Role \"{role}\" not found.",
+					replaceField("role", name),
+				),
 			}
 			return c.JSON(http.StatusNotFound, resp)
 		} else if err != nil {

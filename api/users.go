@@ -38,6 +38,7 @@ type Status struct {
 	User        *User    `json:"user,omitempty"`
 	Session     *Session `json:"session,omitempty"`
 	Permissions []string `json:"permissions"`
+	Locale      string   `json:"locale,omitempty"`
 }
 
 // registerUserHandlers registers handlers for user management.
@@ -133,20 +134,21 @@ type updateUserForm struct {
 	MiddleName *string `json:"middle_name"`
 }
 
-func (f updateUserForm) Update(user *models.User) *errorResponse {
+func (f updateUserForm) Update(c echo.Context, user *models.User) error {
 	errors := errorFields{}
 	if f.FirstName != nil && len(*f.FirstName) > 0 {
-		validateFirstName(errors, *f.FirstName)
+		validateFirstName(c, errors, *f.FirstName)
 	}
 	if f.LastName != nil && len(*f.LastName) > 0 {
-		validateLastName(errors, *f.LastName)
+		validateLastName(c, errors, *f.LastName)
 	}
 	if f.MiddleName != nil && len(*f.MiddleName) > 0 {
-		validateMiddleName(errors, *f.MiddleName)
+		validateMiddleName(c, errors, *f.MiddleName)
 	}
 	if len(errors) > 0 {
-		return &errorResponse{
-			Message:       "passed invalid fields to form",
+		return errorResponse{
+			Code:          http.StatusBadRequest,
+			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
 	}
@@ -195,14 +197,15 @@ func (v *View) updateUser(c echo.Context) error {
 		}
 	}
 	if len(missingPermissions) > 0 {
-		return c.JSON(http.StatusForbidden, errorResponse{
-			Message:            "account missing permissions",
+		return errorResponse{
+			Code:               http.StatusForbidden,
+			Message:            localize(c, "Account missing permissions."),
 			MissingPermissions: missingPermissions,
-		})
+		}
 	}
-	if err := form.Update(&user); err != nil {
+	if err := form.Update(c, &user); err != nil {
 		c.Logger().Warn(err)
-		return c.JSON(http.StatusBadRequest, err)
+		return err
 	}
 	if err := v.core.Users.Update(getContext(c), user); err != nil {
 		c.Logger().Error(err)
@@ -216,23 +219,28 @@ type updatePasswordForm struct {
 	Password    string `json:"password"`
 }
 
-func (f updatePasswordForm) Update(user *models.User, users *models.UserStore) *errorResponse {
+func (f updatePasswordForm) Update(
+	c echo.Context, user *models.User, users *models.UserStore,
+) error {
 	errors := errorFields{}
-	validatePassword(errors, f.Password)
+	validatePassword(c, errors, f.Password)
 	if len(errors) > 0 {
-		return &errorResponse{
-			Message:       "passed invalid fields to form",
+		return errorResponse{
+			Code:          http.StatusBadRequest,
+			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
 	}
 	if f.OldPassword == f.Password {
-		return &errorResponse{
-			Message: "old and new passwords are the same",
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Old and new passwords are the same."),
 		}
 	}
 	if err := users.SetPassword(user, f.Password); err != nil {
-		return &errorResponse{
-			Message: "unable to change old password",
+		return errorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: localize(c, "Can not set password."),
 		}
 	}
 	return nil
@@ -261,18 +269,20 @@ func (v *View) updateUserPassword(c echo.Context) error {
 	}
 	if authUser := accountCtx.User; authUser != nil && user.ID == authUser.ID {
 		if len(form.OldPassword) == 0 {
-			return c.JSON(http.StatusBadRequest, errorResponse{
-				Message: "old password should not be empty",
-			})
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: localize(c, "Old password should not be empty."),
+			}
 		}
 		if !v.core.Users.CheckPassword(user, form.OldPassword) {
-			return c.JSON(http.StatusBadRequest, errorResponse{
-				Message: "entered invalid old password",
-			})
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: localize(c, "Invalid password."),
+			}
 		}
 	}
-	if err := form.Update(&user, v.core.Users); err != nil {
-		return c.JSON(http.StatusBadRequest, err)
+	if err := form.Update(c, &user, v.core.Users); err != nil {
+		return err
 	}
 	if err := v.core.Users.Update(getContext(c), user); err != nil {
 		c.Logger().Error(err)
@@ -323,6 +333,9 @@ func (v *View) status(c echo.Context) error {
 	}
 	for permission := range accountCtx.Permissions {
 		status.Permissions = append(status.Permissions, permission)
+	}
+	if l := getLocale(c); l != nil {
+		status.Locale = l.Name()
 	}
 	sort.Strings(status.Permissions)
 	return c.JSON(http.StatusOK, status)
@@ -382,33 +395,48 @@ var emailRegexp = regexp.MustCompile(
 	"^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$",
 )
 
-func validateLogin(errors errorFields, login string) {
+func validateLogin(c echo.Context, errors errorFields, login string) {
 	if len(login) < 3 {
-		errors["login"] = errorField{Message: "login too short (<3)"}
+		errors["login"] = errorField{
+			Message: localize(c, "Login too short."),
+		}
 	} else if len(login) > 20 {
-		errors["login"] = errorField{Message: "login too long (>20)"}
+		errors["login"] = errorField{
+			Message: localize(c, "Login too long."),
+		}
 	} else if !loginRegexp.MatchString(login) {
-		errors["login"] = errorField{Message: "login has invalid format"}
+		errors["login"] = errorField{
+			Message: localize(c, "Login has invalid format."),
+		}
 	}
 }
 
-func validateEmail(errors errorFields, email string) {
+func validateEmail(c echo.Context, errors errorFields, email string) {
 	if len(email) < 3 {
-		errors["email"] = errorField{Message: "email too short (<3)"}
+		errors["email"] = errorField{
+			Message: localize(c, "Email too short."),
+		}
 	} else if len(email) > 254 {
-		errors["email"] = errorField{Message: "email too long (>254)"}
+		errors["email"] = errorField{
+			Message: localize(c, "Email too long."),
+		}
 	} else if !emailRegexp.MatchString(email) {
-		errors["email"] = errorField{Message: "email has invalid format"}
+		errors["email"] = errorField{
+			Message: localize(c, "Email has invalid format."),
+		}
 	} else {
 		parts := strings.SplitN(email, "@", 2)
 		if len(parts) != 2 {
-			errors["email"] = errorField{Message: "email has invalid format"}
+			errors["email"] = errorField{
+				Message: localize(c, "Email has invalid format."),
+			}
 		} else {
 			mx, err := net.LookupMX(parts[1])
 			if err != nil || len(mx) == 0 {
 				errors["email"] = errorField{
-					Message: fmt.Sprintf(
-						"mailserver %q not found", parts[1],
+					Message: localize(
+						c, "Mail server \"{host}\" not responding.",
+						replaceField("host", parts[1]),
 					),
 				}
 			}
@@ -416,58 +444,51 @@ func validateEmail(errors errorFields, email string) {
 	}
 }
 
-func validatePassword(errors errorFields, password string) {
+func validatePassword(c echo.Context, errors errorFields, password string) {
 	if len(password) < 6 {
-		errors["password"] = errorField{Message: "password too short (<6)"}
+		errors["password"] = errorField{
+			Message: localize(c, "Password too short."),
+		}
 	} else if len(password) > 32 {
-		errors["password"] = errorField{Message: "password too long (>32)"}
+		errors["password"] = errorField{
+			Message: localize(c, "Password too long."),
+		}
 	}
 }
 
-func validateFirstName(errors errorFields, firstName string) {
+func validateFirstName(c echo.Context, errors errorFields, firstName string) {
 	if len(firstName) < 2 {
-		errors["first_name"] = errorField{Message: "first name too short (<2)"}
+		errors["first_name"] = errorField{
+			Message: localize(c, "First name too short."),
+		}
 	} else if len(firstName) > 32 {
-		errors["first_name"] = errorField{Message: "first name too long (>32)"}
+		errors["first_name"] = errorField{
+			Message: localize(c, "First name too long."),
+		}
 	}
 }
 
-func validateLastName(errors errorFields, lastName string) {
+func validateLastName(c echo.Context, errors errorFields, lastName string) {
 	if len(lastName) < 2 {
-		errors["last_name"] = errorField{Message: "last name too short (<2)"}
+		errors["last_name"] = errorField{
+			Message: localize(c, "Last name too short."),
+		}
 	} else if len(lastName) > 32 {
-		errors["last_name"] = errorField{Message: "last name too long (>32)"}
+		errors["last_name"] = errorField{
+			Message: localize(c, "Last name too long."),
+		}
 	}
 }
 
-func validateMiddleName(errors errorFields, middleName string) {
+func validateMiddleName(c echo.Context, errors errorFields, middleName string) {
 	if len(middleName) < 2 {
-		errors["middle_name"] = errorField{Message: "middle name too short (<2)"}
+		errors["middle_name"] = errorField{
+			Message: localize(c, "Middle name too short."),
+		}
 	} else if len(middleName) > 32 {
-		errors["middle_name"] = errorField{Message: "middle name too long (>32)"}
-	}
-}
-
-func (f RegisterUserForm) validate() *errorResponse {
-	errors := errorFields{}
-	validateLogin(errors, f.Login)
-	validateEmail(errors, f.Email)
-	validatePassword(errors, f.Password)
-	if len(f.FirstName) > 0 {
-		validateFirstName(errors, f.FirstName)
-	}
-	if len(f.LastName) > 0 {
-		validateLastName(errors, f.LastName)
-	}
-	if len(f.MiddleName) > 0 {
-		validateMiddleName(errors, f.MiddleName)
-	}
-	if len(errors) == 0 {
-		return nil
-	}
-	return &errorResponse{
-		Message:       "passed invalid fields to form",
-		InvalidFields: errors,
+		errors["middle_name"] = errorField{
+			Message: localize(c, "Middle name too long."),
+		}
 	}
 }
 
@@ -482,24 +503,49 @@ type RegisterUserForm struct {
 }
 
 func (f RegisterUserForm) Update(
-	user *models.User, store *models.UserStore,
-) *errorResponse {
-	if err := f.validate(); err != nil {
-		return err
+	c echo.Context, user *models.User, store *models.UserStore,
+) error {
+	errors := errorFields{}
+	validateLogin(c, errors, f.Login)
+	validateEmail(c, errors, f.Email)
+	validatePassword(c, errors, f.Password)
+	if len(f.FirstName) > 0 {
+		validateFirstName(c, errors, f.FirstName)
+	}
+	if len(f.LastName) > 0 {
+		validateLastName(c, errors, f.LastName)
+	}
+	if len(f.MiddleName) > 0 {
+		validateMiddleName(c, errors, f.MiddleName)
+	}
+	if len(errors) > 0 {
+		return errorResponse{
+			Code:          http.StatusBadRequest,
+			Message:       localize(c, "Form has invalid fields."),
+			InvalidFields: errors,
+		}
 	}
 	if _, err := store.GetByLogin(f.Login); err != sql.ErrNoRows {
 		if err != nil {
-			return &errorResponse{Message: "unknown error"}
+			return errorResponse{
+				Code:    http.StatusInternalServerError,
+				Message: localize(c, "Unknown error."),
+			}
 		}
-		return &errorResponse{
-			Message: fmt.Sprintf(
-				"user with login %q already exists", f.Login,
+		return errorResponse{
+			Code: http.StatusBadRequest,
+			Message: localize(
+				c, "User with login \"{login}\" already exists.",
+				replaceField("login", f.Login),
 			),
 		}
 	}
 	user.Login = f.Login
 	if err := store.SetPassword(user, f.Password); err != nil {
-		return &errorResponse{Message: "can not set password"}
+		return errorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: localize(c, "Can not set password."),
+		}
 	}
 	user.Email = NString(f.Email)
 	user.FirstName = NString(f.FirstName)
@@ -516,9 +562,10 @@ func (v *View) registerUser(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 	var user models.User
-	if err := form.Update(&user, v.core.Users); err != nil {
-		return c.JSON(http.StatusBadRequest, err)
+	if err := form.Update(c, &user, v.core.Users); err != nil {
+		return err
 	}
+	user.Status = models.PendingUser
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
 		account := models.Account{Kind: user.AccountKind()}
 		if err := v.core.Accounts.Create(ctx, &account); err != nil {
@@ -553,8 +600,11 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 			if err != nil {
 				if err == sql.ErrNoRows {
 					return errorResponse{
-						Code:    http.StatusNotFound,
-						Message: fmt.Sprintf("user %q not found", login),
+						Code: http.StatusNotFound,
+						Message: localize(
+							c, "User \"{login}\" does not exists.",
+							replaceField("login", login),
+						),
 					}
 				}
 				return err
@@ -567,8 +617,11 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{
-					Code:    http.StatusNotFound,
-					Message: fmt.Sprintf("user %d not found", id),
+					Code: http.StatusNotFound,
+					Message: localize(
+						c, "User {id} does not exists.",
+						replaceField("id", id),
+					),
 				}
 			}
 			return err

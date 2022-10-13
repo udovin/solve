@@ -36,7 +36,9 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 	allRoles := models.GetBuiltInRoles()
 	allGroups := []string{
 		"guest_group",
-		"user_group",
+		"pending_user_group",
+		"active_user_group",
+		"blocked_user_group",
 		"admin_group",
 	}
 	for _, role := range allRoles {
@@ -54,11 +56,22 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 		models.RegisterRole,
 		models.StatusRole,
 		models.ObserveUserRole,
-		models.ObserveProblemsRole,
 		models.ObserveContestsRole,
-		models.ObserveSolutionsRole,
+		models.ObserveCompilersRole,
 	} {
 		if err := join(role, "guest_group"); err != nil {
+			return err
+		}
+	}
+	for _, role := range []string{
+		models.LoginRole,
+		models.LogoutRole,
+		models.StatusRole,
+		models.ObserveUserRole,
+		models.ObserveContestsRole,
+		models.ObserveCompilersRole,
+	} {
+		if err := join(role, "pending_user_group"); err != nil {
 			return err
 		}
 	}
@@ -70,8 +83,22 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 		models.ObserveProblemsRole,
 		models.ObserveContestsRole,
 		models.ObserveSolutionsRole,
+		models.ObserveCompilersRole,
+		models.RegisterContestsRole,
 	} {
-		if err := join(role, "user_group"); err != nil {
+		if err := join(role, "active_user_group"); err != nil {
+			return err
+		}
+	}
+	for _, role := range []string{
+		models.LoginRole,
+		models.LogoutRole,
+		models.StatusRole,
+		models.ObserveUserRole,
+		models.ObserveContestsRole,
+		models.ObserveCompilersRole,
+	} {
+		if err := join(role, "blocked_user_group"); err != nil {
 			return err
 		}
 	}

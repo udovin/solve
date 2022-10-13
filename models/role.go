@@ -163,6 +163,8 @@ const (
 	UpdateContestRole = "update_contest"
 	// DeleteContestRole represents role for deleting contest.
 	DeleteContestRole = "delete_contest"
+	// RegisterContestsRole represents role for register to contests.
+	RegisterContestsRole = "register_contests"
 	// RegisterContestRole represents role for register to contest.
 	RegisterContestRole = "register_contest"
 )
@@ -230,6 +232,7 @@ var builtInRoles = map[string]struct{}{
 	UpdateContestRole:              {},
 	DeleteContestRole:              {},
 	DeleteSessionRole:              {},
+	RegisterContestsRole:           {},
 	RegisterContestRole:            {},
 }
 

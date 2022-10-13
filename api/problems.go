@@ -81,7 +81,7 @@ func (v *View) observeProblems(c echo.Context) error {
 		c.Logger().Warn(err)
 		return errorResponse{
 			Code:    http.StatusBadRequest,
-			Message: "unable to parse filter",
+			Message: localize(c, "Invalid filter."),
 		}
 	}
 	problems, err := v.core.Problems.All()
@@ -132,17 +132,20 @@ func (f *createProblemForm) Parse(c echo.Context) error {
 	return nil
 }
 
-func (f *createProblemForm) Update(problem *models.Problem) *errorResponse {
+func (f *createProblemForm) Update(c echo.Context, problem *models.Problem) *errorResponse {
 	errors := errorFields{}
 	if len(f.Title) < 4 {
-		errors["title"] = errorField{Message: "title is too short"}
-	}
-	if len(f.Title) > 64 {
-		errors["title"] = errorField{Message: "title is too long"}
+		errors["title"] = errorField{
+			Message: localize(c, "Title is too short."),
+		}
+	} else if len(f.Title) > 64 {
+		errors["title"] = errorField{
+			Message: localize(c, "Title is too long."),
+		}
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
-			Message:       "form has invalid fields",
+			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
 	}
@@ -161,7 +164,7 @@ func (v *View) createProblem(c echo.Context) error {
 	}
 	defer func() { _ = form.PackageFile.Close() }()
 	var problem models.Problem
-	if err := form.Update(&problem); err != nil {
+	if err := form.Update(c, &problem); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
 	if account := accountCtx.Account; account != nil {
@@ -201,7 +204,7 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Warn(err)
 			return errorResponse{
 				Code:    http.StatusBadRequest,
-				Message: "invalid problem ID",
+				Message: localize(c, "Invalid problem ID."),
 			}
 		}
 		problem, err := v.core.Problems.Get(id)
@@ -215,7 +218,7 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 			if err == sql.ErrNoRows {
 				return errorResponse{
 					Code:    http.StatusNotFound,
-					Message: "problem not found",
+					Message: localize(c, "Problem not found."),
 				}
 			}
 			return err

@@ -105,7 +105,9 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 			if !hasRegular && config.EnableRegistration &&
 				now < beginTime {
 				c.Permissions.AddPermission(models.ObserveContestRole)
-				c.Permissions.AddPermission(models.RegisterContestRole)
+				if c.HasPermission(models.RegisterContestsRole) {
+					c.Permissions.AddPermission(models.RegisterContestRole)
+				}
 			}
 			if !hasUpsolving && config.EnableUpsolving &&
 				now > endTime && (hasRegular || config.EnableRegistration) {

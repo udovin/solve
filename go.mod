@@ -13,8 +13,8 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/udovin/gosql v0.0.1
 	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d
-	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
-	golang.org/x/text v0.3.7
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
+	golang.org/x/text v0.3.8
 )
 
 require (

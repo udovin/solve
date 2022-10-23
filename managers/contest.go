@@ -62,6 +62,21 @@ func addContestUpsolvingPermissions(permissions PermissionSet) {
 	)
 }
 
+func getParticipantPermissions(contest models.Contest, participant models.ContestParticipant) PermissionSet {
+	permissions := PermissionSet{}
+	switch participant.Kind {
+	case models.RegularParticipant:
+		addContestRegularPermissions(permissions)
+	case models.UpsolvingParticipant:
+		addContestUpsolvingPermissions(permissions)
+	case models.VirtualParticipant:
+		addContestVirtualPermissions(permissions)
+	case models.ManagerParticipant:
+		addContestManagerPermissions(permissions)
+	}
+	return permissions
+}
+
 func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contest) (*ContestContext, error) {
 	config, err := contest.GetConfig()
 	if err != nil {
@@ -85,17 +100,14 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 		hasRegular := false
 		hasUpsolving := false
 		for _, participant := range participants {
+			for permission := range getParticipantPermissions(contest, participant) {
+				c.Permissions.AddPermission(permission)
+			}
 			switch participant.Kind {
 			case models.RegularParticipant:
 				hasRegular = true
-				addContestRegularPermissions(c.Permissions)
 			case models.UpsolvingParticipant:
 				hasUpsolving = true
-				addContestUpsolvingPermissions(c.Permissions)
-			case models.VirtualParticipant:
-				addContestVirtualPermissions(c.Permissions)
-			case models.ManagerParticipant:
-				addContestManagerPermissions(c.Permissions)
 			}
 		}
 		c.Participants = participants
@@ -129,10 +141,39 @@ type ContestContext struct {
 	Contest      models.Contest
 	Participants []models.ContestParticipant
 	Permissions  PermissionSet
+	effectivePos int
 }
 
 func (c *ContestContext) HasPermission(name string) bool {
 	return c.Permissions.HasPermission(name) || c.AccountContext.HasPermission(name)
+}
+
+func (c *ContestContext) GetEffectiveParticipant() *models.ContestParticipant {
+	if c.effectivePos >= len(c.Participants) {
+		return nil
+	}
+	return &c.Participants[c.effectivePos]
+}
+
+func (c *ContestContext) SetEffectiveParticipant(id int64) {
+	for i := range c.Participants {
+		if c.Participants[i].ID == id {
+			c.effectivePos = i
+			break
+		}
+	}
+}
+
+func (c *ContestContext) GetEffectivePermissions() PermissionSet {
+	participant := c.GetEffectiveParticipant()
+	if participant == nil {
+		return PermissionSet{}
+	}
+	return getParticipantPermissions(c.Contest, *participant)
+}
+
+func (c *ContestContext) HasEffectivePermission(name string) bool {
+	return c.GetEffectivePermissions().HasPermission(name)
 }
 
 var (

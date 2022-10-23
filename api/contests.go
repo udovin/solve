@@ -739,16 +739,22 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	if account == nil {
 		return fmt.Errorf("account not extracted")
 	}
-	participants := contestCtx.Participants
-	if len(participants) == 0 {
+	participant := contestCtx.GetEffectiveParticipant()
+	if participant == nil {
 		return errorResponse{
 			Code:    http.StatusForbidden,
 			Message: localize(c, "Participant not found."),
 		}
 	}
-	participant := participants[0]
+	if !contestCtx.HasEffectivePermission(models.SubmitContestSolutionRole) {
+		return errorResponse{
+			Code:               http.StatusForbidden,
+			Message:            localize(c, "Account missing permissions."),
+			MissingPermissions: []string{models.SubmitContestSolutionRole},
+		}
+	}
 	if participant.ID == 0 {
-		if err := v.core.ContestParticipants.Create(getContext(c), &participant); err != nil {
+		if err := v.core.ContestParticipants.Create(getContext(c), participant); err != nil {
 			return err
 		}
 	}

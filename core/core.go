@@ -38,6 +38,8 @@ type Core struct {
 	Users *models.UserStore
 	// Problems contains problems store.
 	Problems *models.ProblemStore
+	// ProblemParts contains problem parts store.
+	ProblemParts *models.ProblemPartStore
 	// Solutions contains solutions store.
 	Solutions *models.SolutionStore
 	// Contests contains contest store.

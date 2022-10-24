@@ -62,7 +62,7 @@ func (c *compiler) Compile(ctx context.Context, source, target, log string) erro
 		return err
 	}
 	sourcePath := filepath.Join(rootfsUpper, c.CompileSourcePath)
-	if err := c.copyFileRec(source, sourcePath); err != nil {
+	if err := copyFileRec(source, sourcePath); err != nil {
 		return err
 	}
 	cwdPath := filepath.Join(rootfsUpper, c.CompileCwd)
@@ -110,10 +110,10 @@ func (c *compiler) Compile(ctx context.Context, source, target, log string) erro
 		stateRaw, _ := json.Marshal(state)
 		c.Logger.Info("Container state: ", string(stateRaw))
 	}
-	if err := c.copyFile(filepath.Join(rootfsUpper, c.CompileLogPath), log); err != nil {
+	if err := copyFile(filepath.Join(rootfsUpper, c.CompileLogPath), log); err != nil {
 		return fmt.Errorf("unable to copy compile log: %w", err)
 	}
-	if err := c.copyFile(filepath.Join(rootfsUpper, c.CompileTargetPath), target); err != nil {
+	if err := copyFile(filepath.Join(rootfsUpper, c.CompileTargetPath), target); err != nil {
 		return fmt.Errorf("unable to copy binary: %w", err)
 	}
 	return nil
@@ -152,11 +152,11 @@ func (c *compiler) Execute(
 		return err
 	}
 	binaryPath := filepath.Join(rootfsUpper, c.ExecuteBinaryPath)
-	if err := c.copyFileRec(binary, binaryPath); err != nil {
+	if err := copyFileRec(binary, binaryPath); err != nil {
 		return err
 	}
 	inputPath := filepath.Join(rootfsUpper, c.ExecuteInputPath)
-	if err := c.copyFileRec(input, inputPath); err != nil {
+	if err := copyFileRec(input, inputPath); err != nil {
 		return err
 	}
 	cwdPath := filepath.Join(rootfsUpper, c.ExecuteCwd)
@@ -203,7 +203,7 @@ func (c *compiler) Execute(
 	if state.ExitCode() != 0 {
 		return exitCodeError{state}
 	}
-	if err := c.copyFile(filepath.Join(rootfsUpper, c.ExecuteOutputPath), output); err != nil {
+	if err := copyFile(filepath.Join(rootfsUpper, c.ExecuteOutputPath), output); err != nil {
 		return fmt.Errorf("unable to copy output: %w", err)
 	}
 	return nil
@@ -232,31 +232,27 @@ func makeTempDir() (string, error) {
 	return "", fmt.Errorf("unable to create temp directory")
 }
 
-func (c *compiler) copyFileRec(source, target string) error {
+func copyFileRec(source, target string) error {
 	if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
 		return err
 	}
-	return c.copyFile(source, target)
+	return copyFile(source, target)
 }
 
-func (c *compiler) copyFile(source, target string) error {
+func copyFile(source, target string) error {
 	r, err := os.Open(source)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := r.Close(); err != nil {
-			c.Logger.Warn(err)
-		}
+		_ = r.Close()
 	}()
 	w, err := os.Create(target)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := w.Close(); err != nil {
-			c.Logger.Warn(err)
-		}
+		_ = w.Close()
 	}()
 	if _, err := io.Copy(w, r); err != nil {
 		return err

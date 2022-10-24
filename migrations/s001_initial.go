@@ -399,6 +399,38 @@ var s001 = []schema.Operation{
 		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
+		Name: "solve_problem_part",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "problem_id", Type: schema.Int64},
+			{Name: "kind", Type: schema.Int64},
+			{Name: "config", Type: schema.JSON},
+			{Name: "file_id", Type: schema.Int64, Nullable: true},
+		},
+		ForeignKeys: []schema.ForeignKey{
+			{Column: "problem_id", ParentTable: "solve_problem", ParentColumn: "id"},
+			{Column: "file_id", ParentTable: "solve_file", ParentColumn: "id"},
+		},
+	},
+	schema.CreateTable{
+		Name: "solve_problem_part_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_kind", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
+			{Name: "id", Type: schema.Int64},
+			{Name: "problem_id", Type: schema.Int64},
+			{Name: "kind", Type: schema.String},
+			{Name: "config", Type: schema.JSON},
+			{Name: "file_id", Type: schema.Int64, Nullable: true},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_problem_part_event",
+		Columns: []string{"id", "event_id"},
+	},
+	schema.CreateTable{
 		Name: "solve_solution",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},

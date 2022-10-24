@@ -47,6 +47,9 @@ func (c *Core) SetupAllStores() {
 	c.Problems = models.NewProblemStore(
 		c.DB, "solve_problem", "solve_problem_event",
 	)
+	c.ProblemParts = models.NewProblemPartStore(
+		c.DB, "solve_problem_part", "solve_problem_part_event",
+	)
 	c.Solutions = models.NewSolutionStore(
 		c.DB, "solve_solution", "solve_solution_event",
 	)
@@ -77,6 +80,7 @@ func (c *Core) startStores(start func(models.Store, string, time.Duration)) {
 	start(c.Users, "users", time.Second)
 	start(c.Contests, "contests", time.Second)
 	start(c.Problems, "problems", time.Second)
+	start(c.ProblemParts, "problem_parts", time.Second)
 	start(c.Solutions, "solutions", time.Second)
 	start(c.ContestProblems, "contest_problems", time.Second)
 	start(c.ContestParticipants, "contest_participants", time.Second)

@@ -166,7 +166,7 @@ func migrateMain(cmd *cobra.Command, args []string) {
 	if err := db.ApplyMigrations(context.Background(), c.DB, "solve", migrations.Schema, options...); err != nil {
 		panic(err)
 	}
-	if len(args) == 0 && withData {
+	if (len(args) == 0 && withData) || (len(args) > 0 && args[0] == "zero") {
 		if err := db.ApplyMigrations(context.Background(), c.DB, "solve_data", migrations.Data, options...); err != nil {
 			panic(err)
 		}
@@ -211,6 +211,6 @@ func main() {
 	})
 	rootCmd.AddCommand(&ClientCmd)
 	if err := rootCmd.Execute(); err != nil {
-		panic(err)
+		os.Exit(1)
 	}
 }

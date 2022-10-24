@@ -10,7 +10,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/nsf/jsondiff v0.0.0-20210926074059-1e845ec5d249
 	github.com/opencontainers/runc v1.1.4
-	github.com/spf13/cobra v1.5.0
+	github.com/spf13/cobra v1.6.0
 	github.com/udovin/gosql v0.0.1
 	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
@@ -25,7 +25,7 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.13.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect

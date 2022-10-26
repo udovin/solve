@@ -399,7 +399,7 @@ var s001 = []schema.Operation{
 		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
-		Name: "solve_problem_part",
+		Name: "solve_problem_resource",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "problem_id", Type: schema.Int64},
@@ -413,7 +413,7 @@ var s001 = []schema.Operation{
 		},
 	},
 	schema.CreateTable{
-		Name: "solve_problem_part_event",
+		Name: "solve_problem_resource_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_kind", Type: schema.Int64},
@@ -427,7 +427,7 @@ var s001 = []schema.Operation{
 		},
 	},
 	schema.CreateIndex{
-		Table:   "solve_problem_part_event",
+		Table:   "solve_problem_resource_event",
 		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{

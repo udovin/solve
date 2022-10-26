@@ -158,15 +158,15 @@ func makeContest(contest models.Contest, permissions managers.Permissions, core 
 	return resp
 }
 
-func makeContestProblem(
-	contestProblem models.ContestProblem, problems *models.ProblemStore,
+func (v *View) makeContestProblem(
+	c echo.Context, contestProblem models.ContestProblem, withStatement bool,
 ) ContestProblem {
 	resp := ContestProblem{
 		ContestID: contestProblem.ContestID,
 		Code:      contestProblem.Code,
 	}
-	if problem, err := problems.Get(contestProblem.ProblemID); err == nil {
-		resp.Problem = makeProblem(problem)
+	if problem, err := v.core.Problems.Get(contestProblem.ProblemID); err == nil {
+		resp.Problem = v.makeProblem(c, problem, withStatement)
 	}
 	return resp
 }
@@ -372,7 +372,7 @@ func (v *View) observeContestProblems(c echo.Context) error {
 	}
 	resp := ContestProblems{}
 	for _, problem := range problems {
-		resp.Problems = append(resp.Problems, makeContestProblem(problem, v.core.Problems))
+		resp.Problems = append(resp.Problems, v.makeContestProblem(c, problem, false))
 	}
 	sortFunc(resp.Problems, contestProblemLess)
 	return c.JSON(http.StatusOK, resp)
@@ -383,7 +383,7 @@ func (v *View) observeContestProblem(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("contest problem not extracted")
 	}
-	return c.JSON(http.StatusOK, makeContestProblem(problem, v.core.Problems))
+	return c.JSON(http.StatusOK, v.makeContestProblem(c, problem, true))
 }
 
 type createContestProblemForm struct {
@@ -471,7 +471,7 @@ func (v *View) createContestProblem(c echo.Context) error {
 	if err := v.core.ContestProblems.Create(getContext(c), &problem); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeContestProblem(problem, v.core.Problems))
+	return c.JSON(http.StatusCreated, v.makeContestProblem(c, problem, false))
 }
 
 func (v *View) deleteContestProblem(c echo.Context) error {
@@ -482,7 +482,7 @@ func (v *View) deleteContestProblem(c echo.Context) error {
 	if err := v.core.ContestProblems.Delete(getContext(c), problem.ID); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, makeContestProblem(problem, v.core.Problems))
+	return c.JSON(http.StatusOK, v.makeContestProblem(c, problem, false))
 }
 
 type ContestParticipant struct {
@@ -830,7 +830,7 @@ func (v *View) makeContestSolution(c echo.Context, solution models.ContestSoluti
 		}
 	}
 	if problem, err := v.core.ContestProblems.Get(solution.ProblemID); err == nil {
-		problemResp := makeContestProblem(problem, v.core.Problems)
+		problemResp := v.makeContestProblem(c, problem, false)
 		resp.Problem = &problemResp
 	}
 	if participant, err := v.core.ContestParticipants.Get(solution.ParticipantID); err == nil {

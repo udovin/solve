@@ -39,20 +39,57 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 	)
 }
 
+type ProblemStatement = models.ProblemStatementConfig
+
 type Problem struct {
-	ID    int64  `json:"id"`
-	Title string `json:"title"`
+	ID        int64             `json:"id"`
+	Title     string            `json:"title"`
+	Statement *ProblemStatement `json:"statement,omitempty"`
 }
 
 type Problems struct {
 	Problems []Problem `json:"problems"`
 }
 
-func makeProblem(problem models.Problem) Problem {
-	return Problem{
+func (v *View) makeProblem(
+	c echo.Context, problem models.Problem, withStatement bool,
+) Problem {
+	resp := Problem{
 		ID:    problem.ID,
 		Title: problem.Title,
 	}
+	locale := getLocale(c)
+	if resources, err := v.core.ProblemResources.FindByProblem(
+		problem.ID,
+	); err == nil {
+		for _, resource := range resources {
+			if resource.Kind != models.ProblemStatement {
+				continue
+			}
+			var config models.ProblemStatementConfig
+			if err := resource.ScanConfig(&config); err != nil {
+				continue
+			}
+			if resp.Statement == nil || config.Locale == locale.Name() {
+				resp.Title = config.Title
+				statement := ProblemStatement{
+					Locale: config.Locale,
+					Title:  config.Title,
+				}
+				if withStatement {
+					statement.Legend = config.Legend
+					statement.InputFormat = config.InputFormat
+					statement.OutputFormat = config.OutputFormat
+					statement.Notes = config.Notes
+				}
+				resp.Statement = &statement
+			}
+			if config.Locale == locale.Name() {
+				break
+			}
+		}
+	}
+	return resp
 }
 
 type problemFilter struct {
@@ -95,7 +132,7 @@ func (v *View) observeProblems(c echo.Context) error {
 		}
 		permissions := v.getProblemPermissions(accountCtx, problem)
 		if permissions.HasPermission(models.ObserveProblemRole) {
-			resp.Problems = append(resp.Problems, makeProblem(problem))
+			resp.Problems = append(resp.Problems, v.makeProblem(c, problem, false))
 		}
 	}
 	sortFunc(resp.Problems, problemGreater)
@@ -107,7 +144,7 @@ func (v *View) observeProblem(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("problem not extracted")
 	}
-	return c.JSON(http.StatusOK, makeProblem(problem))
+	return c.JSON(http.StatusOK, v.makeProblem(c, problem, true))
 }
 
 type createProblemForm struct {
@@ -183,7 +220,7 @@ func (v *View) createProblem(c echo.Context) error {
 	}, sqlRepeatableRead); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeProblem(problem))
+	return c.JSON(http.StatusCreated, v.makeProblem(c, problem, false))
 }
 
 func (v *View) deleteProblem(c echo.Context) error {
@@ -194,7 +231,7 @@ func (v *View) deleteProblem(c echo.Context) error {
 	if err := v.core.Problems.Delete(getContext(c), problem.ID); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, makeProblem(problem))
+	return c.JSON(http.StatusOK, v.makeProblem(c, problem, false))
 }
 
 func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {

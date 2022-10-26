@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"github.com/udovin/gosql"
 )
@@ -21,6 +22,14 @@ type ProblemStatementConfig struct {
 	Notes        string `json:"notes,omitempty"`
 }
 
+func (c ProblemStatementConfig) ProblemResourceKind() ProblemResourceKind {
+	return ProblemStatement
+}
+
+type ProblemResourceConfig interface {
+	ProblemResourceKind() ProblemResourceKind
+}
+
 // ProblemResource represents a problem resource.
 type ProblemResource struct {
 	baseObject
@@ -32,7 +41,23 @@ type ProblemResource struct {
 
 // Clone creates copy of problem resource.
 func (o ProblemResource) Clone() ProblemResource {
+	o.Config = o.Config.Clone()
 	return o
+}
+
+func (o ProblemResource) ScanConfig(config ProblemResourceConfig) error {
+	return json.Unmarshal(o.Config, config)
+}
+
+// SetConfig updates kind and config of task.
+func (o *ProblemResource) SetConfig(config ProblemResourceConfig) error {
+	raw, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	o.Kind = config.ProblemResourceKind()
+	o.Config = raw
+	return nil
 }
 
 // ProblemResourceEvent represents a problem resource event.

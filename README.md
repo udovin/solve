@@ -29,7 +29,7 @@ Then create config file `config.json` with following contents:
     "port": 4242
   },
   "invoker": {
-    "threads": 1
+    "workers": 1
   },
   "security": {
     "password_salt": "qwerty123"

@@ -42,7 +42,7 @@ func New(core *core.Core) *Invoker {
 
 // Start starts invoker daemons.
 //
-// This function will spawn config.Invoker.Threads amount of goroutines.
+// This function will spawn config.Invoker.Workers amount of goroutines.
 func (s *Invoker) Start() error {
 	if s.factory != nil {
 		return fmt.Errorf("factory already created")
@@ -55,11 +55,11 @@ func (s *Invoker) Start() error {
 		return err
 	}
 	s.factory = factory
-	threads := s.core.Config.Invoker.Threads
-	if threads <= 0 {
-		threads = 1
+	workers := s.core.Config.Invoker.Workers
+	if workers <= 0 {
+		workers = 1
 	}
-	for i := 0; i < threads; i++ {
+	for i := 0; i < workers; i++ {
 		name := fmt.Sprintf("invoker-%d", i+1)
 		s.core.StartTask(name, s.runDaemon)
 	}

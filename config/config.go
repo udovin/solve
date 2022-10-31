@@ -104,8 +104,8 @@ type Security struct {
 
 // Invoker contains invoker config.
 type Invoker struct {
-	// Threads contains amount of parallel workers.
-	Threads int `json:"threads"`
+	// Workers contains amount of parallel workers.
+	Workers int `json:"workers"`
 }
 
 // Storage contains storage config.

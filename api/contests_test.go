@@ -71,7 +71,7 @@ func TestContestSimpleScenario(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		problem := models.Problem{
 			Title:     fmt.Sprintf("Test problem %d", i+1),
-			PackageID: fakeFile.ID,
+			PackageID: NInt64(fakeFile.ID),
 		}
 		err := e.Core.Problems.Create(context.Background(), &problem)
 		if err != nil {
@@ -121,7 +121,7 @@ func TestContestParticipation(t *testing.T) {
 		e.SyncStores()
 		problem := models.Problem{
 			Title:     "Test problem",
-			PackageID: fakeFile.ID,
+			PackageID: NInt64(fakeFile.ID),
 		}
 		if err := e.Core.Problems.Create(context.Background(), &problem); err != nil {
 			t.Fatal("Error:", err)

@@ -12,7 +12,7 @@ type Problem struct {
 	OwnerID   NInt64 `db:"owner_id"`
 	Config    JSON   `db:"config"`
 	Title     string `db:"title"`
-	PackageID int64  `db:"package_id"`
+	PackageID NInt64 `db:"package_id"`
 }
 
 // Clone creates copy of problem.

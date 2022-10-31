@@ -61,7 +61,10 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 }
 
 func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
-	problemFile, err := t.invoker.files.DownloadFile(ctx, t.problem.PackageID)
+	if t.problem.PackageID == 0 {
+		return fmt.Errorf("problem does not have package")
+	}
+	problemFile, err := t.invoker.files.DownloadFile(ctx, int64(t.problem.PackageID))
 	if err != nil {
 		return fmt.Errorf("cannot download problem: %w", err)
 	}

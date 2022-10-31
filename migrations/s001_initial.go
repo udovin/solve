@@ -373,7 +373,7 @@ var s001 = []schema.Operation{
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "config", Type: schema.JSON},
 			{Name: "title", Type: schema.String},
-			{Name: "package_id", Type: schema.Int64},
+			{Name: "package_id", Type: schema.Int64, Nullable: true},
 		},
 		ForeignKeys: []schema.ForeignKey{
 			{Column: "owner_id", ParentTable: "solve_account", ParentColumn: "id"},
@@ -391,7 +391,7 @@ var s001 = []schema.Operation{
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "config", Type: schema.JSON},
 			{Name: "title", Type: schema.String},
-			{Name: "package_id", Type: schema.Int64},
+			{Name: "package_id", Type: schema.Int64, Nullable: true},
 		},
 	},
 	schema.CreateIndex{

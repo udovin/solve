@@ -292,6 +292,18 @@ func (c *Client) UpdateProblem(ctx context.Context, id int64, form UpdateProblem
 	return respData, err
 }
 
+func (c *Client) DeleteProblem(ctx context.Context, id int64) (Problem, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodDelete, c.getURL("/v0/problems/%d", id), nil,
+	)
+	if err != nil {
+		return Problem{}, err
+	}
+	var respData Problem
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
 func (c *Client) ObserveRoles(ctx context.Context) (Roles, error) {
 	req, err := http.NewRequestWithContext(
 		ctx, http.MethodGet, c.getURL("/v0/roles"), nil,

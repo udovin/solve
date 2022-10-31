@@ -173,7 +173,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	defer func() {
 		_ = os.RemoveAll(tempDir)
 	}()
-	problemFile, err := s.files.DownloadFile(ctx, problem.PackageID)
+	problemFile, err := s.files.DownloadFile(ctx, int64(problem.PackageID))
 	if err != nil {
 		return err
 	}

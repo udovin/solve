@@ -63,6 +63,9 @@ func (e *TestEnv) SyncStores() {
 	if err := e.Core.Problems.Sync(ctx); err != nil {
 		e.tb.Fatal("Error:", err)
 	}
+	if err := e.Core.Compilers.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
 }
 
 func (e *TestEnv) CreateUserRoles(login string, roles ...string) error {

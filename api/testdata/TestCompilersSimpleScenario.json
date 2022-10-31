@@ -11,5 +11,31 @@
         "cxx"
       ]
     }
+  },
+  {
+    "id": 1,
+    "name": "test2",
+    "config": {
+      "extensions": [
+        "cpp",
+        "h",
+        "hpp",
+        "c++",
+        "cxx"
+      ]
+    }
+  },
+  {
+    "id": 1,
+    "name": "test2",
+    "config": {
+      "extensions": [
+        "cpp",
+        "h",
+        "hpp",
+        "c++",
+        "cxx"
+      ]
+    }
   }
 ]

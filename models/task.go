@@ -50,8 +50,10 @@ func (t TaskStatus) MarshalText() ([]byte, error) {
 type TaskKind int
 
 const (
-	// JudgeSolution represents judge solution task.
+	// JudgeSolutionTask represents judge solution task.
 	JudgeSolutionTask TaskKind = 1
+	// UpdateProblemPackageTask represents task for update problem package.
+	UpdateProblemPackageTask TaskKind = 2
 )
 
 // String returns string representation.
@@ -59,6 +61,8 @@ func (t TaskKind) String() string {
 	switch t {
 	case JudgeSolutionTask:
 		return "judge_solution"
+	case UpdateProblemPackageTask:
+		return "update_problem_package"
 	default:
 		return fmt.Sprintf("TaskKind(%d)", t)
 	}
@@ -76,6 +80,16 @@ type JudgeSolutionTaskConfig struct {
 
 func (c JudgeSolutionTaskConfig) TaskKind() TaskKind {
 	return JudgeSolutionTask
+}
+
+// UpdateProblemPackageTaskConfig represets config for JudgeSolution.
+type UpdateProblemPackageTaskConfig struct {
+	ProblemID int64 `json:"problem_id"`
+	FileID    int64 `json:"file_id"`
+}
+
+func (c UpdateProblemPackageTaskConfig) TaskKind() TaskKind {
+	return UpdateProblemPackageTask
 }
 
 type TaskConfig interface {

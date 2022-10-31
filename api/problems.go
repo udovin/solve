@@ -26,6 +26,11 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 			v.extractAuth(v.sessionAuth),
 			v.requirePermission(models.CreateProblemRole),
 		)
+		g.PATCH(
+			"/v0/problems/:problem", v.updateProblem,
+			v.extractAuth(v.sessionAuth), v.extractProblem,
+			v.requirePermission(models.UpdateProblemRole),
+		)
 	}
 	g.GET(
 		"/v0/problems/:problem", v.observeProblem,
@@ -147,12 +152,19 @@ func (v *View) observeProblem(c echo.Context) error {
 	return c.JSON(http.StatusOK, v.makeProblem(c, problem, true))
 }
 
-type createProblemForm struct {
-	Title       string      `form:"title"`
+type UpdateProblemForm struct {
+	Title       *string     `json:"title" form:"title"`
 	PackageFile *FileReader `json:"-"`
 }
 
-func (f *createProblemForm) Parse(c echo.Context) error {
+func (f *UpdateProblemForm) Close() error {
+	if f.PackageFile == nil {
+		return nil
+	}
+	return f.PackageFile.Close()
+}
+
+func (f *UpdateProblemForm) Parse(c echo.Context) error {
 	if err := c.Bind(f); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
@@ -169,25 +181,53 @@ func (f *createProblemForm) Parse(c echo.Context) error {
 	return nil
 }
 
-func (f *createProblemForm) Update(c echo.Context, problem *models.Problem) *errorResponse {
+func (f *UpdateProblemForm) Update(c echo.Context, problem *models.Problem) error {
 	errors := errorFields{}
-	if len(f.Title) < 4 {
-		errors["title"] = errorField{
-			Message: localize(c, "Title is too short."),
+	if f.Title != nil {
+		if len(*f.Title) < 4 {
+			errors["title"] = errorField{
+				Message: localize(c, "Title is too short."),
+			}
+		} else if len(*f.Title) > 64 {
+			errors["title"] = errorField{
+				Message: localize(c, "Title is too long."),
+			}
 		}
-	} else if len(f.Title) > 64 {
-		errors["title"] = errorField{
-			Message: localize(c, "Title is too long."),
-		}
+		problem.Title = *f.Title
 	}
 	if len(errors) > 0 {
-		return &errorResponse{
+		return errorResponse{
 			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
 	}
-	problem.Title = f.Title
 	return nil
+}
+
+type CreateProblemForm struct {
+	UpdateProblemForm
+}
+
+func (f *CreateProblemForm) Update(c echo.Context, problem *models.Problem) error {
+	if f.Title == nil {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Form has invalid fields."),
+			InvalidFields: errorFields{
+				"title": errorField{Message: localize(c, "Title is required.")},
+			},
+		}
+	}
+	if f.PackageFile == nil {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Form has invalid fields."),
+			InvalidFields: errorFields{
+				"file": errorField{Message: localize(c, "File is required.")},
+			},
+		}
+	}
+	return f.UpdateProblemForm.Update(c, problem)
 }
 
 func (v *View) createProblem(c echo.Context) error {
@@ -195,11 +235,11 @@ func (v *View) createProblem(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("account not extracted")
 	}
-	var form createProblemForm
+	var form CreateProblemForm
 	if err := form.Parse(c); err != nil {
 		return err
 	}
-	defer func() { _ = form.PackageFile.Close() }()
+	defer func() { _ = form.Close() }()
 	var problem models.Problem
 	if err := form.Update(c, &problem); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
@@ -215,12 +255,65 @@ func (v *View) createProblem(c echo.Context) error {
 		if err := v.files.ConfirmUploadFile(ctx, &file); err != nil {
 			return err
 		}
-		problem.PackageID = file.ID
-		return v.core.Problems.Create(ctx, &problem)
+		if err := v.core.Problems.Create(ctx, &problem); err != nil {
+			return err
+		}
+		task := models.Task{}
+		if err := task.SetConfig(models.UpdateProblemPackageTaskConfig{
+			ProblemID: problem.ID,
+			FileID:    file.ID,
+		}); err != nil {
+			return err
+		}
+		return v.core.Tasks.Create(ctx, &task)
 	}, sqlRepeatableRead); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusCreated, v.makeProblem(c, problem, false))
+}
+
+func (v *View) updateProblem(c echo.Context) error {
+	problem, ok := c.Get(problemKey).(models.Problem)
+	if !ok {
+		return fmt.Errorf("problem not extracted")
+	}
+	var form UpdateProblemForm
+	if err := form.Parse(c); err != nil {
+		return err
+	}
+	defer func() { _ = form.Close() }()
+	if err := form.Update(c, &problem); err != nil {
+		return c.JSON(http.StatusBadRequest, err)
+	}
+	var formFile *models.File
+	if form.PackageFile != nil {
+		file, err := v.files.UploadFile(getContext(c), form.PackageFile)
+		if err != nil {
+			return err
+		}
+		formFile = &file
+	}
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+		if formFile != nil {
+			if err := v.files.ConfirmUploadFile(ctx, formFile); err != nil {
+				return err
+			}
+			task := models.Task{}
+			if err := task.SetConfig(models.UpdateProblemPackageTaskConfig{
+				ProblemID: problem.ID,
+				FileID:    formFile.ID,
+			}); err != nil {
+				return err
+			}
+			if err := v.core.Tasks.Create(ctx, &task); err != nil {
+				return err
+			}
+		}
+		return v.core.Problems.Update(ctx, problem)
+	}, sqlRepeatableRead); err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, v.makeProblem(c, problem, false))
 }
 
 func (v *View) deleteProblem(c echo.Context) error {

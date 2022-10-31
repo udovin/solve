@@ -46,6 +46,10 @@ func (f *FileReader) Close() error {
 	return nil
 }
 
+func NewFileReader(file *os.File) *FileReader {
+	return &FileReader{Name: file.Name(), Reader: file}
+}
+
 func NewMultipartFileReader(file *multipart.FileHeader) (*FileReader, error) {
 	f := FileReader{
 		Name: file.Filename,

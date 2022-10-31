@@ -143,21 +143,27 @@ func (c *Client) Register(
 }
 
 func (c *Client) CreateCompiler(ctx context.Context, form CreateCompilerForm) (Compiler, error) {
-	defer func() { _ = form.ImageFile.Close() }()
+	defer func() { _ = form.Close() }()
 	buf := bytes.Buffer{}
 	w := multipart.NewWriter(&buf)
-	if err := w.WriteField("name", form.Name); err != nil {
-		return Compiler{}, err
+	if form.Name != nil {
+		if err := w.WriteField("name", *form.Name); err != nil {
+			return Compiler{}, err
+		}
 	}
-	if config, err := form.Config.MarshalJSON(); err != nil {
-		return Compiler{}, err
-	} else if err := w.WriteField("config", string(config)); err != nil {
-		return Compiler{}, err
+	if form.Config.JSON != nil {
+		if config, err := form.Config.MarshalJSON(); err != nil {
+			return Compiler{}, err
+		} else if err := w.WriteField("config", string(config)); err != nil {
+			return Compiler{}, err
+		}
 	}
-	if fw, err := w.CreateFormFile("file", form.ImageFile.Name); err != nil {
-		return Compiler{}, err
-	} else if _, err := io.Copy(fw, form.ImageFile.Reader); err != nil {
-		return Compiler{}, err
+	if form.ImageFile != nil {
+		if fw, err := w.CreateFormFile("file", form.ImageFile.Name); err != nil {
+			return Compiler{}, err
+		} else if _, err := io.Copy(fw, form.ImageFile.Reader); err != nil {
+			return Compiler{}, err
+		}
 	}
 	if err := w.Close(); err != nil {
 		return Compiler{}, err
@@ -171,6 +177,118 @@ func (c *Client) CreateCompiler(ctx context.Context, form CreateCompilerForm) (C
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	var respData Compiler
 	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
+func (c *Client) UpdateCompiler(ctx context.Context, id int64, form UpdateCompilerForm) (Compiler, error) {
+	defer func() { _ = form.Close() }()
+	buf := bytes.Buffer{}
+	w := multipart.NewWriter(&buf)
+	if form.Name != nil {
+		if err := w.WriteField("name", *form.Name); err != nil {
+			return Compiler{}, err
+		}
+	}
+	if form.Config.JSON != nil {
+		if config, err := form.Config.MarshalJSON(); err != nil {
+			return Compiler{}, err
+		} else if err := w.WriteField("config", string(config)); err != nil {
+			return Compiler{}, err
+		}
+	}
+	if form.ImageFile != nil {
+		if fw, err := w.CreateFormFile("file", form.ImageFile.Name); err != nil {
+			return Compiler{}, err
+		} else if _, err := io.Copy(fw, form.ImageFile.Reader); err != nil {
+			return Compiler{}, err
+		}
+	}
+	if err := w.Close(); err != nil {
+		return Compiler{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPatch, c.getURL("/v0/compilers/%d", id), &buf,
+	)
+	if err != nil {
+		return Compiler{}, err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	var respData Compiler
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) DeleteCompiler(ctx context.Context, id int64) (Compiler, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodDelete, c.getURL("/v0/compilers/%d", id), nil,
+	)
+	if err != nil {
+		return Compiler{}, err
+	}
+	var respData Compiler
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) CreateProblem(ctx context.Context, form CreateProblemForm) (Problem, error) {
+	defer func() { _ = form.Close() }()
+	buf := bytes.Buffer{}
+	w := multipart.NewWriter(&buf)
+	if form.Title != nil {
+		if err := w.WriteField("title", *form.Title); err != nil {
+			return Problem{}, err
+		}
+	}
+	if form.PackageFile != nil {
+		if fw, err := w.CreateFormFile("file", form.PackageFile.Name); err != nil {
+			return Problem{}, err
+		} else if _, err := io.Copy(fw, form.PackageFile.Reader); err != nil {
+			return Problem{}, err
+		}
+	}
+	if err := w.Close(); err != nil {
+		return Problem{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPost, c.getURL("/v0/problems"), &buf,
+	)
+	if err != nil {
+		return Problem{}, err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	var respData Problem
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
+func (c *Client) UpdateProblem(ctx context.Context, id int64, form UpdateProblemForm) (Problem, error) {
+	defer func() { _ = form.Close() }()
+	buf := bytes.Buffer{}
+	w := multipart.NewWriter(&buf)
+	if form.Title != nil {
+		if err := w.WriteField("title", *form.Title); err != nil {
+			return Problem{}, err
+		}
+	}
+	if form.PackageFile != nil {
+		if fw, err := w.CreateFormFile("file", form.PackageFile.Name); err != nil {
+			return Problem{}, err
+		} else if _, err := io.Copy(fw, form.PackageFile.Reader); err != nil {
+			return Problem{}, err
+		}
+	}
+	if err := w.Close(); err != nil {
+		return Problem{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPatch, c.getURL("/v0/problems/%d", id), &buf,
+	)
+	if err != nil {
+		return Problem{}, err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	var respData Problem
+	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
 }
 

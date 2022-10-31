@@ -27,6 +27,10 @@
         "text": "Компилятор не найден."
       },
       {
+        "key": "config_is_required",
+        "text": "Конфигурация является обязательной."
+      },
+      {
         "key": "contest_not_found",
         "text": "Соревнование не найдено."
       },
@@ -49,6 +53,10 @@
       {
         "key": "empty_problem_code",
         "text": "Код задачи не указан."
+      },
+      {
+        "key": "file_is_required",
+        "text": "Файл является обязательным."
       },
       {
         "key": "first_name_too_long",
@@ -129,6 +137,10 @@
       {
         "key": "name_has_invalid_format",
         "text": "Название не соотвествует формату."
+      },
+      {
+        "key": "name_is_required",
+        "text": "Имя является обязательным."
       },
       {
         "key": "name_is_too_long",

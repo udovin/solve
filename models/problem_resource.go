@@ -14,12 +14,12 @@ const (
 )
 
 type ProblemStatementConfig struct {
-	Locale       string `json:"locale"`
-	Title        string `json:"title"`
-	Legend       string `json:"legend,omitempty"`
-	InputFormat  string `json:"input_format,omitempty"`
-	OutputFormat string `json:"output_format,omitempty"`
-	Notes        string `json:"notes,omitempty"`
+	Locale string `json:"locale"`
+	Title  string `json:"title"`
+	Legend string `json:"legend,omitempty"`
+	Input  string `json:"input,omitempty"`
+	Output string `json:"output,omitempty"`
+	Notes  string `json:"notes,omitempty"`
 }
 
 func (c ProblemStatementConfig) ProblemResourceKind() ProblemResourceKind {

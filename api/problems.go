@@ -83,8 +83,8 @@ func (v *View) makeProblem(
 				}
 				if withStatement {
 					statement.Legend = config.Legend
-					statement.InputFormat = config.InputFormat
-					statement.OutputFormat = config.OutputFormat
+					statement.Input = config.Input
+					statement.Output = config.Output
 					statement.Notes = config.Notes
 				}
 				resp.Statement = &statement

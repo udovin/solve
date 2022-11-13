@@ -54,6 +54,12 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("unable to fetch task compiler: %w", err)
 	}
+	tempDir, err := makeTempDir()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
+	t.tempDir = tempDir
 	t.solution = solution
 	t.problem = problem
 	t.compiler = compiler
@@ -68,7 +74,7 @@ func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("cannot download problem: %w", err)
 	}
-	defer problemFile.Close()
+	defer func() { _ = problemFile.Close() }()
 	tempProblemPath := filepath.Join(t.tempDir, "problem")
 	if err := pkg.ExtractZip(problemFile.Name(), tempProblemPath); err != nil {
 		return fmt.Errorf("cannot extract problem: %w", err)
@@ -82,7 +88,7 @@ func (t *judgeSolutionTask) prepareCompiler(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("cannot download rootfs: %w", err)
 	}
-	defer compilerFile.Close()
+	defer func() { _ = compilerFile.Close() }()
 	tempCompilerPath := filepath.Join(t.tempDir, "compiler")
 	if err := pkg.ExtractTarGz(compilerFile.Name(), tempCompilerPath); err != nil {
 		return fmt.Errorf("cannot extract rootfs: %w", err)
@@ -105,13 +111,13 @@ func (t *judgeSolutionTask) prepareSolution(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("cannot download solution: %w", err)
 	}
-	defer solutionFile.Close()
+	defer func() { _ = solutionFile.Close() }()
 	tempSolutionPath := filepath.Join(t.tempDir, "solution.bin")
 	file, err := os.Create(tempSolutionPath)
 	if err != nil {
 		return fmt.Errorf("cannot create solution: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	if _, err := io.Copy(file, solutionFile); err != nil {
 		return fmt.Errorf("cannot write solution: %w", err)
 	}
@@ -308,14 +314,6 @@ func (t *judgeSolutionTask) compileSolution(ctx TaskContext) (bool, error) {
 }
 
 func (t *judgeSolutionTask) executeImpl(ctx TaskContext) error {
-	tempDir, err := makeTempDir()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = os.RemoveAll(tempDir)
-	}()
-	t.tempDir = tempDir
 	if err := t.prepareProblem(ctx); err != nil {
 		return fmt.Errorf("cannot prepare problem: %w", err)
 	}

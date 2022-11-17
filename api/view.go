@@ -31,7 +31,7 @@ type View struct {
 
 // Register registers handlers in specified group.
 func (v *View) Register(g *echo.Group) {
-	g.Use(wrapResponse, v.logVisit, v.extractLocale)
+	g.Use(wrapResponse, v.wrapSyncStores, v.logVisit, v.extractLocale)
 	g.GET("/ping", v.ping)
 	g.GET("/health", v.health)
 	v.registerUserHandlers(g)
@@ -46,7 +46,7 @@ func (v *View) Register(g *echo.Group) {
 }
 
 func (v *View) RegisterSocket(g *echo.Group) {
-	g.Use(wrapResponse, v.extractAuth(v.guestAuth))
+	g.Use(wrapResponse, v.wrapSyncStores, v.extractAuth(v.guestAuth))
 	g.GET("/ping", v.ping)
 	g.GET("/health", v.health)
 	v.registerSocketUserHandlers(g)
@@ -120,12 +120,6 @@ func (v *JSON) UnmarshalParam(data string) error {
 // logVisit saves visit to visit store.
 func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		if s := v.getBoolSetting(c, "allow_sync"); s == nil || *s {
-			sync := strings.ToLower(c.Request().Header.Get("X-Solve-Sync"))
-			c.Set(syncKey, sync == "1" || sync == "t" || sync == "true")
-		} else {
-			c.Set(syncKey, false)
-		}
 		c.Set(authVisitKey, v.core.Visits.MakeFromContext(c))
 		defer func() {
 			visit := c.Get(authVisitKey).(models.Visit)
@@ -276,6 +270,18 @@ func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 			return c.JSON(code, resp)
 		}
 		return err
+	}
+}
+
+func (v *View) wrapSyncStores(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if s := v.getBoolSetting(c, "allow_sync"); s == nil || *s {
+			sync := strings.ToLower(c.Request().Header.Get("X-Solve-Sync"))
+			c.Set(syncKey, sync == "1" || sync == "t" || sync == "true")
+		} else {
+			c.Set(syncKey, false)
+		}
+		return next(c)
 	}
 }
 

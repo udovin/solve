@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/udovin/solve/api"
@@ -84,9 +83,10 @@ func createUserMain(ctx *clientContext) error {
 	if err != nil {
 		return fmt.Errorf("unable to register user: %w", err)
 	}
-	time.Sleep(2 * time.Second)
 	for _, role := range addRoles {
-		if _, err := ctx.Client.CreateUserRole(context.Background(), login, role); err != nil {
+		if _, err := ctx.Client.CreateUserRole(
+			context.Background(), login, role,
+		); err != nil {
 			return fmt.Errorf("unable to add role %q: %w", role, err)
 		}
 	}
@@ -99,7 +99,9 @@ type clientContext struct {
 	Client *api.Client
 }
 
-func wrapClientMain(fn func(*clientContext) error) func(*cobra.Command, []string) error {
+func wrapClientMain(
+	fn func(*clientContext) error,
+) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		ctx := clientContext{
 			Cmd:  cmd,
@@ -110,11 +112,17 @@ func wrapClientMain(fn func(*clientContext) error) func(*cobra.Command, []string
 			return err
 		}
 		transport := http.Transport{
-			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+			DialContext: func(
+				_ context.Context, _, _ string,
+			) (net.Conn, error) {
 				return net.Dial("unix", config.SocketFile)
 			},
 		}
-		ctx.Client = api.NewClient("http://server/socket", api.WithTransport(&transport))
+		ctx.Client = api.NewClient(
+			"http://server/socket",
+			api.WithTransport(&transport),
+		)
+		ctx.Client.Headers = map[string]string{"X-Solve-Sync": "1"}
 		return fn(&ctx)
 	}
 }

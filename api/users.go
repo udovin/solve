@@ -594,6 +594,9 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 		if !ok {
 			return fmt.Errorf("auth not extracted")
 		}
+		if err := syncStore(c, v.core.Users); err != nil {
+			return err
+		}
 		id, err := strconv.ParseInt(login, 10, 64)
 		if err != nil {
 			user, err := v.core.Users.GetByLogin(login)

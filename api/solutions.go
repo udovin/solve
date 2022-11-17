@@ -206,13 +206,10 @@ func (v *View) extractSolution(next echo.HandlerFunc) echo.HandlerFunc {
 				Message: localize(c, "Invalid solution ID."),
 			}
 		}
-		solution, err := v.core.Solutions.Get(id)
-		if err == sql.ErrNoRows {
-			if err := v.core.Solutions.Sync(getContext(c)); err != nil {
-				return err
-			}
-			solution, err = v.core.Solutions.Get(id)
+		if err := syncStore(c, v.core.Solutions); err != nil {
+			return err
 		}
+		solution, err := v.core.Solutions.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

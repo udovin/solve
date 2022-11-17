@@ -59,6 +59,10 @@
         "text": "Файл является обязательным."
       },
       {
+        "key": "file_not_found",
+        "text": "Файл не найден."
+      },
+      {
         "key": "first_name_too_long",
         "text": "Имя слишком длинное."
       },
@@ -77,6 +81,10 @@
       {
         "key": "invalid_contest_id",
         "text": "Неправильный ID соревнования."
+      },
+      {
+        "key": "invalid_file_id",
+        "text": "Неправильный ID файла."
       },
       {
         "key": "invalid_filter",

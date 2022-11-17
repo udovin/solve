@@ -31,7 +31,9 @@ var (
 )
 
 func testSetup(tb testing.TB) {
-	testConfig.SocketFile = filepath.Join(tb.TempDir(), "solve-server.sock")
+	testConfig.SocketFile = filepath.Join(
+		tb.TempDir(), "solve-server.sock",
+	)
 	testConfig.Storage.FilesDir = filepath.Join(tb.TempDir(), "files")
 	var err error
 	func() {
@@ -50,7 +52,9 @@ func testSetup(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := db.ApplyMigrations(context.Background(), c.DB, "solve", migrations.Schema); err != nil {
+	if err := db.ApplyMigrations(
+		context.Background(), c.DB, "solve", migrations.Schema,
+	); err != nil {
 		tb.Fatal("Error:", err)
 	}
 }
@@ -61,7 +65,10 @@ func testTeardown(tb testing.TB) {
 		tb.Fatal("Error:", err)
 	}
 	c.SetupAllStores()
-	if err := db.ApplyMigrations(context.Background(), c.DB, "solve", migrations.Schema, db.WithZeroMigration); err != nil {
+	if err := db.ApplyMigrations(
+		context.Background(), c.DB, "solve", migrations.Schema,
+		db.WithZeroMigration,
+	); err != nil {
 		tb.Fatal("Error:", err)
 	}
 }

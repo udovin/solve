@@ -167,6 +167,8 @@ const (
 	RegisterContestsRole = "register_contests"
 	// RegisterContestRole represents role for register to contest.
 	RegisterContestRole = "register_contest"
+	// ObserveFileContentRole represents role for observing file content.
+	ObserveFileContentRole = "observe_file_content"
 )
 
 var builtInRoles = map[string]struct{}{

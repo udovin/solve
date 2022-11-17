@@ -309,6 +309,7 @@ func (j *testJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 func newTestClient(endpoint string) *testClient {
 	client := NewClient(endpoint)
 	client.client.Jar = &testJar{}
+	client.Headers = map[string]string{"X-Solve-Sync": "1"}
 	return &testClient{client}
 }
 

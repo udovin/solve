@@ -80,6 +80,9 @@ func (v *View) extractSession(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Logger().Warn(err)
 			return err
 		}
+		if err := syncStore(c, v.core.Sessions); err != nil {
+			return err
+		}
 		session, err := v.core.Sessions.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {

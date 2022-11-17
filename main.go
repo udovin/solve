@@ -93,7 +93,9 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	v := api.NewView(c)
 	var waiter sync.WaitGroup
 	defer waiter.Wait()
-	ctx, cancel := signal.NotifyContext(testCtx, os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(
+		testCtx, os.Interrupt, syscall.SIGTERM,
+	)
 	defer cancel()
 	if file := cfg.SocketFile; file != "" {
 		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
@@ -130,7 +132,9 @@ func serverMain(cmd *cobra.Command, _ []string) {
 			}
 		}()
 		defer func() {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			ctx, cancel := context.WithTimeout(
+				context.Background(), time.Minute,
+			)
 			defer cancel()
 			if err := srv.Shutdown(ctx); err != nil {
 				c.Logger().Error(err)
@@ -163,11 +167,17 @@ func migrateMain(cmd *cobra.Command, args []string) {
 	if len(args) > 0 {
 		options = append(options, db.WithMigration(args[0]))
 	}
-	if err := db.ApplyMigrations(context.Background(), c.DB, "solve", migrations.Schema, options...); err != nil {
+	if err := db.ApplyMigrations(
+		context.Background(), c.DB, "solve", migrations.Schema,
+		options...,
+	); err != nil {
 		panic(err)
 	}
 	if (len(args) == 0 && withData) || (len(args) > 0 && args[0] == "zero") {
-		if err := db.ApplyMigrations(context.Background(), c.DB, "solve_data", migrations.Data, options...); err != nil {
+		if err := db.ApplyMigrations(
+			context.Background(), c.DB, "solve_data", migrations.Data,
+			options...,
+		); err != nil {
 			panic(err)
 		}
 	}

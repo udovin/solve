@@ -42,6 +42,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerSolutionHandlers(g)
 	v.registerCompilerHandlers(g)
 	v.registerLocaleHandlers(g)
+	v.registerFileHandlers(g)
 }
 
 func (v *View) RegisterSocket(g *echo.Group) {
@@ -97,7 +98,9 @@ const (
 	problemKey            = "problem"
 	solutionKey           = "solution"
 	compilerKey           = "compiler"
+	fileKey               = "file"
 	localeKey             = "locale"
+	syncKey               = "sync"
 )
 
 type (
@@ -117,6 +120,12 @@ func (v *JSON) UnmarshalParam(data string) error {
 // logVisit saves visit to visit store.
 func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if s := v.getBoolSetting(c, "allow_sync"); s == nil || *s {
+			sync := strings.ToLower(c.Request().Header.Get("X-Solve-Sync"))
+			c.Set(syncKey, sync == "1" || sync == "t" || sync == "true")
+		} else {
+			c.Set(syncKey, false)
+		}
 		c.Set(authVisitKey, v.core.Visits.MakeFromContext(c))
 		defer func() {
 			visit := c.Get(authVisitKey).(models.Visit)
@@ -303,11 +312,17 @@ func (v *View) sessionAuth(c echo.Context) (bool, error) {
 	if len(cookie.Value) == 0 {
 		return false, nil
 	}
-	session, err := v.getSessionByCookie(getContext(c), cookie.Value)
+	if err := syncStore(c, v.core.Sessions); err != nil {
+		return false, err
+	}
+	session, err := v.core.Sessions.GetByCookie(cookie.Value)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil
 		}
+		return false, err
+	}
+	if err := syncStore(c, v.core.Accounts); err != nil {
 		return false, err
 	}
 	account, err := v.core.Accounts.Get(session.AccountID)
@@ -337,6 +352,9 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 	if form.Login == "" || form.Password == "" {
 		return false, nil
 	}
+	if err := syncStore(c, v.core.Users); err != nil {
+		return false, err
+	}
 	user, err := v.core.Users.GetByLogin(form.Login)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -354,6 +372,9 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 			Message: localize(c, "Invalid password."),
 		}
 		return false, resp
+	}
+	if err := syncStore(c, v.core.Accounts); err != nil {
+		return false, err
 	}
 	account, err := v.core.Accounts.Get(user.AccountID)
 	if err != nil {
@@ -409,23 +430,6 @@ func (v *View) requirePermission(names ...string) echo.MiddlewareFunc {
 			return next(c)
 		}
 	}
-}
-
-// getSessionByCookie returns session.
-func (v *View) getSessionByCookie(
-	ctx context.Context, value string,
-) (models.Session, error) {
-	session, err := v.core.Sessions.GetByCookie(value)
-	if err == sql.ErrNoRows {
-		if err := v.core.Sessions.Sync(ctx); err != nil {
-			return models.Session{}, err
-		}
-		session, err = v.core.Sessions.GetByCookie(value)
-	}
-	if err != nil {
-		return models.Session{}, err
-	}
-	return session, nil
 }
 
 func (v *View) getStringSetting(c echo.Context, key string) *string {
@@ -585,6 +589,13 @@ func getNow(c echo.Context) time.Time {
 		return time.Now()
 	}
 	return t
+}
+
+func syncStore(c echo.Context, s models.Store) error {
+	if sync, ok := c.Get(syncKey).(bool); ok && sync {
+		return s.Sync(c.Request().Context())
+	}
+	return nil
 }
 
 func getPtr[T any](object T) *T {

@@ -439,6 +439,9 @@ func getRoleByParam(roles *models.RoleStore, name string) (models.Role, error) {
 func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		name := c.Param("role")
+		if err := syncStore(c, v.core.Roles); err != nil {
+			return err
+		}
 		role, err := getRoleByParam(v.core.Roles, name)
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
@@ -460,6 +463,9 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 func (v *View) extractChildRole(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		name := c.Param("child_role")
+		if err := syncStore(c, v.core.Roles); err != nil {
+			return err
+		}
 		role, err := getRoleByParam(v.core.Roles, name)
 		if err == sql.ErrNoRows {
 			resp := errorResponse{

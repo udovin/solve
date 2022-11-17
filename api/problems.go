@@ -337,13 +337,10 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 				Message: localize(c, "Invalid problem ID."),
 			}
 		}
-		problem, err := v.core.Problems.Get(id)
-		if err == sql.ErrNoRows {
-			if err := v.core.Problems.Sync(getContext(c)); err != nil {
-				return err
-			}
-			problem, err = v.core.Problems.Get(id)
+		if err := syncStore(c, v.core.Problems); err != nil {
+			return err
 		}
+		problem, err := v.core.Problems.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

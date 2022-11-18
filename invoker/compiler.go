@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/udovin/solve/core"
@@ -15,11 +14,8 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	"golang.org/x/sys/unix"
-
-	_ "github.com/opencontainers/runc/libcontainer/nsenter"
 )
 
 type compiler struct {
@@ -260,13 +256,6 @@ func copyFile(source, target string) error {
 	return nil
 }
 
-func configDevices() (devices []*devices.Rule) {
-	for _, device := range specconv.AllowedDevices {
-		devices = append(devices, &device.Rule)
-	}
-	return devices
-}
-
 func defaultRootlessConfig(id, lower, upper, work string) *configs.Config {
 	defaultMountFlags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
 	caps := []string{
@@ -396,20 +385,5 @@ func defaultRootlessConfig(id, lower, upper, work string) *configs.Config {
 			"/proc/sys",
 			"/proc/sysrq-trigger",
 		},
-	}
-}
-
-func init() {
-	if len(os.Args) > 1 && os.Args[1] == "init" {
-		runtime.GOMAXPROCS(1)
-		runtime.LockOSThread()
-		factory, err := libcontainer.New("")
-		if err != nil {
-			panic(err)
-		}
-		if err := factory.StartInitialization(); err != nil {
-			panic(err)
-		}
-		panic("--this line should have never been executed, congratulations--")
 	}
 }

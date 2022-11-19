@@ -3,7 +3,6 @@ package invoker
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/specconv"
-	"github.com/opencontainers/runc/libcontainer/user"
 	"golang.org/x/sys/unix"
 
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
@@ -37,6 +35,8 @@ func init() {
 
 type ProcessConfig struct {
 	Args []string
+	Dir  string
+	Env  []string
 }
 
 type Process struct {
@@ -86,6 +86,9 @@ func (c *Container) Destroy() error {
 func (c *Container) buildProcess(config ProcessConfig) libcontainer.Process {
 	process := libcontainer.Process{
 		Args: config.Args,
+		Cwd:  config.Dir,
+		Env:  config.Env,
+		User: "0",
 	}
 	return process
 }
@@ -116,16 +119,24 @@ func (p *Processor) Create(config ContainerConfig) (*Container, error) {
 	if err := os.Mkdir(upperPath, os.ModePerm); err != nil {
 		return nil, err
 	}
-	uidMappings, err := getUIDMappings()
-	if err != nil {
-		return nil, err
-	}
-	gidMappings, err := getGIDMappings()
-	if err != nil {
-		return nil, err
-	}
 	lowerPath := strings.Join(config.Layers, ":")
 	defaultMountFlags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
+	defaultCapabilities := []string{
+		"CAP_CHOWN",
+		"CAP_DAC_OVERRIDE",
+		"CAP_FSETID",
+		"CAP_FOWNER",
+		"CAP_MKNOD",
+		"CAP_NET_RAW",
+		"CAP_SETGID",
+		"CAP_SETUID",
+		"CAP_SETFCAP",
+		"CAP_SETPCAP",
+		"CAP_NET_BIND_SERVICE",
+		"CAP_SYS_CHROOT",
+		"CAP_KILL",
+		"CAP_AUDIT_WRITE",
+	}
 	containerConfig := configs.Config{
 		Hostname:        id,
 		Rootfs:          rootfsPath,
@@ -153,77 +164,29 @@ func (p *Processor) Create(config ContainerConfig) (*Container, error) {
 			Rootless: true,
 		},
 		Capabilities: &configs.Capabilities{
-			Bounding: []string{
-				"CAP_CHOWN",
-				"CAP_DAC_OVERRIDE",
-				"CAP_FSETID",
-				"CAP_FOWNER",
-				"CAP_MKNOD",
-				"CAP_NET_RAW",
-				"CAP_SETGID",
-				"CAP_SETUID",
-				"CAP_SETFCAP",
-				"CAP_SETPCAP",
-				"CAP_NET_BIND_SERVICE",
-				"CAP_SYS_CHROOT",
-				"CAP_KILL",
-				"CAP_AUDIT_WRITE",
-			},
-			Effective: []string{
-				"CAP_CHOWN",
-				"CAP_DAC_OVERRIDE",
-				"CAP_FSETID",
-				"CAP_FOWNER",
-				"CAP_MKNOD",
-				"CAP_NET_RAW",
-				"CAP_SETGID",
-				"CAP_SETUID",
-				"CAP_SETFCAP",
-				"CAP_SETPCAP",
-				"CAP_NET_BIND_SERVICE",
-				"CAP_SYS_CHROOT",
-				"CAP_KILL",
-				"CAP_AUDIT_WRITE",
-			},
-			Permitted: []string{
-				"CAP_CHOWN",
-				"CAP_DAC_OVERRIDE",
-				"CAP_FSETID",
-				"CAP_FOWNER",
-				"CAP_MKNOD",
-				"CAP_NET_RAW",
-				"CAP_SETGID",
-				"CAP_SETUID",
-				"CAP_SETFCAP",
-				"CAP_SETPCAP",
-				"CAP_NET_BIND_SERVICE",
-				"CAP_SYS_CHROOT",
-				"CAP_KILL",
-				"CAP_AUDIT_WRITE",
-			},
-			Ambient: []string{
-				"CAP_CHOWN",
-				"CAP_DAC_OVERRIDE",
-				"CAP_FSETID",
-				"CAP_FOWNER",
-				"CAP_MKNOD",
-				"CAP_NET_RAW",
-				"CAP_SETGID",
-				"CAP_SETUID",
-				"CAP_SETFCAP",
-				"CAP_SETPCAP",
-				"CAP_NET_BIND_SERVICE",
-				"CAP_SYS_CHROOT",
-				"CAP_KILL",
-				"CAP_AUDIT_WRITE",
-			},
+			Bounding:  defaultCapabilities,
+			Effective: defaultCapabilities,
+			Permitted: defaultCapabilities,
+			Ambient:   defaultCapabilities,
 		},
 		MaskPaths: []string{
+			"/proc/acpi",
+			"/proc/asound",
 			"/proc/kcore",
+			"/proc/keys",
+			"/proc/latency_stats",
+			"/proc/timer_list",
+			"/proc/timer_stats",
+			"/proc/sched_debug",
 			"/sys/firmware",
+			"/proc/scsi",
 		},
 		ReadonlyPaths: []string{
-			"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
+			"/proc/bus",
+			"/proc/fs",
+			"/proc/irq",
+			"/proc/sys",
+			"/proc/sysrq-trigger",
 		},
 		Mounts: []*configs.Mount{
 			{
@@ -242,41 +205,45 @@ func (p *Processor) Create(config ContainerConfig) (*Container, error) {
 				Flags:       defaultMountFlags,
 			},
 			{
+				Device:      "tmpfs",
 				Source:      "tmpfs",
 				Destination: "/dev",
-				Device:      "tmpfs",
 				Flags:       unix.MS_NOSUID | unix.MS_STRICTATIME,
-				Data:        "mode=755",
+				Data:        "mode=755,size=65536k",
 			},
-			// {
-			// 	Source:      "devpts",
-			// 	Destination: "/dev/pts",
-			// 	Device:      "devpts",
-			// 	Flags:       unix.MS_NOSUID | unix.MS_NOEXEC,
-			// 	Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
-			// },
+			{
+				Device:      "devpts",
+				Source:      "devpts",
+				Destination: "/dev/pts",
+				Flags:       unix.MS_NOSUID | unix.MS_NOEXEC,
+				Data:        "newinstance,ptmxmode=0666,mode=0620",
+			},
 			{
 				Device:      "tmpfs",
 				Source:      "shm",
 				Destination: "/dev/shm",
-				Data:        "mode=1777,size=65536k",
 				Flags:       defaultMountFlags,
+				Data:        "mode=1777,size=65536k",
 			},
 			{
+				Device:      "mqueue",
 				Source:      "mqueue",
 				Destination: "/dev/mqueue",
-				Device:      "mqueue",
 				Flags:       defaultMountFlags,
 			},
 			{
+				Device:      "sysfs",
 				Source:      "sysfs",
 				Destination: "/sys",
-				Device:      "sysfs",
 				Flags:       defaultMountFlags | unix.MS_RDONLY,
 			},
 		},
-		UidMappings: uidMappings,
-		GidMappings: gidMappings,
+		UidMappings: []configs.IDMap{
+			{ContainerID: 0, HostID: os.Geteuid(), Size: 1},
+		},
+		GidMappings: []configs.IDMap{
+			{ContainerID: 0, HostID: os.Getegid(), Size: 1},
+		},
 		Networks: []*configs.Network{
 			{
 				Type:    "loopback",
@@ -312,40 +279,4 @@ func generateID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
-}
-
-func getUIDMappings() ([]configs.IDMap, error) {
-	subUIDs, err := user.CurrentUserSubUIDs()
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, err
-	}
-	mappings := []configs.IDMap{
-		{ContainerID: 0, HostID: os.Getuid(), Size: 1},
-	}
-	if len(subUIDs) > 0 {
-		// mappings = append(mappings, configs.IDMap{
-		// 	ContainerID: 1,
-		// 	HostID:      int(subUIDs[0].SubID),
-		// 	Size:        int(subUIDs[0].Count),
-		// })
-	}
-	return mappings, nil
-}
-
-func getGIDMappings() ([]configs.IDMap, error) {
-	subGIDs, err := user.CurrentUserSubGIDs()
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, err
-	}
-	mappings := []configs.IDMap{
-		{ContainerID: 0, HostID: os.Getgid(), Size: 1},
-	}
-	if len(subGIDs) > 0 {
-		// mappings = append(mappings, configs.IDMap{
-		// 	ContainerID: 1,
-		// 	HostID:      int(subGIDs[0].SubID),
-		// 	Size:        int(subGIDs[0].Count),
-		// })
-	}
-	return mappings, nil
 }

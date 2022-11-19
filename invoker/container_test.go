@@ -46,9 +46,7 @@ func TestProcessor(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	if state, err := process.Wait(); err != nil {
+	if _, err := process.Wait(); err != nil {
 		t.Fatal("Error:", err)
-	} else {
-		t.Fatal(state)
 	}
 }

@@ -125,6 +125,7 @@ func (p *Processor) Create(config ContainerConfig) (*Container, error) {
 		return nil, err
 	}
 	lowerPath := strings.Join(config.Layers, ":")
+	defaultMountFlags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
 	containerConfig := configs.Config{
 		Hostname:        id,
 		Rootfs:          rootfsPath,
@@ -132,7 +133,16 @@ func (p *Processor) Create(config ContainerConfig) (*Container, error) {
 		RootlessCgroups: true,
 		NoNewPrivileges: true,
 		NoNewKeyring:    true,
-		Devices:         specconv.AllowedDevices,
+		Namespaces: configs.Namespaces([]configs.Namespace{
+			{Type: configs.NEWNS},
+			{Type: configs.NEWUTS},
+			{Type: configs.NEWIPC},
+			{Type: configs.NEWPID},
+			{Type: configs.NEWUSER},
+			{Type: configs.NEWNET},
+			{Type: configs.NEWCGROUP},
+		}),
+		Devices: specconv.AllowedDevices,
 		Cgroups: &configs.Cgroup{
 			Name:   "c-" + id,
 			Parent: "system",
@@ -142,15 +152,79 @@ func (p *Processor) Create(config ContainerConfig) (*Container, error) {
 			},
 			Rootless: true,
 		},
-		Namespaces: configs.Namespaces([]configs.Namespace{
-			{Type: configs.NEWNS},
-			{Type: configs.NEWPID},
-			{Type: configs.NEWIPC},
-			{Type: configs.NEWUTS},
-			{Type: configs.NEWUSER},
-			{Type: configs.NEWNET},
-			{Type: configs.NEWCGROUP},
-		}),
+		Capabilities: &configs.Capabilities{
+			Bounding: []string{
+				"CAP_CHOWN",
+				"CAP_DAC_OVERRIDE",
+				"CAP_FSETID",
+				"CAP_FOWNER",
+				"CAP_MKNOD",
+				"CAP_NET_RAW",
+				"CAP_SETGID",
+				"CAP_SETUID",
+				"CAP_SETFCAP",
+				"CAP_SETPCAP",
+				"CAP_NET_BIND_SERVICE",
+				"CAP_SYS_CHROOT",
+				"CAP_KILL",
+				"CAP_AUDIT_WRITE",
+			},
+			Effective: []string{
+				"CAP_CHOWN",
+				"CAP_DAC_OVERRIDE",
+				"CAP_FSETID",
+				"CAP_FOWNER",
+				"CAP_MKNOD",
+				"CAP_NET_RAW",
+				"CAP_SETGID",
+				"CAP_SETUID",
+				"CAP_SETFCAP",
+				"CAP_SETPCAP",
+				"CAP_NET_BIND_SERVICE",
+				"CAP_SYS_CHROOT",
+				"CAP_KILL",
+				"CAP_AUDIT_WRITE",
+			},
+			Permitted: []string{
+				"CAP_CHOWN",
+				"CAP_DAC_OVERRIDE",
+				"CAP_FSETID",
+				"CAP_FOWNER",
+				"CAP_MKNOD",
+				"CAP_NET_RAW",
+				"CAP_SETGID",
+				"CAP_SETUID",
+				"CAP_SETFCAP",
+				"CAP_SETPCAP",
+				"CAP_NET_BIND_SERVICE",
+				"CAP_SYS_CHROOT",
+				"CAP_KILL",
+				"CAP_AUDIT_WRITE",
+			},
+			Ambient: []string{
+				"CAP_CHOWN",
+				"CAP_DAC_OVERRIDE",
+				"CAP_FSETID",
+				"CAP_FOWNER",
+				"CAP_MKNOD",
+				"CAP_NET_RAW",
+				"CAP_SETGID",
+				"CAP_SETUID",
+				"CAP_SETFCAP",
+				"CAP_SETPCAP",
+				"CAP_NET_BIND_SERVICE",
+				"CAP_SYS_CHROOT",
+				"CAP_KILL",
+				"CAP_AUDIT_WRITE",
+			},
+		},
+		MaskPaths: []string{
+			"/proc/kcore",
+			"/sys/firmware",
+		},
+		ReadonlyPaths: []string{
+			"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
+		},
 		Mounts: []*configs.Mount{
 			{
 				Device:      "overlay",
@@ -165,11 +239,58 @@ func (p *Processor) Create(config ContainerConfig) (*Container, error) {
 				Device:      "proc",
 				Source:      "proc",
 				Destination: "/proc",
-				Flags:       unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV,
+				Flags:       defaultMountFlags,
+			},
+			{
+				Source:      "tmpfs",
+				Destination: "/dev",
+				Device:      "tmpfs",
+				Flags:       unix.MS_NOSUID | unix.MS_STRICTATIME,
+				Data:        "mode=755",
+			},
+			// {
+			// 	Source:      "devpts",
+			// 	Destination: "/dev/pts",
+			// 	Device:      "devpts",
+			// 	Flags:       unix.MS_NOSUID | unix.MS_NOEXEC,
+			// 	Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
+			// },
+			{
+				Device:      "tmpfs",
+				Source:      "shm",
+				Destination: "/dev/shm",
+				Data:        "mode=1777,size=65536k",
+				Flags:       defaultMountFlags,
+			},
+			{
+				Source:      "mqueue",
+				Destination: "/dev/mqueue",
+				Device:      "mqueue",
+				Flags:       defaultMountFlags,
+			},
+			{
+				Source:      "sysfs",
+				Destination: "/sys",
+				Device:      "sysfs",
+				Flags:       defaultMountFlags | unix.MS_RDONLY,
 			},
 		},
 		UidMappings: uidMappings,
 		GidMappings: gidMappings,
+		Networks: []*configs.Network{
+			{
+				Type:    "loopback",
+				Address: "127.0.0.1/0",
+				Gateway: "localhost",
+			},
+		},
+		Rlimits: []configs.Rlimit{
+			{
+				Type: unix.RLIMIT_NOFILE,
+				Hard: uint64(1025),
+				Soft: uint64(1025),
+			},
+		},
 	}
 	container, err := p.factory.Create(id, &containerConfig)
 	if err != nil {
@@ -202,11 +323,11 @@ func getUIDMappings() ([]configs.IDMap, error) {
 		{ContainerID: 0, HostID: os.Getuid(), Size: 1},
 	}
 	if len(subUIDs) > 0 {
-		mappings = append(mappings, configs.IDMap{
-			ContainerID: 1,
-			HostID:      int(subUIDs[0].SubID),
-			Size:        int(subUIDs[0].Count),
-		})
+		// mappings = append(mappings, configs.IDMap{
+		// 	ContainerID: 1,
+		// 	HostID:      int(subUIDs[0].SubID),
+		// 	Size:        int(subUIDs[0].Count),
+		// })
 	}
 	return mappings, nil
 }
@@ -220,11 +341,11 @@ func getGIDMappings() ([]configs.IDMap, error) {
 		{ContainerID: 0, HostID: os.Getgid(), Size: 1},
 	}
 	if len(subGIDs) > 0 {
-		mappings = append(mappings, configs.IDMap{
-			ContainerID: 1,
-			HostID:      int(subGIDs[0].SubID),
-			Size:        int(subGIDs[0].Count),
-		})
+		// mappings = append(mappings, configs.IDMap{
+		// 	ContainerID: 1,
+		// 	HostID:      int(subGIDs[0].SubID),
+		// 	Size:        int(subGIDs[0].Count),
+		// })
 	}
 	return mappings, nil
 }

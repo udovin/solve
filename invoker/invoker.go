@@ -99,10 +99,11 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	defer taskCtx.Close()
 	factory, ok := registeredTasks[task.Kind()]
 	if !ok {
-		logger.Errorf("Unsupported task %v", task.Kind())
+		logger.Errorf("Unsupported task: %v", task.Kind())
 		return true
 	}
 	impl := factory.New(s)
+	logger.Info("Execute task", core.Any("kind", task.Kind()))
 	if err := impl.Execute(taskCtx); err != nil {
 		s.core.Logger().Error("Task failed", err)
 		statusCtx, cancel := context.WithTimeout(s.core.Context(), 30*time.Second)

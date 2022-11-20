@@ -26,7 +26,7 @@ type updateProblemPackageTask struct {
 }
 
 func (updateProblemPackageTask) New(invoker *Invoker) taskImpl {
-	return &judgeSolutionTask{invoker: invoker}
+	return &updateProblemPackageTask{invoker: invoker}
 }
 
 func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
@@ -60,10 +60,10 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 }
 
 func (t *updateProblemPackageTask) prepareProblem(ctx TaskContext) error {
-	if t.problem.PackageID == 0 {
+	if t.file.ID == 0 {
 		return fmt.Errorf("problem does not have package")
 	}
-	problemFile, err := t.invoker.files.DownloadFile(ctx, int64(t.problem.PackageID))
+	problemFile, err := t.invoker.files.DownloadFile(ctx, int64(t.file.ID))
 	if err != nil {
 		return fmt.Errorf("cannot download problem: %w", err)
 	}
@@ -158,7 +158,8 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 				)
 			}
 		}
-		return nil
+		t.problem.PackageID = models.NInt64(t.file.ID)
+		return t.invoker.core.Problems.Update(ctx, t.problem)
 	}, sqlRepeatableRead)
 }
 

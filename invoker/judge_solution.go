@@ -40,15 +40,15 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 	}
 	solution, err := t.invoker.getSolution(ctx, t.config.SolutionID)
 	if err != nil {
-		return fmt.Errorf("unable to fetch task solution: %w", err)
+		return fmt.Errorf("unable to fetch solution: %w", err)
 	}
 	problem, err := t.invoker.core.Problems.Get(solution.ProblemID)
 	if err != nil {
-		return fmt.Errorf("unable to fetch task problem: %w", err)
+		return fmt.Errorf("unable to fetch problem: %w", err)
 	}
 	compiler, err := t.invoker.core.Compilers.Get(solution.CompilerID)
 	if err != nil {
-		return fmt.Errorf("unable to fetch task compiler: %w", err)
+		return fmt.Errorf("unable to fetch compiler: %w", err)
 	}
 	tempDir, err := makeTempDir()
 	if err != nil {

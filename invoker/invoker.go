@@ -103,7 +103,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 		return true
 	}
 	impl := factory.New(s)
-	logger.Info("Execute task", core.Any("kind", task.Kind()))
+	logger.Info("Executing task", core.Any("kind", task.Kind().String()))
 	if err := impl.Execute(taskCtx); err != nil {
 		s.core.Logger().Error("Task failed", err)
 		statusCtx, cancel := context.WithTimeout(s.core.Context(), 30*time.Second)
@@ -113,6 +113,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 		}
 		return true
 	}
+	logger.Info("Task succeeded")
 	statusCtx, cancel := context.WithTimeout(s.core.Context(), 30*time.Second)
 	defer cancel()
 	if err := task.SetStatus(statusCtx, models.SucceededTask); err != nil {

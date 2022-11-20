@@ -1059,6 +1059,9 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 				Message: localize(c, "Invalid solution ID."),
 			}
 		}
+		if err := syncStore(c, v.core.Solutions); err != nil {
+			return err
+		}
 		if err := syncStore(c, v.core.ContestSolutions); err != nil {
 			return err
 		}

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -149,7 +150,14 @@ func (t *judgeSolutionTask) compileSolution(
 	}
 	state, err := process.Wait()
 	if err != nil {
-		return false, fmt.Errorf("unable to wait compiler: %w", err)
+		if _, ok := err.(*exec.ExitError); !ok {
+			return false, fmt.Errorf("unable to wait compiler: %w", err)
+		} else {
+			report.Compile = models.CompileReport{
+				Log: stdout.String(),
+			}
+			return false, nil
+		}
 	}
 	report.Compile = models.CompileReport{
 		Log: stdout.String(),

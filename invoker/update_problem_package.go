@@ -1,6 +1,7 @@
 package invoker
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -83,7 +84,19 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("cannot read problem: %w", err)
 	}
-	resources := []models.ProblemResource{}
+	events := map[string]models.ProblemResourceEvent{}
+	for _, resource := range t.resources {
+		if resource.Kind != models.ProblemStatement {
+			continue
+		}
+		config := models.ProblemStatementConfig{}
+		if err := resource.ScanConfig(&config); err != nil {
+			continue
+		}
+		event := models.ProblemResourceEvent{ProblemResource: resource}
+		event.BaseEventKind = models.DeleteEvent
+		events[config.Locale] = event
+	}
 	for _, statement := range problem.Statements {
 		locale, ok := polygonLocales[statement.Language]
 		if !ok {
@@ -106,13 +119,47 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 			Output: properties.Output,
 			Notes:  properties.Notes,
 		}
-		resource := models.ProblemResource{}
-		if err := resource.SetConfig(config); err != nil {
+		event, ok := events[locale]
+		if !ok {
+			event.BaseEventKind = models.CreateEvent
+			event.ProblemID = t.problem.ID
+		} else {
+			event.BaseEventKind = models.UpdateEvent
+		}
+		if err := event.ProblemResource.SetConfig(config); err != nil {
 			return err
 		}
-		resources = append(resources, resource)
+		events[locale] = event
 	}
-	return nil
+	return t.invoker.core.WrapTx(ctx, func(ctx context.Context) error {
+		for _, event := range events {
+			switch event.BaseEventKind {
+			case models.CreateEvent:
+				if err := t.invoker.core.ProblemResources.Create(
+					ctx, &event.ProblemResource,
+				); err != nil {
+					return err
+				}
+			case models.UpdateEvent:
+				if err := t.invoker.core.ProblemResources.Update(
+					ctx, event.ProblemResource,
+				); err != nil {
+					return err
+				}
+			case models.DeleteEvent:
+				if err := t.invoker.core.ProblemResources.Delete(
+					ctx, event.ProblemResource.ID,
+				); err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf(
+					"unsupported kind: %v", event.BaseEventKind,
+				)
+			}
+		}
+		return nil
+	}, sqlRepeatableRead)
 }
 
 var polygonLocales = map[string]string{

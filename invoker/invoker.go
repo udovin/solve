@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
@@ -367,3 +368,7 @@ func compareFiles(outputPath, answerPath string) (string, bool, error) {
 		return fmt.Sprintf("expected %q, got %q", string(answer), string(output)), false, nil
 	}
 }
+
+var (
+	sqlRepeatableRead = gosql.WithIsolation(sql.LevelRepeatableRead)
+)

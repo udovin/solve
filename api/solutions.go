@@ -121,11 +121,11 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 		Verdict: report.Verdict.String(),
 	}
 	if withLogs {
-		resp.CompileLog = report.CompileLog
+		resp.CompileLog = report.Compile.Log
 		for _, test := range report.Tests {
 			resp.Tests = append(resp.Tests, TestReport{
 				Verdict:  test.Verdict,
-				CheckLog: test.CheckLog,
+				CheckLog: test.Check.Log,
 			})
 		}
 	}

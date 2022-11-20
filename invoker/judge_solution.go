@@ -9,12 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/opencontainers/runc/libcontainer"
-	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/specconv"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg"
-	"golang.org/x/sys/unix"
 )
 
 func init() {
@@ -125,187 +121,39 @@ func (t *judgeSolutionTask) prepareSolution(ctx TaskContext) error {
 	return nil
 }
 
-func (t *judgeSolutionTask) compileSolution(ctx TaskContext) (bool, error) {
+func (t *judgeSolutionTask) compileSolution(
+	ctx TaskContext, report *models.SolutionReport,
+) (bool, error) {
 	config, err := t.compiler.GetConfig()
 	if err != nil {
 		return false, err
 	}
-	layersDir := filepath.Join(t.tempDir, "layers")
-	if err := os.Mkdir(layersDir, os.ModePerm); err != nil {
-		return false, err
+	stdout := strings.Builder{}
+	containerConfig := containerConfig{
+		Layers: []string{t.compilerPath},
+		Init: processConfig{
+			Args:   strings.Fields(config.Compile.Command),
+			Env:    config.Compile.Environ,
+			Dir:    config.Compile.Workdir,
+			Stdout: &stdout,
+		},
+		MemoryLimit: 256 * 1024 * 1024,
 	}
-	upperDir := filepath.Join(layersDir, "upper")
-	if err := os.Mkdir(upperDir, os.ModePerm); err != nil {
-		return false, err
-	}
-	workDir := filepath.Join(layersDir, "work")
-	if err := os.Mkdir(workDir, os.ModePerm); err != nil {
-		return false, err
-	}
-	mergeDir := filepath.Join(layersDir, "merge")
-	if err := os.Mkdir(mergeDir, os.ModePerm); err != nil {
-		return false, err
-	}
-	if source := config.Compile.Source; source != nil {
-		if strings.Contains(*source, "..") {
-			return false, fmt.Errorf("illegal file path: %q", *source)
-		}
-		sourcePath := filepath.Join(upperDir, *source)
-		if err := copyFileRec(t.solutionPath, sourcePath); err != nil {
-			return false, err
-		}
-	}
-	defaultMountFlags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
-	caps := []string{
-		"CAP_AUDIT_WRITE",
-		"CAP_KILL",
-		"CAP_NET_BIND_SERVICE",
-	}
-	containerID := "solve-" + filepath.Base(t.tempDir)
-	containerConfig := configs.Config{
-		Capabilities: &configs.Capabilities{
-			Bounding:    caps,
-			Effective:   caps,
-			Inheritable: caps,
-			Permitted:   caps,
-			Ambient:     caps,
-		},
-		Rlimits: []configs.Rlimit{
-			{
-				Type: unix.RLIMIT_NOFILE,
-				Hard: uint64(1025),
-				Soft: uint64(1025),
-			},
-		},
-		RootlessEUID:    true,
-		RootlessCgroups: true,
-		Cgroups: &configs.Cgroup{
-			Name:   containerID,
-			Parent: "system",
-			Resources: &configs.Resources{
-				MemorySwappiness: nil,
-				Devices:          configDevices(),
-			},
-			Rootless: true,
-		},
-		Devices:         specconv.AllowedDevices,
-		NoNewPrivileges: true,
-		NoNewKeyring:    true,
-		NoPivotRoot:     false,
-		Readonlyfs:      false,
-		Hostname:        "compiler",
-		Rootfs:          mergeDir,
-		Mounts: []*configs.Mount{
-			{
-				Device:      "overlay",
-				Source:      "overlay",
-				Destination: "/",
-				Data:        fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", t.compilerPath, upperDir, workDir),
-			},
-			{
-				Device:      "proc",
-				Source:      "proc",
-				Destination: "/proc",
-				Flags:       defaultMountFlags,
-			},
-			{
-				Device:      "tmpfs",
-				Source:      "tmpfs",
-				Destination: "/dev",
-				Flags:       unix.MS_NOSUID | unix.MS_STRICTATIME,
-				Data:        "mode=755,size=65536k",
-			},
-			{
-				Device:      "devpts",
-				Source:      "devpts",
-				Destination: "/dev/pts",
-				Flags:       unix.MS_NOSUID | unix.MS_NOEXEC,
-				Data:        "newinstance,ptmxmode=0666,mode=0620",
-			},
-			{
-				Device:      "tmpfs",
-				Source:      "shm",
-				Destination: "/dev/shm",
-				Data:        "mode=1777,size=65536k",
-				Flags:       defaultMountFlags,
-			},
-			{
-				Device:      "mqueue",
-				Source:      "mqueue",
-				Destination: "/dev/mqueue",
-				Flags:       defaultMountFlags,
-			},
-			{
-				Device:      "bind",
-				Source:      "/sys",
-				Destination: "/sys",
-				Flags:       defaultMountFlags | unix.MS_RDONLY | unix.MS_BIND | unix.MS_REC,
-			},
-		},
-		Namespaces: configs.Namespaces([]configs.Namespace{
-			{Type: configs.NEWNS},
-			{Type: configs.NEWPID},
-			{Type: configs.NEWIPC},
-			{Type: configs.NEWUTS},
-			{Type: configs.NEWUSER},
-			{Type: configs.NEWCGROUP},
-		}),
-		UidMappings: []configs.IDMap{
-			{
-				ContainerID: 0,
-				HostID:      os.Getuid(),
-				Size:        1,
-			},
-		},
-		GidMappings: []configs.IDMap{
-			{
-				ContainerID: 0,
-				HostID:      os.Getgid(),
-				Size:        1,
-			},
-		},
-		MaskPaths: []string{
-			"/proc/acpi",
-			"/proc/asound",
-			"/proc/kcore",
-			"/proc/keys",
-			"/proc/latency_stats",
-			"/proc/timer_list",
-			"/proc/timer_stats",
-			"/proc/sched_debug",
-			"/sys/firmware",
-			"/proc/scsi",
-		},
-		ReadonlyPaths: []string{
-			"/proc/bus",
-			"/proc/fs",
-			"/proc/irq",
-			"/proc/sys",
-			"/proc/sysrq-trigger",
-		},
-	}
-	container, err := t.invoker.factory.Create(containerID, &containerConfig)
+	container, err := t.invoker.factory.Create(containerConfig)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("unable to create compiler: %w", err)
 	}
-	defer func() {
-		_ = container.Destroy()
-	}()
-	process := libcontainer.Process{
-		Args:   strings.Fields(config.Compile.Command),
-		Env:    config.Compile.Environ,
-		User:   "root",
-		Init:   true,
-		Cwd:    config.Compile.Workdir,
-		Stdout: nil,
-		Stderr: nil,
-	}
-	if err := container.Run(&process); err != nil {
+	defer func() { _ = container.Destroy() }()
+	process, err := container.Start()
+	if err != nil {
 		return false, fmt.Errorf("unable to start compiler: %w", err)
 	}
 	state, err := process.Wait()
 	if err != nil {
 		return false, fmt.Errorf("unable to wait compiler: %w", err)
+	}
+	report.Compile = models.CompileReport{
+		Log: stdout.String(),
 	}
 	if state.ExitCode() != 0 {
 		return false, nil
@@ -323,10 +171,17 @@ func (t *judgeSolutionTask) executeImpl(ctx TaskContext) error {
 	if err := t.prepareSolution(ctx); err != nil {
 		return fmt.Errorf("cannot prepare solution: %w", err)
 	}
-	if ok, err := t.compileSolution(ctx); err != nil {
+	report := models.SolutionReport{
+		Verdict: models.Rejected,
+	}
+	if ok, err := t.compileSolution(ctx, &report); err != nil {
 		return fmt.Errorf("cannot compile solution: %w", err)
 	} else if !ok {
+		report.Verdict = models.CompilationError
 		return nil
 	}
-	return fmt.Errorf("not implemented")
+	if err := t.solution.SetReport(&report); err != nil {
+		return err
+	}
+	return t.invoker.core.Solutions.Update(ctx, t.solution)
 }

@@ -1,17 +1,15 @@
 package invoker
 
 import (
-	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/opencontainers/runc/libcontainer"
 	"github.com/udovin/solve/pkg"
 )
 
 func TestProcessor(t *testing.T) {
-	libcontainerPath := filepath.Join(t.TempDir(), "libcontainer")
-	processorPath := filepath.Join(t.TempDir(), "processor")
+	containersPath := filepath.Join(t.TempDir(), "containers")
 	alpinePath := filepath.Join(t.TempDir(), "alpine")
 	if err := pkg.ExtractTarGz(
 		filepath.Join("../testdata", "alpine.tar.gz"),
@@ -19,21 +17,20 @@ func TestProcessor(t *testing.T) {
 	); err != nil {
 		t.Fatal("Error:", err)
 	}
-	factory, err := libcontainer.New(
-		libcontainerPath,
-		libcontainer.InitArgs(os.Args[0], "init"),
-	)
-	processor := Processor{
-		factory: factory,
-		dir:     processorPath,
+	factory, err := newFactory(containersPath)
+	if err != nil {
+		t.Fatal("Error:", err)
 	}
-	containerConfig := ContainerConfig{
+	stdout := strings.Builder{}
+	containerConfig := containerConfig{
 		Layers: []string{alpinePath},
-		Init: ProcessConfig{
-			Args: []string{"/bin/sh", "-c", "echo 'Hello, World'"},
+		Init: processConfig{
+			Args:   []string{"/bin/sh", "-c", "echo -n 'solve_test'"},
+			Stdout: &stdout,
 		},
+		MemoryLimit: 32 * 1024 * 1024,
 	}
-	container, err := processor.Create(containerConfig)
+	container, err := factory.Create(containerConfig)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -42,11 +39,16 @@ func TestProcessor(t *testing.T) {
 			t.Fatal("Error:", err)
 		}
 	}()
-	process, err := container.Start()
-	if err != nil {
-		t.Fatal("Error:", err)
-	}
-	if _, err := process.Wait(); err != nil {
-		t.Fatal("Error:", err)
+	{
+		process, err := container.Start()
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		if _, err := process.Wait(); err != nil {
+			t.Fatal("Error:", err)
+		}
+		if s := stdout.String(); s != "solve_test" {
+			t.Fatal("Expected:", "solve_test", "got:", s)
+		}
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -33,77 +34,95 @@ func init() {
 	}
 }
 
-type ProcessConfig struct {
-	Args []string
-	Dir  string
-	Env  []string
+type processConfig struct {
+	Args   []string
+	Dir    string
+	Env    []string
+	Stdin  io.Reader
+	Stdout io.Writer
+	Stderr io.Writer
 }
 
-type Process struct {
-	config  ProcessConfig
+type process struct {
+	config  processConfig
 	process *libcontainer.Process
 }
 
-func (p *Process) Signal(signal os.Signal) error {
+func (p *process) Signal(signal os.Signal) error {
 	return p.process.Signal(signal)
 }
 
-func (p *Process) Wait() (*os.ProcessState, error) {
+func (p *process) Wait() (*os.ProcessState, error) {
 	return p.process.Wait()
 }
 
-type ContainerConfig struct {
-	Layers []string
-	Init   ProcessConfig
+type containerConfig struct {
+	Layers      []string
+	Init        processConfig
+	MemoryLimit int64
 }
 
-type Container struct {
-	config    ContainerConfig
+type container struct {
+	config    containerConfig
 	container libcontainer.Container
 }
 
-func (c *Container) ID() string {
+func (c *container) ID() string {
 	return c.container.ID()
 }
 
-func (c *Container) Start() (*Process, error) {
-	process := c.buildProcess(c.config.Init)
-	process.Init = true
-	if err := c.container.Run(&process); err != nil {
+func (c *container) Start() (*process, error) {
+	p := c.buildProcess(c.config.Init)
+	p.Init = true
+	if err := c.container.Run(&p); err != nil {
 		return nil, err
 	}
-	return &Process{config: c.config.Init, process: &process}, nil
+	return &process{config: c.config.Init, process: &p}, nil
 }
 
-func (c *Container) Signal(signal os.Signal) error {
+func (c *container) Signal(signal os.Signal) error {
 	return c.container.Signal(signal, true)
 }
 
-func (c *Container) Destroy() error {
+func (c *container) Destroy() error {
 	return c.container.Destroy()
 }
 
-func (c *Container) buildProcess(config ProcessConfig) libcontainer.Process {
+func (c *container) buildProcess(config processConfig) libcontainer.Process {
 	process := libcontainer.Process{
-		Args: config.Args,
-		Cwd:  config.Dir,
-		Env:  config.Env,
-		User: "0",
+		Args:   config.Args,
+		Cwd:    config.Dir,
+		Env:    config.Env,
+		User:   "0:0",
+		Stdin:  config.Stdin,
+		Stdout: config.Stdout,
+		Stderr: config.Stderr,
 	}
 	return process
 }
 
-type Processor struct {
+type factory struct {
 	factory libcontainer.Factory
 	dir     string
 }
 
-func (p *Processor) Create(config ContainerConfig) (*Container, error) {
+func newFactory(dir string) (*factory, error) {
+	f, err := libcontainer.New(
+		filepath.Join(dir, "state"),
+		libcontainer.InitArgs(os.Args[0], "init"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &factory{factory: f, dir: dir}, nil
+}
+
+func (f *factory) Create(config containerConfig) (*container, error) {
 	id, err := generateID()
 	if err != nil {
 		return nil, err
 	}
-	containerPath := filepath.Join(p.dir, "containers", id)
+	containerPath := filepath.Join(f.dir, "containers", id)
 	if err := os.MkdirAll(containerPath, os.ModePerm); err != nil {
 		return nil, err
 	}
@@ -122,20 +141,9 @@ func (p *Processor) Create(config ContainerConfig) (*Container, error) {
 	lowerPath := strings.Join(config.Layers, ":")
 	defaultMountFlags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
 	defaultCapabilities := []string{
-		"CAP_CHOWN",
-		"CAP_DAC_OVERRIDE",
-		"CAP_FSETID",
-		"CAP_FOWNER",
-		"CAP_MKNOD",
-		"CAP_NET_RAW",
-		"CAP_SETGID",
-		"CAP_SETUID",
-		"CAP_SETFCAP",
-		"CAP_SETPCAP",
-		"CAP_NET_BIND_SERVICE",
-		"CAP_SYS_CHROOT",
-		"CAP_KILL",
 		"CAP_AUDIT_WRITE",
+		"CAP_KILL",
+		"CAP_NET_BIND_SERVICE",
 	}
 	containerConfig := configs.Config{
 		Hostname:        id,
@@ -155,19 +163,23 @@ func (p *Processor) Create(config ContainerConfig) (*Container, error) {
 		}),
 		Devices: specconv.AllowedDevices,
 		Cgroups: &configs.Cgroup{
-			Name:   "c-" + id,
+			Name:   id,
 			Parent: "system",
 			Resources: &configs.Resources{
-				MemorySwappiness: nil,
-				Devices:          configDevices(),
+				MemorySwappiness:  nil,
+				Devices:           configDevices(),
+				Memory:            config.MemoryLimit,
+				MemorySwap:        config.MemoryLimit,
+				MemoryReservation: config.MemoryLimit,
 			},
 			Rootless: true,
 		},
 		Capabilities: &configs.Capabilities{
-			Bounding:  defaultCapabilities,
-			Effective: defaultCapabilities,
-			Permitted: defaultCapabilities,
-			Ambient:   defaultCapabilities,
+			Bounding:    defaultCapabilities,
+			Effective:   defaultCapabilities,
+			Inheritable: defaultCapabilities,
+			Permitted:   defaultCapabilities,
+			Ambient:     defaultCapabilities,
 		},
 		MaskPaths: []string{
 			"/proc/acpi",
@@ -237,6 +249,12 @@ func (p *Processor) Create(config ContainerConfig) (*Container, error) {
 				Destination: "/sys",
 				Flags:       defaultMountFlags | unix.MS_RDONLY,
 			},
+			{
+				Device:      "cgroup",
+				Source:      "cgroup",
+				Destination: "/sys/fs/cgroup",
+				Flags:       defaultMountFlags | unix.MS_RELATIME | unix.MS_RDONLY,
+			},
 		},
 		UidMappings: []configs.IDMap{
 			{ContainerID: 0, HostID: os.Geteuid(), Size: 1},
@@ -245,25 +263,17 @@ func (p *Processor) Create(config ContainerConfig) (*Container, error) {
 			{ContainerID: 0, HostID: os.Getegid(), Size: 1},
 		},
 		Networks: []*configs.Network{
-			{
-				Type:    "loopback",
-				Address: "127.0.0.1/0",
-				Gateway: "localhost",
-			},
+			{Type: "loopback", Address: "127.0.0.1/0", Gateway: "localhost"},
 		},
 		Rlimits: []configs.Rlimit{
-			{
-				Type: unix.RLIMIT_NOFILE,
-				Hard: uint64(1025),
-				Soft: uint64(1025),
-			},
+			{Type: unix.RLIMIT_NOFILE, Hard: 1024, Soft: 1024},
 		},
 	}
-	container, err := p.factory.Create(id, &containerConfig)
+	c, err := f.factory.Create(id, &containerConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &Container{config: config, container: container}, nil
+	return &container{config: config, container: c}, nil
 }
 
 func configDevices() (devices []*devices.Rule) {

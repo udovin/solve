@@ -19,6 +19,7 @@ type updateProblemPackageTask struct {
 	config      models.UpdateProblemPackageTaskConfig
 	problem     models.Problem
 	file        models.File
+	resources   []models.ProblemResource
 	tempDir     string
 	problemPath string
 }
@@ -33,11 +34,17 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 	}
 	problem, err := t.invoker.core.Problems.Get(t.config.ProblemID)
 	if err != nil {
-		return fmt.Errorf("unable to fetch task problem: %w", err)
+		return fmt.Errorf("unable to fetch problem: %w", err)
 	}
 	file, err := t.invoker.core.Files.Get(t.config.FileID)
 	if err != nil {
-		return fmt.Errorf("unable to fetch task problem: %w", err)
+		return fmt.Errorf("unable to fetch problem: %w", err)
+	}
+	resources, err := t.invoker.core.ProblemResources.FindByProblem(
+		problem.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to fetch resources: %w", err)
 	}
 	tempDir, err := makeTempDir()
 	if err != nil {
@@ -47,6 +54,7 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 	t.tempDir = tempDir
 	t.problem = problem
 	t.file = file
+	t.resources = resources
 	return t.executeImpl(ctx)
 }
 
@@ -75,6 +83,39 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("cannot read problem: %w", err)
 	}
-	_ = problem
+	resources := []models.ProblemResource{}
+	for _, statement := range problem.Statements {
+		locale, ok := polygonLocales[statement.Language]
+		if !ok {
+			continue
+		}
+		if statement.Type != "application/x-tex" {
+			continue
+		}
+		properties, err := polygon.ReadProblemProperites(
+			t.problemPath, statement.Language,
+		)
+		if err != nil {
+			return err
+		}
+		config := models.ProblemStatementConfig{
+			Locale: locale,
+			Title:  properties.Name,
+			Legend: properties.Legend,
+			Input:  properties.Input,
+			Output: properties.Output,
+			Notes:  properties.Notes,
+		}
+		resource := models.ProblemResource{}
+		if err := resource.SetConfig(config); err != nil {
+			return err
+		}
+		resources = append(resources, resource)
+	}
 	return nil
+}
+
+var polygonLocales = map[string]string{
+	"russian": "ru",
+	"english": "en",
 }

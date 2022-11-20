@@ -1,6 +1,7 @@
 package polygon
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"io/ioutil"
 	"path/filepath"
@@ -45,7 +46,11 @@ type Problem struct {
 	TestSets   []TestSet   `xml:"judging>testset"`
 }
 
-const configPath = "problem.xml"
+const (
+	configPath            = "problem.xml"
+	statementsDir         = "statements"
+	problemPropertiesPath = "problem-properties.json"
+)
 
 // ReadProblem reads problem from directory.
 func ReadProblem(dir string) (Problem, error) {
@@ -58,4 +63,39 @@ func ReadProblem(dir string) (Problem, error) {
 		return Problem{}, err
 	}
 	return problem, nil
+}
+
+type SampleTest struct {
+	Input  string `json:"input"`
+	Output string `json:"output"`
+}
+
+type ProblemProperties struct {
+	Name        string       `json:"name"`
+	Legend      string       `json:"legend"`
+	Input       string       `json:"input"`
+	Output      string       `json:"output"`
+	Notes       string       `json:"notes"`
+	Tutorial    string       `json:"tutorial"`
+	TimeLimit   int          `json:"timeLimit"`
+	MemoryLimit int64        `json:"memoryLimit"`
+	InputFile   string       `json:"inputFile"`
+	OutputFile  string       `json:"outputFile"`
+	SampleTests []SampleTest `json:"sampleTests"`
+}
+
+func ReadProblemProperites(
+	dir string, language string,
+) (ProblemProperties, error) {
+	data, err := ioutil.ReadFile(filepath.Join(
+		dir, statementsDir, language, problemPropertiesPath,
+	))
+	if err != nil {
+		return ProblemProperties{}, err
+	}
+	var properties ProblemProperties
+	if err := json.Unmarshal(data, &properties); err != nil {
+		return ProblemProperties{}, err
+	}
+	return properties, nil
 }

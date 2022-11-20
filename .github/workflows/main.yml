@@ -3,7 +3,7 @@ on: [push]
 jobs:
   test:
     name: Test Repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     services:
       postgres:
         image: postgres
@@ -47,7 +47,7 @@ jobs:
         curl -s https://codecov.io/bash | bash
   benchmark:
     name: Benchmark Repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     services:
       postgres:
         image: postgres
@@ -92,7 +92,7 @@ jobs:
         fail-on-alert: true
   docker:
     name: Build Docker image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Login to DockerHub
         if: github.event_name != 'pull_request'

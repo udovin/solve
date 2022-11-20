@@ -137,7 +137,6 @@ func (t *judgeSolutionTask) compileSolution(
 			Dir:    config.Compile.Workdir,
 			Stdout: &stdout,
 		},
-		MemoryLimit: 256 * 1024 * 1024,
 	}
 	container, err := t.invoker.factory.Create(containerConfig)
 	if err != nil {

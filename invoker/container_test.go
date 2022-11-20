@@ -28,7 +28,6 @@ func TestProcessor(t *testing.T) {
 			Args:   []string{"/bin/sh", "-c", "echo -n 'solve_test'"},
 			Stdout: &stdout,
 		},
-		MemoryLimit: 32 * 1024 * 1024,
 	}
 	container, err := factory.Create(containerConfig)
 	if err != nil {

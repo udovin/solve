@@ -158,14 +158,12 @@ func (u *TestUser) LoginClient() {
 	if err != nil {
 		u.env.tb.Fatal("Error:", err)
 	}
-	u.env.SyncStores()
 }
 
 func (u *TestUser) LogoutClient() {
 	if err := u.env.Client.Logout(context.Background()); err != nil {
 		u.env.tb.Fatal("Error:", err)
 	}
-	u.env.SyncStores()
 }
 
 func (u *TestUser) AddRoles(names ...string) {
@@ -189,7 +187,6 @@ func NewTestUser(e *TestEnv) *TestUser {
 	if err != nil {
 		e.tb.Fatal("Error:", err)
 	}
-	e.SyncStores()
 	return &TestUser{
 		User:     user,
 		Password: password,

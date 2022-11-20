@@ -42,6 +42,13 @@ func TestCompilersSimpleScenario(t *testing.T) {
 	}
 	e.Check(compiler)
 	{
+		compilers, err := e.Client.ObserveCompilers(context.Background())
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		e.Check(compilers)
+	}
+	{
 		file, err := os.Open(filepath.Join("../testdata", "alpine.tar.gz"))
 		if err != nil {
 			t.Fatal("Error:", err)
@@ -55,7 +62,6 @@ func TestCompilersSimpleScenario(t *testing.T) {
 		}
 		e.Check(updated)
 	}
-	e.SyncStores()
 	{
 		deleted, err := e.Client.DeleteCompiler(context.Background(), compiler.ID)
 		if err != nil {

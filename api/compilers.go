@@ -51,6 +51,9 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("account not extracted")
 	}
+	if err := syncStore(c, v.core.Compilers); err != nil {
+		return err
+	}
 	compilers, err := v.core.Compilers.All()
 	if err != nil {
 		return err
@@ -256,13 +259,10 @@ func (v *View) extractCompiler(next echo.HandlerFunc) echo.HandlerFunc {
 				Message: localize(c, "Invalid compiler ID."),
 			}
 		}
-		compiler, err := v.core.Compilers.Get(id)
-		if err == sql.ErrNoRows {
-			if err := v.core.Compilers.Sync(getContext(c)); err != nil {
-				return err
-			}
-			compiler, err = v.core.Compilers.Get(id)
+		if err := syncStore(c, v.core.Compilers); err != nil {
+			return err
 		}
+		compiler, err := v.core.Compilers.Get(id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

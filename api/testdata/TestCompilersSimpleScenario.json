@@ -13,6 +13,23 @@
     }
   },
   {
+    "compilers": [
+      {
+        "id": 1,
+        "name": "test",
+        "config": {
+          "extensions": [
+            "cpp",
+            "h",
+            "hpp",
+            "c++",
+            "cxx"
+          ]
+        }
+      }
+    ]
+  },
+  {
     "id": 1,
     "name": "test2",
     "config": {

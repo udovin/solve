@@ -142,6 +142,18 @@ func (c *Client) Register(
 	return respData, err
 }
 
+func (c *Client) ObserveCompilers(ctx context.Context) (Compilers, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/compilers"), nil,
+	)
+	if err != nil {
+		return Compilers{}, err
+	}
+	var respData Compilers
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
 func (c *Client) CreateCompiler(ctx context.Context, form CreateCompilerForm) (Compiler, error) {
 	defer func() { _ = form.Close() }()
 	buf := bytes.Buffer{}

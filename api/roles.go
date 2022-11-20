@@ -221,6 +221,9 @@ func (v *View) observeRoleRoles(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("role not extracted")
 	}
+	if err := syncStore(c, v.core.RoleEdges); err != nil {
+		return err
+	}
 	edges, err := v.core.RoleEdges.FindByRole(role.ID)
 	if err != nil {
 		return err
@@ -290,6 +293,9 @@ func (v *View) deleteRoleRole(c echo.Context) error {
 	childRole, ok := c.Get(childRoleKey).(models.Role)
 	if !ok {
 		return fmt.Errorf("child role not extracted")
+	}
+	if err := syncStore(c, v.core.RoleEdges); err != nil {
+		return err
 	}
 	edges, err := v.core.RoleEdges.FindByRole(role.ID)
 	if err != nil {
@@ -396,6 +402,9 @@ func (v *View) deleteUserRole(c echo.Context) error {
 	role, ok := c.Get(roleKey).(models.Role)
 	if !ok {
 		return fmt.Errorf("role not extracted")
+	}
+	if err := syncStore(c, v.core.AccountRoles); err != nil {
+		return err
 	}
 	edges, err := v.core.AccountRoles.FindByAccount(user.AccountID)
 	if err != nil {

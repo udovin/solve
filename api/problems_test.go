@@ -42,7 +42,6 @@ func TestProblemsSimpleScenario(t *testing.T) {
 		}
 		e.Check(updated)
 	}
-	e.SyncStores()
 	{
 		deleted, err := e.Client.DeleteProblem(context.Background(), problem.ID)
 		if err != nil {

@@ -25,7 +25,6 @@ func TestCreateDeleteRole(t *testing.T) {
 		t.Error("Error:", err)
 	}
 	e.Check(created)
-	e.SyncStores()
 	deleted, err := e.Socket.DeleteRole(context.Background(), created.ID)
 	if err != nil {
 		t.Error("Error:", err)
@@ -54,7 +53,6 @@ func TestRoleSimpleScenario(t *testing.T) {
 			t.Fatal("Error:", err)
 		}
 		e.Check(roles)
-		e.SyncStores()
 	}
 	for i := 2; i < 5; i++ {
 		roles, err := e.Client.DeleteRoleRole("role1", fmt.Sprintf("role%d", i))
@@ -62,7 +60,6 @@ func TestRoleSimpleScenario(t *testing.T) {
 			t.Fatal("Error:", err)
 		}
 		e.Check(roles)
-		e.SyncStores()
 	}
 	{
 		if _, err := e.Client.DeleteRoleRole("role1", "role2"); err == nil {
@@ -82,7 +79,6 @@ func TestRoleSimpleScenario(t *testing.T) {
 			t.Fatal("Error:", err)
 		}
 		e.Check(roles)
-		e.SyncStores()
 	}
 	for i := 1; i < 5; i++ {
 		roles, err := e.Client.DeleteUserRole(context.Background(), user.Login, fmt.Sprintf("role%d", i))
@@ -90,7 +86,6 @@ func TestRoleSimpleScenario(t *testing.T) {
 			t.Fatal("Error:", err)
 		}
 		e.Check(roles)
-		e.SyncStores()
 	}
 	{
 		if _, err := e.Client.DeleteUserRole(context.Background(), user.Login, "role2"); err == nil {

@@ -21,6 +21,11 @@ func TestProblem(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = problem
+	properties, err := ReadProblemProperites(dir, "english")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = properties
 }
 
 func TestNotFoundProblem(t *testing.T) {

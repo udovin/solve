@@ -13,8 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opencontainers/runc/libcontainer"
-
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
@@ -26,7 +25,7 @@ import (
 type Invoker struct {
 	core    *core.Core
 	files   *managers.FileManager
-	factory libcontainer.Factory
+	factory *factory
 }
 
 // New creates a new instance of Invoker.
@@ -47,10 +46,7 @@ func (s *Invoker) Start() error {
 	if s.factory != nil {
 		return fmt.Errorf("factory already created")
 	}
-	factory, err := libcontainer.New(
-		"/tmp/libcontainer",
-		libcontainer.InitArgs(os.Args[0], "init"),
-	)
+	factory, err := newFactory("/tmp/containers")
 	if err != nil {
 		return err
 	}
@@ -103,10 +99,11 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 	defer taskCtx.Close()
 	factory, ok := registeredTasks[task.Kind()]
 	if !ok {
-		logger.Errorf("Unsupported task %v", task.Kind())
+		logger.Errorf("Unsupported task: %v", task.Kind())
 		return true
 	}
 	impl := factory.New(s)
+	logger.Info("Execute task", core.Any("kind", task.Kind()))
 	if err := impl.Execute(taskCtx); err != nil {
 		s.core.Logger().Error("Task failed", err)
 		statusCtx, cancel := context.WithTimeout(s.core.Context(), 30*time.Second)
@@ -199,7 +196,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 	}
 	compier := compiler{
 		Logger:            s.core.Logger(),
-		Factory:           s.factory,
+		Factory:           s.factory.factory,
 		ImagePath:         tempImagePath,
 		CompileArgs:       []string{"dosbox", "-conf", "/dosbox_compile.conf"},
 		CompileCwd:        "/home/solution",
@@ -228,7 +225,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 				err,
 			)
 		}
-		report.CompileLog = compileLog
+		report.Compile.Log = compileLog
 		report.Verdict = models.CompilationError
 		return err
 	} else {
@@ -239,7 +236,7 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 				err,
 			)
 		}
-		report.CompileLog = compileLog
+		report.Compile.Log = compileLog
 	}
 	pkg, err := polygon.ReadProblem(tempProblemPath)
 	if err != nil {
@@ -269,24 +266,26 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 				message, ok, err := compareFiles(tempOutputPath, answerPath)
 				if err != nil {
 					report.Tests = append(report.Tests, models.TestReport{
-						Verdict:  models.Rejected,
-						CheckLog: fmt.Sprintf("unable to compare files: %s", err.Error()),
-						Input:    inputText,
-						Output:   outputText,
+						Verdict: models.Rejected,
+						Check: models.CheckReport{
+							Log: fmt.Sprintf("unable to compare files: %s", err.Error()),
+						},
+						Input:  inputText,
+						Output: outputText,
 					})
 				} else if ok {
 					report.Tests = append(report.Tests, models.TestReport{
-						Verdict:  models.Accepted,
-						CheckLog: message,
-						Input:    inputText,
-						Output:   outputText,
+						Verdict: models.Accepted,
+						Check:   models.CheckReport{Log: message},
+						Input:   inputText,
+						Output:  outputText,
 					})
 				} else {
 					report.Tests = append(report.Tests, models.TestReport{
-						Verdict:  models.WrongAnswer,
-						CheckLog: message,
-						Input:    inputText,
-						Output:   outputText,
+						Verdict: models.WrongAnswer,
+						Check:   models.CheckReport{Log: message},
+						Input:   inputText,
+						Output:  outputText,
 					})
 				}
 			} else if errors.Is(err, context.DeadlineExceeded) {
@@ -296,15 +295,19 @@ func (s *Invoker) onJudgeSolution(ctx context.Context, task models.Task) error {
 				})
 			} else if state, ok := err.(exitCodeError); ok {
 				report.Tests = append(report.Tests, models.TestReport{
-					Verdict:  models.RuntimeError,
-					CheckLog: fmt.Sprintf("Exit code: %d", state.ExitCode()),
-					Input:    inputText,
+					Verdict: models.RuntimeError,
+					Check: models.CheckReport{
+						Log: fmt.Sprintf("Exit code: %d", state.ExitCode()),
+					},
+					Input: inputText,
 				})
 			} else {
 				report.Tests = append(report.Tests, models.TestReport{
-					Verdict:  models.Rejected,
-					CheckLog: fmt.Sprint("Unknown error: %w", err),
-					Input:    inputText,
+					Verdict: models.Rejected,
+					Check: models.CheckReport{
+						Log: fmt.Sprint("Unknown error: %w", err),
+					},
+					Input: inputText,
 				})
 			}
 		}
@@ -366,3 +369,7 @@ func compareFiles(outputPath, answerPath string) (string, bool, error) {
 		return fmt.Sprintf("expected %q, got %q", string(answer), string(output)), false, nil
 	}
 }
+
+var (
+	sqlRepeatableRead = gosql.WithIsolation(sql.LevelRepeatableRead)
+)

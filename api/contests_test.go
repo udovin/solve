@@ -46,7 +46,6 @@ func TestContestSimpleScenario(t *testing.T) {
 		}
 		e.Check(resp)
 	}
-	e.SyncStores()
 	{
 		contests, err := e.Client.ObserveContests()
 		if err != nil {
@@ -77,7 +76,6 @@ func TestContestSimpleScenario(t *testing.T) {
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		e.SyncStores()
 		form := createContestProblemForm{
 			Code:      fmt.Sprintf("%c", 'A'+i),
 			ProblemID: problem.ID,
@@ -118,7 +116,6 @@ func TestContestParticipation(t *testing.T) {
 				t.Fatal("Error:", err)
 			}
 		}
-		e.SyncStores()
 		problem := models.Problem{
 			Title:     "Test problem",
 			PackageID: NInt64(fakeFile.ID),
@@ -126,7 +123,6 @@ func TestContestParticipation(t *testing.T) {
 		if err := e.Core.Problems.Create(context.Background(), &problem); err != nil {
 			t.Fatal("Error:", err)
 		}
-		e.SyncStores()
 		problemForm := createContestProblemForm{
 			Code:      "A",
 			ProblemID: problem.ID,
@@ -187,7 +183,6 @@ func BenchmarkContests(b *testing.B) {
 		if err != nil {
 			b.Fatal("Error:", err)
 		}
-		e.SyncStores()
 		ids = append(ids, contest.ID)
 	}
 	e.Rand.Shuffle(len(ids), func(i, j int) {

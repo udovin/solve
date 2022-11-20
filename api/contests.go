@@ -208,6 +208,9 @@ func (v *View) observeContests(c echo.Context) error {
 			Message: localize(c, "Invalid filter."),
 		}
 	}
+	if err := syncStore(c, v.core.Contests); err != nil {
+		return err
+	}
 	var resp Contests
 	contests, err := v.core.Contests.All()
 	if err != nil {
@@ -456,6 +459,9 @@ func (v *View) createContestProblem(c echo.Context) error {
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
+	}
+	if err := syncStore(c, v.core.Problems); err != nil {
+		return err
 	}
 	var problem models.ContestProblem
 	if err := form.Update(c, &problem, v.core.Problems); err != nil {

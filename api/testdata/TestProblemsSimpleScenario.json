@@ -1,11 +1,19 @@
 [
   {
     "id": 1,
-    "title": "a-plus-b"
+    "title": "a-plus-b",
+    "permissions": [
+      "update_problem",
+      "delete_problem"
+    ]
   },
   {
     "id": 1,
-    "title": "a-plus-b-2"
+    "title": "a-plus-b-2",
+    "permissions": [
+      "update_problem",
+      "delete_problem"
+    ]
   },
   {
     "id": 1,

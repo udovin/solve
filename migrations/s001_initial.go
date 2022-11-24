@@ -421,7 +421,7 @@ var s001 = []schema.Operation{
 			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
 			{Name: "id", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},
-			{Name: "kind", Type: schema.String},
+			{Name: "kind", Type: schema.Int64},
 			{Name: "config", Type: schema.JSON},
 			{Name: "file_id", Type: schema.Int64, Nullable: true},
 		},

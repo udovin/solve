@@ -14,7 +14,7 @@ import (
 
 func (v *View) registerFileHandlers(g *echo.Group) {
 	g.GET(
-		"/v0/file/:file/content/*", v.observeFileContent,
+		"/v0/files/:file/content/*", v.observeFileContent,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractFile,
 		v.requirePermission(models.ObserveFileContentRole),
 	)

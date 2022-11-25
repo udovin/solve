@@ -140,7 +140,7 @@ func (v *View) makeSolution(
 		CreateTime: solution.CreateTime,
 	}
 	if problem, err := v.core.Problems.Get(solution.ProblemID); err == nil {
-		problemResp := v.makeProblem(c, problem, false)
+		problemResp := v.makeProblem(c, problem, managers.PermissionSet{}, false)
 		resp.Problem = &problemResp
 	}
 	if compiler, err := v.core.Compilers.Get(solution.CompilerID); err == nil {

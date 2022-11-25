@@ -236,6 +236,7 @@ var builtInRoles = map[string]struct{}{
 	DeleteSessionRole:              {},
 	RegisterContestsRole:           {},
 	RegisterContestRole:            {},
+	ObserveFileContentRole:         {},
 }
 
 // GetBuildInRoles returns all built-in roles.

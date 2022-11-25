@@ -40,6 +40,12 @@ func WithTransport(transport *http.Transport) ClientOption {
 	}
 }
 
+func WithTimeout(timeout time.Duration) ClientOption {
+	return func(c *Client) {
+		c.client.Timeout = timeout
+	}
+}
+
 // NewClient returns new API client.
 func NewClient(endpoint string, options ...ClientOption) *Client {
 	jar, err := cookiejar.New(nil)

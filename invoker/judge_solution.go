@@ -143,6 +143,16 @@ func (t *judgeSolutionTask) compileSolution(
 	if err != nil {
 		return false, fmt.Errorf("unable to create compiler: %w", err)
 	}
+	if config.Compile.Source != nil {
+		path := filepath.Join(
+			container.GetUpperDir(),
+			config.Compile.Workdir,
+			*config.Compile.Source,
+		)
+		if err := copyFileRec(t.solutionPath, path); err != nil {
+			return false, fmt.Errorf("unable to write solution: %w", err)
+		}
+	}
 	defer func() { _ = container.Destroy() }()
 	process, err := container.Start()
 	if err != nil {
@@ -150,7 +160,7 @@ func (t *judgeSolutionTask) compileSolution(
 	}
 	state, err := process.Wait()
 	if err != nil {
-		if _, ok := err.(*exec.ExitError); !ok {
+		if err, ok := err.(*exec.ExitError); !ok {
 			return false, fmt.Errorf("unable to wait compiler: %w", err)
 		} else {
 			report.Compile = models.CompileReport{
@@ -185,7 +195,6 @@ func (t *judgeSolutionTask) executeImpl(ctx TaskContext) error {
 		return fmt.Errorf("cannot compile solution: %w", err)
 	} else if !ok {
 		report.Verdict = models.CompilationError
-		return nil
 	}
 	if err := t.solution.SetReport(&report); err != nil {
 		return err

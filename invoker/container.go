@@ -65,10 +65,15 @@ type containerConfig struct {
 type container struct {
 	config    containerConfig
 	container libcontainer.Container
+	upperDir  string
 }
 
 func (c *container) ID() string {
 	return c.container.ID()
+}
+
+func (c *container) GetUpperDir() string {
+	return c.upperDir
 }
 
 func (c *container) Start() (*process, error) {
@@ -145,6 +150,62 @@ func (f *factory) Create(config containerConfig) (*container, error) {
 		"CAP_KILL",
 		"CAP_NET_BIND_SERVICE",
 	}
+	mounts := []*configs.Mount{
+		{
+			Device:      "overlay",
+			Source:      "overlay",
+			Destination: "/",
+			Data: fmt.Sprintf(
+				"lowerdir=%s,upperdir=%s,workdir=%s",
+				lowerPath, upperPath, workPath,
+			),
+		},
+		{
+			Device:      "proc",
+			Source:      "proc",
+			Destination: "/proc",
+			Flags:       defaultMountFlags,
+		},
+		{
+			Device:      "tmpfs",
+			Source:      "tmpfs",
+			Destination: "/dev",
+			Flags:       unix.MS_NOSUID | unix.MS_STRICTATIME,
+			Data:        "mode=755,size=65536k",
+		},
+		{
+			Device:      "devpts",
+			Source:      "devpts",
+			Destination: "/dev/pts",
+			Flags:       unix.MS_NOSUID | unix.MS_NOEXEC,
+			Data:        "newinstance,ptmxmode=0666,mode=0620",
+		},
+		{
+			Device:      "tmpfs",
+			Source:      "shm",
+			Destination: "/dev/shm",
+			Flags:       defaultMountFlags,
+			Data:        "mode=1777,size=65536k",
+		},
+		{
+			Device:      "mqueue",
+			Source:      "mqueue",
+			Destination: "/dev/mqueue",
+			Flags:       defaultMountFlags,
+		},
+		{
+			Device:      "sysfs",
+			Source:      "sysfs",
+			Destination: "/sys",
+			Flags:       defaultMountFlags | unix.MS_RDONLY,
+		},
+		{
+			Device:      "cgroup",
+			Source:      "cgroup",
+			Destination: "/sys/fs/cgroup",
+			Flags:       defaultMountFlags | unix.MS_RELATIME | unix.MS_RDONLY,
+		},
+	}
 	containerConfig := configs.Config{
 		Hostname:        id,
 		Rootfs:          rootfsPath,
@@ -200,62 +261,7 @@ func (f *factory) Create(config containerConfig) (*container, error) {
 			"/proc/sys",
 			"/proc/sysrq-trigger",
 		},
-		Mounts: []*configs.Mount{
-			{
-				Device:      "overlay",
-				Source:      "overlay",
-				Destination: "/",
-				Data: fmt.Sprintf(
-					"lowerdir=%s,upperdir=%s,workdir=%s",
-					lowerPath, upperPath, workPath,
-				),
-			},
-			{
-				Device:      "proc",
-				Source:      "proc",
-				Destination: "/proc",
-				Flags:       defaultMountFlags,
-			},
-			{
-				Device:      "tmpfs",
-				Source:      "tmpfs",
-				Destination: "/dev",
-				Flags:       unix.MS_NOSUID | unix.MS_STRICTATIME,
-				Data:        "mode=755,size=65536k",
-			},
-			{
-				Device:      "devpts",
-				Source:      "devpts",
-				Destination: "/dev/pts",
-				Flags:       unix.MS_NOSUID | unix.MS_NOEXEC,
-				Data:        "newinstance,ptmxmode=0666,mode=0620",
-			},
-			{
-				Device:      "tmpfs",
-				Source:      "shm",
-				Destination: "/dev/shm",
-				Flags:       defaultMountFlags,
-				Data:        "mode=1777,size=65536k",
-			},
-			{
-				Device:      "mqueue",
-				Source:      "mqueue",
-				Destination: "/dev/mqueue",
-				Flags:       defaultMountFlags,
-			},
-			{
-				Device:      "sysfs",
-				Source:      "sysfs",
-				Destination: "/sys",
-				Flags:       defaultMountFlags | unix.MS_RDONLY,
-			},
-			{
-				Device:      "cgroup",
-				Source:      "cgroup",
-				Destination: "/sys/fs/cgroup",
-				Flags:       defaultMountFlags | unix.MS_RELATIME | unix.MS_RDONLY,
-			},
-		},
+		Mounts: mounts,
 		UidMappings: []configs.IDMap{
 			{ContainerID: 0, HostID: os.Geteuid(), Size: 1},
 		},
@@ -273,7 +279,11 @@ func (f *factory) Create(config containerConfig) (*container, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &container{config: config, container: c}, nil
+	return &container{
+		config:    config,
+		container: c,
+		upperDir:  upperPath,
+	}, nil
 }
 
 func configDevices() (devices []*devices.Rule) {

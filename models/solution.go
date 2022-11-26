@@ -60,6 +60,32 @@ func (v Verdict) MarshalText() ([]byte, error) {
 	return []byte(v.String()), nil
 }
 
+func (v *Verdict) UnmarshalText(data []byte) error {
+	switch s := string(data); s {
+	case "accepted":
+		*v = Accepted
+	case "rejected":
+		*v = Rejected
+	case "compilation_error":
+		*v = CompilationError
+	case "time_limit_exceeded":
+		*v = TimeLimitExceeded
+	case "memory_limit_exceeded":
+		*v = MemoryLimitExceeded
+	case "runtime_error":
+		*v = RuntimeError
+	case "wrong_answer":
+		*v = WrongAnswer
+	case "presentation_error":
+		*v = PresentationError
+	case "partially_accepted":
+		*v = PartiallyAccepted
+	default:
+		return fmt.Errorf("unsupported kind: %q", s)
+	}
+	return nil
+}
+
 type UsageReport struct {
 	Time   int64 `json:"time,omitempty"`
 	Memory int64 `json:"memory,omitempty"`

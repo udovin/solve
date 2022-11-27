@@ -85,7 +85,6 @@ func (v *View) makeProblem(
 				continue
 			}
 			if resp.Statement == nil || config.Locale == locale.Name() {
-				resp.Title = config.Title
 				statement := ProblemStatement{
 					Locale: config.Locale,
 					Title:  config.Title,

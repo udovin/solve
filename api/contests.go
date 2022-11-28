@@ -888,7 +888,9 @@ func (v *View) makeContestSolution(
 		solution.SolutionID,
 	); err == nil {
 		resp.CreateTime = baseSolution.CreateTime
-		resp.Content = v.makeSolutionContent(c, baseSolution)
+		if withLogs {
+			resp.Content = v.makeSolutionContent(c, baseSolution)
+		}
 		resp.Report = v.makeSolutionReport(c, baseSolution, withLogs)
 		if compiler, err := v.core.Compilers.Get(
 			baseSolution.CompilerID,

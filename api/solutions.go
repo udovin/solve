@@ -155,7 +155,9 @@ func (v *View) makeSolution(
 			}
 		}
 	}
-	resp.Content = v.makeSolutionContent(c, solution)
+	if withLogs {
+		resp.Content = v.makeSolutionContent(c, solution)
+	}
 	resp.Report = v.makeSolutionReport(c, solution, withLogs)
 	return resp
 }

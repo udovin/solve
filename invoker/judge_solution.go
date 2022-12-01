@@ -72,8 +72,26 @@ func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
 		return fmt.Errorf("cannot download problem: %w", err)
 	}
 	defer func() { _ = problemFile.Close() }()
+	localProblemPath := filepath.Join(t.tempDir, "problem.zip")
+	if file, ok := problemFile.(*os.File); ok {
+		localProblemPath = file.Name()
+	} else {
+		if err := func() error {
+			localProblemFile, err := os.Create(localProblemPath)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = localProblemFile.Close() }()
+			if _, err := io.Copy(localProblemFile, problemFile); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return err
+		}
+	}
 	tempProblemPath := filepath.Join(t.tempDir, "problem")
-	if err := pkg.ExtractZip(problemFile.Name(), tempProblemPath); err != nil {
+	if err := pkg.ExtractZip(localProblemPath, tempProblemPath); err != nil {
 		return fmt.Errorf("cannot extract problem: %w", err)
 	}
 	t.problemPath = tempProblemPath
@@ -86,8 +104,26 @@ func (t *judgeSolutionTask) prepareCompiler(ctx TaskContext) error {
 		return fmt.Errorf("cannot download rootfs: %w", err)
 	}
 	defer func() { _ = compilerFile.Close() }()
+	localCompilerPath := filepath.Join(t.tempDir, "problem.zip")
+	if file, ok := compilerFile.(*os.File); ok {
+		localCompilerPath = file.Name()
+	} else {
+		if err := func() error {
+			localCompilerFile, err := os.Create(localCompilerPath)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = localCompilerFile.Close() }()
+			if _, err := io.Copy(localCompilerFile, compilerFile); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return err
+		}
+	}
 	tempCompilerPath := filepath.Join(t.tempDir, "compiler")
-	if err := pkg.ExtractTarGz(compilerFile.Name(), tempCompilerPath); err != nil {
+	if err := pkg.ExtractTarGz(localCompilerPath, tempCompilerPath); err != nil {
 		return fmt.Errorf("cannot extract rootfs: %w", err)
 	}
 	t.compilerPath = tempCompilerPath

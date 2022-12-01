@@ -3,6 +3,7 @@ package invoker
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -68,8 +69,26 @@ func (t *updateProblemPackageTask) prepareProblem(ctx TaskContext) error {
 		return fmt.Errorf("cannot download problem: %w", err)
 	}
 	defer func() { _ = problemFile.Close() }()
+	localProblemPath := filepath.Join(t.tempDir, "problem.zip")
+	if file, ok := problemFile.(*os.File); ok {
+		localProblemPath = file.Name()
+	} else {
+		if err := func() error {
+			localProblemFile, err := os.Create(localProblemPath)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = localProblemFile.Close() }()
+			if _, err := io.Copy(localProblemFile, problemFile); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return err
+		}
+	}
 	tempProblemPath := filepath.Join(t.tempDir, "problem")
-	if err := pkg.ExtractZip(problemFile.Name(), tempProblemPath); err != nil {
+	if err := pkg.ExtractZip(localProblemPath, tempProblemPath); err != nil {
 		return fmt.Errorf("cannot extract problem: %w", err)
 	}
 	t.problemPath = tempProblemPath

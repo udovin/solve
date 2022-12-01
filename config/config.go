@@ -108,12 +108,6 @@ type Invoker struct {
 	Workers int `json:"workers"`
 }
 
-// Storage contains storage config.
-type Storage struct {
-	// FilesDir contains path to files directory.
-	FilesDir string `json:"files_dir"`
-}
-
 var configFuncs = template.FuncMap{
 	"json": func(value interface{}) (string, error) {
 		data, err := json.Marshal(value)

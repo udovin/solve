@@ -23,7 +23,9 @@ func testSetup(tb testing.TB) {
 			PasswordSalt: "qwerty123",
 		},
 		Storage: &config.Storage{
-			FilesDir: tb.TempDir(),
+			Options: config.LocalStorageOptions{
+				FilesDir: tb.TempDir(),
+			},
 		},
 	}
 	c, err := core.NewCore(cfg)

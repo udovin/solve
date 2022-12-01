@@ -104,7 +104,9 @@ func NewTestEnv(tb testing.TB) *TestEnv {
 			PasswordSalt: "qwerty123",
 		},
 		Storage: &config.Storage{
-			FilesDir: tb.TempDir(),
+			Options: config.LocalStorageOptions{
+				FilesDir: tb.TempDir(),
+			},
 		},
 	}
 	if _, ok := tb.(*testing.B); ok || os.Getenv("TEST_ENABLE_LOGS") != "1" {

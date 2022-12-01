@@ -34,7 +34,9 @@ func testSetup(tb testing.TB) {
 	testConfig.SocketFile = filepath.Join(
 		tb.TempDir(), "solve-server.sock",
 	)
-	testConfig.Storage.FilesDir = filepath.Join(tb.TempDir(), "files")
+	testConfig.Storage.Options = config.LocalStorageOptions{
+		FilesDir: filepath.Join(tb.TempDir(), "files"),
+	}
 	var err error
 	func() {
 		testConfigFile, err = ioutil.TempFile(tb.TempDir(), "test-")

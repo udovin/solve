@@ -80,6 +80,11 @@ var s001 = []schema.Operation{
 			{Name: "path", Type: schema.String},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_file",
+		Columns: []string{"path"},
+		Unique:  true,
+	},
 	schema.CreateTable{
 		Name: "solve_file_event",
 		Columns: []schema.Column{

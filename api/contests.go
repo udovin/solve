@@ -706,6 +706,12 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
+	if err := syncStore(c, v.core.Solutions); err != nil {
+		return err
+	}
+	if err := syncStore(c, v.core.ContestSolutions); err != nil {
+		return err
+	}
 	solutions, err := v.core.ContestSolutions.FindByContest(contest.ID)
 	if err != nil {
 		return err

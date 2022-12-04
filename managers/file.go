@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/udovin/solve/config"
@@ -97,7 +98,7 @@ func (s *S3Storage) GeneratePath(ctx context.Context) (string, error) {
 func (s *S3Storage) ReadFile(ctx context.Context, filePath string) (io.ReadCloser, error) {
 	object, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
-		Key:    aws.String(path.Join(s.pathPrefix, filePath)),
+		Key:    aws.String(s.pathPrefix + filePath),
 	})
 	if err != nil {
 		return nil, err
@@ -105,19 +106,37 @@ func (s *S3Storage) ReadFile(ctx context.Context, filePath string) (io.ReadClose
 	return object.Body, nil
 }
 
+type readCounter struct {
+	count  int64
+	reader io.Reader
+}
+
+func (r *readCounter) Read(buf []byte) (int, error) {
+	n, err := r.reader.Read(buf)
+	if n > 0 {
+		atomic.AddInt64(&r.count, int64(n))
+	}
+	return n, err
+}
+
+func (r *readCounter) Count() int64 {
+	return atomic.LoadInt64(&r.count)
+}
+
 func (s *S3Storage) WriteFile(ctx context.Context, filePath string, file io.Reader) (int64, error) {
+	reader := readCounter{reader: file}
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
-		Key:    aws.String(path.Join(s.pathPrefix, filePath)),
-		Body:   file,
+		Key:    aws.String(s.pathPrefix + filePath),
+		Body:   &reader,
 	})
-	return 0, err
+	return reader.Count(), err
 }
 
 func (s *S3Storage) DeleteFile(ctx context.Context, filePath string) error {
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucket),
-		Key:    aws.String(path.Join(s.pathPrefix, filePath)),
+		Key:    aws.String(s.pathPrefix + filePath),
 	})
 	return err
 }

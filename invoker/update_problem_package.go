@@ -3,13 +3,9 @@ package invoker
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/udovin/solve/models"
-	"github.com/udovin/solve/pkg"
-	"github.com/udovin/solve/pkg/polygon"
 )
 
 func init() {
@@ -17,13 +13,13 @@ func init() {
 }
 
 type updateProblemPackageTask struct {
-	invoker     *Invoker
-	config      models.UpdateProblemPackageTaskConfig
-	problem     models.Problem
-	file        models.File
-	resources   []models.ProblemResource
-	tempDir     string
-	problemPath string
+	invoker        *Invoker
+	config         models.UpdateProblemPackageTaskConfig
+	problem        models.Problem
+	file           models.File
+	resources      []models.ProblemResource
+	tempDir        string
+	problemPackage Problem
 }
 
 func (updateProblemPackageTask) New(invoker *Invoker) taskImpl {
@@ -64,44 +60,17 @@ func (t *updateProblemPackageTask) prepareProblem(ctx TaskContext) error {
 	if t.file.ID == 0 {
 		return fmt.Errorf("problem does not have package")
 	}
-	problemFile, err := t.invoker.files.DownloadFile(ctx, int64(t.file.ID))
+	problem, err := t.invoker.problems.DownloadProblem(ctx, t.file.ID)
 	if err != nil {
 		return fmt.Errorf("cannot download problem: %w", err)
 	}
-	defer func() { _ = problemFile.Close() }()
-	localProblemPath := filepath.Join(t.tempDir, "problem.zip")
-	if file, ok := problemFile.(*os.File); ok {
-		localProblemPath = file.Name()
-	} else {
-		if err := func() error {
-			localProblemFile, err := os.Create(localProblemPath)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = localProblemFile.Close() }()
-			if _, err := io.Copy(localProblemFile, problemFile); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return err
-		}
-	}
-	tempProblemPath := filepath.Join(t.tempDir, "problem")
-	if err := pkg.ExtractZip(localProblemPath, tempProblemPath); err != nil {
-		return fmt.Errorf("cannot extract problem: %w", err)
-	}
-	t.problemPath = tempProblemPath
+	t.problemPackage = problem
 	return nil
 }
 
 func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	if err := t.prepareProblem(ctx); err != nil {
 		return fmt.Errorf("cannot prepare problem: %w", err)
-	}
-	problem, err := polygon.ReadProblem(t.problemPath)
-	if err != nil {
-		return fmt.Errorf("cannot read problem: %w", err)
 	}
 	events := map[string]models.ProblemResourceEvent{}
 	for _, resource := range t.resources {
@@ -116,27 +85,15 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 		event.BaseEventKind = models.DeleteEvent
 		events[config.Locale] = event
 	}
-	for _, statement := range problem.Statements {
-		locale, ok := polygonLocales[statement.Language]
-		if !ok {
-			continue
-		}
-		if statement.Type != "application/x-tex" {
-			continue
-		}
-		properties, err := polygon.ReadProblemProperites(
-			t.problemPath, statement.Language,
-		)
+	statements, err := t.problemPackage.GetStatements()
+	if err != nil {
+		return fmt.Errorf("cannot read problem: %w", err)
+	}
+	for _, statement := range statements {
+		locale := statement.Locale()
+		config, err := statement.GetConfig()
 		if err != nil {
-			return err
-		}
-		config := models.ProblemStatementConfig{
-			Locale: locale,
-			Title:  properties.Name,
-			Legend: properties.Legend,
-			Input:  properties.Input,
-			Output: properties.Output,
-			Notes:  properties.Notes,
+			return fmt.Errorf("cannot read statement: %w", err)
 		}
 		event, ok := events[locale]
 		if !ok {
@@ -180,9 +137,4 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 		t.problem.PackageID = models.NInt64(t.file.ID)
 		return t.invoker.core.Problems.Update(ctx, t.problem)
 	}, sqlRepeatableRead)
-}
-
-var polygonLocales = map[string]string{
-	"russian": "ru",
-	"english": "en",
 }

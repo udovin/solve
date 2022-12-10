@@ -35,7 +35,10 @@ Then create config file `config.json` with following contents:
     "password_salt": "qwerty123"
   },
   "storage": {
-    "files_dir": ".data/files"
+    "driver": "local",
+    "options": {
+      "files_dir": ".data/files"
+    }
   },
   "log_level": "debug"
 }

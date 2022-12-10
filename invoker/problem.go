@@ -173,6 +173,15 @@ func (s *polygonProblemStatement) GetConfig() (models.ProblemStatementConfig, er
 		Output: properties.Output,
 		Notes:  properties.Notes,
 	}
+	for _, sample := range properties.SampleTests {
+		config.Samples = append(
+			config.Samples,
+			models.ProblemStatementSample{
+				Input:  sample.Input,
+				Output: sample.Output,
+			},
+		)
+	}
 	return config, nil
 }
 

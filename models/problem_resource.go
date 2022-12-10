@@ -13,6 +13,11 @@ const (
 	ProblemStatement ProblemResourceKind = 1
 )
 
+type ProblemStatementSample struct {
+	Input  string `json:"input,omitempty"`
+	Output string `json:"output,omitempty"`
+}
+
 type ProblemStatementConfig struct {
 	Locale string `json:"locale"`
 	Title  string `json:"title"`
@@ -20,6 +25,8 @@ type ProblemStatementConfig struct {
 	Input  string `json:"input,omitempty"`
 	Output string `json:"output,omitempty"`
 	Notes  string `json:"notes,omitempty"`
+	// Samples contains problem sample tests.
+	Samples []ProblemStatementSample `json:"samples,omitempty"`
 }
 
 func (c ProblemStatementConfig) ProblemResourceKind() ProblemResourceKind {

@@ -62,7 +62,9 @@ func (m *problemManager) runDownloadProblem(ctx context.Context, packageID int64
 	}
 	defer func() { _ = problemFile.Close() }()
 	localProblemPath := filepath.Join(m.cacheDir, fmt.Sprintf("package-%d.zip", packageID))
+	_ = os.Remove(localProblemPath)
 	problemPath := filepath.Join(m.cacheDir, fmt.Sprintf("package-%d", packageID))
+	_ = os.RemoveAll(problemPath)
 	if file, ok := problemFile.(*os.File); ok {
 		localProblemPath = file.Name()
 	} else {

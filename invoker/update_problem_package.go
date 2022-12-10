@@ -3,7 +3,6 @@ package invoker
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/udovin/solve/models"
 )
@@ -18,7 +17,6 @@ type updateProblemPackageTask struct {
 	problem        models.Problem
 	file           models.File
 	resources      []models.ProblemResource
-	tempDir        string
 	problemPackage Problem
 }
 
@@ -44,12 +42,6 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("unable to fetch resources: %w", err)
 	}
-	tempDir, err := makeTempDir()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
-	t.tempDir = tempDir
 	t.problem = problem
 	t.file = file
 	t.resources = resources

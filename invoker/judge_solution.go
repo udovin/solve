@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/udovin/solve/models"
-	"github.com/udovin/solve/pkg"
 )
 
 func init() {
@@ -76,34 +75,11 @@ func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
 }
 
 func (t *judgeSolutionTask) prepareCompiler(ctx TaskContext) error {
-	compilerFile, err := t.invoker.files.DownloadFile(ctx, t.compiler.ImageID)
+	imagePath, err := t.invoker.compilers.DownloadImage(ctx, t.compiler.ImageID)
 	if err != nil {
-		return fmt.Errorf("cannot download rootfs: %w", err)
+		return fmt.Errorf("cannot download compiler: %w", err)
 	}
-	defer func() { _ = compilerFile.Close() }()
-	localCompilerPath := filepath.Join(t.tempDir, "problem.zip")
-	if file, ok := compilerFile.(*os.File); ok {
-		localCompilerPath = file.Name()
-	} else {
-		if err := func() error {
-			localCompilerFile, err := os.Create(localCompilerPath)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = localCompilerFile.Close() }()
-			if _, err := io.Copy(localCompilerFile, compilerFile); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return err
-		}
-	}
-	tempCompilerPath := filepath.Join(t.tempDir, "compiler")
-	if err := pkg.ExtractTarGz(localCompilerPath, tempCompilerPath); err != nil {
-		return fmt.Errorf("cannot extract rootfs: %w", err)
-	}
-	t.compilerPath = tempCompilerPath
+	t.compilerPath = imagePath
 	return nil
 }
 

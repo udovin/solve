@@ -288,6 +288,7 @@ func (v *View) createProblem(c echo.Context) error {
 		if err := v.files.ConfirmUploadFile(ctx, &file); err != nil {
 			return err
 		}
+		problem.PackageID = models.NInt64(file.ID)
 		if err := v.core.Problems.Create(ctx, &problem); err != nil {
 			return err
 		}
@@ -373,7 +374,7 @@ func (v *View) rebuildProblem(c echo.Context) error {
 	permissions := v.getProblemPermissions(accountCtx, problem)
 	if problem.PackageID == 0 {
 		return c.JSON(
-			http.StatusNotModified,
+			http.StatusForbidden,
 			v.makeProblem(c, problem, permissions, false),
 		)
 	}

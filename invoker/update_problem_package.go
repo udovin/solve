@@ -28,13 +28,22 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 	if err := ctx.ScanConfig(&t.config); err != nil {
 		return fmt.Errorf("unable to scan task config: %w", err)
 	}
+	if err := t.invoker.core.Problems.Sync(ctx); err != nil {
+		return fmt.Errorf("unable to sync problems: %w", err)
+	}
 	problem, err := t.invoker.core.Problems.Get(t.config.ProblemID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch problem: %w", err)
 	}
+	if err := t.invoker.core.Files.Sync(ctx); err != nil {
+		return fmt.Errorf("unable to sync files: %w", err)
+	}
 	file, err := t.invoker.core.Files.Get(t.config.FileID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch problem: %w", err)
+	}
+	if err := t.invoker.core.ProblemResources.Sync(ctx); err != nil {
+		return fmt.Errorf("unable to sync resources: %w", err)
 	}
 	resources, err := t.invoker.core.ProblemResources.FindByProblem(
 		problem.ID,

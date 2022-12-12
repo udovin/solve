@@ -30,10 +30,8 @@ type SQLiteOptions struct {
 
 // PostgresOptions stores Postgres connection options.
 type PostgresOptions struct {
-	// Host contains host address.
-	Host string `json:"host"`
-	// Port contains port address.
-	Port int `json:"port"`
+	// Hosts contains list of hosts.
+	Hosts []string `json:"hosts"`
 	// User contains username of user.
 	User string `json:"user"`
 	// Password contains password of user.
@@ -107,7 +105,7 @@ func createSQLiteDB(opts SQLiteOptions) (*gosql.DB, error) {
 
 func createPostgresDB(opts PostgresOptions) (*gosql.DB, error) {
 	return (gosql.PostgresConfig{
-		Hosts:    []string{fmt.Sprintf("%s:%d", opts.Host, opts.Port)},
+		Hosts:    opts.Hosts,
 		User:     opts.User,
 		Password: opts.Password,
 		Name:     opts.Name,

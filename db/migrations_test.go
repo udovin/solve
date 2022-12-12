@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -48,8 +49,7 @@ func TestPostgresMigrations(t *testing.T) {
 	cfg := config.Config{
 		DB: config.DB{
 			Options: config.PostgresOptions{
-				Host:     pgHost,
-				Port:     pgPort,
+				Hosts:    []string{fmt.Sprintf("%s:%d", pgHost, pgPort)},
 				User:     "postgres",
 				Password: "postgres",
 				Name:     "postgres",

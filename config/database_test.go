@@ -23,7 +23,7 @@ func TestDatabaseConfig_UnmarshalJSON_SQLite(t *testing.T) {
 
 func TestDatabaseConfig_UnmarshalJSON_Postgres(t *testing.T) {
 	expectedConfig := DB{Options: PostgresOptions{
-		Host:     "localhost",
+		Hosts:    []string{"localhost:6432"},
 		User:     "user",
 		Password: "password",
 		Name:     "database",

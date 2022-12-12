@@ -235,9 +235,9 @@ func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 		c.Response().Header().Add("X-Solve-Version", config.Version)
 		start := time.Now()
 		err := next(c)
+		status := c.Response().Status
 		defer func() {
 			finish := time.Now()
-			status := c.Response().Status
 			message := fmt.Sprintf("%s %s", c.Request().Method, c.Request().RequestURI)
 			params := map[string]string{}
 			for _, name := range c.ParamNames() {
@@ -263,11 +263,11 @@ func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		}()
 		if resp, ok := err.(statusCodeResponse); ok {
-			code := resp.StatusCode()
-			if code == 0 {
-				code = http.StatusInternalServerError
+			status = resp.StatusCode()
+			if status == 0 {
+				status = http.StatusInternalServerError
 			}
-			return c.JSON(code, resp)
+			return c.JSON(status, resp)
 		}
 		return err
 	}

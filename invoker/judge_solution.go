@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/udovin/solve/models"
-	"github.com/udovin/solve/pkg"
 )
 
 func init() {
@@ -19,15 +18,15 @@ func init() {
 }
 
 type judgeSolutionTask struct {
-	invoker      *Invoker
-	config       models.JudgeSolutionTaskConfig
-	solution     models.Solution
-	problem      models.Problem
-	compiler     models.Compiler
-	tempDir      string
-	problemPath  string
-	compilerPath string
-	solutionPath string
+	invoker        *Invoker
+	config         models.JudgeSolutionTaskConfig
+	solution       models.Solution
+	problem        models.Problem
+	compiler       models.Compiler
+	tempDir        string
+	problemPackage Problem
+	compilerPath   string
+	solutionPath   string
 }
 
 func (judgeSolutionTask) New(invoker *Invoker) taskImpl {
@@ -67,66 +66,20 @@ func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
 	if t.problem.PackageID == 0 {
 		return fmt.Errorf("problem does not have package")
 	}
-	problemFile, err := t.invoker.files.DownloadFile(ctx, int64(t.problem.PackageID))
+	problem, err := t.invoker.problems.DownloadProblem(ctx, int64(t.problem.PackageID))
 	if err != nil {
 		return fmt.Errorf("cannot download problem: %w", err)
 	}
-	defer func() { _ = problemFile.Close() }()
-	localProblemPath := filepath.Join(t.tempDir, "problem.zip")
-	if file, ok := problemFile.(*os.File); ok {
-		localProblemPath = file.Name()
-	} else {
-		if err := func() error {
-			localProblemFile, err := os.Create(localProblemPath)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = localProblemFile.Close() }()
-			if _, err := io.Copy(localProblemFile, problemFile); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return err
-		}
-	}
-	tempProblemPath := filepath.Join(t.tempDir, "problem")
-	if err := pkg.ExtractZip(localProblemPath, tempProblemPath); err != nil {
-		return fmt.Errorf("cannot extract problem: %w", err)
-	}
-	t.problemPath = tempProblemPath
+	t.problemPackage = problem
 	return nil
 }
 
 func (t *judgeSolutionTask) prepareCompiler(ctx TaskContext) error {
-	compilerFile, err := t.invoker.files.DownloadFile(ctx, t.compiler.ImageID)
+	imagePath, err := t.invoker.compilers.DownloadImage(ctx, t.compiler.ImageID)
 	if err != nil {
-		return fmt.Errorf("cannot download rootfs: %w", err)
+		return fmt.Errorf("cannot download compiler: %w", err)
 	}
-	defer func() { _ = compilerFile.Close() }()
-	localCompilerPath := filepath.Join(t.tempDir, "problem.zip")
-	if file, ok := compilerFile.(*os.File); ok {
-		localCompilerPath = file.Name()
-	} else {
-		if err := func() error {
-			localCompilerFile, err := os.Create(localCompilerPath)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = localCompilerFile.Close() }()
-			if _, err := io.Copy(localCompilerFile, compilerFile); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return err
-		}
-	}
-	tempCompilerPath := filepath.Join(t.tempDir, "compiler")
-	if err := pkg.ExtractTarGz(localCompilerPath, tempCompilerPath); err != nil {
-		return fmt.Errorf("cannot extract rootfs: %w", err)
-	}
-	t.compilerPath = tempCompilerPath
+	t.compilerPath = imagePath
 	return nil
 }
 

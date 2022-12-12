@@ -12,6 +12,7 @@ require (
 	github.com/nsf/jsondiff v0.0.0-20210926074059-1e845ec5d249
 	github.com/opencontainers/runc v1.1.4
 	github.com/spf13/cobra v1.6.1
+	github.com/udovin/algo v0.0.2
 	github.com/udovin/gosql v0.0.1
 	golang.org/x/crypto v0.3.0
 	golang.org/x/sys v0.2.0

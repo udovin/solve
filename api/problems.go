@@ -31,6 +31,11 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 			v.extractAuth(v.sessionAuth), v.extractProblem,
 			v.requirePermission(models.UpdateProblemRole),
 		)
+		g.POST(
+			"/v0/problems/:problem/rebuild", v.rebuildProblem,
+			v.extractAuth(v.sessionAuth), v.extractProblem,
+			v.requirePermission(models.UpdateProblemRole),
+		)
 	}
 	g.GET(
 		"/v0/problems/:problem", v.observeProblem,
@@ -94,6 +99,7 @@ func (v *View) makeProblem(
 					statement.Input = config.Input
 					statement.Output = config.Output
 					statement.Notes = config.Notes
+					statement.Samples = config.Samples
 				}
 				resp.Statement = &statement
 			}
@@ -195,13 +201,16 @@ func (f *UpdateProblemForm) Parse(c echo.Context) error {
 	}
 	formFile, err := c.FormFile("file")
 	if err != nil {
-		return err
+		if err != http.ErrMissingFile {
+			return err
+		}
+	} else {
+		file, err := managers.NewMultipartFileReader(formFile)
+		if err != nil {
+			return err
+		}
+		f.PackageFile = file
 	}
-	file, err := managers.NewMultipartFileReader(formFile)
-	if err != nil {
-		return err
-	}
-	f.PackageFile = file
 	return nil
 }
 
@@ -346,6 +355,40 @@ func (v *View) updateProblem(c echo.Context) error {
 		return fmt.Errorf("account not extracted")
 	}
 	permissions := v.getProblemPermissions(accountCtx, problem)
+	return c.JSON(
+		http.StatusOK,
+		v.makeProblem(c, problem, permissions, false),
+	)
+}
+
+func (v *View) rebuildProblem(c echo.Context) error {
+	problem, ok := c.Get(problemKey).(models.Problem)
+	if !ok {
+		return fmt.Errorf("problem not extracted")
+	}
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		return fmt.Errorf("account not extracted")
+	}
+	permissions := v.getProblemPermissions(accountCtx, problem)
+	if problem.PackageID == 0 {
+		return c.JSON(
+			http.StatusNotModified,
+			v.makeProblem(c, problem, permissions, false),
+		)
+	}
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+		task := models.Task{}
+		if err := task.SetConfig(models.UpdateProblemPackageTaskConfig{
+			ProblemID: problem.ID,
+			FileID:    int64(problem.PackageID),
+		}); err != nil {
+			return err
+		}
+		return v.core.Tasks.Create(ctx, &task)
+	}, sqlRepeatableRead); err != nil {
+		return err
+	}
 	return c.JSON(
 		http.StatusOK,
 		v.makeProblem(c, problem, permissions, false),

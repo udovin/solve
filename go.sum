@@ -214,6 +214,8 @@ github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PK
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 h1:kdXcSzyDtseVEc4yCz2qF8ZrQvIDBJLl4S1c3GCXmoI=
 github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
+github.com/udovin/algo v0.0.2 h1:KqeXU7tF4M1qmcmMwCxq0zdBASX4AhjLts2tuouP7MY=
+github.com/udovin/algo v0.0.2/go.mod h1:h8RpXvizCZJbEfv/i9Tbtr82nCvefCfYqRMvYFO7CuQ=
 github.com/udovin/gosql v0.0.1 h1:NySdoTuYkx4xWjA7plzWAXDHuCaaBBimVfgna6+mPdM=
 github.com/udovin/gosql v0.0.1/go.mod h1:1obIRKJDUVJJ02txtlmizeB5kp35ARONO3AUDd8sW6s=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=

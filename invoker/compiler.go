@@ -2,388 +2,95 @@ package invoker
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"time"
+	"sync"
 
-	"github.com/udovin/solve/core"
-
-	"github.com/gofrs/uuid"
-	"github.com/opencontainers/runc/libcontainer"
-	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/specconv"
-	"golang.org/x/sys/unix"
+	"github.com/udovin/algo/futures"
+	"github.com/udovin/solve/managers"
+	"github.com/udovin/solve/pkg"
 )
 
-type compiler struct {
-	Logger            *core.Logger
-	Factory           libcontainer.Factory
-	ImagePath         string
-	CompileArgs       []string
-	CompileCwd        string
-	CompileEnv        []string
-	CompileSourcePath string
-	CompileTargetPath string
-	CompileLogPath    string
-	ExecuteArgs       []string
-	ExecuteCwd        string
-	ExecuteEnv        []string
-	ExecuteBinaryPath string
-	ExecuteInputPath  string
-	ExecuteOutputPath string
+type compilerManager struct {
+	cacheDir string
+	files    *managers.FileManager
+	images   map[int64]futures.Future[string]
+	mutex    sync.Mutex
 }
 
-// Compile compiles source file into executable file.
-func (c *compiler) Compile(ctx context.Context, source, target, log string) error {
-	rootfsBase, err := makeTempDir()
-	if err != nil {
-		return err
+func newCompilerManager(files *managers.FileManager, cacheDir string) (*compilerManager, error) {
+	if err := os.MkdirAll(cacheDir, os.ModePerm); err != nil {
+		return nil, err
 	}
-	defer func() {
-		_ = os.RemoveAll(rootfsBase)
-	}()
-	rootfsUpper := filepath.Join(rootfsBase, "upper")
-	if err := os.Mkdir(rootfsUpper, os.ModePerm); err != nil {
-		return err
-	}
-	rootfsWork := filepath.Join(rootfsBase, "work")
-	if err := os.Mkdir(rootfsWork, os.ModePerm); err != nil {
-		return err
-	}
-	rootfsMerge := filepath.Join(rootfsBase, "merge")
-	if err := os.Mkdir(rootfsMerge, os.ModePerm); err != nil {
-		return err
-	}
-	sourcePath := filepath.Join(rootfsUpper, c.CompileSourcePath)
-	if err := copyFileRec(source, sourcePath); err != nil {
-		return err
-	}
-	cwdPath := filepath.Join(rootfsUpper, c.CompileCwd)
-	if err := os.MkdirAll(cwdPath, os.ModePerm); err != nil {
-		return err
-	}
-	containerID := "solve-" + filepath.Base(rootfsBase)
-	containerConfig := defaultRootlessConfig(containerID, c.ImagePath, rootfsUpper, rootfsWork)
-	containerConfig.Rootfs = rootfsMerge
-	container, err := c.Factory.Create(containerID, containerConfig)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = container.Destroy()
-	}()
-	process := libcontainer.Process{
-		Args:   c.CompileArgs,
-		Env:    c.CompileEnv,
-		User:   "root",
-		Init:   true,
-		Cwd:    c.CompileCwd,
-		Stdout: nil,
-		Stderr: nil,
-	}
-	if err := container.Run(&process); err != nil {
-		return fmt.Errorf("unable to start compiler: %w", err)
-	}
-	{
-		state, err := container.OCIState()
-		c.Logger.Info("Container error: ", err)
-		stateRaw, _ := json.Marshal(state)
-		c.Logger.Info("Container state: ", string(stateRaw))
-	}
-	if state, err := process.Wait(); err != nil {
-		return fmt.Errorf("unable to wait compiler: %w", err)
-	} else {
-		c.Logger.Info("ExitCode: ", state.ExitCode())
-		c.Logger.Info("Exited: ", state.Exited())
-		c.Logger.Info("String: ", state.String())
-	}
-	{
-		state, err := container.OCIState()
-		c.Logger.Info("Container error: ", err)
-		stateRaw, _ := json.Marshal(state)
-		c.Logger.Info("Container state: ", string(stateRaw))
-	}
-	if err := copyFile(filepath.Join(rootfsUpper, c.CompileLogPath), log); err != nil {
-		return fmt.Errorf("unable to copy compile log: %w", err)
-	}
-	if err := copyFile(filepath.Join(rootfsUpper, c.CompileTargetPath), target); err != nil {
-		return fmt.Errorf("unable to copy binary: %w", err)
-	}
-	return nil
+	return &compilerManager{
+		cacheDir: cacheDir,
+		files:    files,
+		images:   map[int64]futures.Future[string]{},
+	}, nil
 }
 
-type exitCodeError struct {
-	*os.ProcessState
+func (m *compilerManager) DownloadImage(ctx context.Context, imageID int64) (string, error) {
+	return m.downloadImageAsync(ctx, imageID).Get(ctx)
 }
 
-func (e exitCodeError) Error() string {
-	return e.ProcessState.String()
-}
-
-// Execute executes compiled solution with specified input file.
-func (c *compiler) Execute(
-	ctx context.Context, binary, input, output string,
-	timeLimit time.Duration, memoryLimit int64,
-) error {
-	rootfsBase, err := makeTempDir()
-	if err != nil {
-		return err
+func (m *compilerManager) downloadImageAsync(ctx context.Context, imageID int64) futures.Future[string] {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	if image, ok := m.images[imageID]; ok {
+		return image
 	}
-	defer func() {
-		_ = os.RemoveAll(rootfsBase)
-	}()
-	rootfsUpper := filepath.Join(rootfsBase, "upper")
-	if err := os.Mkdir(rootfsUpper, os.ModePerm); err != nil {
-		return err
-	}
-	rootfsWork := filepath.Join(rootfsBase, "work")
-	if err := os.Mkdir(rootfsWork, os.ModePerm); err != nil {
-		return err
-	}
-	rootfsMerge := filepath.Join(rootfsBase, "merge")
-	if err := os.Mkdir(rootfsMerge, os.ModePerm); err != nil {
-		return err
-	}
-	binaryPath := filepath.Join(rootfsUpper, c.ExecuteBinaryPath)
-	if err := copyFileRec(binary, binaryPath); err != nil {
-		return err
-	}
-	inputPath := filepath.Join(rootfsUpper, c.ExecuteInputPath)
-	if err := copyFileRec(input, inputPath); err != nil {
-		return err
-	}
-	cwdPath := filepath.Join(rootfsUpper, c.ExecuteCwd)
-	if err := os.MkdirAll(cwdPath, os.ModePerm); err != nil {
-		return err
-	}
-	containerID := "solve-" + filepath.Base(rootfsBase)
-	containerConfig := defaultRootlessConfig(containerID, c.ImagePath, rootfsUpper, rootfsWork)
-	containerConfig.Rootfs = rootfsMerge
-	container, err := c.Factory.Create(containerID, containerConfig)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = container.Destroy()
-	}()
-	process := libcontainer.Process{
-		Args:   c.ExecuteArgs,
-		Env:    c.ExecuteEnv,
-		User:   "root",
-		Init:   true,
-		Cwd:    c.ExecuteCwd,
-		Stdout: nil,
-		Stderr: nil,
-	}
-	if err := container.Run(&process); err != nil {
-		return fmt.Errorf("unable to start compiler: %w", err)
-	}
-	runCtx, cancel := context.WithTimeout(ctx, timeLimit)
-	defer cancel()
+	future, setResult := futures.New[string]()
+	m.images[imageID] = future
 	go func() {
-		<-runCtx.Done()
-		if err := process.Signal(os.Kill); err != nil {
-			c.Logger.Warn("Unable to kill process:", err)
+		image, err := m.runDownloadImage(ctx, imageID)
+		if err != nil {
+			m.deleteImage(imageID)
 		}
+		setResult(image, err)
 	}()
-	state, err := process.Wait()
+	return future
+}
+
+func (m *compilerManager) runDownloadImage(ctx context.Context, imageID int64) (string, error) {
+	imageFile, err := m.files.DownloadFile(ctx, imageID)
 	if err != nil {
-		if err := runCtx.Err(); err != nil {
-			return err
-		}
-		return fmt.Errorf("unable to wait compiler: %w", err)
+		return "", err
 	}
-	if state.ExitCode() != 0 {
-		return exitCodeError{state}
-	}
-	if err := copyFile(filepath.Join(rootfsUpper, c.ExecuteOutputPath), output); err != nil {
-		return fmt.Errorf("unable to copy output: %w", err)
-	}
-	return nil
-}
-
-var defaultEnv = []string{
-	"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-	"TERM=xterm",
-}
-
-func makeTempDir() (string, error) {
-	for i := 0; i < 100; i++ {
-		name, err := uuid.NewV4()
+	defer func() { _ = imageFile.Close() }()
+	localImagePath := filepath.Join(m.cacheDir, fmt.Sprintf("image-%d.tar.gz", imageID))
+	_ = os.Remove(localImagePath)
+	imagePath := filepath.Join(m.cacheDir, fmt.Sprintf("image-%d", imageID))
+	_ = os.RemoveAll(imagePath)
+	if file, ok := imageFile.(*os.File); ok {
+		localImagePath = file.Name()
+	} else {
+		localImageFile, err := os.Create(localImagePath)
 		if err != nil {
 			return "", err
 		}
-		dirPath := filepath.Join(os.TempDir(), name.String())
-		if err := os.MkdirAll(dirPath, 0777); err != nil {
-			if os.IsExist(err) {
-				continue
-			}
+		defer func() {
+			_ = localImageFile.Close()
+			_ = os.Remove(localImagePath)
+		}()
+		if _, err := io.Copy(localImageFile, imageFile); err != nil {
 			return "", err
 		}
-		return dirPath, nil
+		if err := localImageFile.Close(); err != nil {
+			return "", err
+		}
 	}
-	return "", fmt.Errorf("unable to create temp directory")
+	if err := pkg.ExtractTarGz(localImagePath, imagePath); err != nil {
+		return "", fmt.Errorf("cannot extract image: %w", err)
+	}
+	return imagePath, nil
 }
 
-func copyFileRec(source, target string) error {
-	if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
-		return err
-	}
-	return copyFile(source, target)
-}
-
-func copyFile(source, target string) error {
-	r, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = r.Close()
-	}()
-	w, err := os.Create(target)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = w.Close()
-	}()
-	if _, err := io.Copy(w, r); err != nil {
-		return err
-	}
-	return nil
-}
-
-func defaultRootlessConfig(id, lower, upper, work string) *configs.Config {
-	defaultMountFlags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
-	caps := []string{
-		"CAP_AUDIT_WRITE",
-		"CAP_KILL",
-		"CAP_NET_BIND_SERVICE",
-	}
-	// subUIDs, _ := user.CurrentUserSubUIDs()
-	// subGIDs, _ := user.CurrentUserSubGIDs()
-	return &configs.Config{
-		Capabilities: &configs.Capabilities{
-			Bounding:    caps,
-			Effective:   caps,
-			Inheritable: caps,
-			Permitted:   caps,
-			Ambient:     caps,
-		},
-		Rlimits: []configs.Rlimit{
-			{
-				Type: unix.RLIMIT_NOFILE,
-				Hard: uint64(1025),
-				Soft: uint64(1025),
-			},
-		},
-		RootlessEUID:    true,
-		RootlessCgroups: true,
-		Cgroups: &configs.Cgroup{
-			Name:   id,
-			Parent: "system",
-			Resources: &configs.Resources{
-				MemorySwappiness: nil,
-				Devices:          configDevices(),
-			},
-			Rootless: true,
-		},
-		Devices:         specconv.AllowedDevices,
-		NoNewPrivileges: true,
-		NoNewKeyring:    true,
-		NoPivotRoot:     false,
-		Readonlyfs:      false,
-		Hostname:        "runc",
-		Mounts: []*configs.Mount{
-			{
-				Device:      "overlay",
-				Source:      "overlay",
-				Destination: "/",
-				Data:        fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work),
-			},
-			{
-				Device:      "proc",
-				Source:      "proc",
-				Destination: "/proc",
-				Flags:       defaultMountFlags,
-			},
-			{
-				Device:      "tmpfs",
-				Source:      "tmpfs",
-				Destination: "/dev",
-				Flags:       unix.MS_NOSUID | unix.MS_STRICTATIME,
-				Data:        "mode=755,size=65536k",
-			},
-			{
-				Device:      "devpts",
-				Source:      "devpts",
-				Destination: "/dev/pts",
-				Flags:       unix.MS_NOSUID | unix.MS_NOEXEC,
-				Data:        "newinstance,ptmxmode=0666,mode=0620",
-			},
-			{
-				Device:      "tmpfs",
-				Source:      "shm",
-				Destination: "/dev/shm",
-				Data:        "mode=1777,size=65536k",
-				Flags:       defaultMountFlags,
-			},
-			{
-				Device:      "mqueue",
-				Source:      "mqueue",
-				Destination: "/dev/mqueue",
-				Flags:       defaultMountFlags,
-			},
-			{
-				Device:      "bind",
-				Source:      "/sys",
-				Destination: "/sys",
-				Flags:       defaultMountFlags | unix.MS_RDONLY | unix.MS_BIND | unix.MS_REC,
-			},
-		},
-		Namespaces: configs.Namespaces([]configs.Namespace{
-			{Type: configs.NEWNS},
-			{Type: configs.NEWPID},
-			{Type: configs.NEWIPC},
-			{Type: configs.NEWUTS},
-			{Type: configs.NEWUSER},
-			{Type: configs.NEWCGROUP},
-		}),
-		UidMappings: []configs.IDMap{
-			{
-				ContainerID: 0,
-				HostID:      os.Getuid(),
-				Size:        1,
-			},
-		},
-		GidMappings: []configs.IDMap{
-			{
-				ContainerID: 0,
-				HostID:      os.Getgid(),
-				Size:        1,
-			},
-		},
-		MaskPaths: []string{
-			"/proc/acpi",
-			"/proc/asound",
-			"/proc/kcore",
-			"/proc/keys",
-			"/proc/latency_stats",
-			"/proc/timer_list",
-			"/proc/timer_stats",
-			"/proc/sched_debug",
-			"/sys/firmware",
-			"/proc/scsi",
-		},
-		ReadonlyPaths: []string{
-			"/proc/bus",
-			"/proc/fs",
-			"/proc/irq",
-			"/proc/sys",
-			"/proc/sysrq-trigger",
-		},
-	}
+func (m *compilerManager) deleteImage(imageID int64) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	imagePath := filepath.Join(m.cacheDir, fmt.Sprintf("image-%d", imageID))
+	_ = os.RemoveAll(imagePath)
+	delete(m.images, imageID)
 }

@@ -97,6 +97,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 		testCtx, os.Interrupt, syscall.SIGTERM,
 	)
 	defer cancel()
+	v.StartDaemons()
 	if file := cfg.SocketFile; file != "" {
 		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
 			panic(err)

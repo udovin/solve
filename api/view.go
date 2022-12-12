@@ -27,6 +27,50 @@ type View struct {
 	accounts *managers.AccountManager
 	contests *managers.ContestManager
 	files    *managers.FileManager
+	visits   chan visitContext
+}
+
+func (v *View) StartDaemons() {
+	v.visits = make(chan visitContext, 100)
+	v.core.StartTask("visits", v.visitsDaemon)
+}
+
+type visitContext struct {
+	Path   string
+	Visit  models.Visit
+	Logger echo.Logger
+}
+
+func (v *visitContext) Create(view *View) {
+	if s := view.getBoolSetting(
+		"log_visit."+v.Path, v.Logger,
+	); s == nil || *s {
+		func() {
+			ctx, cancel := context.WithTimeout(
+				context.Background(), 5*time.Second,
+			)
+			defer cancel()
+			if err := view.core.Visits.Create(ctx, &v.Visit); err != nil {
+				view.core.Logger().Error("Unable to create visit", err)
+			}
+		}()
+	}
+}
+
+func (v *View) visitsDaemon(ctx context.Context) {
+	for {
+		select {
+		case visit := <-v.visits:
+			visit.Create(v)
+		case <-ctx.Done():
+			select {
+			case visit := <-v.visits:
+				visit.Create(v)
+			default:
+			}
+			return
+		}
+	}
 }
 
 // Register registers handlers in specified group.
@@ -132,12 +176,14 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 				visit.SessionID = NInt64(session.ID)
 			}
 			visit.Status = c.Response().Status
-			if s := v.getBoolSetting(c, "log_visit."+c.Path()); s == nil || *s {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-				defer cancel()
-				if err := v.core.Visits.Create(ctx, &visit); err != nil {
-					c.Logger().Error("Unable to create visit", err)
-				}
+			select {
+			case v.visits <- visitContext{
+				Path:   c.Path(),
+				Visit:  visit,
+				Logger: c.Logger(),
+			}:
+			default:
+				c.Logger().Error("Visits queue overflow")
 			}
 		}()
 		return next(c)
@@ -275,7 +321,7 @@ func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) wrapSyncStores(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		if s := v.getBoolSetting(c, "allow_sync"); s == nil || *s {
+		if s := v.getBoolSetting("allow_sync", c.Logger()); s == nil || *s {
 			sync := strings.ToLower(c.Request().Header.Get("X-Solve-Sync"))
 			c.Set(syncKey, sync == "1" || sync == "t" || sync == "true")
 		} else {
@@ -438,11 +484,11 @@ func (v *View) requirePermission(names ...string) echo.MiddlewareFunc {
 	}
 }
 
-func (v *View) getStringSetting(c echo.Context, key string) *string {
+func (v *View) getStringSetting(key string, logger echo.Logger) *string {
 	setting, err := v.core.Settings.GetByKey(key)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			c.Logger().Error(
+			logger.Error(
 				"Unable to get setting",
 				core.Any("key", key), err,
 			)
@@ -455,8 +501,8 @@ func (v *View) getStringSetting(c echo.Context, key string) *string {
 	return &setting.Value
 }
 
-func (v *View) getBoolSetting(c echo.Context, key string) *bool {
-	setting := v.getStringSetting(c, key)
+func (v *View) getBoolSetting(key string, logger echo.Logger) *bool {
+	setting := v.getStringSetting(key, logger)
 	if setting == nil {
 		return nil
 	}
@@ -466,7 +512,7 @@ func (v *View) getBoolSetting(c echo.Context, key string) *bool {
 	case "0", "f", "false":
 		return getPtr(false)
 	default:
-		c.Logger().Warn(
+		logger.Warn(
 			"Setting has invalid value",
 			core.Any("key", key),
 			core.Any("value", *setting),

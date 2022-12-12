@@ -301,7 +301,10 @@ func (m *FileManager) DownloadFile(
 ) (io.ReadCloser, error) {
 	file, err := m.Files.Get(id)
 	if err == sql.ErrNoRows {
-		err = m.Files.Sync(ctx)
+		if err := m.Files.Sync(ctx); err != nil {
+			return nil, err
+		}
+		file, err = m.Files.Get(id)
 	}
 	if err != nil {
 		return nil, err

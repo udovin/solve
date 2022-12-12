@@ -262,7 +262,7 @@ func (m *FileManager) ConfirmUploadFile(
 	if file.Status != models.PendingFile {
 		return fmt.Errorf("file shoud be in pending status")
 	}
-	clone := *file
+	clone := file.Clone()
 	clone.Status = models.AvailableFile
 	clone.ExpireTime = 0
 	if err := m.Files.Update(ctx, clone); err != nil {

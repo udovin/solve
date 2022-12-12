@@ -62,7 +62,7 @@ func (c *eventConsumer[T, TPtr]) ConsumeEvents(ctx context.Context, fn func(T) e
 			it++
 		}
 		if it == len(c.ranges) {
-			return fmt.Errorf("invalid event ID: case 1")
+			return fmt.Errorf("invalid event ID")
 		}
 		if err := fn(event); err != nil {
 			return err

@@ -264,8 +264,6 @@ func (s *baseStore[T, E, TPtr, EPtr]) Sync(ctx context.Context) error {
 	if tx := db.GetTx(ctx); tx != nil {
 		return fmt.Errorf("sync cannot be run in transaction")
 	}
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
 	return s.consumer.ConsumeEvents(ctx, s.consumeEvent)
 }
 
@@ -357,6 +355,8 @@ func (s *baseStore[T, E, TPtr, EPtr]) onUpdateObject(object T) {
 }
 
 func (s *baseStore[T, E, TPtr, EPtr]) consumeEvent(event E) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	var eventPtr EPtr = &event
 	switch object := eventPtr.Object(); eventPtr.EventKind() {
 	case CreateEvent:

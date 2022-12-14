@@ -160,8 +160,9 @@ func (e *TaskEvent) SetObject(o Task) {
 // TaskStore represents store for tasks.
 type TaskStore struct {
 	baseStore[Task, TaskEvent, *Task, *TaskEvent]
-	tasks    map[int64]Task
-	byStatus index[TaskStatus]
+	tasks      map[int64]Task
+	byStatus   index[TaskStatus]
+	bySolution index[int64]
 }
 
 // Get returns task by id.
@@ -186,6 +187,19 @@ func (s *TaskStore) FindByStatus(statuses ...TaskStatus) ([]Task, error) {
 			if task, ok := s.tasks[id]; ok {
 				tasks = append(tasks, task.Clone())
 			}
+		}
+	}
+	return tasks, nil
+}
+
+// FindBySolution returns a list of tasks by specified solution.
+func (s *TaskStore) FindBySolution(id int64) ([]Task, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	var tasks []Task
+	for id := range s.bySolution[id] {
+		if task, ok := s.tasks[id]; ok {
+			tasks = append(tasks, task.Clone())
 		}
 	}
 	return tasks, nil
@@ -240,15 +254,30 @@ func (s *TaskStore) PopQueued(
 func (s *TaskStore) reset() {
 	s.tasks = map[int64]Task{}
 	s.byStatus = index[TaskStatus]{}
+	s.bySolution = index[int64]{}
 }
 
 func (s *TaskStore) onCreateObject(task Task) {
 	s.tasks[task.ID] = task
 	s.byStatus.Create(task.Status, task.ID)
+	switch task.Kind {
+	case JudgeSolutionTask:
+		var config JudgeSolutionTaskConfig
+		if err := task.ScanConfig(&config); err == nil {
+			s.bySolution.Create(config.SolutionID, task.ID)
+		}
+	}
 }
 
 func (s *TaskStore) onDeleteObject(id int64) {
 	if task, ok := s.tasks[id]; ok {
+		switch task.Kind {
+		case JudgeSolutionTask:
+			var config JudgeSolutionTaskConfig
+			if err := task.ScanConfig(&config); err == nil {
+				s.bySolution.Delete(config.SolutionID, task.ID)
+			}
+		}
 		s.byStatus.Delete(task.Status, task.ID)
 		delete(s.tasks, task.ID)
 	}

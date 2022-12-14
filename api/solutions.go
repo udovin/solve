@@ -46,7 +46,7 @@ type Solutions struct {
 }
 
 func (v *View) tryFindSolutionTask(id int64) (models.Task, error) {
-	tasks, err := v.core.Tasks.FindByStatus(models.QueuedTask, models.RunningTask)
+	tasks, err := v.core.Tasks.FindBySolution(id)
 	if err != nil {
 		return models.Task{}, err
 	}
@@ -57,7 +57,7 @@ func (v *View) tryFindSolutionTask(id int64) (models.Task, error) {
 			if err := task.ScanConfig(&config); err != nil {
 				continue
 			}
-			if config.SolutionID == id && task.ID > lastTask.ID {
+			if task.ID > lastTask.ID {
 				lastTask = task
 			}
 		}

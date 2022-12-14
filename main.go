@@ -147,7 +147,10 @@ func serverMain(cmd *cobra.Command, _ []string) {
 			panic(err)
 		}
 	}
-	<-ctx.Done()
+	select {
+	case <-ctx.Done():
+	case <-c.Context().Done():
+	}
 }
 
 func migrateMain(cmd *cobra.Command, args []string) {

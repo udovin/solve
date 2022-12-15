@@ -75,9 +75,8 @@ var s001 = []schema.Operation{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "status", Type: schema.Int64},
 			{Name: "expire_time", Type: schema.Int64, Nullable: true},
-			{Name: "name", Type: schema.String},
-			{Name: "size", Type: schema.Int64},
 			{Name: "path", Type: schema.String},
+			{Name: "meta", Type: schema.JSON},
 		},
 	},
 	schema.CreateIndex{
@@ -95,9 +94,8 @@ var s001 = []schema.Operation{
 			{Name: "id", Type: schema.Int64},
 			{Name: "status", Type: schema.Int64},
 			{Name: "expire_time", Type: schema.Int64, Nullable: true},
-			{Name: "name", Type: schema.String},
-			{Name: "size", Type: schema.Int64},
 			{Name: "path", Type: schema.String},
+			{Name: "meta", Type: schema.JSON},
 		},
 	},
 	schema.CreateIndex{

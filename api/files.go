@@ -25,11 +25,15 @@ func (v *View) observeFileContent(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("file not extracted")
 	}
+	meta, err := file.GetMeta()
+	if err != nil {
+		return err
+	}
 	content, err := v.files.DownloadFile(c.Request().Context(), file.ID)
 	if err != nil {
 		return err
 	}
-	contentType := mime.TypeByExtension(filepath.Ext(file.Name))
+	contentType := mime.TypeByExtension(filepath.Ext(meta.Name))
 	return c.Stream(http.StatusOK, contentType, content)
 }
 

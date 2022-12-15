@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"github.com/udovin/gosql"
@@ -26,19 +27,43 @@ func (t FileStatus) String() string {
 	}
 }
 
+type FileMeta struct {
+	Name string `json:"name,omitempty"`
+	Size int64  `json:"size"`
+	MD5  string `json:"md5"`
+}
+
 // File represents a file.
 type File struct {
 	baseObject
 	Status     FileStatus `db:"status"`
 	ExpireTime NInt64     `db:"expire_time"`
-	Name       string     `db:"name"`
-	Size       int64      `db:"size"`
 	Path       string     `db:"path"`
+	Meta       JSON       `db:"meta"`
 }
 
 // Clone creates copy of file.
 func (o File) Clone() File {
+	o.Meta = o.Meta.Clone()
 	return o
+}
+
+func (o File) GetMeta() (FileMeta, error) {
+	var config FileMeta
+	if len(o.Meta) == 0 {
+		return config, nil
+	}
+	err := json.Unmarshal(o.Meta, &config)
+	return config, err
+}
+
+func (o *File) SetMeta(config FileMeta) error {
+	raw, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	o.Meta = raw
+	return nil
 }
 
 // FileEvent represents a file event.

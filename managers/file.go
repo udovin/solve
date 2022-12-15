@@ -2,17 +2,20 @@ package managers
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"mime/multipart"
 	"os"
 	"path"
 	"path/filepath"
-	"sync/atomic"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/udovin/solve/config"
@@ -28,7 +31,7 @@ import (
 type FileStorage interface {
 	GeneratePath(context.Context) (string, error)
 	ReadFile(context.Context, string) (io.ReadCloser, error)
-	WriteFile(context.Context, string, io.Reader) (int64, error)
+	WriteFile(context.Context, string, io.Reader) (models.FileMeta, error)
 	DeleteFile(context.Context, string) error
 }
 
@@ -59,17 +62,28 @@ func (s *LocalStorage) ReadFile(ctx context.Context, filePath string) (io.ReadCl
 	return os.Open(filepath.Join(s.Dir, filepath.FromSlash(filePath)))
 }
 
-func (s *LocalStorage) WriteFile(ctx context.Context, filePath string, file io.Reader) (int64, error) {
+func (s *LocalStorage) WriteFile(ctx context.Context, filePath string, file io.Reader) (models.FileMeta, error) {
 	systemDir := filepath.Join(s.Dir, filepath.FromSlash(path.Dir(filePath)))
 	if err := os.MkdirAll(systemDir, 0777); err != nil {
-		return 0, err
+		return models.FileMeta{}, err
 	}
 	dst, err := os.Create(filepath.Join(s.Dir, filepath.FromSlash(filePath)))
 	if err != nil {
-		return 0, err
+		return models.FileMeta{}, err
 	}
 	defer func() { _ = dst.Close() }()
-	return io.Copy(dst, file)
+	reader := newStatsReader(file)
+	size, err := io.Copy(dst, reader)
+	if err != nil {
+		return models.FileMeta{}, err
+	}
+	if size != reader.Size() {
+		return models.FileMeta{}, fmt.Errorf(
+			"invalid copy size: %d != %d",
+			reader.Size(), size,
+		)
+	}
+	return models.FileMeta{Size: reader.Size(), MD5: reader.MD5()}, err
 }
 
 func (s *LocalStorage) DeleteFile(ctx context.Context, filePath string) error {
@@ -106,31 +120,60 @@ func (s *S3Storage) ReadFile(ctx context.Context, filePath string) (io.ReadClose
 	return object.Body, nil
 }
 
-type readCounter struct {
-	count  int64
+type statsReader struct {
 	reader io.Reader
+	size   int64
+	mutex  sync.Mutex
+	md5    hash.Hash
 }
 
-func (r *readCounter) Read(buf []byte) (int, error) {
+func newStatsReader(r io.Reader) *statsReader {
+	return &statsReader{
+		reader: r,
+		md5:    md5.New(),
+	}
+}
+
+func (r *statsReader) Read(buf []byte) (int, error) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	n, err := r.reader.Read(buf)
 	if n > 0 {
-		atomic.AddInt64(&r.count, int64(n))
+		r.size += int64(n)
+		_, _ = r.md5.Write(buf[:n])
 	}
 	return n, err
 }
 
-func (r *readCounter) Count() int64 {
-	return atomic.LoadInt64(&r.count)
+func (r *statsReader) Size() int64 {
+	return r.size
 }
 
-func (s *S3Storage) WriteFile(ctx context.Context, filePath string, file io.Reader) (int64, error) {
-	reader := readCounter{reader: file}
-	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+func (r *statsReader) MD5() string {
+	return hex.EncodeToString(r.md5.Sum(nil))
+}
+
+func (s *S3Storage) WriteFile(ctx context.Context, filePath string, file io.Reader) (models.FileMeta, error) {
+	reader := newStatsReader(file)
+	result, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(s.pathPrefix + filePath),
-		Body:   &reader,
+		Body:   reader,
 	})
-	return reader.Count(), err
+	if err != nil {
+		return models.FileMeta{}, err
+	}
+	meta := models.FileMeta{Size: reader.Size(), MD5: reader.MD5()}
+	if result.ETag == nil {
+		return models.FileMeta{}, fmt.Errorf("empty checksum")
+	}
+	etag := strings.Trim(*result.ETag, "\"")
+	if meta.MD5 != etag {
+		return models.FileMeta{}, fmt.Errorf(
+			"invalid checksum: %q != %q", meta.MD5, etag,
+		)
+	}
+	return meta, err
 }
 
 func (s *S3Storage) DeleteFile(ctx context.Context, filePath string) error {
@@ -241,18 +284,27 @@ func (m *FileManager) UploadFile(
 	file := models.File{
 		Status:     models.PendingFile,
 		ExpireTime: models.NInt64(deadline.Add(time.Minute).Unix()),
-		Name:       fileReader.Name,
-		Size:       fileReader.Size,
 		Path:       filePath,
+	}
+	meta := models.FileMeta{
+		Name: fileReader.Name,
+		Size: fileReader.Size,
+	}
+	if err := file.SetMeta(meta); err != nil {
+		return models.File{}, err
 	}
 	if err := m.Files.Create(ctx, &file); err != nil {
 		return models.File{}, err
 	}
-	written, err := m.Storage.WriteFile(ctx, filePath, fileReader.Reader)
+	stats, err := m.Storage.WriteFile(ctx, filePath, fileReader.Reader)
 	if err != nil {
 		return models.File{}, err
 	}
-	file.Size = written
+	meta.Size = stats.Size
+	meta.MD5 = stats.MD5
+	if err := file.SetMeta(meta); err != nil {
+		return models.File{}, err
+	}
 	return file, nil
 }
 

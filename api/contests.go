@@ -104,13 +104,14 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 }
 
 type Contest struct {
-	ID                 int64    `json:"id"`
-	Title              string   `json:"title"`
-	BeginTime          NInt64   `json:"begin_time,omitempty"`
-	Duration           int      `json:"duration,omitempty"`
-	Permissions        []string `json:"permissions,omitempty"`
-	EnableRegistration bool     `json:"enable_registration"`
-	EnableUpsolving    bool     `json:"enable_upsolving"`
+	ID                   int64    `json:"id"`
+	Title                string   `json:"title"`
+	BeginTime            NInt64   `json:"begin_time,omitempty"`
+	Duration             int      `json:"duration,omitempty"`
+	Permissions          []string `json:"permissions,omitempty"`
+	EffectivePermissions []string `json:"effective_permissions,omitempty"`
+	EnableRegistration   bool     `json:"enable_registration"`
+	EnableUpsolving      bool     `json:"enable_upsolving"`
 }
 
 type Contests struct {
@@ -144,6 +145,11 @@ var contestPermissions = []string{
 	models.DeleteContestSolutionRole,
 }
 
+var effectiveContestPermissions = []string{
+	models.RegisterContestRole,
+	models.SubmitContestSolutionRole,
+}
+
 func makeContest(
 	contest models.Contest,
 	permissions managers.Permissions,
@@ -159,6 +165,16 @@ func makeContest(
 	for _, permission := range contestPermissions {
 		if permissions.HasPermission(permission) {
 			resp.Permissions = append(resp.Permissions, permission)
+		}
+	}
+	if contextCtx, ok := permissions.(*managers.ContestContext); ok {
+		effectivePermissions := contextCtx.GetEffectivePermissions()
+		for _, permission := range effectiveContestPermissions {
+			if effectivePermissions.HasPermission(permission) {
+				resp.EffectivePermissions = append(
+					resp.EffectivePermissions, permission,
+				)
+			}
 		}
 	}
 	return resp

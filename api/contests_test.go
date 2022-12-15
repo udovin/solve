@@ -150,7 +150,7 @@ func TestContestParticipation(t *testing.T) {
 		} else {
 			expectStatus(t, http.StatusForbidden, resp.StatusCode())
 		}
-		e.Now = now.Add(3 * time.Hour)
+		e.Now = now.Add(3*time.Hour - 1)
 		if _, err := e.Client.ObserveContest(context.Background(), contest.ID); err == nil {
 			t.Fatal("Expected error")
 		} else if resp, ok := err.(statusCodeResponse); !ok {

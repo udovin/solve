@@ -42,8 +42,12 @@
           "delete_contest_participant",
           "observe_contest_solutions",
           "create_contest_solution",
+          "submit_contest_solution",
           "update_contest_solution",
           "delete_contest_solution"
+        ],
+        "effective_permissions": [
+          "submit_contest_solution"
         ],
         "enable_registration": false,
         "enable_upsolving": false
@@ -62,8 +66,12 @@
           "delete_contest_participant",
           "observe_contest_solutions",
           "create_contest_solution",
+          "submit_contest_solution",
           "update_contest_solution",
           "delete_contest_solution"
+        ],
+        "effective_permissions": [
+          "submit_contest_solution"
         ],
         "enable_registration": false,
         "enable_upsolving": false
@@ -84,8 +92,12 @@
       "delete_contest_participant",
       "observe_contest_solutions",
       "create_contest_solution",
+      "submit_contest_solution",
       "update_contest_solution",
       "delete_contest_solution"
+    ],
+    "effective_permissions": [
+      "submit_contest_solution"
     ],
     "enable_registration": false,
     "enable_upsolving": false

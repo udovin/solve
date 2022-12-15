@@ -120,7 +120,7 @@ type problemFilter struct {
 	Query string `query:"q"`
 }
 
-func (f problemFilter) Filter(problem models.Problem) bool {
+func (f *problemFilter) Filter(problem models.Problem) bool {
 	if len(f.Query) > 0 {
 		switch {
 		case strings.HasPrefix(fmt.Sprint(problem.ID), f.Query):

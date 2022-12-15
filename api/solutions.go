@@ -162,11 +162,35 @@ func (v *View) makeSolution(
 	return resp
 }
 
+type solutionsFilter struct {
+	ProblemID int64 `query:"problem_id"`
+	BeginID   int64 `query:"begin_id"`
+	Limit     int   `query:"limit"`
+}
+
+func (f *solutionsFilter) Filter(solution models.Solution) bool {
+	if f.ProblemID != 0 && solution.ProblemID != f.ProblemID {
+		return false
+	}
+	if f.BeginID != 0 && solution.ID < f.BeginID {
+		return false
+	}
+	return true
+}
+
 func (v *View) observeSolutions(c echo.Context) error {
 	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
 	if !ok {
 		c.Logger().Error("auth not extracted")
 		return fmt.Errorf("auth not extracted")
+	}
+	filter := solutionsFilter{Limit: 50}
+	if err := c.Bind(&filter); err != nil {
+		c.Logger().Warn(err)
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Invalid filter."),
+		}
 	}
 	var resp Solutions
 	solutions, err := v.core.Solutions.All()
@@ -175,12 +199,16 @@ func (v *View) observeSolutions(c echo.Context) error {
 		return err
 	}
 	for _, solution := range solutions {
+		if !filter.Filter(solution) {
+			continue
+		}
 		permissions := v.getSolutionPermissions(accountCtx, solution)
 		if permissions.HasPermission(models.ObserveSolutionRole) {
 			resp.Solutions = append(resp.Solutions, v.makeSolution(c, accountCtx, solution, false))
 		}
 	}
 	sortFunc(resp.Solutions, solutionGreater)
+	applyLimit(&resp.Solutions, filter.Limit)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -249,4 +277,10 @@ func (v *View) getSolutionPermissions(
 
 func solutionGreater(l, r Solution) bool {
 	return l.ID > r.ID
+}
+
+func applyLimit[T any](a *[]T, limit int) {
+	if limit > 0 && len(*a) > limit {
+		*a = (*a)[0:limit]
+	}
 }

@@ -46,6 +46,8 @@ func addContestRegularPermissions(
 ) {
 	permissions.AddPermission(models.ObserveContestRole)
 	switch stage {
+	case ContestNotStarted:
+		permissions.AddPermission(models.DeregisterContestRole)
 	case ContestStarted:
 		permissions.AddPermission(
 			models.ObserveContestProblemsRole,
@@ -173,7 +175,6 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 			c.Permissions.AddPermission(models.ObserveContestRole)
 			if c.HasPermission(models.RegisterContestsRole) {
 				c.Permissions.AddPermission(models.RegisterContestRole)
-				c.CanRegister = true
 			}
 		}
 		if !hasUpsolving && c.Stage == ContestFinished &&
@@ -212,7 +213,6 @@ type ContestContext struct {
 	Participants []models.ContestParticipant
 	Permissions  PermissionSet
 	Stage        ContestStage
-	CanRegister  bool
 	effectivePos int
 }
 
@@ -241,12 +241,7 @@ func (c *ContestContext) SetEffectiveParticipant(id int64) {
 func (c *ContestContext) GetEffectivePermissions() PermissionSet {
 	participant := c.GetEffectiveParticipant()
 	if participant == nil {
-		permissions := PermissionSet{}
-		if c.CanRegister {
-			// Add fake effective permission for user that can register.
-			permissions.AddPermission(models.RegisterContestRole)
-		}
-		return permissions
+		return PermissionSet{}
 	}
 	return getParticipantPermissions(c.Contest, c.Stage, *participant)
 }

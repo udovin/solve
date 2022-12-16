@@ -2,200 +2,204 @@
   {
     "roles": [
       {
-        "id": 70,
+        "id": 71,
         "name": "admin_group"
       },
       {
-        "id": 69,
+        "id": 70,
         "name": "blocked_user_group"
       },
       {
-        "id": 68,
+        "id": 69,
         "name": "active_user_group"
       },
       {
-        "id": 67,
+        "id": 68,
         "name": "pending_user_group"
       },
       {
-        "id": 66,
+        "id": 67,
         "name": "guest_group"
       },
       {
-        "id": 65,
+        "id": 66,
         "name": "update_user_password"
       },
       {
-        "id": 64,
+        "id": 65,
         "name": "update_user_middle_name"
       },
       {
-        "id": 63,
+        "id": 64,
         "name": "update_user_last_name"
       },
       {
-        "id": 62,
+        "id": 63,
         "name": "update_user_first_name"
       },
       {
-        "id": 61,
+        "id": 62,
         "name": "update_user_email"
       },
       {
-        "id": 60,
+        "id": 61,
         "name": "update_user"
       },
       {
-        "id": 59,
+        "id": 60,
         "name": "update_setting"
       },
       {
-        "id": 58,
+        "id": 59,
         "name": "update_problem"
       },
       {
-        "id": 57,
+        "id": 58,
         "name": "update_contest_solution"
       },
       {
-        "id": 56,
+        "id": 57,
         "name": "update_contest"
       },
       {
-        "id": 55,
+        "id": 56,
         "name": "update_compiler"
       },
       {
-        "id": 54,
+        "id": 55,
         "name": "submit_contest_solution"
       },
       {
-        "id": 53,
+        "id": 54,
         "name": "status"
       },
       {
-        "id": 52,
+        "id": 53,
         "name": "register_contests"
       },
       {
-        "id": 51,
+        "id": 52,
         "name": "register_contest"
       },
       {
-        "id": 50,
+        "id": 51,
         "name": "register"
       },
       {
-        "id": 49,
+        "id": 50,
         "name": "observe_user_sessions"
       },
       {
-        "id": 48,
+        "id": 49,
         "name": "observe_user_roles"
       },
       {
-        "id": 47,
+        "id": 48,
         "name": "observe_user_middle_name"
       },
       {
-        "id": 46,
+        "id": 47,
         "name": "observe_user_last_name"
       },
       {
-        "id": 45,
+        "id": 46,
         "name": "observe_user_first_name"
       },
       {
-        "id": 44,
+        "id": 45,
         "name": "observe_user_email"
       },
       {
-        "id": 43,
+        "id": 44,
         "name": "observe_user"
       },
       {
-        "id": 42,
+        "id": 43,
         "name": "observe_solutions"
       },
       {
-        "id": 41,
+        "id": 42,
         "name": "observe_solution"
       },
       {
-        "id": 40,
+        "id": 41,
         "name": "observe_settings"
       },
       {
-        "id": 39,
+        "id": 40,
         "name": "observe_session"
       },
       {
-        "id": 38,
+        "id": 39,
         "name": "observe_roles"
       },
       {
-        "id": 37,
+        "id": 38,
         "name": "observe_role_roles"
       },
       {
-        "id": 36,
+        "id": 37,
         "name": "observe_problems"
       },
       {
-        "id": 35,
+        "id": 36,
         "name": "observe_problem"
       },
       {
-        "id": 34,
+        "id": 35,
         "name": "observe_file_content"
       },
       {
-        "id": 33,
+        "id": 34,
         "name": "observe_contests"
       },
       {
-        "id": 32,
+        "id": 33,
         "name": "observe_contest_solutions"
       },
       {
-        "id": 31,
+        "id": 32,
         "name": "observe_contest_solution"
       },
       {
-        "id": 30,
+        "id": 31,
         "name": "observe_contest_problems"
       },
       {
-        "id": 29,
+        "id": 30,
         "name": "observe_contest_problem"
       },
       {
-        "id": 28,
+        "id": 29,
         "name": "observe_contest_participants"
       },
       {
-        "id": 27,
+        "id": 28,
         "name": "observe_contest_participant"
       },
       {
-        "id": 26,
+        "id": 27,
         "name": "observe_contest"
       },
       {
-        "id": 25,
+        "id": 26,
         "name": "observe_compilers"
       },
       {
-        "id": 24,
+        "id": 25,
         "name": "observe_compiler"
       },
       {
-        "id": 23,
+        "id": 24,
         "name": "logout"
       },
       {
-        "id": 22,
+        "id": 23,
         "name": "login"
+      },
+      {
+        "id": 22,
+        "name": "deregister_contest_role"
       },
       {
         "id": 21,

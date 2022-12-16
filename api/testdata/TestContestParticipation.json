@@ -17,9 +17,6 @@
       "observe_contest_solutions",
       "submit_contest_solution"
     ],
-    "effective_permissions": [
-      "submit_contest_solution"
-    ],
     "enable_registration": true,
     "enable_upsolving": true
   }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/models"
@@ -29,11 +30,16 @@ func (v *View) observeFileContent(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	hash := strings.Trim(c.Request().Header.Get("If-None-Match"), "\"")
+	if hash == meta.MD5 {
+		return c.NoContent(http.StatusNotModified)
+	}
 	content, err := v.files.DownloadFile(c.Request().Context(), file.ID)
 	if err != nil {
 		return err
 	}
 	contentType := mime.TypeByExtension(filepath.Ext(meta.Name))
+	c.Response().Header().Add("ETag", fmt.Sprintf("%q", meta.MD5))
 	return c.Stream(http.StatusOK, contentType, content)
 }
 

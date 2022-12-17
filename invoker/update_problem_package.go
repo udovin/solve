@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
 
@@ -73,18 +74,41 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	if err := t.prepareProblem(ctx); err != nil {
 		return fmt.Errorf("cannot prepare problem: %w", err)
 	}
-	events := map[string]models.ProblemResourceEvent{}
+	type eventKey struct {
+		Locale string
+		Kind   models.ProblemResourceKind
+		Name   string
+	}
+	events := map[eventKey]models.ProblemResourceEvent{}
+	fileReaders := map[eventKey]*managers.FileReader{}
+	defer func() {
+		for _, file := range fileReaders {
+			_ = file.Close()
+		}
+	}()
 	for _, resource := range t.resources {
-		if resource.Kind != models.ProblemStatement {
-			continue
+		key := eventKey{Kind: resource.Kind}
+		switch resource.Kind {
+		case models.ProblemStatement:
+			config := models.ProblemStatementConfig{}
+			if err := resource.ScanConfig(&config); err != nil {
+				continue
+			}
+			key.Locale = config.Locale
+			event := models.ProblemResourceEvent{ProblemResource: resource}
+			event.BaseEventKind = models.DeleteEvent
+			events[key] = event
+		case models.ProblemStatementResource:
+			config := models.ProblemStatementResourceConfig{}
+			if err := resource.ScanConfig(&config); err != nil {
+				continue
+			}
+			key.Locale = config.Locale
+			key.Name = config.Name
+			event := models.ProblemResourceEvent{ProblemResource: resource}
+			event.BaseEventKind = models.DeleteEvent
+			events[key] = event
 		}
-		config := models.ProblemStatementConfig{}
-		if err := resource.ScanConfig(&config); err != nil {
-			continue
-		}
-		event := models.ProblemResourceEvent{ProblemResource: resource}
-		event.BaseEventKind = models.DeleteEvent
-		events[config.Locale] = event
 	}
 	statements, err := t.problemPackage.GetStatements()
 	if err != nil {
@@ -96,7 +120,11 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 		if err != nil {
 			return fmt.Errorf("cannot read statement: %w", err)
 		}
-		event, ok := events[locale]
+		key := eventKey{
+			Kind:   models.ProblemStatement,
+			Locale: locale,
+		}
+		event, ok := events[key]
 		if !ok {
 			event.BaseEventKind = models.CreateEvent
 			event.ProblemID = t.problem.ID
@@ -106,9 +134,88 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 		if err := event.ProblemResource.SetConfig(config); err != nil {
 			return err
 		}
-		events[locale] = event
+		events[key] = event
+		resources, err := statement.GetResources()
+		if err != nil {
+			return err
+		}
+		for _, resource := range resources {
+			key := eventKey{
+				Kind:   models.ProblemStatementResource,
+				Locale: locale,
+				Name:   resource.Name(),
+			}
+			config := models.ProblemStatementResourceConfig{
+				Locale: locale,
+				Name:   resource.Name(),
+			}
+			event, ok := events[key]
+			if !ok {
+				file, err := resource.Open()
+				if err != nil {
+					return err
+				}
+				fileReaders[key] = &managers.FileReader{
+					Reader: file,
+					Name:   resource.Name(),
+				}
+				event.BaseEventKind = models.CreateEvent
+				event.ProblemID = t.problem.ID
+			} else {
+				if event.FileID != 0 {
+					prevFile, err := t.invoker.core.Files.Get(int64(event.FileID))
+					if err != nil {
+						return err
+					}
+					fileMeta, err := prevFile.GetMeta()
+					if err != nil {
+						return err
+					}
+					md5, err := resource.GetMD5()
+					if err != nil {
+						return err
+					}
+					if fileMeta.MD5 == md5 {
+						delete(events, key)
+						continue
+					}
+				}
+				file, err := resource.Open()
+				if err != nil {
+					return err
+				}
+				fileReaders[key] = &managers.FileReader{
+					Reader: file,
+					Name:   resource.Name(),
+				}
+				event.BaseEventKind = models.UpdateEvent
+			}
+			if err := event.ProblemResource.SetConfig(config); err != nil {
+				return err
+			}
+			events[key] = event
+		}
+	}
+	var files []models.File
+	for key, fileReader := range fileReaders {
+		event, ok := events[key]
+		if !ok {
+			continue
+		}
+		file, err := t.invoker.files.UploadFile(ctx, fileReader)
+		if err != nil {
+			return err
+		}
+		files = append(files, file)
+		event.FileID = models.NInt64(file.ID)
+		events[key] = event
 	}
 	return t.invoker.core.WrapTx(ctx, func(ctx context.Context) error {
+		for _, file := range files {
+			if err := t.invoker.files.ConfirmUploadFile(ctx, &file); err != nil {
+				return err
+			}
+		}
 		for _, event := range events {
 			switch event.BaseEventKind {
 			case models.CreateEvent:

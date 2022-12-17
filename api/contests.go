@@ -52,6 +52,13 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.extractContest, v.extractContestProblem,
 		v.requirePermission(models.ObserveContestProblemRole),
 	)
+	g.GET(
+		"/v0/contests/:contest/problems/:problem/resources/:resource",
+		v.observeProblemResource,
+		v.extractAuth(v.sessionAuth, v.guestAuth),
+		v.extractContest, v.extractContestProblem,
+		v.requirePermission(models.ObserveContestProblemRole),
+	)
 	g.POST(
 		"/v0/contests/:contest/problems", v.createContestProblem,
 		v.extractAuth(v.sessionAuth), v.extractContest,
@@ -1015,7 +1022,12 @@ func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 				),
 			}
 		}
+		problem, err := v.core.Problems.Get(problems[pos].ProblemID)
+		if err != nil {
+			return err
+		}
 		c.Set(contestProblemKey, problems[pos])
+		c.Set(problemKey, problem)
 		return next(c)
 	}
 }

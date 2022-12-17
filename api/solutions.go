@@ -16,9 +16,6 @@ import (
 
 // registerSolutionHandlers registers handlers for solution management.
 func (v *View) registerSolutionHandlers(g *echo.Group) {
-	if v.core.Users == nil {
-		return
-	}
 	g.GET(
 		"/v0/solutions", v.observeSolutions,
 		v.extractAuth(v.sessionAuth, v.guestAuth),

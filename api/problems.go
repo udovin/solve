@@ -20,26 +20,29 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 		v.extractAuth(v.sessionAuth, v.guestAuth),
 		v.requirePermission(models.ObserveProblemsRole),
 	)
-	if v.core.Config.Storage != nil {
-		g.POST(
-			"/v0/problems", v.createProblem,
-			v.extractAuth(v.sessionAuth),
-			v.requirePermission(models.CreateProblemRole),
-		)
-		g.PATCH(
-			"/v0/problems/:problem", v.updateProblem,
-			v.extractAuth(v.sessionAuth), v.extractProblem,
-			v.requirePermission(models.UpdateProblemRole),
-		)
-		g.POST(
-			"/v0/problems/:problem/rebuild", v.rebuildProblem,
-			v.extractAuth(v.sessionAuth), v.extractProblem,
-			v.requirePermission(models.UpdateProblemRole),
-		)
-	}
+	g.POST(
+		"/v0/problems", v.createProblem,
+		v.extractAuth(v.sessionAuth),
+		v.requirePermission(models.CreateProblemRole),
+	)
 	g.GET(
 		"/v0/problems/:problem", v.observeProblem,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractProblem,
+		v.requirePermission(models.ObserveProblemRole),
+	)
+	g.PATCH(
+		"/v0/problems/:problem", v.updateProblem,
+		v.extractAuth(v.sessionAuth), v.extractProblem,
+		v.requirePermission(models.UpdateProblemRole),
+	)
+	g.POST(
+		"/v0/problems/:problem/rebuild", v.rebuildProblem,
+		v.extractAuth(v.sessionAuth), v.extractProblem,
+		v.requirePermission(models.UpdateProblemRole),
+	)
+	g.GET(
+		"/v0/problems/:problem/resources/:resource", v.observeProblemResource,
+		v.extractAuth(v.sessionAuth), v.extractProblem,
 		v.requirePermission(models.ObserveProblemRole),
 	)
 	g.DELETE(
@@ -180,6 +183,56 @@ func (v *View) observeProblem(c echo.Context) error {
 		http.StatusOK,
 		v.makeProblem(c, problem, permissions, true),
 	)
+}
+
+func (v *View) observeProblemResource(c echo.Context) error {
+	problem, ok := c.Get(problemKey).(models.Problem)
+	if !ok {
+		return fmt.Errorf("problem not extracted")
+	}
+	resourceName := c.Param("resource")
+	locale := getLocale(c)
+	resources, err := v.core.ProblemResources.FindByProblem(problem.ID)
+	if err != nil {
+		return err
+	}
+	var foundResource *models.ProblemResource
+	for i, resource := range resources {
+		if resource.Kind != models.ProblemStatementResource {
+			continue
+		}
+		if resource.FileID == 0 {
+			continue
+		}
+		config := models.ProblemStatementResourceConfig{}
+		if err := resource.ScanConfig(&config); err != nil {
+			continue
+		}
+		if config.Name != resourceName {
+			continue
+		}
+		if foundResource == nil || config.Locale == locale.Name() {
+			foundResource = &resources[i]
+		}
+	}
+	if foundResource == nil {
+		return errorResponse{
+			Code:    http.StatusNotFound,
+			Message: localize(c, "File not found."),
+		}
+	}
+	file, err := v.core.Files.Get(int64(foundResource.FileID))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return errorResponse{
+				Code:    http.StatusNotFound,
+				Message: localize(c, "File not found."),
+			}
+		}
+		return err
+	}
+	c.Set(fileKey, file)
+	return v.observeFileContent(c)
 }
 
 type UpdateProblemForm struct {

@@ -10,7 +10,8 @@ import (
 type ProblemResourceKind int
 
 const (
-	ProblemStatement ProblemResourceKind = 1
+	ProblemStatement         ProblemResourceKind = 1
+	ProblemStatementResource ProblemResourceKind = 2
 )
 
 type ProblemStatementSample struct {
@@ -31,6 +32,15 @@ type ProblemStatementConfig struct {
 
 func (c ProblemStatementConfig) ProblemResourceKind() ProblemResourceKind {
 	return ProblemStatement
+}
+
+type ProblemStatementResourceConfig struct {
+	Locale string `json:"locale"`
+	Name   string `json:"name"`
+}
+
+func (c ProblemStatementResourceConfig) ProblemResourceKind() ProblemResourceKind {
+	return ProblemStatementResource
 }
 
 type ProblemResourceConfig interface {

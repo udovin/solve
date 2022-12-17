@@ -282,6 +282,9 @@ func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 		start := time.Now()
 		err := next(c)
 		status := c.Response().Status
+		if err != nil {
+			status = 500
+		}
 		defer func() {
 			finish := time.Now()
 			message := fmt.Sprintf("%s %s", c.Request().Method, c.Request().RequestURI)

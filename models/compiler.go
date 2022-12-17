@@ -16,6 +16,8 @@ type CompilerCommandConfig struct {
 }
 
 type CompilerConfig struct {
+	Language   string                 `json:"language,omitempty"`
+	Compiler   string                 `json:"compiler,omitempty"`
 	Extensions []string               `json:"extensions"`
 	Compile    *CompilerCommandConfig `json:"compile,omitempty"`
 	Execute    *CompilerCommandConfig `json:"execute,omitempty"`

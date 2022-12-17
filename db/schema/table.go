@@ -142,13 +142,24 @@ func (q CreateTable) BuildUnapply(d gosql.Dialect) (string, error) {
 }
 
 type CreateIndex struct {
-	Table   string
-	Columns []string
-	Unique  bool
-	Strict  bool
+	Table      string
+	Expression string
+	Columns    []string
+	Unique     bool
+	Strict     bool
 }
 
 func (q CreateIndex) getName() string {
+	if len(q.Expression) > 0 {
+		isPart := func(c rune) bool {
+			return c == '(' || c == ')' || c == '"'
+		}
+		expressionParts := strings.FieldsFunc(q.Expression, isPart)
+		return fmt.Sprintf(
+			"%s_%s_idx", q.Table,
+			strings.ToLower(strings.Join(expressionParts, "_")),
+		)
+	}
 	return fmt.Sprintf("%s_%s_idx", q.Table, strings.Join(q.Columns, "_"))
 }
 
@@ -165,11 +176,15 @@ func (q CreateIndex) BuildApply(d gosql.Dialect) (string, error) {
 	}
 	query.WriteString(fmt.Sprintf("%q ", q.getName()))
 	query.WriteString(fmt.Sprintf("ON %q (", q.Table))
-	for i, column := range q.Columns {
-		if i > 0 {
-			query.WriteString(", ")
+	if len(q.Expression) > 0 {
+		query.WriteString(q.Expression)
+	} else {
+		for i, column := range q.Columns {
+			if i > 0 {
+				query.WriteString(", ")
+			}
+			query.WriteString(fmt.Sprintf("%q", column))
 		}
-		query.WriteString(fmt.Sprintf("%q", column))
 	}
 	query.WriteRune(')')
 	return query.String(), nil

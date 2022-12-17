@@ -2,10 +2,13 @@ package invoker
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/udovin/algo/futures"
@@ -103,9 +106,16 @@ type ProblemTest interface {
 type ProblemTestGroup interface {
 }
 
+type ProblemResource interface {
+	Name() string
+	GetMD5() (string, error)
+	Open() (*os.File, error)
+}
+
 type ProblemStatement interface {
 	Locale() string
 	GetConfig() (models.ProblemStatementConfig, error)
+	GetResources() ([]ProblemResource, error)
 }
 
 type Problem interface {
@@ -183,6 +193,65 @@ func (s *polygonProblemStatement) GetConfig() (models.ProblemStatementConfig, er
 		)
 	}
 	return config, nil
+}
+
+func (s *polygonProblemStatement) GetResources() ([]ProblemResource, error) {
+	config, err := s.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	resourcesDir := filepath.Join(s.problem.path, "statements", s.language)
+	files, err := os.ReadDir(resourcesDir)
+	if err != nil {
+		return nil, err
+	}
+	resources := []ProblemResource{}
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		name := file.Name()
+		inStatements := strings.Contains(config.Title, name) ||
+			strings.Contains(config.Legend, name) ||
+			strings.Contains(config.Input, name) ||
+			strings.Contains(config.Output, name) ||
+			strings.Contains(config.Notes, name)
+		if !inStatements {
+			continue
+		}
+		resources = append(resources, problemResource{
+			path: filepath.Join(resourcesDir, name),
+			name: name,
+		})
+	}
+	return resources, nil
+}
+
+type problemResource struct {
+	path string
+	name string
+}
+
+func (p problemResource) Name() string {
+	return p.name
+}
+
+func (p problemResource) GetMD5() (string, error) {
+	file, err := os.Open(p.path)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = file.Close() }()
+	hash := md5.New()
+	_, err = io.Copy(hash, file)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func (p problemResource) Open() (*os.File, error) {
+	return os.Open(p.path)
 }
 
 var polygonLocales = map[string]string{

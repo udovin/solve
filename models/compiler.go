@@ -98,14 +98,17 @@ func (s *CompilerStore) All() ([]Compiler, error) {
 	return compilers, nil
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *CompilerStore) reset() {
 	s.compilers = map[int64]Compiler{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *CompilerStore) onCreateObject(compiler Compiler) {
 	s.compilers[compiler.ID] = compiler
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *CompilerStore) onDeleteObject(id int64) {
 	if compiler, ok := s.compilers[id]; ok {
 		delete(s.compilers, compiler.ID)

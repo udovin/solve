@@ -95,10 +95,12 @@ func (s *testStore) Get(id int64) (testObject, error) {
 	return testObject{}, sql.ErrNoRows
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *testStore) reset() {
 	s.objects = map[int64]testObject{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *testStore) onCreateObject(object testObject) {
 	if _, ok := s.objects[object.ID]; ok {
 		panic("object already exists")
@@ -106,6 +108,7 @@ func (s *testStore) onCreateObject(object testObject) {
 	s.objects[object.ID] = object
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *testStore) onDeleteObject(id int64) {
 	object, ok := s.objects[id]
 	if !ok {
@@ -366,7 +369,7 @@ func TestNInt64_Scan(t *testing.T) {
 	}
 }
 
-//noinspection GoNilness
+// noinspection GoNilness
 func TestJSON_Scan(t *testing.T) {
 	var a JSON
 	if err := a.Scan(nil); err != nil {

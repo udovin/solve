@@ -69,16 +69,19 @@ func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
 	return roles, nil
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *AccountRoleStore) reset() {
 	s.roles = map[int64]AccountRole{}
 	s.byAccount = index[int64]{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *AccountRoleStore) onCreateObject(role AccountRole) {
 	s.roles[role.ID] = role
 	s.byAccount.Create(role.AccountID, role.ID)
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *AccountRoleStore) onDeleteObject(id int64) {
 	if role, ok := s.roles[id]; ok {
 		s.byAccount.Delete(role.AccountID, role.ID)

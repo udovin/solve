@@ -202,14 +202,17 @@ func (s *SolutionStore) All() ([]Solution, error) {
 	return solutions, nil
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *SolutionStore) reset() {
 	s.solutions = map[int64]Solution{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *SolutionStore) onCreateObject(solution Solution) {
 	s.solutions[solution.ID] = solution
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *SolutionStore) onDeleteObject(id int64) {
 	if solution, ok := s.solutions[id]; ok {
 		delete(s.solutions, solution.ID)

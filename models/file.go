@@ -112,14 +112,17 @@ func (s *FileStore) All() ([]File, error) {
 	return files, nil
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *FileStore) reset() {
 	s.files = map[int64]File{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *FileStore) onCreateObject(file File) {
 	s.files[file.ID] = file
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *FileStore) onDeleteObject(id int64) {
 	if file, ok := s.files[id]; ok {
 		delete(s.files, file.ID)

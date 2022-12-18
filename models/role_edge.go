@@ -69,16 +69,19 @@ func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
 	return edges, nil
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *RoleEdgeStore) reset() {
 	s.edges = map[int64]RoleEdge{}
 	s.byRole = index[int64]{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *RoleEdgeStore) onCreateObject(edge RoleEdge) {
 	s.edges[edge.ID] = edge
 	s.byRole.Create(edge.RoleID, edge.ID)
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *RoleEdgeStore) onDeleteObject(id int64) {
 	if edge, ok := s.edges[id]; ok {
 		s.byRole.Delete(edge.RoleID, edge.ID)

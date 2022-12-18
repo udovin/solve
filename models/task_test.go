@@ -65,18 +65,23 @@ func (t *taskStoreTest) deleteObject(
 }
 
 func TestTaskStatus(t *testing.T) {
+	//lint:ignore S1025 Used for tests.
 	if s := fmt.Sprintf("%s", QueuedTask); s != "queued" {
 		t.Errorf("Expected %q, got %q", "queued", s)
 	}
+	//lint:ignore S1025 Used for tests.
 	if s := fmt.Sprintf("%s", RunningTask); s != "running" {
 		t.Errorf("Expected %q, got %q", "running", s)
 	}
+	//lint:ignore S1025 Used for tests.
 	if s := fmt.Sprintf("%s", SucceededTask); s != "succeeded" {
 		t.Errorf("Expected %q, got %q", "succeeded", s)
 	}
+	//lint:ignore S1025 Used for tests.
 	if s := fmt.Sprintf("%s", FailedTask); s != "failed" {
 		t.Errorf("Expected %q, got %q", "failed", s)
 	}
+	//lint:ignore S1025 Used for tests.
 	if s := fmt.Sprintf("%s", TaskStatus(-1)); s != "TaskStatus(-1)" {
 		t.Errorf("Expected %q, got %q", "TaskStatus(-1)", s)
 	}
@@ -90,9 +95,11 @@ func TestTaskStatus(t *testing.T) {
 }
 
 func TestTaskKind(t *testing.T) {
+	//lint:ignore S1025 Used for tests.
 	if s := fmt.Sprintf("%s", JudgeSolutionTask); s != "judge_solution" {
 		t.Errorf("Expected %q, got %q", "judge_solution", s)
 	}
+	//lint:ignore S1025 Used for tests.
 	if s := fmt.Sprintf("%s", TaskKind(-1)); s != "TaskKind(-1)" {
 		t.Errorf("Expected %q, got %q", "TaskKind(-1)", s)
 	}

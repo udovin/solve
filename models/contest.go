@@ -92,14 +92,17 @@ func (s *ContestStore) All() ([]Contest, error) {
 	return contests, nil
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ContestStore) reset() {
 	s.contests = map[int64]Contest{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ContestStore) onCreateObject(contest Contest) {
 	s.contests[contest.ID] = contest
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ContestStore) onDeleteObject(id int64) {
 	if contest, ok := s.contests[id]; ok {
 		delete(s.contests, contest.ID)

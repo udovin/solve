@@ -118,16 +118,19 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 	return session.Clone(), nil
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *SessionStore) reset() {
 	s.sessions = map[int64]Session{}
 	s.byAccount = index[int64]{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *SessionStore) onCreateObject(session Session) {
 	s.sessions[session.ID] = session
 	s.byAccount.Create(session.AccountID, session.ID)
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *SessionStore) onDeleteObject(id int64) {
 	if session, ok := s.sessions[id]; ok {
 		s.byAccount.Delete(session.AccountID, session.ID)

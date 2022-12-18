@@ -251,12 +251,14 @@ func (s *TaskStore) PopQueued(
 	return Task{}, sql.ErrNoRows
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *TaskStore) reset() {
 	s.tasks = map[int64]Task{}
 	s.byStatus = index[TaskStatus]{}
 	s.bySolution = index[int64]{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *TaskStore) onCreateObject(task Task) {
 	s.tasks[task.ID] = task
 	s.byStatus.Create(task.Status, task.ID)
@@ -269,6 +271,7 @@ func (s *TaskStore) onCreateObject(task Task) {
 	}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *TaskStore) onDeleteObject(id int64) {
 	if task, ok := s.tasks[id]; ok {
 		switch task.Kind {

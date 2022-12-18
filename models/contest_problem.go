@@ -73,16 +73,19 @@ func (s *ContestProblemStore) FindByContest(
 	return problems, nil
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ContestProblemStore) reset() {
 	s.problems = map[int64]ContestProblem{}
 	s.byContest = index[int64]{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ContestProblemStore) onCreateObject(problem ContestProblem) {
 	s.problems[problem.ID] = problem
 	s.byContest.Create(problem.ContestID, problem.ID)
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ContestProblemStore) onDeleteObject(id int64) {
 	if problem, ok := s.problems[id]; ok {
 		s.byContest.Delete(problem.ContestID, problem.ID)

@@ -325,16 +325,19 @@ func (s *RoleStore) GetByName(name string) (Role, error) {
 	return Role{}, sql.ErrNoRows
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *RoleStore) reset() {
 	s.roles = map[int64]Role{}
 	s.byName = map[string]int64{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *RoleStore) onCreateObject(role Role) {
 	s.roles[role.ID] = role
 	s.byName[role.Name] = role.ID
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *RoleStore) onDeleteObject(id int64) {
 	if role, ok := s.roles[id]; ok {
 		delete(s.byName, role.Name)

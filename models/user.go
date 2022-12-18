@@ -139,18 +139,21 @@ func (s *UserStore) CheckPassword(user User, password string) bool {
 	return passwordHash == user.PasswordHash
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *UserStore) reset() {
 	s.users = map[int64]User{}
 	s.byAccount = map[int64]int64{}
 	s.byLogin = map[string]int64{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *UserStore) onCreateObject(user User) {
 	s.users[user.ID] = user
 	s.byAccount[user.AccountID] = user.ID
 	s.byLogin[strings.ToLower(user.Login)] = user.ID
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *UserStore) onDeleteObject(id int64) {
 	if user, ok := s.users[id]; ok {
 		delete(s.byAccount, user.AccountID)

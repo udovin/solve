@@ -136,16 +136,19 @@ func (s *ProblemResourceStore) All() ([]ProblemResource, error) {
 	return objects, nil
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ProblemResourceStore) reset() {
 	s.objects = map[int64]ProblemResource{}
 	s.byProblem = index[int64]{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ProblemResourceStore) onCreateObject(object ProblemResource) {
 	s.objects[object.ID] = object
 	s.byProblem.Create(object.ProblemID, object.ID)
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ProblemResourceStore) onDeleteObject(id int64) {
 	if object, ok := s.objects[id]; ok {
 		s.byProblem.Delete(object.ProblemID, object.ID)

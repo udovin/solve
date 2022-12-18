@@ -2,9 +2,15 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"github.com/udovin/gosql"
 )
+
+type ProblemConfig struct {
+	TimeLimit   int64 `json:"time_limit"`
+	MemoryLimit int64 `json:"memory_limit"`
+}
 
 // Problem represents a problem.
 type Problem struct {
@@ -13,6 +19,24 @@ type Problem struct {
 	Config    JSON   `db:"config"`
 	Title     string `db:"title"`
 	PackageID NInt64 `db:"package_id"`
+}
+
+func (o Problem) GetConfig() (ProblemConfig, error) {
+	var config ProblemConfig
+	if len(o.Config) == 0 {
+		return config, nil
+	}
+	err := json.Unmarshal(o.Config, &config)
+	return config, err
+}
+
+func (o *Problem) SetMeta(config ProblemConfig) error {
+	raw, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	o.Config = raw
+	return nil
 }
 
 // Clone creates copy of problem.
@@ -67,14 +91,17 @@ func (s *ProblemStore) All() ([]Problem, error) {
 	return problems, nil
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ProblemStore) reset() {
 	s.problems = map[int64]Problem{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ProblemStore) onCreateObject(problem Problem) {
 	s.problems[problem.ID] = problem
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *ProblemStore) onDeleteObject(id int64) {
 	if problem, ok := s.problems[id]; ok {
 		delete(s.problems, problem.ID)

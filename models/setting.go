@@ -74,16 +74,19 @@ func (s *SettingStore) All() ([]Setting, error) {
 	return settings, nil
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *SettingStore) reset() {
 	s.settings = map[int64]Setting{}
 	s.byKey = map[string]int64{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *SettingStore) onCreateObject(setting Setting) {
 	s.settings[setting.ID] = setting
 	s.byKey[setting.Key] = setting.ID
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *SettingStore) onDeleteObject(id int64) {
 	if setting, ok := s.settings[id]; ok {
 		delete(s.byKey, setting.Key)

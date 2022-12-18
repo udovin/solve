@@ -349,6 +349,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) lockStore(tx *sql.Tx) error {
 	}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *baseStore[T, E, TPtr, EPtr]) onUpdateObject(object T) {
 	s.impl.onDeleteObject(TPtr(&object).ObjectID())
 	s.impl.onCreateObject(object)

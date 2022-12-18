@@ -58,14 +58,17 @@ func (s *AccountStore) Get(id int64) (Account, error) {
 	return Account{}, sql.ErrNoRows
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *AccountStore) reset() {
 	s.accounts = map[int64]Account{}
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *AccountStore) onCreateObject(account Account) {
 	s.accounts[account.ID] = account
 }
 
+//lint:ignore U1000 Used in generic interface.
 func (s *AccountStore) onDeleteObject(id int64) {
 	if account, ok := s.accounts[id]; ok {
 		delete(s.accounts, account.ID)

@@ -659,7 +659,8 @@ func getPtr[T any](object T) *T {
 
 var (
 	sqlRepeatableRead = gosql.WithIsolation(sql.LevelRepeatableRead)
-	sqlReadOnly       = gosql.WithReadOnly(true)
+	//lint:ignore U1000 Will be used in future.
+	sqlReadOnly = gosql.WithReadOnly(true)
 )
 
 func sortFunc[T any](a []T, less func(T, T) bool) {

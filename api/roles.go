@@ -108,8 +108,6 @@ func (v *View) registerSocketRoleHandlers(g *echo.Group) {
 	)
 }
 
-var errNotImplemented = fmt.Errorf("not implemented")
-
 func (v *View) observeRoles(c echo.Context) error {
 	var resp Roles
 	roles, err := v.core.Roles.All()

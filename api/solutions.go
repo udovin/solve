@@ -33,7 +33,7 @@ type Solution struct {
 	Problem    *Problem        `json:"problem"`
 	Compiler   *Compiler       `json:"compiler"`
 	User       *User           `json:"user"`
-	Content    string          `json:"omitempty"`
+	Content    string          `json:"content,omitempty"`
 	Report     *SolutionReport `json:"report"`
 	CreateTime int64           `json:"create_time"`
 }

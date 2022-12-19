@@ -143,6 +143,9 @@ func (p *polygonProblem) init() error {
 }
 
 func (p *polygonProblem) GetTestGroups() ([]ProblemTestGroup, error) {
+	if err := p.init(); err != nil {
+		return nil, err
+	}
 	var groups []ProblemTestGroup
 	for _, testSet := range p.config.TestSets {
 		groups = append(groups, &polygonProblemTestGroup{config: testSet})

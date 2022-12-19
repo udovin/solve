@@ -55,10 +55,11 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 type ProblemStatement = models.ProblemStatementConfig
 
 type Problem struct {
-	ID          int64             `json:"id"`
-	Title       string            `json:"title"`
-	Statement   *ProblemStatement `json:"statement,omitempty"`
-	Permissions []string          `json:"permissions,omitempty"`
+	ID          int64                 `json:"id"`
+	Title       string                `json:"title"`
+	Statement   *ProblemStatement     `json:"statement,omitempty"`
+	Config      *models.ProblemConfig `json:"config,omitempty"`
+	Permissions []string              `json:"permissions,omitempty"`
 }
 
 type Problems struct {
@@ -79,6 +80,15 @@ func (v *View) makeProblem(
 	resp := Problem{
 		ID:    problem.ID,
 		Title: problem.Title,
+	}
+	if withStatement {
+		config, err := problem.GetConfig()
+		if err == nil {
+			resp.Config = &models.ProblemConfig{
+				TimeLimit:   config.TimeLimit,
+				MemoryLimit: config.MemoryLimit,
+			}
+		}
 	}
 	locale := getLocale(c)
 	if resources, err := v.core.ProblemResources.FindByProblem(

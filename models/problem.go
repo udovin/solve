@@ -30,7 +30,7 @@ func (o Problem) GetConfig() (ProblemConfig, error) {
 	return config, err
 }
 
-func (o *Problem) SetMeta(config ProblemConfig) error {
+func (o *Problem) SetConfig(config ProblemConfig) error {
 	raw, err := json.Marshal(config)
 	if err != nil {
 		return err

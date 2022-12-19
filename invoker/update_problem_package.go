@@ -6,6 +6,7 @@ import (
 
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
+	"golang.org/x/exp/constraints"
 )
 
 func init() {
@@ -70,9 +71,28 @@ func (t *updateProblemPackageTask) prepareProblem(ctx TaskContext) error {
 	return nil
 }
 
+func max[T constraints.Ordered](a, b T) T {
+	if a < b {
+		return b
+	}
+	return a
+}
+
 func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	if err := t.prepareProblem(ctx); err != nil {
 		return fmt.Errorf("cannot prepare problem: %w", err)
+	}
+	groups, err := t.problemPackage.GetTestGroups()
+	if err != nil {
+		return fmt.Errorf("cannot get test groups: %w", err)
+	}
+	config := models.ProblemConfig{}
+	for _, group := range groups {
+		config.TimeLimit = max(config.TimeLimit, group.TimeLimit())
+		config.MemoryLimit = max(config.MemoryLimit, group.MemoryLimit())
+	}
+	if err := t.problem.SetConfig(config); err != nil {
+		return err
 	}
 	type eventKey struct {
 		Locale string

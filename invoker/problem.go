@@ -104,12 +104,14 @@ type ProblemTest interface {
 }
 
 type ProblemTestGroup interface {
+	TimeLimit() int64
+	MemoryLimit() int64
 }
 
 type ProblemResource interface {
 	Name() string
-	GetMD5() (string, error)
 	Open() (*os.File, error)
+	GetMD5() (string, error)
 }
 
 type ProblemStatement interface {
@@ -119,6 +121,7 @@ type ProblemStatement interface {
 }
 
 type Problem interface {
+	GetTestGroups() ([]ProblemTestGroup, error)
 	GetStatements() ([]ProblemStatement, error)
 }
 
@@ -139,6 +142,14 @@ func (p *polygonProblem) init() error {
 	return nil
 }
 
+func (p *polygonProblem) GetTestGroups() ([]ProblemTestGroup, error) {
+	var groups []ProblemTestGroup
+	for _, testSet := range p.config.TestSets {
+		groups = append(groups, &polygonProblemTestGroup{config: testSet})
+	}
+	return groups, nil
+}
+
 func (p *polygonProblem) GetStatements() ([]ProblemStatement, error) {
 	if err := p.init(); err != nil {
 		return nil, err
@@ -157,6 +168,18 @@ func (p *polygonProblem) GetStatements() ([]ProblemStatement, error) {
 		})
 	}
 	return statements, nil
+}
+
+type polygonProblemTestGroup struct {
+	config polygon.TestSet
+}
+
+func (g *polygonProblemTestGroup) TimeLimit() int64 {
+	return g.config.TimeLimit
+}
+
+func (g *polygonProblemTestGroup) MemoryLimit() int64 {
+	return g.config.MemoryLimit
 }
 
 type polygonProblemStatement struct {

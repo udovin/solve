@@ -8,8 +8,8 @@ import (
 )
 
 type ProblemConfig struct {
-	TimeLimit   int64 `json:"time_limit"`
-	MemoryLimit int64 `json:"memory_limit"`
+	TimeLimit   int64 `json:"time_limit,omitempty"`
+	MemoryLimit int64 `json:"memory_limit,omitempty"`
 }
 
 // Problem represents a problem.

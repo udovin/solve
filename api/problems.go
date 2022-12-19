@@ -464,7 +464,29 @@ func (v *View) deleteProblem(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("problem not extracted")
 	}
-	if err := v.core.Problems.Delete(getContext(c), problem.ID); err != nil {
+	solutions, err := v.core.Solutions.FindByProblem(problem.ID)
+	if err != nil {
+		return err
+	}
+	if len(solutions) > 0 {
+		return errorResponse{
+			Code: http.StatusForbidden,
+		}
+	}
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+		resources, err := v.core.ProblemResources.FindByProblem(problem.ID)
+		if err != nil {
+			return err
+		}
+		for _, resource := range resources {
+			if err := v.core.ProblemResources.Delete(
+				ctx, resource.ID,
+			); err != nil {
+				return err
+			}
+		}
+		return v.core.Problems.Delete(ctx, problem.ID)
+	}, sqlRepeatableRead); err != nil {
 		return err
 	}
 	return c.JSON(

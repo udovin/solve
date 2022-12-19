@@ -176,6 +176,7 @@ func (e *SolutionEvent) SetObject(o Solution) {
 type SolutionStore struct {
 	baseStore[Solution, SolutionEvent, *Solution, *SolutionEvent]
 	solutions map[int64]Solution
+	byProblem index[int64]
 }
 
 // Get returns solution by ID.
@@ -202,19 +203,34 @@ func (s *SolutionStore) All() ([]Solution, error) {
 	return solutions, nil
 }
 
+func (s *SolutionStore) FindByProblem(id int64) ([]Solution, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	var solutions []Solution
+	for id := range s.byProblem[id] {
+		if solution, ok := s.solutions[id]; ok {
+			solutions = append(solutions, solution.Clone())
+		}
+	}
+	return solutions, nil
+}
+
 //lint:ignore U1000 Used in generic interface.
 func (s *SolutionStore) reset() {
 	s.solutions = map[int64]Solution{}
+	s.byProblem = index[int64]{}
 }
 
 //lint:ignore U1000 Used in generic interface.
 func (s *SolutionStore) onCreateObject(solution Solution) {
 	s.solutions[solution.ID] = solution
+	s.byProblem.Create(solution.ProblemID, solution.ID)
 }
 
 //lint:ignore U1000 Used in generic interface.
 func (s *SolutionStore) onDeleteObject(id int64) {
 	if solution, ok := s.solutions[id]; ok {
+		s.byProblem.Delete(solution.ProblemID, solution.ID)
 		delete(s.solutions, solution.ID)
 	}
 }

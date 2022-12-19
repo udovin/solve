@@ -3,7 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -26,7 +26,7 @@ func TestLoadFromFile(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error: ", err)
 	}
-	file, err := ioutil.TempFile(t.TempDir(), "solve-test-")
+	file, err := os.CreateTemp(t.TempDir(), "solve-test-")
 	if err != nil {
 		t.Error("Error: ", err)
 	}
@@ -66,7 +66,7 @@ const templateConfig = `
 `
 
 func TestLoadFromTemplateFile(t *testing.T) {
-	secretFile, err := ioutil.TempFile(t.TempDir(), "solve-test-secret-")
+	secretFile, err := os.CreateTemp(t.TempDir(), "solve-test-secret-")
 	if err != nil {
 		t.Error("Error: ", err)
 	}
@@ -76,7 +76,7 @@ func TestLoadFromTemplateFile(t *testing.T) {
 			t.Fatal("Error: ", err)
 		}
 	}()
-	file, err := ioutil.TempFile(t.TempDir(), "solve-test-")
+	file, err := os.CreateTemp(t.TempDir(), "solve-test-")
 	if err != nil {
 		t.Error("Error: ", err)
 	}
@@ -101,7 +101,7 @@ func TestLoadFromTemplateFile(t *testing.T) {
 }
 
 func TestLoadFromInvalidFile(t *testing.T) {
-	file, err := ioutil.TempFile(t.TempDir(), "solve-test-")
+	file, err := os.CreateTemp(t.TempDir(), "solve-test-")
 	if err != nil {
 		t.Error("Error: ", err)
 	}
@@ -117,7 +117,7 @@ func TestLoadFromInvalidFile(t *testing.T) {
 }
 
 func TestLoadFromInvalidTemplateFile(t *testing.T) {
-	file, err := ioutil.TempFile(t.TempDir(), "solve-test-")
+	file, err := os.CreateTemp(t.TempDir(), "solve-test-")
 	if err != nil {
 		t.Error("Error: ", err)
 	}
@@ -133,7 +133,7 @@ func TestLoadFromInvalidTemplateFile(t *testing.T) {
 }
 
 func TestLoadFromInvalidTemplateFile2(t *testing.T) {
-	file, err := ioutil.TempFile(t.TempDir(), "solve-test-")
+	file, err := os.CreateTemp(t.TempDir(), "solve-test-")
 	if err != nil {
 		t.Error("Error: ", err)
 	}

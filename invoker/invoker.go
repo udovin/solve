@@ -6,7 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -158,38 +157,6 @@ func readFile(name string, limit int) (string, error) {
 		return strings.ToValidUTF8(string(bytes[:limit]), "") + "...", nil
 	}
 	return strings.ToValidUTF8(string(bytes[:read]), ""), nil
-}
-
-func compareFiles(outputPath, answerPath string) (string, bool, error) {
-	output, err := ioutil.ReadFile(outputPath)
-	if err != nil {
-		return "", false, err
-	}
-	answer, err := ioutil.ReadFile(answerPath)
-	if err != nil {
-		return "", false, err
-	}
-	outputStr := string(output)
-	outputStr = strings.ReplaceAll(outputStr, "\n", "")
-	outputStr = strings.ReplaceAll(outputStr, "\r", "")
-	outputStr = strings.ReplaceAll(outputStr, "\t", "")
-	outputStr = strings.ReplaceAll(outputStr, " ", "")
-	answerStr := string(answer)
-	answerStr = strings.ReplaceAll(answerStr, "\n", "")
-	answerStr = strings.ReplaceAll(answerStr, "\r", "")
-	answerStr = strings.ReplaceAll(answerStr, "\t", "")
-	answerStr = strings.ReplaceAll(answerStr, " ", "")
-	if outputStr == answerStr {
-		return "ok", true, nil
-	} else {
-		if len(output) > 100 {
-			output = output[:100]
-		}
-		if len(answer) > 100 {
-			answer = answer[:100]
-		}
-		return fmt.Sprintf("expected %q, got %q", string(answer), string(output)), false, nil
-	}
 }
 
 var (

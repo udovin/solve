@@ -134,7 +134,9 @@ func (p *polygonProblem) init() error {
 	if p.config != nil {
 		return nil
 	}
-	config, err := polygon.ReadProblem(p.path)
+	config, err := polygon.ReadProblemConfig(
+		filepath.Join(p.path, "problem.xml"),
+	)
 	if err != nil {
 		return err
 	}
@@ -195,21 +197,21 @@ func (s *polygonProblemStatement) Locale() string {
 }
 
 func (s *polygonProblemStatement) GetConfig() (models.ProblemStatementConfig, error) {
-	properties, err := polygon.ReadProblemProperites(
-		s.problem.path, s.language,
-	)
+	statement, err := polygon.ReadProblemStatementConfig(filepath.Join(
+		s.problem.path, "statements", s.language, "problem-properties.json",
+	))
 	if err != nil {
 		return models.ProblemStatementConfig{}, err
 	}
 	config := models.ProblemStatementConfig{
 		Locale: s.Locale(),
-		Title:  properties.Name,
-		Legend: properties.Legend,
-		Input:  properties.Input,
-		Output: properties.Output,
-		Notes:  properties.Notes,
+		Title:  statement.Name,
+		Legend: statement.Legend,
+		Input:  statement.Input,
+		Output: statement.Output,
+		Notes:  statement.Notes,
 	}
-	for _, sample := range properties.SampleTests {
+	for _, sample := range statement.SampleTests {
 		config.Samples = append(
 			config.Samples,
 			models.ProblemStatementSample{

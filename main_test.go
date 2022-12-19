@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -39,7 +38,7 @@ func testSetup(tb testing.TB) {
 	}
 	var err error
 	func() {
-		testConfigFile, err = ioutil.TempFile(tb.TempDir(), "test-")
+		testConfigFile, err = os.CreateTemp(tb.TempDir(), "test-")
 		if err != nil {
 			tb.Fatal("Error:", err)
 		}

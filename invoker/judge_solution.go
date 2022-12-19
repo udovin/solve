@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -86,7 +85,7 @@ func (t *judgeSolutionTask) prepareCompiler(ctx TaskContext) error {
 func (t *judgeSolutionTask) prepareSolution(ctx TaskContext) error {
 	if t.solution.ContentID == 0 {
 		tempSolutionPath := filepath.Join(t.tempDir, "solution.txt")
-		err := ioutil.WriteFile(tempSolutionPath, []byte(t.solution.Content), fs.ModePerm)
+		err := os.WriteFile(tempSolutionPath, []byte(t.solution.Content), fs.ModePerm)
 		if err != nil {
 			return fmt.Errorf("cannot write solution: %w", err)
 		}

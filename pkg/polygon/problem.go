@@ -3,8 +3,7 @@ package polygon
 import (
 	"encoding/json"
 	"encoding/xml"
-	"io/ioutil"
-	"path/filepath"
+	"os"
 )
 
 // Name represents problem name.
@@ -39,22 +38,40 @@ type TestSet struct {
 	Tests             []Test `xml:"tests>test"`
 }
 
-// Problem represents a problem.
-type Problem struct {
-	Names      []Name      `xml:"names>name"`
-	Statements []Statement `xml:"statements>statement"`
-	TestSets   []TestSet   `xml:"judging>testset"`
+type Resource struct {
+	Path string `xml:"path,attr"`
+	Type string `xml:"type,attr"`
 }
 
-const (
-	configPath            = "problem.xml"
-	statementsDir         = "statements"
-	problemPropertiesPath = "problem-properties.json"
-)
+type Checker struct {
+	Name   string    `xml:"name,attr"`
+	Type   string    `xml:"type,attr"`
+	Source *Resource `xml:"source"`
+	Binary *Resource `xml:"binary"`
+}
 
-// ReadProblem reads problem from directory.
-func ReadProblem(dir string) (Problem, error) {
-	data, err := ioutil.ReadFile(filepath.Join(dir, configPath))
+type Solution struct {
+	Tag    string    `xml:"tag,attr"`
+	Source *Resource `xml:"source"`
+	Binary *Resource `xml:"binary"`
+}
+
+type ProblemAssets struct {
+	Checker   *Checker   `xml:"checker"`
+	Solutions []Solution `xml:"solutions>solution"`
+}
+
+// Problem represents a problem.
+type Problem struct {
+	Names      []Name         `xml:"names>name"`
+	Statements []Statement    `xml:"statements>statement"`
+	TestSets   []TestSet      `xml:"judging>testset"`
+	Assets     *ProblemAssets `xml:"assets"`
+}
+
+// ReadProblemConfig reads problem config from file.
+func ReadProblemConfig(path string) (Problem, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return Problem{}, err
 	}
@@ -70,7 +87,7 @@ type SampleTest struct {
 	Output string `json:"output"`
 }
 
-type ProblemProperties struct {
+type ProblemStatementConfig struct {
 	Name        string       `json:"name"`
 	Legend      string       `json:"legend"`
 	Input       string       `json:"input"`
@@ -84,18 +101,14 @@ type ProblemProperties struct {
 	SampleTests []SampleTest `json:"sampleTests"`
 }
 
-func ReadProblemProperites(
-	dir string, language string,
-) (ProblemProperties, error) {
-	data, err := ioutil.ReadFile(filepath.Join(
-		dir, statementsDir, language, problemPropertiesPath,
-	))
+func ReadProblemStatementConfig(path string) (ProblemStatementConfig, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return ProblemProperties{}, err
+		return ProblemStatementConfig{}, err
 	}
-	var properties ProblemProperties
+	var properties ProblemStatementConfig
 	if err := json.Unmarshal(data, &properties); err != nil {
-		return ProblemProperties{}, err
+		return ProblemStatementConfig{}, err
 	}
 	return properties, nil
 }

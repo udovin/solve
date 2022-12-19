@@ -5,7 +5,6 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,7 +113,7 @@ var configFuncs = template.FuncMap{
 		return string(data), err
 	},
 	"file": func(name string) (string, error) {
-		bytes, err := ioutil.ReadFile(name)
+		bytes, err := os.ReadFile(name)
 		if err != nil {
 			return "", err
 		}

@@ -19,6 +19,7 @@ import (
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/pkg/logs"
 )
 
 // View represents API view.
@@ -275,7 +276,7 @@ func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 		if reqID == "" {
 			reqID = fmt.Sprintf("%d-%d", rnd.Int63(), time.Now().UnixMilli())
 		}
-		logger := c.Logger().(*core.Logger).With(core.Any("req_id", reqID))
+		logger := c.Logger().(*logs.Logger).With(logs.Any("req_id", reqID))
 		c.SetLogger(logger)
 		c.Response().Header().Add(echo.HeaderXRequestID, reqID)
 		c.Response().Header().Add("X-Solve-Version", config.Version)
@@ -294,12 +295,12 @@ func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 			args := []any{
 				message,
-				core.Any("status", status),
-				core.Any("method", c.Request().Method),
-				core.Any("path", c.Path()),
-				core.Any("params", params),
-				core.Any("remote_ip", c.RealIP()),
-				core.Any("latency", finish.Sub(start)),
+				logs.Any("status", status),
+				logs.Any("method", c.Request().Method),
+				logs.Any("path", c.Path()),
+				logs.Any("params", params),
+				logs.Any("remote_ip", c.RealIP()),
+				logs.Any("latency", finish.Sub(start)),
 				err,
 			}
 			switch {
@@ -493,7 +494,7 @@ func (v *View) getStringSetting(key string, logger echo.Logger) *string {
 		if err != sql.ErrNoRows {
 			logger.Error(
 				"Unable to get setting",
-				core.Any("key", key), err,
+				logs.Any("key", key), err,
 			)
 		}
 		return nil
@@ -517,8 +518,8 @@ func (v *View) getBoolSetting(key string, logger echo.Logger) *bool {
 	default:
 		logger.Warn(
 			"Setting has invalid value",
-			core.Any("key", key),
-			core.Any("value", *setting),
+			logs.Any("key", key),
+			logs.Any("value", *setting),
 		)
 		return nil
 	}

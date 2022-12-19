@@ -12,6 +12,7 @@ import (
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/pkg/logs"
 )
 
 // Core manages all available resources.
@@ -65,7 +66,7 @@ type Core struct {
 	// DB stores database connection.
 	DB *gosql.DB
 	// logger contains logger.
-	logger *Logger
+	logger *logs.Logger
 }
 
 // NewCore creates core instance from config.
@@ -74,14 +75,14 @@ func NewCore(cfg config.Config) (*Core, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger := Logger{Logger: log.New("")}
+	logger := logs.NewLogger()
 	logger.SetHeader(`{"time":"${time_rfc3339_nano}","level":"${level}"}`)
 	logger.SetLevel(log.Lvl(cfg.LogLevel))
-	return &Core{Config: cfg, DB: conn, logger: &logger}, nil
+	return &Core{Config: cfg, DB: conn, logger: logger}, nil
 }
 
 // Logger returns logger instance.
-func (c *Core) Logger() *Logger {
+func (c *Core) Logger() *logs.Logger {
 	return c.logger
 }
 
@@ -131,11 +132,11 @@ func (c *Core) WrapTx(
 
 // StartTask starts task in new goroutine.
 func (c *Core) StartTask(name string, task func(ctx context.Context)) {
-	c.Logger().Info("Start task", Any("task", name))
+	c.Logger().Info("Start task", logs.Any("task", name))
 	c.taskWaiter.Add(1)
 	c.startCoreTask(func() {
 		defer c.taskWaiter.Done()
-		defer c.Logger().Info("Task finished", Any("task", name))
+		defer c.Logger().Info("Task finished", logs.Any("task", name))
 		task(c.taskContext)
 	})
 }

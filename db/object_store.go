@@ -48,7 +48,7 @@ func (s *objectStore[T, TPtr]) LoadObjects(ctx context.Context) (RowReader[T], e
 	builder := s.db.Select(s.table)
 	builder.SetNames(s.columns...)
 	builder.SetOrderBy(gosql.Ascending(s.id))
-	rows, err := GetRunner(ctx, s.db).QueryContext(ctx, builder.String())
+	rows, err := GetRunner(ctx, s.db.RO).QueryContext(ctx, builder.String())
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (s *objectStore[T, TPtr]) FindObjects(
 	builder.SetWhere(where)
 	builder.SetOrderBy(gosql.Ascending(s.id))
 	query, values := builder.Build()
-	rows, err := GetRunner(ctx, s.db).QueryContext(ctx, query, values...)
+	rows, err := GetRunner(ctx, s.db.RO).QueryContext(ctx, query, values...)
 	if err != nil {
 		return nil, err
 	}

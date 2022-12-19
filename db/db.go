@@ -11,25 +11,28 @@ import (
 	"github.com/udovin/gosql"
 )
 
-type txKey struct{}
+type dbKey struct{}
+
+func WithRunner(ctx context.Context, db gosql.Runner) context.Context {
+	return context.WithValue(ctx, dbKey{}, db)
+}
+
+func GetRunner(ctx context.Context, db gosql.Runner) gosql.Runner {
+	if r, ok := ctx.Value(dbKey{}).(gosql.Runner); ok {
+		return r
+	}
+	return db
+}
 
 func WithTx(ctx context.Context, tx *sql.Tx) context.Context {
-	return context.WithValue(ctx, txKey{}, tx)
+	return WithRunner(ctx, tx)
 }
 
 func GetTx(ctx context.Context) *sql.Tx {
-	tx, ok := ctx.Value(txKey{}).(*sql.Tx)
-	if ok {
+	if tx, ok := ctx.Value(dbKey{}).(*sql.Tx); ok {
 		return tx
 	}
 	return nil
-}
-
-func GetRunner(ctx context.Context, db *gosql.DB) gosql.Runner {
-	if tx := GetTx(ctx); tx != nil {
-		return tx
-	}
-	return db
 }
 
 // RowReader represents reader for events.

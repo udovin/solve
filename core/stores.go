@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/pkg/logs"
 )
 
 // SetupAllStores prepares all stores.
@@ -96,22 +97,23 @@ func (c *Core) startStoreLoops() (err error) {
 		if isNil(store) {
 			return
 		}
+		logger := c.Logger().With(logs.Any("store", name))
 		waiter.Add(1)
 		c.startCoreTask(func() {
 			defer waiter.Done()
-			c.Logger().Debug("Store init started", Any("store", name))
+			logger.Debug("Store init started")
 			if errStore := store.Init(c.context); errStore != nil {
 				if errStore != context.Canceled {
-					c.Logger().Error("Store init failed", errStore, Any("store", name))
+					logger.Error("Store init failed", errStore)
 				} else {
-					c.Logger().Warn("Store init canceled", Any("store", name))
+					logger.Warn("Store init canceled")
 				}
 				once.Do(func() { err = errStore })
 				// Abort core.
 				c.cancel()
 				return
 			}
-			c.Logger().Debug("Store init finished", Any("store", name))
+			logger.Debug("Store init finished")
 			c.startCoreTask(func() {
 				c.storeLoop(store, name, delay)
 			})
@@ -122,8 +124,9 @@ func (c *Core) startStoreLoops() (err error) {
 }
 
 func (c *Core) storeLoop(store models.Store, name string, delay time.Duration) {
-	c.Logger().Debug("Store sync loop started", Any("store", name))
-	defer c.Logger().Debug("Store sync loop stopped", Any("store", name))
+	logger := c.Logger().With(logs.Any("store", name))
+	logger.Debug("Store sync loop started")
+	defer logger.Debug("Store sync loop stopped")
 	updateTime := time.Now()
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
@@ -132,16 +135,20 @@ func (c *Core) storeLoop(store models.Store, name string, delay time.Duration) {
 		case <-c.context.Done():
 			return
 		case <-ticker.C:
+			beginTime := time.Now()
 			if err := store.Sync(c.context); err != nil {
 				if time.Since(updateTime) > delay*15 {
-					c.Logger().Error("Cannot sync store", err, Any("store", name))
+					logger.Error("Cannot sync store", err)
 					// Abort core.
 					c.cancel()
 					return
 				}
-				c.Logger().Warn("Cannot sync store", err, Any("store", name))
+				logger.Warn("Cannot sync store", err)
 			} else {
 				updateTime = time.Now()
+				if d := updateTime.Sub(beginTime); d >= time.Second {
+					logger.Warn("Long query", logs.Any("duration", d))
+				}
 			}
 		}
 	}

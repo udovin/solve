@@ -21,6 +21,7 @@ import (
 	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/invoker"
 	"github.com/udovin/solve/migrations"
+	"github.com/udovin/solve/pkg/logs"
 )
 
 var testCtx, testCancel = context.WithCancel(context.Background())
@@ -57,7 +58,7 @@ func isServerError(err error) bool {
 	return err != nil && err != http.ErrServerClosed
 }
 
-func newServer(logger *core.Logger) *echo.Echo {
+func newServer(logger *logs.Logger) *echo.Echo {
 	srv := echo.New()
 	srv.Logger = logger
 	srv.HideBanner, srv.HidePort = true, true

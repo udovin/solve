@@ -14,6 +14,7 @@ import (
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/pkg/logs"
 )
 
 // Invoker represents manager for asynchronous actions (invocations).
@@ -101,7 +102,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 		}
 		return false
 	}
-	logger := s.core.Logger().With(core.Any("task_id", task.ObjectID()))
+	logger := s.core.Logger().With(logs.Any("task_id", task.ObjectID()))
 	taskCtx := newTaskContext(ctx, task, logger)
 	defer taskCtx.Close()
 	factory, ok := registeredTasks[task.Kind()]
@@ -110,7 +111,7 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 		return true
 	}
 	impl := factory.New(s)
-	logger.Info("Executing task", core.Any("kind", task.Kind().String()))
+	logger.Info("Executing task", logs.Any("kind", task.Kind().String()))
 	if err := impl.Execute(taskCtx); err != nil {
 		s.core.Logger().Error("Task failed", err)
 		statusCtx, cancel := context.WithTimeout(s.core.Context(), 30*time.Second)

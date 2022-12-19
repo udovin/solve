@@ -1,4 +1,4 @@
-package core
+package logs
 
 import (
 	"fmt"
@@ -10,6 +10,10 @@ import (
 type Logger struct {
 	*log.Logger
 	fields []any
+}
+
+func NewLogger() *Logger {
+	return &Logger{Logger: log.New("")}
 }
 
 func (l *Logger) With(args ...any) *Logger {

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/pkg/logs"
 )
 
 type taskImpl interface {
@@ -38,7 +38,7 @@ type TaskContext interface {
 	SetStatus(context.Context, models.TaskStatus) error
 	SetState(context.Context, any) error
 	Ping(context.Context, time.Duration) error
-	Logger() *core.Logger
+	Logger() *logs.Logger
 }
 
 func popQueuedTask(ctx context.Context, store *models.TaskStore) (*taskGuard, error) {
@@ -53,7 +53,7 @@ func popQueuedTask(ctx context.Context, store *models.TaskStore) (*taskGuard, er
 	return guard, nil
 }
 
-func newTaskContext(ctx context.Context, task *taskGuard, logger *core.Logger) *taskContext {
+func newTaskContext(ctx context.Context, task *taskGuard, logger *logs.Logger) *taskContext {
 	taskCtx, cancel := context.WithCancel(ctx)
 	taskPinger := &taskContext{
 		taskGuard: task,
@@ -71,7 +71,7 @@ type taskContext struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	waiter sync.WaitGroup
-	logger *core.Logger
+	logger *logs.Logger
 }
 
 func (t *taskContext) Close() {
@@ -95,7 +95,7 @@ func (t *taskContext) Value(key any) any {
 	return t.ctx.Value(key)
 }
 
-func (t *taskContext) Logger() *core.Logger {
+func (t *taskContext) Logger() *logs.Logger {
 	return t.logger
 }
 

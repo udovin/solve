@@ -74,7 +74,7 @@ type eventStore[T any, TPtr EventPtr[T]] struct {
 // LastEventID returns last event ID or sql.ErrNoRows
 // if there is no events.
 func (s *eventStore[T, TPtr]) LastEventID(ctx context.Context) (int64, error) {
-	row := GetRunner(ctx, s.db).QueryRowContext(
+	row := GetRunner(ctx, s.db.RO).QueryRowContext(
 		ctx, fmt.Sprintf("SELECT max(%q) FROM %q", s.id, s.table),
 	)
 	var id *int64
@@ -106,7 +106,7 @@ func (s *eventStore[T, TPtr]) LoadEvents(
 	builder.SetWhere(s.getEventsWhere(ranges))
 	builder.SetOrderBy(gosql.Ascending(s.id))
 	query, values := builder.Build()
-	rows, err := GetRunner(ctx, s.db).QueryContext(ctx, query, values...)
+	rows, err := GetRunner(ctx, s.db.RO).QueryContext(ctx, query, values...)
 	if err != nil {
 		return nil, err
 	}

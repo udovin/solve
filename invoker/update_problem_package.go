@@ -63,7 +63,9 @@ func (t *updateProblemPackageTask) prepareProblem(ctx TaskContext) error {
 	if t.file.ID == 0 {
 		return fmt.Errorf("problem does not have package")
 	}
-	problem, err := t.invoker.problems.DownloadProblem(ctx, t.file.ID)
+	problem, err := t.invoker.problems.DownloadProblem(
+		ctx, t.file.ID, PolygonProblem,
+	)
 	if err != nil {
 		return fmt.Errorf("cannot download problem: %w", err)
 	}

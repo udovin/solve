@@ -61,6 +61,11 @@ type testObject struct {
 	JSON JSON  `db:"json"`
 }
 
+func (o testObject) Clone() testObject {
+	o.JSON = o.JSON.Clone()
+	return o
+}
+
 func (o testObject) ObjectID() int64 {
 	return o.ID
 }

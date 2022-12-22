@@ -215,7 +215,7 @@ type Store interface {
 }
 
 type baseStore[
-	T any, E any, TPtr db.ObjectPtr[T], EPtr ObjectEventPtr[T, E],
+	T Cloner[T], E any, TPtr db.ObjectPtr[T], EPtr ObjectEventPtr[T, E],
 ] struct {
 	db       *gosql.DB
 	table    string
@@ -340,11 +340,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) Get(id int64) (T, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if object, ok := s.objects[id]; ok {
-		cloner, ok := any(object).(Cloner[T])
-		if !ok {
-			panic(fmt.Errorf("cannot clone object of type %T", object))
-		}
-		return cloner.Clone(), nil
+		return object.Clone(), nil
 	}
 	var empty T
 	return empty, sql.ErrNoRows
@@ -356,11 +352,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) All() ([]T, error) {
 	defer s.mutex.RUnlock()
 	var objects []T
 	for _, object := range s.objects {
-		cloner, ok := any(object).(Cloner[T])
-		if !ok {
-			panic(fmt.Errorf("cannot clone object of type %T", object))
-		}
-		objects = append(objects, cloner.Clone())
+		objects = append(objects, object.Clone())
 	}
 	return objects, nil
 }
@@ -458,7 +450,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) consumeEvent(event E) error {
 	return nil
 }
 
-func makeBaseStore[T any, E any, TPtr db.ObjectPtr[T], EPtr ObjectEventPtr[T, E]](
+func makeBaseStore[T Cloner[T], E any, TPtr db.ObjectPtr[T], EPtr ObjectEventPtr[T, E]](
 	conn *gosql.DB,
 	table, eventTable string,
 	impl baseStoreImpl[T],

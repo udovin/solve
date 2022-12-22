@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"encoding/json"
 
 	"github.com/udovin/gosql"
@@ -64,48 +63,6 @@ func (e *ProblemEvent) SetObject(o Problem) {
 // ProblemStore represents store for problems.
 type ProblemStore struct {
 	baseStore[Problem, ProblemEvent, *Problem, *ProblemEvent]
-	problems map[int64]Problem
-}
-
-// Get returns problem by ID.
-//
-// If there is no problem with specified ID then
-// sql.ErrNoRows will be returned.
-func (s *ProblemStore) Get(id int64) (Problem, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if problem, ok := s.problems[id]; ok {
-		return problem.Clone(), nil
-	}
-	return Problem{}, sql.ErrNoRows
-}
-
-// All returns all problems.
-func (s *ProblemStore) All() ([]Problem, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var problems []Problem
-	for _, problem := range s.problems {
-		problems = append(problems, problem)
-	}
-	return problems, nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ProblemStore) reset() {
-	s.problems = map[int64]Problem{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ProblemStore) onCreateObject(problem Problem) {
-	s.problems[problem.ID] = problem
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ProblemStore) onDeleteObject(id int64) {
-	if problem, ok := s.problems[id]; ok {
-		delete(s.problems, problem.ID)
-	}
 }
 
 var _ baseStoreImpl[Problem] = (*ProblemStore)(nil)

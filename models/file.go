@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -85,48 +84,6 @@ func (e *FileEvent) SetObject(o File) {
 // FileStore represents store for files.
 type FileStore struct {
 	baseStore[File, FileEvent, *File, *FileEvent]
-	files map[int64]File
-}
-
-// Get returns file by ID.
-//
-// If there is no file with specified ID then
-// sql.ErrNoRows will be returned.
-func (s *FileStore) Get(id int64) (File, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if file, ok := s.files[id]; ok {
-		return file.Clone(), nil
-	}
-	return File{}, sql.ErrNoRows
-}
-
-// All returns all files.
-func (s *FileStore) All() ([]File, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var files []File
-	for _, file := range s.files {
-		files = append(files, file)
-	}
-	return files, nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *FileStore) reset() {
-	s.files = map[int64]File{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *FileStore) onCreateObject(file File) {
-	s.files[file.ID] = file
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *FileStore) onDeleteObject(id int64) {
-	if file, ok := s.files[id]; ok {
-		delete(s.files, file.ID)
-	}
 }
 
 var _ baseStoreImpl[File] = (*FileStore)(nil)

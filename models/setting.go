@@ -37,70 +37,30 @@ func (e *SettingEvent) SetObject(o Setting) {
 // SettingStore represents store for settings.
 type SettingStore struct {
 	baseStore[Setting, SettingEvent, *Setting, *SettingEvent]
-	settings map[int64]Setting
-	byKey    map[string]int64
-}
-
-// Get returns setting by specified ID.
-func (s *SettingStore) Get(id int64) (Setting, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if setting, ok := s.settings[id]; ok {
-		return setting.Clone(), nil
-	}
-	return Setting{}, sql.ErrNoRows
+	byKey *index[string, Setting, *Setting]
 }
 
 // GetByKey returns setting by specified key.
-
 func (s *SettingStore) GetByKey(key string) (Setting, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if id, ok := s.byKey[key]; ok {
-		if setting, ok := s.settings[id]; ok {
-			return setting.Clone(), nil
+	for id := range s.byKey.Get(key) {
+		if object, ok := s.objects[id]; ok {
+			return object.Clone(), nil
 		}
 	}
 	return Setting{}, sql.ErrNoRows
-}
-
-func (s *SettingStore) All() ([]Setting, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var settings []Setting
-	for _, setting := range s.settings {
-		settings = append(settings, setting)
-	}
-	return settings, nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *SettingStore) reset() {
-	s.settings = map[int64]Setting{}
-	s.byKey = map[string]int64{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *SettingStore) onCreateObject(setting Setting) {
-	s.settings[setting.ID] = setting
-	s.byKey[setting.Key] = setting.ID
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *SettingStore) onDeleteObject(id int64) {
-	if setting, ok := s.settings[id]; ok {
-		delete(s.byKey, setting.Key)
-		delete(s.settings, setting.ID)
-	}
 }
 
 var _ baseStoreImpl[Setting] = (*SettingStore)(nil)
 
 // NewSettingStore creates a new instance of SettingStore.
 func NewSettingStore(db *gosql.DB, table, eventTable string) *SettingStore {
-	impl := &SettingStore{}
+	impl := &SettingStore{
+		byKey: newIndex(func(o Setting) string { return o.Key }),
+	}
 	impl.baseStore = makeBaseStore[Setting, SettingEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byKey,
 	)
 	return impl
 }

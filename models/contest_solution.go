@@ -1,8 +1,6 @@
 package models
 
 import (
-	"database/sql"
-
 	"github.com/udovin/gosql"
 )
 
@@ -43,60 +41,22 @@ func (e *ContestSolutionEvent) SetObject(o ContestSolution) {
 // ContestSolutionStore represents a solution store.
 type ContestSolutionStore struct {
 	baseStore[ContestSolution, ContestSolutionEvent, *ContestSolution, *ContestSolutionEvent]
-	solutions     map[int64]ContestSolution
-	byContest     index[int64]
-	byParticipant index[int64]
-}
-
-// Get returns solution by ID.
-//
-// If there is no solution with specified ID then
-// sql.ErrNoRows will be returned.
-func (s *ContestSolutionStore) Get(id int64) (ContestSolution, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if solution, ok := s.solutions[id]; ok {
-		return solution.Clone(), nil
-	}
-	return ContestSolution{}, sql.ErrNoRows
+	byContest *index[int64, ContestSolution, *ContestSolution]
 }
 
 // FindByContest returns solutions by parent ID.
 func (s *ContestSolutionStore) FindByContest(
-	contestID int64,
+	id int64,
 ) ([]ContestSolution, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	var solutions []ContestSolution
-	for id := range s.byContest[contestID] {
-		if solution, ok := s.solutions[id]; ok {
-			solutions = append(solutions, solution.Clone())
+	var objects []ContestSolution
+	for id := range s.byContest.Get(id) {
+		if object, ok := s.objects[id]; ok {
+			objects = append(objects, object.Clone())
 		}
 	}
-	return solutions, nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestSolutionStore) reset() {
-	s.solutions = map[int64]ContestSolution{}
-	s.byContest = index[int64]{}
-	s.byParticipant = index[int64]{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestSolutionStore) onCreateObject(solution ContestSolution) {
-	s.solutions[solution.ID] = solution
-	s.byContest.Create(solution.ContestID, solution.ID)
-	s.byParticipant.Create(solution.ParticipantID, solution.ID)
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestSolutionStore) onDeleteObject(id int64) {
-	if solution, ok := s.solutions[id]; ok {
-		s.byContest.Delete(solution.ContestID, solution.ID)
-		s.byParticipant.Delete(solution.ParticipantID, solution.ID)
-		delete(s.solutions, solution.ID)
-	}
+	return objects, nil
 }
 
 var _ baseStoreImpl[ContestSolution] = (*ContestSolutionStore)(nil)
@@ -105,9 +65,11 @@ var _ baseStoreImpl[ContestSolution] = (*ContestSolutionStore)(nil)
 func NewContestSolutionStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestSolutionStore {
-	impl := &ContestSolutionStore{}
+	impl := &ContestSolutionStore{
+		byContest: newIndex(func(o ContestSolution) int64 { return o.ContestID }),
+	}
 	impl.baseStore = makeBaseStore[ContestSolution, ContestSolutionEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byContest,
 	)
 	return impl
 }

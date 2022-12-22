@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"encoding/json"
 
 	"github.com/udovin/gosql"
@@ -75,44 +74,6 @@ func (e *CompilerEvent) SetObject(o Compiler) {
 // CompilerStore represents store for compilers.
 type CompilerStore struct {
 	baseStore[Compiler, CompilerEvent, *Compiler, *CompilerEvent]
-	compilers map[int64]Compiler
-}
-
-// Get returns compiler by specified ID.
-func (s *CompilerStore) Get(id int64) (Compiler, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if compiler, ok := s.compilers[id]; ok {
-		return compiler.Clone(), nil
-	}
-	return Compiler{}, sql.ErrNoRows
-}
-
-func (s *CompilerStore) All() ([]Compiler, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var compilers []Compiler
-	for _, compiler := range s.compilers {
-		compilers = append(compilers, compiler)
-	}
-	return compilers, nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *CompilerStore) reset() {
-	s.compilers = map[int64]Compiler{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *CompilerStore) onCreateObject(compiler Compiler) {
-	s.compilers[compiler.ID] = compiler
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *CompilerStore) onDeleteObject(id int64) {
-	if compiler, ok := s.compilers[id]; ok {
-		delete(s.compilers, compiler.ID)
-	}
 }
 
 var _ baseStoreImpl[Compiler] = (*CompilerStore)(nil)

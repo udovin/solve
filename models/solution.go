@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -175,64 +174,19 @@ func (e *SolutionEvent) SetObject(o Solution) {
 // SolutionStore represents store for solutions.
 type SolutionStore struct {
 	baseStore[Solution, SolutionEvent, *Solution, *SolutionEvent]
-	solutions map[int64]Solution
-	byProblem index[int64]
-}
-
-// Get returns solution by ID.
-//
-// If there is no solution with specified ID then
-// sql.ErrNoRows will be returned.
-func (s *SolutionStore) Get(id int64) (Solution, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if solution, ok := s.solutions[id]; ok {
-		return solution.Clone(), nil
-	}
-	return Solution{}, sql.ErrNoRows
-}
-
-// All returns all solutions.
-func (s *SolutionStore) All() ([]Solution, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var solutions []Solution
-	for _, solution := range s.solutions {
-		solutions = append(solutions, solution)
-	}
-	return solutions, nil
+	byProblem *index[int64, Solution, *Solution]
 }
 
 func (s *SolutionStore) FindByProblem(id int64) ([]Solution, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	var solutions []Solution
-	for id := range s.byProblem[id] {
-		if solution, ok := s.solutions[id]; ok {
-			solutions = append(solutions, solution.Clone())
+	var objects []Solution
+	for id := range s.byProblem.Get(id) {
+		if object, ok := s.objects[id]; ok {
+			objects = append(objects, object.Clone())
 		}
 	}
-	return solutions, nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *SolutionStore) reset() {
-	s.solutions = map[int64]Solution{}
-	s.byProblem = index[int64]{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *SolutionStore) onCreateObject(solution Solution) {
-	s.solutions[solution.ID] = solution
-	s.byProblem.Create(solution.ProblemID, solution.ID)
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *SolutionStore) onDeleteObject(id int64) {
-	if solution, ok := s.solutions[id]; ok {
-		s.byProblem.Delete(solution.ProblemID, solution.ID)
-		delete(s.solutions, solution.ID)
-	}
+	return objects, nil
 }
 
 var _ baseStoreImpl[Solution] = (*SolutionStore)(nil)
@@ -241,9 +195,11 @@ var _ baseStoreImpl[Solution] = (*SolutionStore)(nil)
 func NewSolutionStore(
 	db *gosql.DB, table, eventTable string,
 ) *SolutionStore {
-	impl := &SolutionStore{}
+	impl := &SolutionStore{
+		byProblem: newIndex(func(o Solution) int64 { return o.ProblemID }),
+	}
 	impl.baseStore = makeBaseStore[Solution, SolutionEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byProblem,
 	)
 	return impl
 }

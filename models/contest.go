@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"encoding/json"
 
 	"github.com/udovin/gosql"
@@ -65,48 +64,6 @@ func (e *ContestEvent) SetObject(o Contest) {
 // ContestStore represents store for contests.
 type ContestStore struct {
 	baseStore[Contest, ContestEvent, *Contest, *ContestEvent]
-	contests map[int64]Contest
-}
-
-// Get returns contest by ID.
-//
-// If there is no contest with specified ID then
-// sql.ErrNoRows will be returned.
-func (s *ContestStore) Get(id int64) (Contest, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if contest, ok := s.contests[id]; ok {
-		return contest.Clone(), nil
-	}
-	return Contest{}, sql.ErrNoRows
-}
-
-// All returns all contests.
-func (s *ContestStore) All() ([]Contest, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var contests []Contest
-	for _, contest := range s.contests {
-		contests = append(contests, contest)
-	}
-	return contests, nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestStore) reset() {
-	s.contests = map[int64]Contest{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestStore) onCreateObject(contest Contest) {
-	s.contests[contest.ID] = contest
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestStore) onDeleteObject(id int64) {
-	if contest, ok := s.contests[id]; ok {
-		delete(s.contests, contest.ID)
-	}
 }
 
 var _ baseStoreImpl[Contest] = (*ContestStore)(nil)

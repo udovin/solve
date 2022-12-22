@@ -1,8 +1,6 @@
 package models
 
 import (
-	"database/sql"
-
 	"github.com/udovin/gosql"
 )
 
@@ -41,56 +39,20 @@ func (e *ContestProblemEvent) SetObject(o ContestProblem) {
 // ContestProblemStore represents a problem store.
 type ContestProblemStore struct {
 	baseStore[ContestProblem, ContestProblemEvent, *ContestProblem, *ContestProblemEvent]
-	problems  map[int64]ContestProblem
-	byContest index[int64]
-}
-
-// Get returns problem by ID.
-//
-// If there is no problem with specified ID then
-// sql.ErrNoRows will be returned.
-func (s *ContestProblemStore) Get(id int64) (ContestProblem, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if problem, ok := s.problems[id]; ok {
-		return problem.Clone(), nil
-	}
-	return ContestProblem{}, sql.ErrNoRows
+	byContest *index[int64, ContestProblem, *ContestProblem]
 }
 
 // FindByContest returns problems by parent ID.
-func (s *ContestProblemStore) FindByContest(
-	contestID int64,
-) ([]ContestProblem, error) {
+func (s *ContestProblemStore) FindByContest(id int64) ([]ContestProblem, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	var problems []ContestProblem
-	for id := range s.byContest[contestID] {
-		if problem, ok := s.problems[id]; ok {
-			problems = append(problems, problem.Clone())
+	var objects []ContestProblem
+	for id := range s.byContest.Get(id) {
+		if object, ok := s.objects[id]; ok {
+			objects = append(objects, object.Clone())
 		}
 	}
-	return problems, nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestProblemStore) reset() {
-	s.problems = map[int64]ContestProblem{}
-	s.byContest = index[int64]{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestProblemStore) onCreateObject(problem ContestProblem) {
-	s.problems[problem.ID] = problem
-	s.byContest.Create(problem.ContestID, problem.ID)
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestProblemStore) onDeleteObject(id int64) {
-	if problem, ok := s.problems[id]; ok {
-		s.byContest.Delete(problem.ContestID, problem.ID)
-		delete(s.problems, problem.ID)
-	}
+	return objects, nil
 }
 
 var _ baseStoreImpl[ContestProblem] = (*ContestProblemStore)(nil)
@@ -99,9 +61,11 @@ var _ baseStoreImpl[ContestProblem] = (*ContestProblemStore)(nil)
 func NewContestProblemStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestProblemStore {
-	impl := &ContestProblemStore{}
+	impl := &ContestProblemStore{
+		byContest: newIndex(func(o ContestProblem) int64 { return o.ContestID }),
+	}
 	impl.baseStore = makeBaseStore[ContestProblem, ContestProblemEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byContest,
 	)
 	return impl
 }

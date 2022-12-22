@@ -72,31 +72,20 @@ func (e *SessionEvent) SetObject(o Session) {
 // SessionStore represents store for sessions.
 type SessionStore struct {
 	baseStore[Session, SessionEvent, *Session, *SessionEvent]
-	sessions  map[int64]Session
-	byAccount index[int64]
-}
-
-// Get returns session by session ID.
-func (s *SessionStore) Get(id int64) (Session, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if session, ok := s.sessions[id]; ok {
-		return session.Clone(), nil
-	}
-	return Session{}, sql.ErrNoRows
+	byAccount *index[int64, Session, *Session]
 }
 
 // FindByAccount returns sessions by account ID.
 func (s *SessionStore) FindByAccount(id int64) ([]Session, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	var sessions []Session
-	for id := range s.byAccount[id] {
-		if session, ok := s.sessions[id]; ok {
-			sessions = append(sessions, session.Clone())
+	var objects []Session
+	for id := range s.byAccount.Get(id) {
+		if object, ok := s.objects[id]; ok {
+			objects = append(objects, object.Clone())
 		}
 	}
-	return sessions, nil
+	return objects, nil
 }
 
 // GetByCookie returns session for specified cookie value.
@@ -109,33 +98,14 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	session, ok := s.sessions[id]
-	if !ok || session.Secret != parts[1] {
+	session, err := s.Get(id)
+	if err != nil {
+		return Session{}, err
+	}
+	if session.Secret != parts[1] {
 		return Session{}, sql.ErrNoRows
 	}
-	return session.Clone(), nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *SessionStore) reset() {
-	s.sessions = map[int64]Session{}
-	s.byAccount = index[int64]{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *SessionStore) onCreateObject(session Session) {
-	s.sessions[session.ID] = session
-	s.byAccount.Create(session.AccountID, session.ID)
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *SessionStore) onDeleteObject(id int64) {
-	if session, ok := s.sessions[id]; ok {
-		s.byAccount.Delete(session.AccountID, session.ID)
-		delete(s.sessions, session.ID)
-	}
+	return session, nil
 }
 
 var _ baseStoreImpl[Session] = (*SessionStore)(nil)
@@ -144,9 +114,11 @@ var _ baseStoreImpl[Session] = (*SessionStore)(nil)
 func NewSessionStore(
 	db *gosql.DB, table, eventTable string,
 ) *SessionStore {
-	impl := &SessionStore{}
+	impl := &SessionStore{
+		byAccount: newIndex(func(o Session) int64 { return o.AccountID }),
+	}
 	impl.baseStore = makeBaseStore[Session, SessionEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byAccount,
 	)
 	return impl
 }

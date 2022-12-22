@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"encoding/json"
 
 	"github.com/udovin/gosql"
@@ -96,64 +95,19 @@ func (e *ProblemResourceEvent) SetObject(o ProblemResource) {
 // ProblemResourceStore represents store for problem resources.
 type ProblemResourceStore struct {
 	baseStore[ProblemResource, ProblemResourceEvent, *ProblemResource, *ProblemResourceEvent]
-	objects   map[int64]ProblemResource
-	byProblem index[int64]
-}
-
-// Get returns problem resource by ID.
-//
-// If there is no problem resource with specified ID then
-// sql.ErrNoRows will be returned.
-func (s *ProblemResourceStore) Get(id int64) (ProblemResource, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if object, ok := s.objects[id]; ok {
-		return object.Clone(), nil
-	}
-	return ProblemResource{}, sql.ErrNoRows
+	byProblem *index[int64, ProblemResource, *ProblemResource]
 }
 
 func (s *ProblemResourceStore) FindByProblem(id int64) ([]ProblemResource, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var objects []ProblemResource
-	for id := range s.byProblem[id] {
+	for id := range s.byProblem.Get(id) {
 		if object, ok := s.objects[id]; ok {
 			objects = append(objects, object.Clone())
 		}
 	}
 	return objects, nil
-}
-
-// All returns all problem resources.
-func (s *ProblemResourceStore) All() ([]ProblemResource, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []ProblemResource
-	for _, object := range s.objects {
-		objects = append(objects, object)
-	}
-	return objects, nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ProblemResourceStore) reset() {
-	s.objects = map[int64]ProblemResource{}
-	s.byProblem = index[int64]{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ProblemResourceStore) onCreateObject(object ProblemResource) {
-	s.objects[object.ID] = object
-	s.byProblem.Create(object.ProblemID, object.ID)
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ProblemResourceStore) onDeleteObject(id int64) {
-	if object, ok := s.objects[id]; ok {
-		s.byProblem.Delete(object.ProblemID, object.ID)
-		delete(s.objects, object.ID)
-	}
 }
 
 var _ baseStoreImpl[ProblemResource] = (*ProblemResourceStore)(nil)
@@ -162,9 +116,11 @@ var _ baseStoreImpl[ProblemResource] = (*ProblemResourceStore)(nil)
 func NewProblemResourceStore(
 	db *gosql.DB, table, eventTable string,
 ) *ProblemResourceStore {
-	impl := &ProblemResourceStore{}
+	impl := &ProblemResourceStore{
+		byProblem: newIndex(func(o ProblemResource) int64 { return o.ProblemID }),
+	}
 	impl.baseStore = makeBaseStore[ProblemResource, ProblemResourceEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byProblem,
 	)
 	return impl
 }

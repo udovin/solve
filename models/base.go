@@ -13,19 +13,44 @@ import (
 	"github.com/udovin/solve/db"
 )
 
-type index[K comparable] map[K]map[int64]struct{}
-
-func (m index[K]) Create(key K, id int64) {
-	if _, ok := m[key]; !ok {
-		m[key] = map[int64]struct{}{}
-	}
-	m[key][id] = struct{}{}
+type storeIndex[T any] interface {
+	Reset()
+	Register(object T)
+	Deregister(object T)
 }
 
-func (m index[K]) Delete(key K, id int64) {
-	delete(m[key], id)
-	if len(m[key]) == 0 {
-		delete(m, key)
+func newIndex[K comparable, T any, TPtr db.ObjectPtr[T]](key func(T) K) *index[K, T, TPtr] {
+	return &index[K, T, TPtr]{key: key}
+}
+
+type index[K comparable, T any, TPtr db.ObjectPtr[T]] struct {
+	key   func(T) K
+	index map[K]map[int64]struct{}
+}
+
+func (i *index[K, T, TPtr]) Reset() {
+	i.index = map[K]map[int64]struct{}{}
+}
+
+func (i *index[K, T, TPtr]) Get(key K) map[int64]struct{} {
+	return i.index[key]
+}
+
+func (i *index[K, T, TPtr]) Register(object T) {
+	key := i.key(object)
+	id := TPtr(&object).ObjectID()
+	if _, ok := i.index[key]; !ok {
+		i.index[key] = map[int64]struct{}{}
+	}
+	i.index[key][id] = struct{}{}
+}
+
+func (i *index[K, T, TPtr]) Deregister(object T) {
+	key := i.key(object)
+	id := TPtr(&object).ObjectID()
+	delete(i.index[key], id)
+	if len(i.index[key]) == 0 {
+		delete(i.index, key)
 	}
 }
 
@@ -194,11 +219,13 @@ type baseStore[
 ] struct {
 	db       *gosql.DB
 	table    string
-	objects  db.ObjectStore[T, TPtr]
+	store    db.ObjectStore[T, TPtr]
 	events   db.EventStore[E, EPtr]
 	consumer db.EventConsumer[E, EPtr]
 	impl     baseStoreImpl[T]
 	mutex    sync.RWMutex
+	objects  map[int64]T
+	indexes  []storeIndex[T]
 }
 
 // DB returns store database.
@@ -246,7 +273,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) initEvents(ctx context.Context) error {
 }
 
 func (s *baseStore[T, E, TPtr, EPtr]) initObjects(ctx context.Context) error {
-	rows, err := s.objects.LoadObjects(ctx)
+	rows, err := s.store.LoadObjects(ctx)
 	if err != nil && err != sql.ErrNoRows {
 		return err
 	}
@@ -303,7 +330,39 @@ func (s *baseStore[T, E, TPtr, EPtr]) Delete(ctx context.Context, id int64) erro
 
 // Find finds objects with specified query.
 func (s *baseStore[T, E, TPtr, EPtr]) Find(ctx context.Context, where gosql.BoolExpression) (db.RowReader[T], error) {
-	return s.objects.FindObjects(ctx, where)
+	return s.store.FindObjects(ctx, where)
+}
+
+// Get returns object by id.
+//
+// Returns sql.ErrNoRows if object does not exist.
+func (s *baseStore[T, E, TPtr, EPtr]) Get(id int64) (T, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if object, ok := s.objects[id]; ok {
+		cloner, ok := any(object).(Cloner[T])
+		if !ok {
+			panic(fmt.Errorf("cannot clone object of type %T", object))
+		}
+		return cloner.Clone(), nil
+	}
+	var empty T
+	return empty, sql.ErrNoRows
+}
+
+// All returns all objects contained by this store.
+func (s *baseStore[T, E, TPtr, EPtr]) All() ([]T, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	var objects []T
+	for _, object := range s.objects {
+		cloner, ok := any(object).(Cloner[T])
+		if !ok {
+			panic(fmt.Errorf("cannot clone object of type %T", object))
+		}
+		objects = append(objects, cloner.Clone())
+	}
+	return objects, nil
 }
 
 var (
@@ -322,17 +381,17 @@ func (s *baseStore[T, E, TPtr, EPtr]) createObjectEvent(
 	}
 	switch object := eventPtr.Object(); eventPtr.EventKind() {
 	case CreateEvent:
-		if err := s.objects.CreateObject(ctx, &object); err != nil {
+		if err := s.store.CreateObject(ctx, &object); err != nil {
 			return err
 		}
 		eventPtr.SetObject(object)
 	case UpdateEvent:
-		if err := s.objects.UpdateObject(ctx, &object); err != nil {
+		if err := s.store.UpdateObject(ctx, &object); err != nil {
 			return err
 		}
 		eventPtr.SetObject(object)
 	case DeleteEvent:
-		if err := s.objects.DeleteObject(ctx, eventPtr.ObjectID()); err != nil {
+		if err := s.store.DeleteObject(ctx, eventPtr.ObjectID()); err != nil {
 			return err
 		}
 	}
@@ -346,6 +405,33 @@ func (s *baseStore[T, E, TPtr, EPtr]) lockStore(tx *sql.Tx) error {
 	default:
 		_, err := tx.Exec(fmt.Sprintf("LOCK TABLE %q", s.table))
 		return err
+	}
+}
+
+//lint:ignore U1000 Used in generic interface.
+func (s *baseStore[T, E, TPtr, EPtr]) reset() {
+	for _, index := range s.indexes {
+		index.Reset()
+	}
+	s.objects = map[int64]T{}
+}
+
+//lint:ignore U1000 Used in generic interface.
+func (s *baseStore[T, E, TPtr, EPtr]) onCreateObject(object T) {
+	id := TPtr(&object).ObjectID()
+	s.objects[id] = object
+	for _, index := range s.indexes {
+		index.Register(object)
+	}
+}
+
+//lint:ignore U1000 Used in generic interface.
+func (s *baseStore[T, E, TPtr, EPtr]) onDeleteObject(id int64) {
+	if object, ok := s.objects[id]; ok {
+		for _, index := range s.indexes {
+			index.Deregister(object)
+		}
+		delete(s.objects, id)
 	}
 }
 
@@ -376,12 +462,14 @@ func makeBaseStore[T any, E any, TPtr db.ObjectPtr[T], EPtr ObjectEventPtr[T, E]
 	conn *gosql.DB,
 	table, eventTable string,
 	impl baseStoreImpl[T],
+	indexes ...storeIndex[T],
 ) baseStore[T, E, TPtr, EPtr] {
 	return baseStore[T, E, TPtr, EPtr]{
 		db:      conn,
 		table:   table,
-		objects: db.NewObjectStore[T, TPtr]("id", table, conn),
+		store:   db.NewObjectStore[T, TPtr]("id", table, conn),
 		events:  db.NewEventStore[E, EPtr]("event_id", eventTable, conn),
 		impl:    impl,
+		indexes: indexes,
 	}
 }

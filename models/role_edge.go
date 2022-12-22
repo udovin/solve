@@ -1,8 +1,6 @@
 package models
 
 import (
-	"database/sql"
-
 	"github.com/udovin/gosql"
 )
 
@@ -39,54 +37,20 @@ func (e *RoleEdgeEvent) SetObject(o RoleEdge) {
 // RoleEdgeStore represents a role edge store.
 type RoleEdgeStore struct {
 	baseStore[RoleEdge, RoleEdgeEvent, *RoleEdge, *RoleEdgeEvent]
-	edges  map[int64]RoleEdge
-	byRole index[int64]
-}
-
-// Get returns role edge by ID.
-//
-// If there is no role with specified ID then
-// sql.ErrNoRows will be returned.
-func (s *RoleEdgeStore) Get(id int64) (RoleEdge, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if edge, ok := s.edges[id]; ok {
-		return edge.Clone(), nil
-	}
-	return RoleEdge{}, sql.ErrNoRows
+	byRole *index[int64, RoleEdge, *RoleEdge]
 }
 
 // FindByRole returns edges by parent ID.
 func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	var edges []RoleEdge
-	for id := range s.byRole[id] {
-		if edge, ok := s.edges[id]; ok {
-			edges = append(edges, edge.Clone())
+	var objects []RoleEdge
+	for id := range s.byRole.Get(id) {
+		if object, ok := s.objects[id]; ok {
+			objects = append(objects, object.Clone())
 		}
 	}
-	return edges, nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *RoleEdgeStore) reset() {
-	s.edges = map[int64]RoleEdge{}
-	s.byRole = index[int64]{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *RoleEdgeStore) onCreateObject(edge RoleEdge) {
-	s.edges[edge.ID] = edge
-	s.byRole.Create(edge.RoleID, edge.ID)
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *RoleEdgeStore) onDeleteObject(id int64) {
-	if edge, ok := s.edges[id]; ok {
-		s.byRole.Delete(edge.RoleID, edge.ID)
-		delete(s.edges, edge.ID)
-	}
+	return objects, nil
 }
 
 var _ baseStoreImpl[RoleEdge] = (*RoleEdgeStore)(nil)
@@ -95,9 +59,11 @@ var _ baseStoreImpl[RoleEdge] = (*RoleEdgeStore)(nil)
 func NewRoleEdgeStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleEdgeStore {
-	impl := &RoleEdgeStore{}
+	impl := &RoleEdgeStore{
+		byRole: newIndex(func(o RoleEdge) int64 { return o.RoleID }),
+	}
 	impl.baseStore = makeBaseStore[RoleEdge, RoleEdgeEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byRole,
 	)
 	return impl
 }

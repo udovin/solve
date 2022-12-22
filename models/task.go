@@ -160,49 +160,20 @@ func (e *TaskEvent) SetObject(o Task) {
 // TaskStore represents store for tasks.
 type TaskStore struct {
 	baseStore[Task, TaskEvent, *Task, *TaskEvent]
-	tasks      map[int64]Task
-	byStatus   index[TaskStatus]
-	bySolution index[int64]
-}
-
-// Get returns task by id.
-//
-// Returns sql.ErrNoRows if task does not exist.
-func (s *TaskStore) Get(id int64) (Task, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if task, ok := s.tasks[id]; ok {
-		return task.Clone(), nil
-	}
-	return Task{}, sql.ErrNoRows
-}
-
-// FindByStatus returns a list of tasks with specified status.
-func (s *TaskStore) FindByStatus(statuses ...TaskStatus) ([]Task, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var tasks []Task
-	for _, status := range statuses {
-		for id := range s.byStatus[status] {
-			if task, ok := s.tasks[id]; ok {
-				tasks = append(tasks, task.Clone())
-			}
-		}
-	}
-	return tasks, nil
+	bySolution *index[int64, Task, *Task]
 }
 
 // FindBySolution returns a list of tasks by specified solution.
 func (s *TaskStore) FindBySolution(id int64) ([]Task, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	var tasks []Task
-	for id := range s.bySolution[id] {
-		if task, ok := s.tasks[id]; ok {
-			tasks = append(tasks, task.Clone())
+	var objects []Task
+	for id := range s.bySolution.Get(id) {
+		if object, ok := s.objects[id]; ok {
+			objects = append(objects, object.Clone())
 		}
 	}
-	return tasks, nil
+	return objects, nil
 }
 
 // PopQueued pops queued action from the events and sets running status.
@@ -251,50 +222,26 @@ func (s *TaskStore) PopQueued(
 	return Task{}, sql.ErrNoRows
 }
 
-//lint:ignore U1000 Used in generic interface.
-func (s *TaskStore) reset() {
-	s.tasks = map[int64]Task{}
-	s.byStatus = index[TaskStatus]{}
-	s.bySolution = index[int64]{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *TaskStore) onCreateObject(task Task) {
-	s.tasks[task.ID] = task
-	s.byStatus.Create(task.Status, task.ID)
-	switch task.Kind {
-	case JudgeSolutionTask:
-		var config JudgeSolutionTaskConfig
-		if err := task.ScanConfig(&config); err == nil {
-			s.bySolution.Create(config.SolutionID, task.ID)
-		}
-	}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *TaskStore) onDeleteObject(id int64) {
-	if task, ok := s.tasks[id]; ok {
-		switch task.Kind {
-		case JudgeSolutionTask:
-			var config JudgeSolutionTaskConfig
-			if err := task.ScanConfig(&config); err == nil {
-				s.bySolution.Delete(config.SolutionID, task.ID)
-			}
-		}
-		s.byStatus.Delete(task.Status, task.ID)
-		delete(s.tasks, task.ID)
-	}
-}
-
 var _ baseStoreImpl[Task] = (*TaskStore)(nil)
 
 // NewTaskStore creates a new instance of TaskStore.
 func NewTaskStore(
 	db *gosql.DB, table, eventTable string,
 ) *TaskStore {
-	impl := &TaskStore{}
+	impl := &TaskStore{
+		bySolution: newIndex(func(o Task) int64 {
+			switch o.Kind {
+			case JudgeSolutionTask:
+				var config JudgeSolutionTaskConfig
+				if err := o.ScanConfig(&config); err == nil {
+					return config.SolutionID
+				}
+			}
+			return 0
+		}),
+	}
 	impl.baseStore = makeBaseStore[Task, TaskEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.bySolution,
 	)
 	return impl
 }

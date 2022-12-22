@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"fmt"
 
 	"github.com/udovin/gosql"
@@ -67,10 +66,6 @@ func (o ContestParticipant) Clone() ContestParticipant {
 	return o
 }
 
-func (o ContestParticipant) contestAccountKey() pair[int64, int64] {
-	return makePair(o.ContestID, o.AccountID)
-}
-
 // ContestParticipant represents participant event.
 type ContestParticipantEvent struct {
 	baseEvent
@@ -90,36 +85,22 @@ func (e *ContestParticipantEvent) SetObject(o ContestParticipant) {
 // ContestParticipantStore represents a participant store.
 type ContestParticipantStore struct {
 	baseStore[ContestParticipant, ContestParticipantEvent, *ContestParticipant, *ContestParticipantEvent]
-	participants     map[int64]ContestParticipant
-	byContest        index[int64]
-	byContestAccount index[pair[int64, int64]]
-}
-
-// Get returns participant by ID.
-//
-// If there is no participant with specified ID then
-// sql.ErrNoRows will be returned.
-func (s *ContestParticipantStore) Get(id int64) (ContestParticipant, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if participant, ok := s.participants[id]; ok {
-		return participant.Clone(), nil
-	}
-	return ContestParticipant{}, sql.ErrNoRows
+	byContest        *index[int64, ContestParticipant, *ContestParticipant]
+	byContestAccount *index[pair[int64, int64], ContestParticipant, *ContestParticipant]
 }
 
 func (s *ContestParticipantStore) FindByContest(
-	contestID int64,
+	id int64,
 ) ([]ContestParticipant, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	var participants []ContestParticipant
-	for id := range s.byContest[contestID] {
-		if participant, ok := s.participants[id]; ok {
-			participants = append(participants, participant.Clone())
+	var objects []ContestParticipant
+	for id := range s.byContest.Get(id) {
+		if object, ok := s.objects[id]; ok {
+			objects = append(objects, object.Clone())
 		}
 	}
-	return participants, nil
+	return objects, nil
 }
 
 // FindByContestAccount returns participants by contest and account.
@@ -128,36 +109,13 @@ func (s *ContestParticipantStore) FindByContestAccount(
 ) ([]ContestParticipant, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	var participants []ContestParticipant
-	for id := range s.byContestAccount[makePair(contestID, accountID)] {
-		if participant, ok := s.participants[id]; ok {
-			participants = append(participants, participant.Clone())
+	var objects []ContestParticipant
+	for id := range s.byContestAccount.Get(makePair(contestID, accountID)) {
+		if object, ok := s.objects[id]; ok {
+			objects = append(objects, object.Clone())
 		}
 	}
-	return participants, nil
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestParticipantStore) reset() {
-	s.participants = map[int64]ContestParticipant{}
-	s.byContest = index[int64]{}
-	s.byContestAccount = index[pair[int64, int64]]{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestParticipantStore) onCreateObject(participant ContestParticipant) {
-	s.participants[participant.ID] = participant
-	s.byContest.Create(participant.ContestID, participant.ID)
-	s.byContestAccount.Create(participant.contestAccountKey(), participant.ID)
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *ContestParticipantStore) onDeleteObject(id int64) {
-	if participant, ok := s.participants[id]; ok {
-		s.byContest.Delete(participant.ContestID, participant.ID)
-		s.byContestAccount.Delete(participant.contestAccountKey(), participant.ID)
-		delete(s.participants, participant.ID)
-	}
+	return objects, nil
 }
 
 var _ baseStoreImpl[ContestParticipant] = (*ContestParticipantStore)(nil)
@@ -167,9 +125,14 @@ var _ baseStoreImpl[ContestParticipant] = (*ContestParticipantStore)(nil)
 func NewContestParticipantStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestParticipantStore {
-	impl := &ContestParticipantStore{}
+	impl := &ContestParticipantStore{
+		byContest: newIndex(func(o ContestParticipant) int64 { return o.ContestID }),
+		byContestAccount: newIndex(func(o ContestParticipant) pair[int64, int64] {
+			return makePair(o.ContestID, o.AccountID)
+		}),
+	}
 	impl.baseStore = makeBaseStore[ContestParticipant, ContestParticipantEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byContest, impl.byContestAccount,
 	)
 	return impl
 }

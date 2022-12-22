@@ -282,32 +282,7 @@ func (e *RoleEvent) SetObject(o Role) {
 // RoleStore represents a role store.
 type RoleStore struct {
 	baseStore[Role, RoleEvent, *Role, *RoleEvent]
-	roles  map[int64]Role
-	byName map[string]int64
-}
-
-// Get returns role by ID.
-//
-// If there is no role with specified ID then
-// sql.ErrNoRows will be returned.
-func (s *RoleStore) Get(id int64) (Role, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if role, ok := s.roles[id]; ok {
-		return role.Clone(), nil
-	}
-	return Role{}, sql.ErrNoRows
-}
-
-// All returns all roles.
-func (s *RoleStore) All() ([]Role, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var roles []Role
-	for _, role := range s.roles {
-		roles = append(roles, role)
-	}
-	return roles, nil
+	byName *index[string, Role, *Role]
 }
 
 // GetByName returns role by name.
@@ -317,32 +292,12 @@ func (s *RoleStore) All() ([]Role, error) {
 func (s *RoleStore) GetByName(name string) (Role, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if id, ok := s.byName[name]; ok {
-		if role, ok := s.roles[id]; ok {
-			return role.Clone(), nil
+	for id := range s.byName.Get(name) {
+		if object, ok := s.objects[id]; ok {
+			return object.Clone(), nil
 		}
 	}
 	return Role{}, sql.ErrNoRows
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *RoleStore) reset() {
-	s.roles = map[int64]Role{}
-	s.byName = map[string]int64{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *RoleStore) onCreateObject(role Role) {
-	s.roles[role.ID] = role
-	s.byName[role.Name] = role.ID
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *RoleStore) onDeleteObject(id int64) {
-	if role, ok := s.roles[id]; ok {
-		delete(s.byName, role.Name)
-		delete(s.roles, role.ID)
-	}
 }
 
 var _ baseStoreImpl[Role] = (*RoleStore)(nil)
@@ -351,9 +306,11 @@ var _ baseStoreImpl[Role] = (*RoleStore)(nil)
 func NewRoleStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleStore {
-	impl := &RoleStore{}
+	impl := &RoleStore{
+		byName: newIndex(func(o Role) string { return o.Name }),
+	}
 	impl.baseStore = makeBaseStore[Role, RoleEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byName,
 	)
 	return impl
 }

@@ -77,29 +77,18 @@ func (e *UserEvent) SetObject(o User) {
 // UserStore represents users store.
 type UserStore struct {
 	baseStore[User, UserEvent, *User, *UserEvent]
-	users     map[int64]User
-	byAccount map[int64]int64
-	byLogin   map[string]int64
+	byAccount *index[int64, User, *User]
+	byLogin   *index[string, User, *User]
 	salt      string
-}
-
-// Get returns user by ID.
-func (s *UserStore) Get(id int64) (User, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	if user, ok := s.users[id]; ok {
-		return user.Clone(), nil
-	}
-	return User{}, sql.ErrNoRows
 }
 
 // GetByLogin returns user by login.
 func (s *UserStore) GetByLogin(login string) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if id, ok := s.byLogin[strings.ToLower(login)]; ok {
-		if user, ok := s.users[id]; ok {
-			return user.Clone(), nil
+	for id := range s.byLogin.Get(strings.ToLower(login)) {
+		if object, ok := s.objects[id]; ok {
+			return object.Clone(), nil
 		}
 	}
 	return User{}, sql.ErrNoRows
@@ -109,9 +98,9 @@ func (s *UserStore) GetByLogin(login string) (User, error) {
 func (s *UserStore) GetByAccount(id int64) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if id, ok := s.byAccount[id]; ok {
-		if user, ok := s.users[id]; ok {
-			return user.Clone(), nil
+	for id := range s.byAccount.Get(id) {
+		if object, ok := s.objects[id]; ok {
+			return object.Clone(), nil
 		}
 	}
 	return User{}, sql.ErrNoRows
@@ -139,38 +128,19 @@ func (s *UserStore) CheckPassword(user User, password string) bool {
 	return passwordHash == user.PasswordHash
 }
 
-//lint:ignore U1000 Used in generic interface.
-func (s *UserStore) reset() {
-	s.users = map[int64]User{}
-	s.byAccount = map[int64]int64{}
-	s.byLogin = map[string]int64{}
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *UserStore) onCreateObject(user User) {
-	s.users[user.ID] = user
-	s.byAccount[user.AccountID] = user.ID
-	s.byLogin[strings.ToLower(user.Login)] = user.ID
-}
-
-//lint:ignore U1000 Used in generic interface.
-func (s *UserStore) onDeleteObject(id int64) {
-	if user, ok := s.users[id]; ok {
-		delete(s.byAccount, user.AccountID)
-		delete(s.byLogin, strings.ToLower(user.Login))
-		delete(s.users, user.ID)
-	}
-}
-
 var _ baseStoreImpl[User] = (*UserStore)(nil)
 
 // NewUserStore creates new instance of user store.
 func NewUserStore(
 	db *gosql.DB, table, eventTable, salt string,
 ) *UserStore {
-	impl := &UserStore{salt: salt}
+	impl := &UserStore{
+		byAccount: newIndex(func(o User) int64 { return o.AccountID }),
+		byLogin:   newIndex(func(o User) string { return strings.ToLower(o.Login) }),
+		salt:      salt,
+	}
 	impl.baseStore = makeBaseStore[User, UserEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byAccount, impl.byLogin,
 	)
 	return impl
 }

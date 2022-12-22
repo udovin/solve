@@ -7,11 +7,6 @@ import (
 	"fmt"
 )
 
-// Cloner represents object that can be cloned.
-type Cloner[T any] interface {
-	Clone() T
-}
-
 // NInt64 represents nullable int64 with zero value means null value.
 type NInt64 int64
 

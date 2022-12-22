@@ -89,6 +89,11 @@ func (t EventKind) String() string {
 	}
 }
 
+// Cloner represents object that can be cloned.
+type Cloner[T any] interface {
+	Clone() T
+}
+
 type ObjectEventPtr[T any, E any] interface {
 	*E
 	EventID() int64

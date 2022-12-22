@@ -359,6 +359,7 @@ func (v *View) createProblem(c echo.Context) error {
 		if err := task.SetConfig(models.UpdateProblemPackageTaskConfig{
 			ProblemID: problem.ID,
 			FileID:    file.ID,
+			Compile:   true,
 		}); err != nil {
 			return err
 		}
@@ -403,6 +404,7 @@ func (v *View) updateProblem(c echo.Context) error {
 			if err := task.SetConfig(models.UpdateProblemPackageTaskConfig{
 				ProblemID: problem.ID,
 				FileID:    formFile.ID,
+				Compile:   true,
 			}); err != nil {
 				return err
 			}
@@ -446,6 +448,7 @@ func (v *View) rebuildProblem(c echo.Context) error {
 		if err := task.SetConfig(models.UpdateProblemPackageTaskConfig{
 			ProblemID: problem.ID,
 			FileID:    int64(problem.PackageID),
+			Compile:   problem.CompiledID == 0,
 		}); err != nil {
 			return err
 		}

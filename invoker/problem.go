@@ -64,9 +64,9 @@ func newProblemManager(files *managers.FileManager, cacheDir string) (*problemMa
 }
 
 func (m *problemManager) DownloadProblem(
-	ctx context.Context, packageID int64, kind ProblemKind,
+	ctx context.Context, p models.Problem, kind ProblemKind,
 ) (Problem, error) {
-	return m.downloadProblemAsync(ctx, packageID, kind).Get(ctx)
+	return m.downloadProblemAsync(ctx, int64(p.PackageID), kind).Get(ctx)
 }
 
 func (m *problemManager) downloadProblemAsync(

@@ -86,6 +86,7 @@ func (c JudgeSolutionTaskConfig) TaskKind() TaskKind {
 type UpdateProblemPackageTaskConfig struct {
 	ProblemID int64 `json:"problem_id"`
 	FileID    int64 `json:"file_id"`
+	Compile   bool  `json:"compile"`
 }
 
 func (c UpdateProblemPackageTaskConfig) TaskKind() TaskKind {

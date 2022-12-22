@@ -5,9 +5,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/udovin/solve/models"
 )
@@ -17,15 +15,16 @@ func init() {
 }
 
 type judgeSolutionTask struct {
-	invoker        *Invoker
-	config         models.JudgeSolutionTaskConfig
-	solution       models.Solution
-	problem        models.Problem
-	compiler       models.Compiler
-	tempDir        string
-	problemPackage Problem
-	compilerPath   string
-	solutionPath   string
+	invoker      *Invoker
+	config       models.JudgeSolutionTaskConfig
+	solution     models.Solution
+	problem      models.Problem
+	compiler     models.Compiler
+	tempDir      string
+	problemImpl  Problem
+	compilerImpl Compiler
+	solutionPath string
+	compiledPath string
 }
 
 func (judgeSolutionTask) New(invoker *Invoker) taskImpl {
@@ -66,21 +65,21 @@ func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
 		return fmt.Errorf("problem does not have package")
 	}
 	problem, err := t.invoker.problems.DownloadProblem(
-		ctx, int64(t.problem.PackageID), PolygonProblem,
+		ctx, t.problem, PolygonProblem,
 	)
 	if err != nil {
 		return fmt.Errorf("cannot download problem: %w", err)
 	}
-	t.problemPackage = problem
+	t.problemImpl = problem
 	return nil
 }
 
 func (t *judgeSolutionTask) prepareCompiler(ctx TaskContext) error {
-	imagePath, err := t.invoker.compilers.DownloadImage(ctx, t.compiler.ImageID)
+	compiler, err := t.invoker.compilers.DownloadCompiler(ctx, t.compiler)
 	if err != nil {
 		return fmt.Errorf("cannot download compiler: %w", err)
 	}
-	t.compilerPath = imagePath
+	t.compilerImpl = compiler
 	return nil
 }
 
@@ -109,63 +108,21 @@ func (t *judgeSolutionTask) prepareSolution(ctx TaskContext) error {
 		return fmt.Errorf("cannot write solution: %w", err)
 	}
 	t.solutionPath = tempSolutionPath
+	t.compiledPath = filepath.Join(t.tempDir, "solution")
 	return nil
 }
 
 func (t *judgeSolutionTask) compileSolution(
 	ctx TaskContext, report *models.SolutionReport,
 ) (bool, error) {
-	config, err := t.compiler.GetConfig()
+	compileReport, err := t.compilerImpl.Compile(t.solutionPath, t.compiledPath)
 	if err != nil {
 		return false, err
 	}
-	stdout := strings.Builder{}
-	containerConfig := containerConfig{
-		Layers: []string{t.compilerPath},
-		Init: processConfig{
-			Args:   strings.Fields(config.Compile.Command),
-			Env:    config.Compile.Environ,
-			Dir:    config.Compile.Workdir,
-			Stdout: &stdout,
-		},
-	}
-	container, err := t.invoker.factory.Create(containerConfig)
-	if err != nil {
-		return false, fmt.Errorf("unable to create compiler: %w", err)
-	}
-	if config.Compile.Source != nil {
-		path := filepath.Join(
-			container.GetUpperDir(),
-			config.Compile.Workdir,
-			*config.Compile.Source,
-		)
-		if err := copyFileRec(t.solutionPath, path); err != nil {
-			return false, fmt.Errorf("unable to write solution: %w", err)
-		}
-	}
-	defer func() { _ = container.Destroy() }()
-	process, err := container.Start()
-	if err != nil {
-		return false, fmt.Errorf("unable to start compiler: %w", err)
-	}
-	state, err := process.Wait()
-	if err != nil {
-		if err, ok := err.(*exec.ExitError); !ok {
-			return false, fmt.Errorf("unable to wait compiler: %w", err)
-		} else {
-			report.Compile = models.CompileReport{
-				Log: stdout.String(),
-			}
-			return false, nil
-		}
-	}
 	report.Compile = models.CompileReport{
-		Log: stdout.String(),
+		Log: compileReport.Log,
 	}
-	if state.ExitCode() != 0 {
-		return false, nil
-	}
-	return true, nil
+	return compileReport.Success, nil
 }
 
 func (t *judgeSolutionTask) executeImpl(ctx TaskContext) error {

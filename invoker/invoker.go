@@ -21,7 +21,6 @@ import (
 type Invoker struct {
 	core      *core.Core
 	files     *managers.FileManager
-	factory   *factory
 	problems  *problemManager
 	compilers *compilerManager
 }
@@ -41,24 +40,20 @@ func New(core *core.Core) *Invoker {
 //
 // This function will spawn config.Invoker.Workers amount of goroutines.
 func (s *Invoker) Start() error {
-	if s.factory != nil {
-		return fmt.Errorf("factory already created")
-	}
 	factory, err := newFactory("/tmp/solve-containers")
 	if err != nil {
 		return err
 	}
-	s.factory = factory
+	compilers, err := newCompilerManager(s.files, factory, "/tmp/solve-compilers")
+	if err != nil {
+		return err
+	}
+	s.compilers = compilers
 	problems, err := newProblemManager(s.files, "/tmp/solve-problems")
 	if err != nil {
 		return err
 	}
 	s.problems = problems
-	compilers, err := newCompilerManager(s.files, "/tmp/solve-compilers")
-	if err != nil {
-		return err
-	}
-	s.compilers = compilers
 	workers := s.core.Config.Invoker.Workers
 	if workers <= 0 {
 		workers = 1

@@ -14,10 +14,11 @@ type ProblemConfig struct {
 // Problem represents a problem.
 type Problem struct {
 	baseObject
-	OwnerID   NInt64 `db:"owner_id"`
-	Config    JSON   `db:"config"`
-	Title     string `db:"title"`
-	PackageID NInt64 `db:"package_id"`
+	OwnerID    NInt64 `db:"owner_id"`
+	Config     JSON   `db:"config"`
+	Title      string `db:"title"`
+	PackageID  NInt64 `db:"package_id"`
+	CompiledID NInt64 `db:"compiled_id"`
 }
 
 func (o Problem) GetConfig() (ProblemConfig, error) {

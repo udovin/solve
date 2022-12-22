@@ -14,12 +14,12 @@ func init() {
 }
 
 type updateProblemPackageTask struct {
-	invoker        *Invoker
-	config         models.UpdateProblemPackageTaskConfig
-	problem        models.Problem
-	file           models.File
-	resources      []models.ProblemResource
-	problemPackage Problem
+	invoker     *Invoker
+	config      models.UpdateProblemPackageTaskConfig
+	problem     models.Problem
+	file        models.File
+	resources   []models.ProblemResource
+	problemImpl Problem
 }
 
 func (updateProblemPackageTask) New(invoker *Invoker) taskImpl {
@@ -64,12 +64,12 @@ func (t *updateProblemPackageTask) prepareProblem(ctx TaskContext) error {
 		return fmt.Errorf("problem does not have package")
 	}
 	problem, err := t.invoker.problems.DownloadProblem(
-		ctx, t.file.ID, PolygonProblem,
+		ctx, t.problem, PolygonProblem,
 	)
 	if err != nil {
 		return fmt.Errorf("cannot download problem: %w", err)
 	}
-	t.problemPackage = problem
+	t.problemImpl = problem
 	return nil
 }
 
@@ -84,7 +84,7 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	if err := t.prepareProblem(ctx); err != nil {
 		return fmt.Errorf("cannot prepare problem: %w", err)
 	}
-	groups, err := t.problemPackage.GetTestGroups()
+	groups, err := t.problemImpl.GetTestGroups()
 	if err != nil {
 		return fmt.Errorf("cannot get test groups: %w", err)
 	}
@@ -132,7 +132,7 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 			events[key] = event
 		}
 	}
-	statements, err := t.problemPackage.GetStatements()
+	statements, err := t.problemImpl.GetStatements()
 	if err != nil {
 		return fmt.Errorf("cannot read problem: %w", err)
 	}

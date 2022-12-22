@@ -382,10 +382,12 @@ var s001 = []schema.Operation{
 			{Name: "config", Type: schema.JSON},
 			{Name: "title", Type: schema.String},
 			{Name: "package_id", Type: schema.Int64, Nullable: true},
+			{Name: "compiled_id", Type: schema.Int64, Nullable: true},
 		},
 		ForeignKeys: []schema.ForeignKey{
 			{Column: "owner_id", ParentTable: "solve_account", ParentColumn: "id"},
 			{Column: "package_id", ParentTable: "solve_file", ParentColumn: "id"},
+			{Column: "compiled_id", ParentTable: "solve_file", ParentColumn: "id"},
 		},
 	},
 	schema.CreateTable{
@@ -400,6 +402,7 @@ var s001 = []schema.Operation{
 			{Name: "config", Type: schema.JSON},
 			{Name: "title", Type: schema.String},
 			{Name: "package_id", Type: schema.Int64, Nullable: true},
+			{Name: "compiled_id", Type: schema.Int64, Nullable: true},
 		},
 	},
 	schema.CreateIndex{

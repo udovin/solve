@@ -15,7 +15,7 @@ require (
 	github.com/udovin/algo v0.0.2
 	github.com/udovin/gosql v0.0.1
 	golang.org/x/crypto v0.3.0
-	golang.org/x/sys v0.2.0
+	golang.org/x/sys v0.3.0
 	golang.org/x/text v0.5.0
 )
 

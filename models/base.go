@@ -94,11 +94,13 @@ type Cloner[T any] interface {
 	Clone() T
 }
 
+type ObjectPtr[T any] interface {
+	db.ObjectPtr[T]
+	Cloner[T]
+}
+
 type ObjectEventPtr[T any, E any] interface {
-	*E
-	EventID() int64
-	SetEventID(int64)
-	EventTime() time.Time
+	db.EventPtr[E]
 	SetEventTime(time.Time)
 	EventKind() EventKind
 	SetEventKind(EventKind)
@@ -220,7 +222,7 @@ type Store interface {
 }
 
 type baseStore[
-	T Cloner[T], E any, TPtr db.ObjectPtr[T], EPtr ObjectEventPtr[T, E],
+	T any, E any, TPtr ObjectPtr[T], EPtr ObjectEventPtr[T, E],
 ] struct {
 	db       *gosql.DB
 	table    string
@@ -345,7 +347,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) Get(id int64) (T, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if object, ok := s.objects[id]; ok {
-		return object.Clone(), nil
+		return TPtr(&object).Clone(), nil
 	}
 	var empty T
 	return empty, sql.ErrNoRows
@@ -357,7 +359,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) All() ([]T, error) {
 	defer s.mutex.RUnlock()
 	var objects []T
 	for _, object := range s.objects {
-		objects = append(objects, object.Clone())
+		objects = append(objects, TPtr(&object).Clone())
 	}
 	return objects, nil
 }
@@ -455,7 +457,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) consumeEvent(event E) error {
 	return nil
 }
 
-func makeBaseStore[T Cloner[T], E any, TPtr db.ObjectPtr[T], EPtr ObjectEventPtr[T, E]](
+func makeBaseStore[T any, E any, TPtr ObjectPtr[T], EPtr ObjectEventPtr[T, E]](
 	conn *gosql.DB,
 	table, eventTable string,
 	impl baseStoreImpl[T],

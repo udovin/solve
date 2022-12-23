@@ -33,21 +33,21 @@ func (t *roleEdgeStoreTest) newStore() Store {
 	return NewRoleEdgeStore(testDB, "role_edge", "role_edge_event")
 }
 
-func (t *roleEdgeStoreTest) newObject() Object {
+func (t *roleEdgeStoreTest) newObject() object {
 	return RoleEdge{}
 }
 
 func (t *roleEdgeStoreTest) createObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	object := o.(RoleEdge)
 	err := s.(*RoleEdgeStore).Create(wrapContext(tx), &object)
 	return object, err
 }
 
 func (t *roleEdgeStoreTest) updateObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	return o, s.(*RoleEdgeStore).Update(wrapContext(tx), o.(RoleEdge))
 }
 

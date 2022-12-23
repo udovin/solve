@@ -34,13 +34,13 @@ func (t *accountStoreTest) newStore() Store {
 	return NewAccountStore(testDB, "account", "account_event")
 }
 
-func (t *accountStoreTest) newObject() Object {
+func (t *accountStoreTest) newObject() object {
 	return Account{}
 }
 
 func (t *accountStoreTest) createObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	account := o.(Account)
 	if err := s.(*AccountStore).Create(wrapContext(tx), &account); err != nil {
 		return Account{}, err
@@ -49,8 +49,8 @@ func (t *accountStoreTest) createObject(
 }
 
 func (t *accountStoreTest) updateObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	return o, s.(*AccountStore).Update(wrapContext(tx), o.(Account))
 }
 

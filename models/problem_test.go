@@ -43,13 +43,13 @@ func (t *problemStoreTest) newStore() Store {
 	return NewProblemStore(testDB, "problem", "problem_event")
 }
 
-func (t *problemStoreTest) newObject() Object {
+func (t *problemStoreTest) newObject() object {
 	return Problem{}
 }
 
 func (t *problemStoreTest) createObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	problem := o.(Problem)
 	if err := s.(*ProblemStore).Create(wrapContext(tx), &problem); err != nil {
 		return Problem{}, err
@@ -58,8 +58,8 @@ func (t *problemStoreTest) createObject(
 }
 
 func (t *problemStoreTest) updateObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	return o, s.(*ProblemStore).Update(wrapContext(tx), o.(Problem))
 }
 

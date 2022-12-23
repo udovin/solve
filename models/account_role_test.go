@@ -33,13 +33,13 @@ func (t *accountRoleStoreTest) newStore() Store {
 	return NewAccountRoleStore(testDB, "account_role", "account_role_event")
 }
 
-func (t *accountRoleStoreTest) newObject() Object {
+func (t *accountRoleStoreTest) newObject() object {
 	return AccountRole{}
 }
 
 func (t *accountRoleStoreTest) createObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	role := o.(AccountRole)
 	if err := s.(*AccountRoleStore).Create(wrapContext(tx), &role); err != nil {
 		return AccountRole{}, err
@@ -48,8 +48,8 @@ func (t *accountRoleStoreTest) createObject(
 }
 
 func (t *accountRoleStoreTest) updateObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	return o, s.(*AccountRoleStore).Update(wrapContext(tx), o.(AccountRole))
 }
 

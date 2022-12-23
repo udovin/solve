@@ -31,21 +31,21 @@ func (t *roleStoreTest) newStore() Store {
 	return NewRoleStore(testDB, "role", "role_event")
 }
 
-func (t *roleStoreTest) newObject() Object {
+func (t *roleStoreTest) newObject() object {
 	return Role{}
 }
 
 func (t *roleStoreTest) createObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	object := o.(Role)
 	err := s.(*RoleStore).Create(wrapContext(tx), &object)
 	return object, err
 }
 
 func (t *roleStoreTest) updateObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	return o, s.(*RoleStore).Update(wrapContext(tx), o.(Role))
 }
 

@@ -40,21 +40,21 @@ func (t *taskStoreTest) newStore() Store {
 	return NewTaskStore(testDB, "task", "task_event")
 }
 
-func (t *taskStoreTest) newObject() Object {
+func (t *taskStoreTest) newObject() object {
 	return Task{}
 }
 
 func (t *taskStoreTest) createObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	task := o.(Task)
 	err := s.(*TaskStore).Create(wrapContext(tx), &task)
 	return task, err
 }
 
 func (t *taskStoreTest) updateObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	return o, s.(*TaskStore).Update(wrapContext(tx), o.(Task))
 }
 

@@ -41,21 +41,21 @@ func (t *sessionStoreTest) newStore() Store {
 	return NewSessionStore(testDB, "session", "session_event")
 }
 
-func (t *sessionStoreTest) newObject() Object {
+func (t *sessionStoreTest) newObject() object {
 	return Session{}
 }
 
 func (t *sessionStoreTest) createObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	object := o.(Session)
 	err := s.(*SessionStore).Create(wrapContext(tx), &object)
 	return object, err
 }
 
 func (t *sessionStoreTest) updateObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	return o, s.(*SessionStore).Update(wrapContext(tx), o.(Session))
 }
 

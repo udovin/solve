@@ -39,21 +39,21 @@ func (t *contestSolutionStoreTest) newStore() Store {
 	)
 }
 
-func (t *contestSolutionStoreTest) newObject() Object {
+func (t *contestSolutionStoreTest) newObject() object {
 	return ContestSolution{}
 }
 
 func (t *contestSolutionStoreTest) createObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	solution := o.(ContestSolution)
 	err := s.(*ContestSolutionStore).Create(wrapContext(tx), &solution)
 	return solution, err
 }
 
 func (t *contestSolutionStoreTest) updateObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	return o, s.(*ContestSolutionStore).Update(wrapContext(tx), o.(ContestSolution))
 }
 

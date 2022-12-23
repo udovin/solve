@@ -453,16 +453,16 @@ func TestJSON_clone(t *testing.T) {
 	}
 }
 
-type Object interface {
+type object interface {
 	ObjectID() int64
 }
 
 type StoreTestHelper interface {
 	prepareDB(tx *sql.Tx) error
 	newStore() Store
-	newObject() Object
-	createObject(s Store, tx *sql.Tx, o Object) (Object, error)
-	updateObject(s Store, tx *sql.Tx, o Object) (Object, error)
+	newObject() object
+	createObject(s Store, tx *sql.Tx, o object) (object, error)
+	updateObject(s Store, tx *sql.Tx, o object) (object, error)
 	deleteObject(s Store, tx *sql.Tx, id int64) error
 }
 
@@ -532,8 +532,8 @@ func (s *StoreTester) Test(t testing.TB) {
 	s.testFailedTx(t, master)
 }
 
-func (s *StoreTester) createObjects(t testing.TB, mgr Store) []Object {
-	var objects []Object
+func (s *StoreTester) createObjects(t testing.TB, mgr Store) []object {
+	var objects []object
 	for i := 0; i < 100; i++ {
 		object := s.helper.newObject()
 		if err := withTestTx(func(tx *sql.Tx) error {

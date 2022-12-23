@@ -38,21 +38,21 @@ func (t *contestStoreTest) newStore() Store {
 	return NewContestStore(testDB, "contest", "contest_event")
 }
 
-func (t *contestStoreTest) newObject() Object {
+func (t *contestStoreTest) newObject() object {
 	return Contest{}
 }
 
 func (t *contestStoreTest) createObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	contest := o.(Contest)
 	err := s.(*ContestStore).Create(wrapContext(tx), &contest)
 	return contest, err
 }
 
 func (t *contestStoreTest) updateObject(
-	s Store, tx *sql.Tx, o Object,
-) (Object, error) {
+	s Store, tx *sql.Tx, o object,
+) (object, error) {
 	return o, s.(*ContestStore).Update(wrapContext(tx), o.(Contest))
 }
 

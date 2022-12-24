@@ -14,7 +14,7 @@ require (
 	github.com/spf13/cobra v1.6.1
 	github.com/udovin/algo v0.0.2
 	github.com/udovin/gosql v0.0.1
-	golang.org/x/crypto v0.3.0
+	golang.org/x/crypto v0.4.0
 	golang.org/x/sys v0.3.0
 	golang.org/x/text v0.5.0
 )
@@ -67,7 +67,7 @@ require (
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.1 // indirect
 	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15
-	golang.org/x/net v0.2.0 // indirect
+	golang.org/x/net v0.3.0 // indirect
 	golang.org/x/time v0.2.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )

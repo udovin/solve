@@ -458,6 +458,18 @@ func (c *Client) ObserveContest(
 	return respData, err
 }
 
+func (c *Client) ObserveSettings(ctx context.Context) (Settings, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/settings"), nil,
+	)
+	if err != nil {
+		return Settings{}, err
+	}
+	var respData Settings
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
 func (c *Client) getURL(path string, args ...any) string {
 	return c.endpoint + fmt.Sprintf(path, args...)
 }

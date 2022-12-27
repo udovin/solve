@@ -86,6 +86,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerProblemHandlers(g)
 	v.registerSolutionHandlers(g)
 	v.registerCompilerHandlers(g)
+	v.registerSettingHandlers(g)
 	v.registerLocaleHandlers(g)
 	v.registerFileHandlers(g)
 }
@@ -144,6 +145,7 @@ const (
 	solutionKey           = "solution"
 	compilerKey           = "compiler"
 	fileKey               = "file"
+	settingKey            = "setting"
 	localeKey             = "locale"
 	syncKey               = "sync"
 )

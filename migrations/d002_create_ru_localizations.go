@@ -71,6 +71,8 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		"role_role_does_not_have_child_child":       "Роль \"{role}\" не содержит роль \"{child}\".",
 		"role_role_not_found":                       "Роль \"{role}\" не найдена.",
 		"session_not_found":                         "Сессия не найдена.",
+		"setting_key_cannot_be_empty":               "Ключ настройки не может быть пустым.",
+		"setting_not_found":                         "Настройка не найдена.",
 		"solution_not_found":                        "Решение не найдено.",
 		"title_is_required":                         "Заголовок является обязательным.",
 		"title_is_too_long":                         "Заголовок слишком длинный.",

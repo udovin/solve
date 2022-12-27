@@ -350,7 +350,7 @@ func (v *View) createContest(c echo.Context) error {
 	if account := accountCtx.Account; account != nil {
 		contest.OwnerID = NInt64(account.ID)
 	}
-	if err := v.core.Contests.Create(accountCtx, &contest); err != nil {
+	if err := v.core.Contests.Create(getContext(c), &contest); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeContest(contest, accountCtx, nil))
@@ -373,7 +373,7 @@ func (v *View) updateContest(c echo.Context) error {
 	if err := v.core.Contests.Update(getContext(c), contest); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeContest(contest, contestCtx, v.core))
+	return c.JSON(http.StatusOK, makeContest(contest, contestCtx, v.core))
 }
 
 func (v *View) deleteContest(c echo.Context) error {

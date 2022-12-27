@@ -227,6 +227,14 @@
         "text": "Сессия не найдена."
       },
       {
+        "key": "setting_key_cannot_be_empty",
+        "text": "Ключ настройки не может быть пустым."
+      },
+      {
+        "key": "setting_not_found",
+        "text": "Настройка не найдена."
+      },
+      {
         "key": "solution_not_found",
         "text": "Решение не найдено."
       },

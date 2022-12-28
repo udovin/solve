@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/models"
@@ -145,6 +146,12 @@ func (v *View) extractSetting(next echo.HandlerFunc) echo.HandlerFunc {
 			return err
 		}
 		setting, err := v.core.Settings.GetByKey(key)
+		if err == sql.ErrNoRows {
+			decodedKey, decodeErr := url.QueryUnescape(key)
+			if decodeErr == nil {
+				setting, err = v.core.Settings.GetByKey(decodedKey)
+			}
+		}
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

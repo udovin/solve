@@ -110,14 +110,21 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	)
 }
 
+type ContestState struct {
+	Stage string `json:"stage"`
+	// Participant contains effective participant.
+	Participant *ContestParticipant `json:"participant,omitempty"`
+}
+
 type Contest struct {
-	ID                 int64    `json:"id"`
-	Title              string   `json:"title"`
-	BeginTime          NInt64   `json:"begin_time,omitempty"`
-	Duration           int      `json:"duration,omitempty"`
-	Permissions        []string `json:"permissions,omitempty"`
-	EnableRegistration bool     `json:"enable_registration"`
-	EnableUpsolving    bool     `json:"enable_upsolving"`
+	ID                 int64         `json:"id"`
+	Title              string        `json:"title"`
+	BeginTime          NInt64        `json:"begin_time,omitempty"`
+	Duration           int           `json:"duration,omitempty"`
+	Permissions        []string      `json:"permissions,omitempty"`
+	EnableRegistration bool          `json:"enable_registration"`
+	EnableUpsolving    bool          `json:"enable_upsolving"`
+	State              *ContestState `json:"state,omitempty"`
 }
 
 type Contests struct {
@@ -152,6 +159,21 @@ var contestPermissions = []string{
 	models.DeleteContestSolutionRole,
 }
 
+func makeContestStage(stage managers.ContestStage) string {
+	switch stage {
+	case managers.ContestNotPlanned:
+		return "not_planned"
+	case managers.ContestNotStarted:
+		return "not_started"
+	case managers.ContestStarted:
+		return "started"
+	case managers.ContestFinished:
+		return "finished"
+	default:
+		return "unknown"
+	}
+}
+
 func makeContest(
 	contest models.Contest,
 	permissions managers.Permissions,
@@ -168,6 +190,19 @@ func makeContest(
 		if permissions.HasPermission(permission) {
 			resp.Permissions = append(resp.Permissions, permission)
 		}
+	}
+	if contextCtx, ok := permissions.(*managers.ContestContext); ok {
+		state := ContestState{
+			Stage: makeContestStage(contextCtx.Stage),
+		}
+		participant := contextCtx.GetEffectiveParticipant()
+		if participant != nil {
+			participantResp := makeContestParticipant(*participant, core)
+			participantResp.ContestID = 0
+			participantResp.User = nil
+			state.Participant = getPtr(participantResp)
+		}
+		resp.State = &state
 	}
 	return resp
 }
@@ -526,9 +561,9 @@ func (v *View) deleteContestProblem(c echo.Context) error {
 }
 
 type ContestParticipant struct {
-	ID        int64 `json:"id"`
-	User      *User `json:"user"`
-	ContestID int64 `json:"contest_id"`
+	ID        int64 `json:"id,omitempty"`
+	User      *User `json:"user,omitempty"`
+	ContestID int64 `json:"contest_id,omitempty"`
 	// Kind contains kind.
 	Kind models.ParticipantKind `json:"kind"`
 }
@@ -551,7 +586,7 @@ func (v *View) observeContestParticipants(c echo.Context) error {
 	for _, participant := range participants {
 		resp.Participants = append(
 			resp.Participants,
-			makeContestParticipant(c, participant, v.core),
+			makeContestParticipant(participant, v.core),
 		)
 	}
 	return c.JSON(http.StatusOK, resp)
@@ -646,7 +681,7 @@ func (v *View) createContestParticipant(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusCreated,
-		makeContestParticipant(c, participant, v.core),
+		makeContestParticipant(participant, v.core),
 	)
 }
 
@@ -662,7 +697,7 @@ func (v *View) deleteContestParticipant(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusOK,
-		makeContestParticipant(c, participant, v.core),
+		makeContestParticipant(participant, v.core),
 	)
 }
 
@@ -699,7 +734,7 @@ func (v *View) registerContest(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusCreated,
-		makeContestParticipant(c, participant, v.core),
+		makeContestParticipant(participant, v.core),
 	)
 }
 
@@ -922,14 +957,14 @@ func (v *View) makeContestSolution(
 	if participant, err := v.core.ContestParticipants.Get(
 		solution.ParticipantID,
 	); err == nil {
-		participantResp := makeContestParticipant(c, participant, v.core)
+		participantResp := makeContestParticipant(participant, v.core)
 		resp.Participant = &participantResp
 	}
 	return resp
 }
 
 func makeContestParticipant(
-	c echo.Context, participant models.ContestParticipant,
+	participant models.ContestParticipant,
 	core *core.Core,
 ) ContestParticipant {
 	resp := ContestParticipant{

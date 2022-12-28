@@ -15,9 +15,11 @@ var testSimpleContest = createContestForm{
 }
 
 var testSimpleConfiguredContest = createContestForm{
-	Title:     getPtr("Test configured contest"),
-	BeginTime: getPtr(NInt64(time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC).Unix())),
-	Duration:  getPtr(7200),
+	Title:              getPtr("Test configured contest"),
+	BeginTime:          getPtr(NInt64(time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC).Unix())),
+	Duration:           getPtr(7200),
+	EnableRegistration: getPtr(true),
+	EnableUpsolving:    getPtr(true),
 }
 
 func TestContestSimpleScenario(t *testing.T) {

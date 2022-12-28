@@ -21,8 +21,8 @@
       "update_contest",
       "delete_contest"
     ],
-    "enable_registration": false,
-    "enable_upsolving": false
+    "enable_registration": true,
+    "enable_upsolving": true
   },
   {
     "contests": [
@@ -46,8 +46,14 @@
           "update_contest_solution",
           "delete_contest_solution"
         ],
-        "enable_registration": false,
-        "enable_upsolving": false
+        "enable_registration": true,
+        "enable_upsolving": true,
+        "state": {
+          "stage": "finished",
+          "participant": {
+            "kind": "manager"
+          }
+        }
       },
       {
         "id": 1,
@@ -68,7 +74,13 @@
           "delete_contest_solution"
         ],
         "enable_registration": false,
-        "enable_upsolving": false
+        "enable_upsolving": false,
+        "state": {
+          "stage": "not_planned",
+          "participant": {
+            "kind": "manager"
+          }
+        }
       }
     ]
   },
@@ -91,7 +103,13 @@
       "delete_contest_solution"
     ],
     "enable_registration": false,
-    "enable_upsolving": false
+    "enable_upsolving": false,
+    "state": {
+      "stage": "not_planned",
+      "participant": {
+        "kind": "manager"
+      }
+    }
   },
   {
     "id": 1,

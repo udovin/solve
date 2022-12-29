@@ -185,9 +185,9 @@ func (s *S3Storage) DeleteFile(ctx context.Context, filePath string) error {
 }
 
 type FileManager struct {
-	Files         *models.FileStore
-	Storage       FileStorage
-	UploadTimeout time.Duration
+	files         *models.FileStore
+	storage       FileStorage
+	uploadTimeout time.Duration
 }
 
 func NewFileManager(c *core.Core) *FileManager {
@@ -227,9 +227,9 @@ func NewFileManager(c *core.Core) *FileManager {
 		))
 	}
 	return &FileManager{
-		Files:         c.Files,
-		Storage:       storage,
-		UploadTimeout: 10 * time.Minute,
+		files:         c.Files,
+		storage:       storage,
+		uploadTimeout: 10 * time.Minute,
 	}
 }
 
@@ -275,9 +275,9 @@ func (m *FileManager) UploadFile(
 	}
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		deadline = time.Now().Add(m.UploadTimeout)
+		deadline = time.Now().Add(m.uploadTimeout)
 	}
-	filePath, err := m.Storage.GeneratePath(ctx)
+	filePath, err := m.storage.GeneratePath(ctx)
 	if err != nil {
 		return models.File{}, fmt.Errorf("cannot generate path: %w", err)
 	}
@@ -293,10 +293,10 @@ func (m *FileManager) UploadFile(
 	if err := file.SetMeta(meta); err != nil {
 		return models.File{}, err
 	}
-	if err := m.Files.Create(ctx, &file); err != nil {
+	if err := m.files.Create(ctx, &file); err != nil {
 		return models.File{}, err
 	}
-	stats, err := m.Storage.WriteFile(ctx, filePath, fileReader.Reader)
+	stats, err := m.storage.WriteFile(ctx, filePath, fileReader.Reader)
 	if err != nil {
 		return models.File{}, err
 	}
@@ -317,7 +317,7 @@ func (m *FileManager) ConfirmUploadFile(
 	clone := file.Clone()
 	clone.Status = models.AvailableFile
 	clone.ExpireTime = 0
-	if err := m.Files.Update(ctx, clone); err != nil {
+	if err := m.files.Update(ctx, clone); err != nil {
 		return err
 	}
 	*file = clone
@@ -325,7 +325,7 @@ func (m *FileManager) ConfirmUploadFile(
 }
 
 func (m *FileManager) DeleteFile(ctx context.Context, id int64) error {
-	file, err := m.Files.Get(id)
+	file, err := m.files.Get(id)
 	if err != nil {
 		return err
 	}
@@ -339,24 +339,24 @@ func (m *FileManager) DeleteFile(ctx context.Context, id int64) error {
 	}
 	file.Status = models.PendingFile
 	file.ExpireTime = models.NInt64(deadline.Unix())
-	if err := m.Files.Update(ctx, file); err != nil {
+	if err := m.files.Update(ctx, file); err != nil {
 		return err
 	}
-	if err := m.Storage.DeleteFile(ctx, file.Path); err != nil {
+	if err := m.storage.DeleteFile(ctx, file.Path); err != nil {
 		return err
 	}
-	return m.Files.Delete(ctx, file.ID)
+	return m.files.Delete(ctx, file.ID)
 }
 
 func (m *FileManager) DownloadFile(
 	ctx context.Context, id int64,
 ) (io.ReadCloser, error) {
-	file, err := m.Files.Get(id)
+	file, err := m.files.Get(id)
 	if err == sql.ErrNoRows {
-		if err := m.Files.Sync(ctx); err != nil {
+		if err := m.files.Sync(ctx); err != nil {
 			return nil, err
 		}
-		file, err = m.Files.Get(id)
+		file, err = m.files.Get(id)
 	}
 	if err != nil {
 		return nil, err
@@ -364,7 +364,7 @@ func (m *FileManager) DownloadFile(
 	if err := m.waitFileAvailable(ctx, &file); err != nil {
 		return nil, err
 	}
-	return m.Storage.ReadFile(ctx, file.Path)
+	return m.storage.ReadFile(ctx, file.Path)
 }
 
 func (m *FileManager) waitFileAvailable(
@@ -385,10 +385,10 @@ func (m *FileManager) waitFileAvailable(
 			return ctx.Err()
 		case <-timer.C:
 		}
-		if err := m.Files.Sync(ctx); err != nil {
+		if err := m.files.Sync(ctx); err != nil {
 			return err
 		}
-		syncedFile, err := m.Files.Get(file.ID)
+		syncedFile, err := m.files.Get(file.ID)
 		if err != nil {
 			return err
 		}

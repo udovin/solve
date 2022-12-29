@@ -21,6 +21,7 @@ import (
 type Invoker struct {
 	core      *core.Core
 	files     *managers.FileManager
+	solutions *managers.SolutionManager
 	problems  *problemManager
 	compilers *compilerManager
 }
@@ -32,6 +33,9 @@ func New(core *core.Core) *Invoker {
 	}
 	if core.Config.Storage != nil {
 		s.files = managers.NewFileManager(core)
+	}
+	if s.files != nil {
+		s.solutions = managers.NewSolutionManager(core, s.files)
 	}
 	return &s
 }

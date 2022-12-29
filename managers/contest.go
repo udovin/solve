@@ -9,14 +9,14 @@ import (
 )
 
 type ContestManager struct {
-	Contests     *models.ContestStore
-	Participants *models.ContestParticipantStore
+	contests     *models.ContestStore
+	participants *models.ContestParticipantStore
 }
 
 func NewContestManager(core *core.Core) *ContestManager {
 	return &ContestManager{
-		Contests:     core.Contests,
-		Participants: core.ContestParticipants,
+		contests:     core.Contests,
+		participants: core.ContestParticipants,
 	}
 }
 
@@ -140,7 +140,7 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 		if contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
 			c.Permissions.AddPermission(models.DeleteContestRole)
 		}
-		participants, err := m.Participants.FindByContestAccount(contest.ID, account.ID)
+		participants, err := m.participants.FindByContestAccount(contest.ID, account.ID)
 		if err != nil {
 			return nil, fmt.Errorf("unable to build contest context: %w", err)
 		}

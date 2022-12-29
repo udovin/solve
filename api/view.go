@@ -24,11 +24,12 @@ import (
 
 // View represents API view.
 type View struct {
-	core     *core.Core
-	accounts *managers.AccountManager
-	contests *managers.ContestManager
-	files    *managers.FileManager
-	visits   chan visitContext
+	core      *core.Core
+	accounts  *managers.AccountManager
+	contests  *managers.ContestManager
+	files     *managers.FileManager
+	solutions *managers.SolutionManager
+	visits    chan visitContext
 }
 
 func (v *View) StartDaemons() {
@@ -122,6 +123,9 @@ func NewView(core *core.Core) *View {
 	}
 	if core.Config.Storage != nil {
 		v.files = managers.NewFileManager(core)
+	}
+	if v.files != nil {
+		v.solutions = managers.NewSolutionManager(core, v.files)
 	}
 	return &v
 }

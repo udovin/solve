@@ -11,22 +11,22 @@ import (
 )
 
 type AccountManager struct {
-	Accounts     *models.AccountStore
-	Users        *models.UserStore
-	Roles        *models.RoleStore
-	RoleEdges    *models.RoleEdgeStore
-	AccountRoles *models.AccountRoleStore
-	Settings     *models.SettingStore
+	accounts     *models.AccountStore
+	users        *models.UserStore
+	roles        *models.RoleStore
+	roleEdges    *models.RoleEdgeStore
+	accountRoles *models.AccountRoleStore
+	settings     *models.SettingStore
 }
 
 func NewAccountManager(core *core.Core) *AccountManager {
 	return &AccountManager{
-		Accounts:     core.Accounts,
-		Users:        core.Users,
-		Roles:        core.Roles,
-		RoleEdges:    core.RoleEdges,
-		AccountRoles: core.AccountRoles,
-		Settings:     core.Settings,
+		accounts:     core.Accounts,
+		users:        core.Users,
+		roles:        core.Roles,
+		roleEdges:    core.RoleEdges,
+		accountRoles: core.AccountRoles,
+		settings:     core.Settings,
 	}
 }
 
@@ -39,7 +39,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 	var roleIDs []int64
 	if account != nil {
 		if account.Kind == models.UserAccount {
-			user, err := m.Users.GetByAccount(account.ID)
+			user, err := m.users.GetByAccount(account.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -50,7 +50,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 			}
 			roleIDs = append(roleIDs, role.ID)
 		}
-		edges, err := m.AccountRoles.FindByAccount(account.ID)
+		edges, err := m.accountRoles.FindByAccount(account.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -74,24 +74,24 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 
 func (m *AccountManager) getGuestRole() (models.Role, error) {
 	roleName := "guest_group"
-	roleNameSetting, err := m.Settings.GetByKey("accounts.guest_role")
+	roleNameSetting, err := m.settings.GetByKey("accounts.guest_role")
 	if err == nil {
 		roleName = roleNameSetting.Value
 	} else if err != sql.ErrNoRows {
 		return models.Role{}, err
 	}
-	return m.Roles.GetByName(roleName)
+	return m.roles.GetByName(roleName)
 }
 
 func (m *AccountManager) getUserRole(status models.UserStatus) (models.Role, error) {
 	roleName := fmt.Sprintf("%s_user_group", status)
-	roleNameSetting, err := m.Settings.GetByKey(fmt.Sprintf("accounts.%s_user_role", status))
+	roleNameSetting, err := m.settings.GetByKey(fmt.Sprintf("accounts.%s_user_role", status))
 	if err == nil {
 		roleName = roleNameSetting.Value
 	} else if err != sql.ErrNoRows {
 		return models.Role{}, err
 	}
-	return m.Roles.GetByName(roleName)
+	return m.roles.GetByName(roleName)
 }
 
 func (m *AccountManager) getRecursivePermissions(roleIDs ...int64) (PermissionSet, error) {
@@ -103,14 +103,14 @@ func (m *AccountManager) getRecursivePermissions(roleIDs ...int64) (PermissionSe
 	for len(stack) > 0 {
 		roleID := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		role, err := m.Roles.Get(roleID)
+		role, err := m.roles.Get(roleID)
 		if err != nil {
 			return nil, err
 		}
 		if role.IsBuiltIn() {
 			permissions[role.Name] = struct{}{}
 		}
-		edges, err := m.RoleEdges.FindByRole(roleID)
+		edges, err := m.roleEdges.FindByRole(roleID)
 		if err != nil {
 			return nil, err
 		}

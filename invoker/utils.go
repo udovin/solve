@@ -1,21 +1,20 @@
 package invoker
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-
-	"github.com/gofrs/uuid"
 )
 
 func makeTempDir() (string, error) {
 	for i := 0; i < 100; i++ {
-		name, err := uuid.NewV4()
-		if err != nil {
+		bytes := make([]byte, 16)
+		if _, err := rand.Read(bytes); err != nil {
 			return "", err
 		}
-		dirPath := filepath.Join(os.TempDir(), name.String())
+		dirPath := filepath.Join(os.TempDir(), string(bytes))
 		if err := os.MkdirAll(dirPath, 0777); err != nil {
 			if os.IsExist(err) {
 				continue

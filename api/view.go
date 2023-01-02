@@ -45,7 +45,7 @@ type visitContext struct {
 
 func (v *visitContext) Create(view *View) {
 	if s := view.getBoolSetting(
-		"log_visit."+v.Path, v.Logger,
+		"handlers."+v.Path+".log_visit", v.Logger,
 	); s == nil || *s {
 		func() {
 			ctx, cancel := context.WithTimeout(
@@ -331,7 +331,7 @@ func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) wrapSyncStores(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		if s := v.getBoolSetting("allow_sync", c.Logger()); s == nil || *s {
+		if s := v.getBoolSetting("handlers.allow_sync", c.Logger()); s == nil || *s {
 			sync := strings.ToLower(c.Request().Header.Get("X-Solve-Sync"))
 			c.Set(syncKey, sync == "1" || sync == "t" || sync == "true")
 		} else {

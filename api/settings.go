@@ -4,13 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"net/url"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/models"
 )
 
 type Setting struct {
+	ID    int64  `json:"id"`
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
@@ -21,6 +22,7 @@ type Settings struct {
 
 func makeSetting(o models.Setting) Setting {
 	return Setting{
+		ID:    o.ID,
 		Key:   o.Key,
 		Value: o.Value,
 	}
@@ -139,19 +141,21 @@ func (v *View) deleteSetting(c echo.Context) error {
 	return c.JSON(http.StatusOK, makeSetting(setting))
 }
 
+func getSettingByParam(settings *models.SettingStore, key string) (models.Setting, error) {
+	id, err := strconv.ParseInt(key, 10, 64)
+	if err != nil {
+		return settings.GetByKey(key)
+	}
+	return settings.Get(id)
+}
+
 func (v *View) extractSetting(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		key := c.Param("setting")
 		if err := syncStore(c, v.core.Settings); err != nil {
 			return err
 		}
-		setting, err := v.core.Settings.GetByKey(key)
-		if err == sql.ErrNoRows {
-			decodedKey, decodeErr := url.QueryUnescape(key)
-			if decodeErr == nil {
-				setting, err = v.core.Settings.GetByKey(decodedKey)
-			}
-		}
+		setting, err := getSettingByParam(v.core.Settings, key)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

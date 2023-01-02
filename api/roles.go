@@ -18,6 +18,8 @@ type Role struct {
 	ID int64 `json:"id"`
 	// Name contains role name.
 	Name string `json:"name"`
+	//
+	BuiltIn bool `json:"built_in,omitempty"`
 }
 
 // Roles represents roles response.
@@ -116,8 +118,9 @@ func (v *View) observeRoles(c echo.Context) error {
 	}
 	for _, role := range roles {
 		resp.Roles = append(resp.Roles, Role{
-			ID:   role.ID,
-			Name: role.Name,
+			ID:      role.ID,
+			Name:    role.Name,
+			BuiltIn: role.IsBuiltIn(),
 		})
 	}
 	sortFunc(resp.Roles, roleGreater)

@@ -23,267 +23,333 @@
       },
       {
         "id": 66,
-        "name": "update_user_password"
+        "name": "update_user_password",
+        "built_in": true
       },
       {
         "id": 65,
-        "name": "update_user_middle_name"
+        "name": "update_user_middle_name",
+        "built_in": true
       },
       {
         "id": 64,
-        "name": "update_user_last_name"
+        "name": "update_user_last_name",
+        "built_in": true
       },
       {
         "id": 63,
-        "name": "update_user_first_name"
+        "name": "update_user_first_name",
+        "built_in": true
       },
       {
         "id": 62,
-        "name": "update_user_email"
+        "name": "update_user_email",
+        "built_in": true
       },
       {
         "id": 61,
-        "name": "update_user"
+        "name": "update_user",
+        "built_in": true
       },
       {
         "id": 60,
-        "name": "update_setting"
+        "name": "update_setting",
+        "built_in": true
       },
       {
         "id": 59,
-        "name": "update_problem"
+        "name": "update_problem",
+        "built_in": true
       },
       {
         "id": 58,
-        "name": "update_contest_solution"
+        "name": "update_contest_solution",
+        "built_in": true
       },
       {
         "id": 57,
-        "name": "update_contest"
+        "name": "update_contest",
+        "built_in": true
       },
       {
         "id": 56,
-        "name": "update_compiler"
+        "name": "update_compiler",
+        "built_in": true
       },
       {
         "id": 55,
-        "name": "submit_contest_solution"
+        "name": "submit_contest_solution",
+        "built_in": true
       },
       {
         "id": 54,
-        "name": "status"
+        "name": "status",
+        "built_in": true
       },
       {
         "id": 53,
-        "name": "register_contests"
+        "name": "register_contests",
+        "built_in": true
       },
       {
         "id": 52,
-        "name": "register_contest"
+        "name": "register_contest",
+        "built_in": true
       },
       {
         "id": 51,
-        "name": "register"
+        "name": "register",
+        "built_in": true
       },
       {
         "id": 50,
-        "name": "observe_user_sessions"
+        "name": "observe_user_sessions",
+        "built_in": true
       },
       {
         "id": 49,
-        "name": "observe_user_roles"
+        "name": "observe_user_roles",
+        "built_in": true
       },
       {
         "id": 48,
-        "name": "observe_user_middle_name"
+        "name": "observe_user_middle_name",
+        "built_in": true
       },
       {
         "id": 47,
-        "name": "observe_user_last_name"
+        "name": "observe_user_last_name",
+        "built_in": true
       },
       {
         "id": 46,
-        "name": "observe_user_first_name"
+        "name": "observe_user_first_name",
+        "built_in": true
       },
       {
         "id": 45,
-        "name": "observe_user_email"
+        "name": "observe_user_email",
+        "built_in": true
       },
       {
         "id": 44,
-        "name": "observe_user"
+        "name": "observe_user",
+        "built_in": true
       },
       {
         "id": 43,
-        "name": "observe_solutions"
+        "name": "observe_solutions",
+        "built_in": true
       },
       {
         "id": 42,
-        "name": "observe_solution"
+        "name": "observe_solution",
+        "built_in": true
       },
       {
         "id": 41,
-        "name": "observe_settings"
+        "name": "observe_settings",
+        "built_in": true
       },
       {
         "id": 40,
-        "name": "observe_session"
+        "name": "observe_session",
+        "built_in": true
       },
       {
         "id": 39,
-        "name": "observe_roles"
+        "name": "observe_roles",
+        "built_in": true
       },
       {
         "id": 38,
-        "name": "observe_role_roles"
+        "name": "observe_role_roles",
+        "built_in": true
       },
       {
         "id": 37,
-        "name": "observe_problems"
+        "name": "observe_problems",
+        "built_in": true
       },
       {
         "id": 36,
-        "name": "observe_problem"
+        "name": "observe_problem",
+        "built_in": true
       },
       {
         "id": 35,
-        "name": "observe_file_content"
+        "name": "observe_file_content",
+        "built_in": true
       },
       {
         "id": 34,
-        "name": "observe_contests"
+        "name": "observe_contests",
+        "built_in": true
       },
       {
         "id": 33,
-        "name": "observe_contest_solutions"
+        "name": "observe_contest_solutions",
+        "built_in": true
       },
       {
         "id": 32,
-        "name": "observe_contest_solution"
+        "name": "observe_contest_solution",
+        "built_in": true
       },
       {
         "id": 31,
-        "name": "observe_contest_problems"
+        "name": "observe_contest_problems",
+        "built_in": true
       },
       {
         "id": 30,
-        "name": "observe_contest_problem"
+        "name": "observe_contest_problem",
+        "built_in": true
       },
       {
         "id": 29,
-        "name": "observe_contest_participants"
+        "name": "observe_contest_participants",
+        "built_in": true
       },
       {
         "id": 28,
-        "name": "observe_contest_participant"
+        "name": "observe_contest_participant",
+        "built_in": true
       },
       {
         "id": 27,
-        "name": "observe_contest"
+        "name": "observe_contest",
+        "built_in": true
       },
       {
         "id": 26,
-        "name": "observe_compilers"
+        "name": "observe_compilers",
+        "built_in": true
       },
       {
         "id": 25,
-        "name": "observe_compiler"
+        "name": "observe_compiler",
+        "built_in": true
       },
       {
         "id": 24,
-        "name": "logout"
+        "name": "logout",
+        "built_in": true
       },
       {
         "id": 23,
-        "name": "login"
+        "name": "login",
+        "built_in": true
       },
       {
         "id": 22,
-        "name": "deregister_contest_role"
+        "name": "deregister_contest_role",
+        "built_in": true
       },
       {
         "id": 21,
-        "name": "delete_user_role"
+        "name": "delete_user_role",
+        "built_in": true
       },
       {
         "id": 20,
-        "name": "delete_setting"
+        "name": "delete_setting",
+        "built_in": true
       },
       {
         "id": 19,
-        "name": "delete_session"
+        "name": "delete_session",
+        "built_in": true
       },
       {
         "id": 18,
-        "name": "delete_role_role"
+        "name": "delete_role_role",
+        "built_in": true
       },
       {
         "id": 17,
-        "name": "delete_role"
+        "name": "delete_role",
+        "built_in": true
       },
       {
         "id": 16,
-        "name": "delete_problem"
+        "name": "delete_problem",
+        "built_in": true
       },
       {
         "id": 15,
-        "name": "delete_contest_solution"
+        "name": "delete_contest_solution",
+        "built_in": true
       },
       {
         "id": 14,
-        "name": "delete_contest_problem"
+        "name": "delete_contest_problem",
+        "built_in": true
       },
       {
         "id": 13,
-        "name": "delete_contest_participant"
+        "name": "delete_contest_participant",
+        "built_in": true
       },
       {
         "id": 12,
-        "name": "delete_contest"
+        "name": "delete_contest",
+        "built_in": true
       },
       {
         "id": 11,
-        "name": "delete_compiler"
+        "name": "delete_compiler",
+        "built_in": true
       },
       {
         "id": 10,
-        "name": "create_user_role"
+        "name": "create_user_role",
+        "built_in": true
       },
       {
         "id": 9,
-        "name": "create_setting"
+        "name": "create_setting",
+        "built_in": true
       },
       {
         "id": 8,
-        "name": "create_role_role"
+        "name": "create_role_role",
+        "built_in": true
       },
       {
         "id": 7,
-        "name": "create_role"
+        "name": "create_role",
+        "built_in": true
       },
       {
         "id": 6,
-        "name": "create_problem"
+        "name": "create_problem",
+        "built_in": true
       },
       {
         "id": 5,
-        "name": "create_contest_solution"
+        "name": "create_contest_solution",
+        "built_in": true
       },
       {
         "id": 4,
-        "name": "create_contest_problem"
+        "name": "create_contest_problem",
+        "built_in": true
       },
       {
         "id": 3,
-        "name": "create_contest_participant"
+        "name": "create_contest_participant",
+        "built_in": true
       },
       {
         "id": 2,
-        "name": "create_contest"
+        "name": "create_contest",
+        "built_in": true
       },
       {
         "id": 1,
-        "name": "create_compiler"
+        "name": "create_compiler",
+        "built_in": true
       }
     ]
   }

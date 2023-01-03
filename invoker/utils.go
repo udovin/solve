@@ -2,6 +2,7 @@ package invoker
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -14,7 +15,7 @@ func makeTempDir() (string, error) {
 		if _, err := rand.Read(bytes); err != nil {
 			return "", err
 		}
-		dirPath := filepath.Join(os.TempDir(), string(bytes))
+		dirPath := filepath.Join(os.TempDir(), hex.EncodeToString(bytes))
 		if err := os.MkdirAll(dirPath, 0777); err != nil {
 			if os.IsExist(err) {
 				continue

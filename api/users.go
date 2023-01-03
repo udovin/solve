@@ -375,8 +375,7 @@ func (v *View) loginAccount(c echo.Context) error {
 // logoutAccount removes current session.
 func (v *View) logoutAccount(c echo.Context) error {
 	session := c.Get(authSessionKey).(models.Session)
-	if err := v.core.Sessions.Delete(getContext(c), session.ID); err != nil {
-		c.Logger().Error(err)
+	if err := v.core.Sessions.Delete(getContext(c), session.ID); err != nil && err != sql.ErrNoRows {
 		return err
 	}
 	cookie := http.Cookie{Name: sessionCookie}

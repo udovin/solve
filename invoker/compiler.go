@@ -7,10 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/udovin/algo/futures"
+	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg"
@@ -96,23 +98,48 @@ func (c *compiler) Compile(source, target string) (CompileReport, error) {
 }
 
 type compilerManager struct {
-	cacheDir string
-	files    *managers.FileManager
-	factory  *factory
-	images   map[int64]futures.Future[string]
-	mutex    sync.Mutex
+	files     *managers.FileManager
+	cacheDir  string
+	factory   *factory
+	compilers *models.CompilerStore
+	settings  *models.SettingStore
+	images    map[int64]futures.Future[string]
+	mutex     sync.Mutex
 }
 
-func newCompilerManager(files *managers.FileManager, factory *factory, cacheDir string) (*compilerManager, error) {
+func newCompilerManager(
+	files *managers.FileManager,
+	cacheDir string,
+	factory *factory,
+	core *core.Core,
+) (*compilerManager, error) {
 	if err := os.MkdirAll(cacheDir, os.ModePerm); err != nil {
 		return nil, err
 	}
 	return &compilerManager{
-		cacheDir: cacheDir,
-		files:    files,
-		factory:  factory,
-		images:   map[int64]futures.Future[string]{},
+		files:     files,
+		cacheDir:  cacheDir,
+		factory:   factory,
+		compilers: core.Compilers,
+		settings:  core.Settings,
+		images:    map[int64]futures.Future[string]{},
 	}, nil
+}
+
+func (m *compilerManager) GetCompiler(ctx context.Context, name string) (Compiler, error) {
+	setting, err := m.settings.GetByKey("invoker.compilers." + name)
+	if err != nil {
+		return nil, err
+	}
+	id, err := strconv.ParseInt(setting.Value, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	compiler, err := m.compilers.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	return m.DownloadCompiler(ctx, compiler)
 }
 
 func (m *compilerManager) DownloadCompiler(ctx context.Context, c models.Compiler) (Compiler, error) {

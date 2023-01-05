@@ -61,12 +61,23 @@ type ProblemAssets struct {
 	Solutions []Solution `xml:"solutions>solution"`
 }
 
+type Executable struct {
+	Source *Resource `xml:"source"`
+	Binary *Resource `xml:"binary"`
+}
+
+type ProblemFiles struct {
+	Resources   []Resource   `xml:"resources>file"`
+	Executables []Executable `xml:"executables>executable"`
+}
+
 // Problem represents a problem.
 type Problem struct {
 	Names      []Name         `xml:"names>name"`
 	Statements []Statement    `xml:"statements>statement"`
 	TestSets   []TestSet      `xml:"judging>testset"`
 	Assets     *ProblemAssets `xml:"assets"`
+	Files      *ProblemFiles  `xml:"files"`
 }
 
 // ReadProblemConfig reads problem config from file.

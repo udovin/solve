@@ -19,6 +19,7 @@ type ProblemTest interface {
 type ProblemTestGroup interface {
 	TimeLimit() int64
 	MemoryLimit() int64
+	GetTests() ([]ProblemTest, error)
 }
 
 type ProblemResource interface {
@@ -34,6 +35,7 @@ type ProblemStatement interface {
 }
 
 type Problem interface {
+	Compile(context.Context) error
 	GetTestGroups() ([]ProblemTestGroup, error)
 	GetStatements() ([]ProblemStatement, error)
 }
@@ -46,20 +48,26 @@ const (
 )
 
 type problemManager struct {
-	cacheDir string
-	files    *managers.FileManager
-	problems map[int64]futures.Future[Problem]
-	mutex    sync.Mutex
+	files     *managers.FileManager
+	cacheDir  string
+	problems  map[int64]futures.Future[Problem]
+	compilers *compilerManager
+	mutex     sync.Mutex
 }
 
-func newProblemManager(files *managers.FileManager, cacheDir string) (*problemManager, error) {
+func newProblemManager(
+	files *managers.FileManager,
+	cacheDir string,
+	compilers *compilerManager,
+) (*problemManager, error) {
 	if err := os.MkdirAll(cacheDir, os.ModePerm); err != nil {
 		return nil, err
 	}
 	return &problemManager{
-		cacheDir: cacheDir,
-		files:    files,
-		problems: map[int64]futures.Future[Problem]{},
+		files:     files,
+		cacheDir:  cacheDir,
+		problems:  map[int64]futures.Future[Problem]{},
+		compilers: compilers,
 	}, nil
 }
 
@@ -121,9 +129,13 @@ func (m *problemManager) runDownloadProblem(
 	}
 	switch kind {
 	case PolygonProblem:
-		return extractPolygonProblem(localProblemPath, problemPath)
+		return extractPolygonProblem(
+			localProblemPath, problemPath, m.compilers,
+		)
 	case CompiledProblem:
-		return extractCompiledProblem(localProblemPath, problemPath)
+		return extractCompiledProblem(
+			localProblemPath, problemPath, m.compilers,
+		)
 	default:
 		return nil, fmt.Errorf("unsupported kind: %v", kind)
 	}

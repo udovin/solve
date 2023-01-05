@@ -22,8 +22,8 @@ type Invoker struct {
 	core      *core.Core
 	files     *managers.FileManager
 	solutions *managers.SolutionManager
-	problems  *problemManager
 	compilers *compilerManager
+	problems  *problemManager
 }
 
 // New creates a new instance of Invoker.
@@ -48,12 +48,16 @@ func (s *Invoker) Start() error {
 	if err != nil {
 		return err
 	}
-	compilers, err := newCompilerManager(s.files, factory, "/tmp/solve-compilers")
+	compilers, err := newCompilerManager(
+		s.files, "/tmp/solve-compilers", factory, s.core,
+	)
 	if err != nil {
 		return err
 	}
 	s.compilers = compilers
-	problems, err := newProblemManager(s.files, "/tmp/solve-problems")
+	problems, err := newProblemManager(
+		s.files, "/tmp/solve-problems", compilers,
+	)
 	if err != nil {
 		return err
 	}

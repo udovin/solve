@@ -1,6 +1,7 @@
 package invoker
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -14,47 +15,74 @@ import (
 	"github.com/udovin/solve/pkg/polygon"
 )
 
-func extractPolygonProblem(source, target string) (Problem, error) {
+func extractPolygonProblem(
+	source, target string,
+	compilers *compilerManager,
+) (Problem, error) {
 	if err := pkg.ExtractZip(source, target); err != nil {
 		return nil, fmt.Errorf("cannot extract problem: %w", err)
 	}
-	return &polygonProblem{path: target}, nil
+	config, err := polygon.ReadProblemConfig(
+		filepath.Join(target, "problem.xml"),
+	)
+	if err != nil {
+		_ = os.RemoveAll(target)
+		return nil, fmt.Errorf("cannot read problem config: %w", err)
+	}
+	return &polygonProblem{
+		path:      target,
+		config:    config,
+		compilers: compilers,
+	}, nil
 }
 
 type polygonProblem struct {
-	path   string
-	config *polygon.Problem
+	path      string
+	config    polygon.Problem
+	compilers *compilerManager
 }
 
-func (p *polygonProblem) init() error {
-	if p.config != nil {
-		return nil
+func (p *polygonProblem) Compile(ctx context.Context) error {
+	for _, executable := range p.config.Files.Executables {
+		if executable.Source == nil {
+			continue
+		}
+		name, ok := polygonCompilers[executable.Source.Type]
+		if !ok {
+			name = "polygon." + executable.Source.Type
+		}
+		compiler, err := p.compilers.GetCompiler(ctx, name)
+		if err != nil {
+			return err
+		}
+		sourcePath := filepath.Join(p.path, executable.Source.Path)
+		targetPath := strings.TrimSuffix(sourcePath, filepath.Ext(sourcePath))
+		report, err := compiler.Compile(sourcePath, targetPath)
+		if err != nil {
+			return err
+		}
+		if !report.Success {
+			return fmt.Errorf(
+				"cannot compile %q with compiler %q",
+				executable.Source.Path, name,
+			)
+		}
 	}
-	config, err := polygon.ReadProblemConfig(
-		filepath.Join(p.path, "problem.xml"),
-	)
-	if err != nil {
-		return err
-	}
-	p.config = &config
 	return nil
 }
 
 func (p *polygonProblem) GetTestGroups() ([]ProblemTestGroup, error) {
-	if err := p.init(); err != nil {
-		return nil, err
-	}
 	var groups []ProblemTestGroup
 	for _, testSet := range p.config.TestSets {
-		groups = append(groups, &polygonProblemTestGroup{config: testSet})
+		groups = append(groups, &polygonProblemTestGroup{
+			problem: p,
+			config:  testSet,
+		})
 	}
 	return groups, nil
 }
 
 func (p *polygonProblem) GetStatements() ([]ProblemStatement, error) {
-	if err := p.init(); err != nil {
-		return nil, err
-	}
 	var statements []ProblemStatement
 	for _, statement := range p.config.Statements {
 		if statement.Type != "application/x-tex" {
@@ -72,7 +100,8 @@ func (p *polygonProblem) GetStatements() ([]ProblemStatement, error) {
 }
 
 type polygonProblemTestGroup struct {
-	config polygon.TestSet
+	problem *polygonProblem
+	config  polygon.TestSet
 }
 
 func (g *polygonProblemTestGroup) TimeLimit() int64 {
@@ -81,6 +110,26 @@ func (g *polygonProblemTestGroup) TimeLimit() int64 {
 
 func (g *polygonProblemTestGroup) MemoryLimit() int64 {
 	return g.config.MemoryLimit
+}
+
+func (g *polygonProblemTestGroup) GetTests() ([]ProblemTest, error) {
+	var tests []ProblemTest
+	for i, config := range g.config.Tests {
+		input := fmt.Sprintf(g.config.InputPathPattern, i+1)
+		answer := fmt.Sprintf(g.config.AnswerPathPattern, i+1)
+		tests = append(tests, polygonProblemTest{
+			config:     config,
+			inputPath:  filepath.Join(g.problem.path, input),
+			answerPath: filepath.Join(g.problem.path, answer),
+		})
+	}
+	return tests, nil
+}
+
+type polygonProblemTest struct {
+	inputPath  string
+	answerPath string
+	config     polygon.Test
 }
 
 type polygonProblemStatement struct {
@@ -176,6 +225,10 @@ func (p polygonProblemResource) GetMD5() (string, error) {
 
 func (p polygonProblemResource) Open() (*os.File, error) {
 	return os.Open(p.path)
+}
+
+var polygonCompilers = map[string]string{
+	"cpp.g++17": "cpp17-gcc",
 }
 
 var polygonLocales = map[string]string{

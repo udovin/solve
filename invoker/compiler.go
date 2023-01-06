@@ -2,6 +2,7 @@ package invoker
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"os"
@@ -24,7 +25,7 @@ type CompileReport struct {
 }
 
 type Compiler interface {
-	Compile(source, target string) (CompileReport, error)
+	Compile(ctx context.Context, source, target string, additionalFiles ...string) (CompileReport, error)
 }
 
 type compiler struct {
@@ -33,7 +34,9 @@ type compiler struct {
 	path    string
 }
 
-func (c *compiler) Compile(source, target string) (CompileReport, error) {
+func (c *compiler) Compile(
+	ctx context.Context, source, target string, additionalFiles ...string,
+) (CompileReport, error) {
 	stdout := strings.Builder{}
 	containerConfig := containerConfig{
 		Layers: []string{c.path},
@@ -56,6 +59,16 @@ func (c *compiler) Compile(source, target string) (CompileReport, error) {
 		)
 		if err := copyFileRec(source, path); err != nil {
 			return CompileReport{}, fmt.Errorf("unable to write solution: %w", err)
+		}
+	}
+	for _, file := range additionalFiles {
+		path := filepath.Join(
+			container.GetUpperDir(),
+			c.config.Compile.Workdir,
+			filepath.Base(file),
+		)
+		if err := copyFileRec(file, path); err != nil {
+			return CompileReport{}, fmt.Errorf("unable to write additional file: %w", err)
 		}
 	}
 	defer func() { _ = container.Destroy() }()
@@ -129,6 +142,9 @@ func newCompilerManager(
 func (m *compilerManager) GetCompiler(ctx context.Context, name string) (Compiler, error) {
 	setting, err := m.settings.GetByKey("invoker.compilers." + name)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("cannot get compiler %q", name)
+		}
 		return nil, err
 	}
 	id, err := strconv.ParseInt(setting.Value, 10, 64)

@@ -115,7 +115,7 @@ func (t *judgeSolutionTask) prepareSolution(ctx TaskContext) error {
 func (t *judgeSolutionTask) compileSolution(
 	ctx TaskContext, report *models.SolutionReport,
 ) (bool, error) {
-	compileReport, err := t.compilerImpl.Compile(t.solutionPath, t.compiledPath)
+	compileReport, err := t.compilerImpl.Compile(ctx, t.solutionPath, t.compiledPath)
 	if err != nil {
 		return false, err
 	}

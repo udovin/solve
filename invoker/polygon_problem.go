@@ -57,7 +57,8 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		}
 		sourcePath := filepath.Join(p.path, executable.Source.Path)
 		targetPath := strings.TrimSuffix(sourcePath, filepath.Ext(sourcePath))
-		report, err := compiler.Compile(sourcePath, targetPath)
+		testlibPath := filepath.Join(p.path, "files/testlib.h")
+		report, err := compiler.Compile(ctx, sourcePath, targetPath, testlibPath)
 		if err != nil {
 			return err
 		}

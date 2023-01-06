@@ -84,6 +84,9 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	if err := t.prepareProblem(ctx); err != nil {
 		return fmt.Errorf("cannot prepare problem: %w", err)
 	}
+	if err := t.problemImpl.Compile(ctx); err != nil {
+		return fmt.Errorf("cannot compile problem: %w", err)
+	}
 	groups, err := t.problemImpl.GetTestGroups()
 	if err != nil {
 		return fmt.Errorf("cannot get test groups: %w", err)

@@ -30,6 +30,7 @@ type Test struct {
 
 // TestSet represents a group of tests.
 type TestSet struct {
+	Name              string `xml:"name,attr"`
 	TimeLimit         int64  `xml:"time-limit"`
 	MemoryLimit       int64  `xml:"memory-limit"`
 	TestCount         int    `xml:"test-count"`

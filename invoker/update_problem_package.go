@@ -63,6 +63,7 @@ func (t *updateProblemPackageTask) prepareProblem(ctx TaskContext) error {
 	if t.file.ID == 0 {
 		return fmt.Errorf("problem does not have package")
 	}
+	t.problem.PackageID = models.NInt64(t.file.ID)
 	problem, err := t.invoker.problems.DownloadProblem(
 		ctx, t.problem, PolygonProblem,
 	)
@@ -267,7 +268,6 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 				)
 			}
 		}
-		t.problem.PackageID = models.NInt64(t.file.ID)
 		return t.invoker.core.Problems.Update(ctx, t.problem)
 	}, sqlRepeatableRead)
 }

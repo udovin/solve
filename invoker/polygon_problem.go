@@ -12,6 +12,7 @@ import (
 
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg"
+	"github.com/udovin/solve/pkg/logs"
 	"github.com/udovin/solve/pkg/polygon"
 )
 
@@ -36,13 +37,20 @@ func extractPolygonProblem(
 	}, nil
 }
 
+type compiled struct {
+	path     string
+	compiler Compiler
+}
+
 type polygonProblem struct {
-	path      string
-	config    polygon.Problem
-	compilers *compilerManager
+	path        string
+	config      polygon.Problem
+	compilers   *compilerManager
+	executables map[string]compiled
 }
 
 func (p *polygonProblem) Compile(ctx context.Context) error {
+	p.executables = map[string]compiled{}
 	for _, executable := range p.config.Files.Executables {
 		if executable.Source == nil {
 			continue
@@ -55,18 +63,124 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		sourcePath := filepath.Join(p.path, executable.Source.Path)
-		targetPath := strings.TrimSuffix(sourcePath, filepath.Ext(sourcePath))
+		source := executable.Source.Path
+		target := strings.TrimSuffix(source, filepath.Ext(source))
+		sourcePath := filepath.Join(p.path, source)
+		targetPath := filepath.Join(p.path, target)
 		testlibPath := filepath.Join(p.path, "files/testlib.h")
-		report, err := compiler.Compile(ctx, sourcePath, targetPath, testlibPath)
+		report, err := compiler.Compile(ctx, CompileOptions{
+			Source: sourcePath,
+			Target: targetPath,
+			InputFiles: []MountFile{
+				{Source: testlibPath, Target: "testlib.h"},
+			},
+		})
 		if err != nil {
 			return err
 		}
-		if !report.Success {
+		if !report.Success() {
 			return fmt.Errorf(
 				"cannot compile %q with compiler %q",
 				executable.Source.Path, name,
 			)
+		}
+		p.compilers.logger.Debug(
+			"Compiled executable",
+			logs.Any("path", source),
+		)
+		p.executables[target] = compiled{
+			path:     targetPath,
+			compiler: compiler,
+		}
+	}
+	var mainSolution polygon.Solution
+	for _, solution := range p.config.Assets.Solutions {
+		if solution.Tag == "main" {
+			mainSolution = solution
+		}
+	}
+	if mainSolution.Source == nil {
+		return fmt.Errorf("cannot find main solution")
+	}
+	var solution compiled
+	{
+		name, ok := polygonCompilers[mainSolution.Source.Type]
+		if !ok {
+			name = "polygon." + mainSolution.Source.Type
+		}
+		compiler, err := p.compilers.GetCompiler(ctx, name)
+		if err != nil {
+			return err
+		}
+		sourcePath := filepath.Join(p.path, mainSolution.Source.Path)
+		targetPath := strings.TrimSuffix(sourcePath, filepath.Ext(sourcePath))
+		report, err := compiler.Compile(
+			ctx, CompileOptions{
+				Source: sourcePath,
+				Target: targetPath,
+			})
+		if err != nil {
+			return err
+		}
+		if !report.Success() {
+			return fmt.Errorf(
+				"cannot compile %q with compiler %q",
+				mainSolution.Source.Path, name,
+			)
+		}
+		p.compilers.logger.Debug(
+			"Compiled solution",
+			logs.Any("path", mainSolution.Source.Path),
+		)
+		solution = compiled{
+			path:     targetPath,
+			compiler: compiler,
+		}
+	}
+	for _, testSet := range p.config.TestSets {
+		for i, test := range testSet.Tests {
+			input := fmt.Sprintf(testSet.InputPathPattern, i+1)
+			answer := fmt.Sprintf(testSet.AnswerPathPattern, i+1)
+			if test.Cmd != "" {
+				args := strings.Fields(test.Cmd)
+				if len(args) == 0 {
+					return fmt.Errorf("cannot find executable")
+				}
+				executable, ok := p.executables[fmt.Sprintf("files/%s", args[0])]
+				if !ok {
+					return fmt.Errorf("cannot find executable: %q", args[0])
+				}
+				report, err := executable.compiler.Execute(ctx, ExecuteOptions{
+					Binary: executable.path,
+					Args:   args[1:],
+					OutputFiles: []MountFile{
+						{Source: filepath.Join(p.path, input), Target: "stdout"},
+					},
+				})
+				if err != nil {
+					return fmt.Errorf("cannot execute generator %q: %w", args[0], err)
+				}
+				if !report.Success() {
+					return fmt.Errorf("generator exited with code: %v", report.ExitCode)
+				}
+			}
+			{
+				report, err := solution.compiler.Execute(ctx, ExecuteOptions{
+					Binary: solution.path,
+					InputFiles: []MountFile{
+						{Source: filepath.Join(p.path, input), Target: "stdin"},
+					},
+					OutputFiles: []MountFile{
+						{Source: filepath.Join(p.path, answer), Target: "stdout"},
+					},
+				})
+				if err != nil {
+					return fmt.Errorf("cannot execute solution: %w", err)
+				}
+				if !report.Success() {
+					return fmt.Errorf("solution exited with code: %v", report.ExitCode)
+				}
+			}
 		}
 	}
 	return nil
@@ -105,6 +219,10 @@ type polygonProblemTestGroup struct {
 	config  polygon.TestSet
 }
 
+func (g *polygonProblemTestGroup) Name() string {
+	return g.config.Name
+}
+
 func (g *polygonProblemTestGroup) TimeLimit() int64 {
 	return g.config.TimeLimit
 }
@@ -131,6 +249,14 @@ type polygonProblemTest struct {
 	inputPath  string
 	answerPath string
 	config     polygon.Test
+}
+
+func (t polygonProblemTest) OpenInput() (*os.File, error) {
+	return os.Open(t.inputPath)
+}
+
+func (t polygonProblemTest) OpenAnswer() (*os.File, error) {
+	return os.Open(t.answerPath)
 }
 
 type polygonProblemStatement struct {

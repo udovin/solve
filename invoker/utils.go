@@ -39,18 +39,18 @@ func copyFile(source, target string) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = r.Close()
-	}()
+	defer func() { _ = r.Close() }()
+	stat, err := r.Stat()
+	if err != nil {
+		return err
+	}
 	w, err := os.Create(target)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = w.Close()
-	}()
+	defer func() { _ = w.Close() }()
 	if _, err := io.Copy(w, r); err != nil {
 		return err
 	}
-	return nil
+	return os.Chmod(w.Name(), stat.Mode())
 }

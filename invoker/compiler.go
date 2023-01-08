@@ -17,15 +17,47 @@ import (
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg"
+	"github.com/udovin/solve/pkg/logs"
 )
 
+type MountFile struct {
+	Source string
+	Target string
+}
+
 type CompileReport struct {
-	Success bool
-	Log     string
+	ExitCode int
+	Log      string
+}
+
+func (r CompileReport) Success() bool {
+	return r.ExitCode == 0
+}
+
+type CompileOptions struct {
+	Source     string
+	Target     string
+	InputFiles []MountFile
+}
+
+type ExecuteReport struct {
+	ExitCode int
+}
+
+func (r ExecuteReport) Success() bool {
+	return r.ExitCode == 0
+}
+
+type ExecuteOptions struct {
+	Binary      string
+	Args        []string
+	InputFiles  []MountFile
+	OutputFiles []MountFile
 }
 
 type Compiler interface {
-	Compile(ctx context.Context, source, target string, additionalFiles ...string) (CompileReport, error)
+	Compile(ctx context.Context, options CompileOptions) (CompileReport, error)
+	Execute(ctx context.Context, options ExecuteOptions) (ExecuteReport, error)
 }
 
 type compiler struct {
@@ -35,7 +67,7 @@ type compiler struct {
 }
 
 func (c *compiler) Compile(
-	ctx context.Context, source, target string, additionalFiles ...string,
+	ctx context.Context, options CompileOptions,
 ) (CompileReport, error) {
 	stdout := strings.Builder{}
 	containerConfig := containerConfig{
@@ -57,18 +89,18 @@ func (c *compiler) Compile(
 			c.config.Compile.Workdir,
 			*c.config.Compile.Source,
 		)
-		if err := copyFileRec(source, path); err != nil {
-			return CompileReport{}, fmt.Errorf("unable to write solution: %w", err)
+		if err := copyFileRec(options.Source, path); err != nil {
+			return CompileReport{}, fmt.Errorf("unable to write source: %w", err)
 		}
 	}
-	for _, file := range additionalFiles {
+	for _, file := range options.InputFiles {
 		path := filepath.Join(
 			container.GetUpperDir(),
 			c.config.Compile.Workdir,
-			filepath.Base(file),
+			file.Target,
 		)
-		if err := copyFileRec(file, path); err != nil {
-			return CompileReport{}, fmt.Errorf("unable to write additional file: %w", err)
+		if err := copyFileRec(file.Source, path); err != nil {
+			return CompileReport{}, fmt.Errorf("unable to write file: %w", err)
 		}
 	}
 	defer func() { _ = container.Destroy() }()
@@ -82,15 +114,19 @@ func (c *compiler) Compile(
 			return CompileReport{}, fmt.Errorf("unable to wait compiler: %w", err)
 		} else {
 			return CompileReport{
-				Success: false,
-				Log:     stdout.String(),
+				ExitCode: err.ExitCode(),
+				Log:      stdout.String(),
 			}, nil
 		}
 	}
 	if !state.Exited() || state.ExitCode() != 0 {
+		code := state.ExitCode()
+		if code == 0 {
+			code = -1
+		}
 		return CompileReport{
-			Success: false,
-			Log:     stdout.String(),
+			ExitCode: code,
+			Log:      stdout.String(),
 		}, nil
 	}
 	if c.config.Compile.Binary != nil {
@@ -99,13 +135,126 @@ func (c *compiler) Compile(
 			c.config.Compile.Workdir,
 			*c.config.Compile.Binary,
 		)
-		if err := copyFileRec(containerBinaryPath, target); err != nil {
+		if err := copyFileRec(containerBinaryPath, options.Target); err != nil {
 			return CompileReport{}, fmt.Errorf("unable to copy binary: %w", err)
 		}
 	}
 	report := CompileReport{
-		Success: true,
-		Log:     stdout.String(),
+		ExitCode: 0,
+		Log:      stdout.String(),
+	}
+	return report, nil
+}
+
+const (
+	stdinFile  = "stdin"
+	stdoutFile = "stdout"
+)
+
+func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (ExecuteReport, error) {
+	var stdin io.Reader
+	for _, input := range options.InputFiles {
+		if input.Target != stdinFile {
+			continue
+		}
+		file, err := os.Open(input.Source)
+		if err != nil {
+			return ExecuteReport{}, fmt.Errorf("cannot open input file: %w", err)
+		}
+		defer func() { _ = file.Close() }()
+		stdin = file
+		break
+	}
+	var stdout io.Writer
+	for _, output := range options.OutputFiles {
+		if output.Target != stdoutFile {
+			continue
+		}
+		file, err := os.Create(output.Source)
+		if err != nil {
+			return ExecuteReport{}, fmt.Errorf("cannot create output file: %w", err)
+		}
+		defer func() { _ = file.Close() }()
+		stdout = file
+		break
+	}
+	executeArgs := append(strings.Fields(c.config.Execute.Command), options.Args...)
+	containerConfig := containerConfig{
+		Layers: []string{c.path},
+		Init: processConfig{
+			Args:   executeArgs,
+			Env:    c.config.Execute.Environ,
+			Dir:    c.config.Execute.Workdir,
+			Stdin:  stdin,
+			Stdout: stdout,
+		},
+	}
+	container, err := c.factory.Create(containerConfig)
+	if err != nil {
+		return ExecuteReport{}, fmt.Errorf("unable to create compiler: %w", err)
+	}
+	if c.config.Execute.Binary != nil {
+		path := filepath.Join(
+			container.GetUpperDir(),
+			c.config.Execute.Workdir,
+			*c.config.Execute.Binary,
+		)
+		if err := copyFileRec(options.Binary, path); err != nil {
+			return ExecuteReport{}, fmt.Errorf("unable to write source: %w", err)
+		}
+	}
+	for _, file := range options.InputFiles {
+		if file.Target == stdinFile {
+			continue
+		}
+		path := filepath.Join(
+			container.GetUpperDir(),
+			c.config.Execute.Workdir,
+			file.Target,
+		)
+		if err := copyFileRec(file.Source, path); err != nil {
+			return ExecuteReport{}, fmt.Errorf("unable to write file: %w", err)
+		}
+	}
+	defer func() { _ = container.Destroy() }()
+	process, err := container.Start()
+	if err != nil {
+		return ExecuteReport{}, fmt.Errorf("unable to start compiler: %w", err)
+	}
+	state, err := process.Wait()
+	if err != nil {
+		if err, ok := err.(*exec.ExitError); !ok {
+			return ExecuteReport{}, fmt.Errorf("unable to wait compiler: %w", err)
+		} else {
+			return ExecuteReport{
+				ExitCode: err.ExitCode(),
+			}, nil
+		}
+	}
+	if !state.Exited() || state.ExitCode() != 0 {
+		code := state.ExitCode()
+		if code == 0 {
+			code = -1
+		}
+		return ExecuteReport{
+			ExitCode: code,
+		}, nil
+	}
+	for _, output := range options.OutputFiles {
+		if output.Target == stdoutFile {
+			continue
+		}
+		containerPath := filepath.Join(
+			container.GetUpperDir(),
+			c.config.Execute.Workdir,
+			output.Target,
+		)
+		if err := copyFileRec(containerPath, output.Source); err != nil {
+			return ExecuteReport{}, fmt.Errorf("unable to copy binary: %w", err)
+		}
+	}
+	report := ExecuteReport{
+		ExitCode: 0,
 	}
 	return report, nil
 }
@@ -117,6 +266,7 @@ type compilerManager struct {
 	compilers *models.CompilerStore
 	settings  *models.SettingStore
 	images    map[int64]futures.Future[string]
+	logger    *logs.Logger
 	mutex     sync.Mutex
 }
 
@@ -136,6 +286,7 @@ func newCompilerManager(
 		compilers: core.Compilers,
 		settings:  core.Settings,
 		images:    map[int64]futures.Future[string]{},
+		logger:    core.Logger(),
 	}, nil
 }
 

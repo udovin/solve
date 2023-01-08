@@ -14,9 +14,12 @@ import (
 )
 
 type ProblemTest interface {
+	OpenInput() (*os.File, error)
+	OpenAnswer() (*os.File, error)
 }
 
 type ProblemTestGroup interface {
+	Name() string
 	TimeLimit() int64
 	MemoryLimit() int64
 	GetTests() ([]ProblemTest, error)

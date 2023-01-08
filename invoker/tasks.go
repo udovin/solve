@@ -41,7 +41,11 @@ type TaskContext interface {
 	Logger() *logs.Logger
 }
 
+var popTaskMutex sync.Mutex
+
 func popQueuedTask(ctx context.Context, store *models.TaskStore) (*taskGuard, error) {
+	popTaskMutex.Lock()
+	defer popTaskMutex.Unlock()
 	task, err := store.PopQueued(ctx, pingDuration, isSupportedTask)
 	if err != nil {
 		return nil, err

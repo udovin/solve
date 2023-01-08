@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -41,6 +42,16 @@ type problemConfig struct {
 
 const problemConfigVersion = "0.1"
 
+func writeZipDirectory(writer *zip.Writer, name string) error {
+	header := zip.FileHeader{
+		Name:   name + "/",
+		Method: zip.Deflate,
+	}
+	header.SetMode(fs.ModePerm)
+	_, err := writer.CreateHeader(&header)
+	return err
+}
+
 func buildCompiledProblem(problem Problem, target string) error {
 	file, err := os.Create(target)
 	if err != nil {
@@ -54,7 +65,7 @@ func buildCompiledProblem(problem Problem, target string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := writer.Create("executables/"); err != nil {
+	if err := writeZipDirectory(writer, "executables"); err != nil {
 		return err
 	}
 	for _, executable := range executables {
@@ -70,7 +81,12 @@ func buildCompiledProblem(problem Problem, target string) error {
 				return err
 			}
 			defer func() { _ = binaryFile.Close() }()
-			header, err := writer.Create(executableConfig.Binary)
+			binaryHeader := zip.FileHeader{
+				Name:   executableConfig.Binary,
+				Method: zip.Deflate,
+			}
+			binaryHeader.SetMode(fs.ModePerm)
+			header, err := writer.CreateHeader(&binaryHeader)
 			if err != nil {
 				return err
 			}
@@ -85,7 +101,7 @@ func buildCompiledProblem(problem Problem, target string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := writer.Create("groups/"); err != nil {
+	if err := writeZipDirectory(writer, "groups"); err != nil {
 		return err
 	}
 	for i, group := range groups {
@@ -103,7 +119,7 @@ func buildCompiledProblem(problem Problem, target string) error {
 			TimeLimit:   group.TimeLimit(),
 			MemoryLimit: group.MemoryLimit(),
 		}
-		if _, err := writer.Create(groupConfig.Dir + "/"); err != nil {
+		if err := writeZipDirectory(writer, groupConfig.Dir); err != nil {
 			return err
 		}
 		testNameFmt := "%d"
@@ -173,7 +189,7 @@ func extractCompiledProblem(
 	if err := func() error {
 		file, err := os.Open(filepath.Join(target, "problem.json"))
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot read problem config: %w", err)
 		}
 		defer func() { _ = file.Close() }()
 		return json.NewDecoder(file).Decode(&config)

@@ -91,7 +91,14 @@ func newProblemManager(
 func (m *problemManager) DownloadProblem(
 	ctx context.Context, p models.Problem, kind ProblemKind,
 ) (Problem, error) {
-	return m.downloadProblemAsync(ctx, int64(p.PackageID), kind).Get(ctx)
+	switch kind {
+	case PolygonProblem:
+		return m.downloadProblemAsync(ctx, int64(p.PackageID), kind).Get(ctx)
+	case CompiledProblem:
+		return m.downloadProblemAsync(ctx, int64(p.CompiledID), kind).Get(ctx)
+	default:
+		return nil, fmt.Errorf("unknown package kind: %v", kind)
+	}
 }
 
 func (m *problemManager) downloadProblemAsync(

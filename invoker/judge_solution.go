@@ -65,7 +65,7 @@ func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
 		return fmt.Errorf("problem does not have package")
 	}
 	problem, err := t.invoker.problems.DownloadProblem(
-		ctx, t.problem, PolygonProblem,
+		ctx, t.problem, CompiledProblem,
 	)
 	if err != nil {
 		return fmt.Errorf("cannot download problem: %w", err)

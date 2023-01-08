@@ -17,8 +17,7 @@ import (
 )
 
 func extractPolygonProblem(
-	source, target string,
-	compilers *compilerManager,
+	source, target string, compilers *compilerManager,
 ) (Problem, error) {
 	if err := pkg.ExtractZip(source, target); err != nil {
 		return nil, fmt.Errorf("cannot extract problem: %w", err)

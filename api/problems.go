@@ -427,7 +427,16 @@ func (v *View) updateProblem(c echo.Context) error {
 	)
 }
 
+type RebuildProblemForm struct {
+	Compile bool `json:"compile"`
+}
+
 func (v *View) rebuildProblem(c echo.Context) error {
+	var form RebuildProblemForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
 	problem, ok := c.Get(problemKey).(models.Problem)
 	if !ok {
 		return fmt.Errorf("problem not extracted")
@@ -448,7 +457,7 @@ func (v *View) rebuildProblem(c echo.Context) error {
 		if err := task.SetConfig(models.UpdateProblemPackageTaskConfig{
 			ProblemID: problem.ID,
 			FileID:    int64(problem.PackageID),
-			Compile:   problem.CompiledID == 0,
+			Compile:   problem.CompiledID == 0 || form.Compile,
 		}); err != nil {
 			return err
 		}

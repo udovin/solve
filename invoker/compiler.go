@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -56,14 +55,20 @@ type ExecuteOptions struct {
 }
 
 type Compiler interface {
+	Name() string
 	Compile(ctx context.Context, options CompileOptions) (CompileReport, error)
 	Execute(ctx context.Context, options ExecuteOptions) (ExecuteReport, error)
 }
 
 type compiler struct {
 	factory *factory
+	name    string
 	config  models.CompilerConfig
 	path    string
+}
+
+func (c *compiler) Name() string {
+	return c.name
 }
 
 func (c *compiler) Compile(
@@ -298,11 +303,7 @@ func (m *compilerManager) GetCompiler(ctx context.Context, name string) (Compile
 		}
 		return nil, err
 	}
-	id, err := strconv.ParseInt(setting.Value, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	compiler, err := m.compilers.Get(id)
+	compiler, err := m.compilers.GetByName(setting.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +319,12 @@ func (m *compilerManager) DownloadCompiler(ctx context.Context, c models.Compile
 	if err != nil {
 		return nil, err
 	}
-	return &compiler{factory: m.factory, path: imagePath, config: config}, nil
+	return &compiler{
+		factory: m.factory,
+		path:    imagePath,
+		name:    c.Name,
+		config:  config,
+	}, nil
 }
 
 func (m *compilerManager) downloadImageAsync(ctx context.Context, imageID int64) futures.Future[string] {

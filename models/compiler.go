@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"encoding/json"
 
 	"github.com/udovin/gosql"
@@ -74,15 +75,30 @@ func (e *CompilerEvent) SetObject(o Compiler) {
 // CompilerStore represents store for compilers.
 type CompilerStore struct {
 	baseStore[Compiler, CompilerEvent, *Compiler, *CompilerEvent]
+	byName *index[string, Compiler, *Compiler]
+}
+
+// GetByName returns compiler by name.
+func (s *CompilerStore) GetByName(name string) (Compiler, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	for id := range s.byName.Get(name) {
+		if object, ok := s.objects[id]; ok {
+			return object.Clone(), nil
+		}
+	}
+	return Compiler{}, sql.ErrNoRows
 }
 
 var _ baseStoreImpl[Compiler] = (*CompilerStore)(nil)
 
 // NewCompilerStore creates a new instance of CompilerStore.
 func NewCompilerStore(db *gosql.DB, table, eventTable string) *CompilerStore {
-	impl := &CompilerStore{}
+	impl := &CompilerStore{
+		byName: newIndex(func(o Compiler) string { return o.Name }),
+	}
 	impl.baseStore = makeBaseStore[Compiler, CompilerEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byName,
 	)
 	return impl
 }

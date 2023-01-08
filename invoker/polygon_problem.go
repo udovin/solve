@@ -55,11 +55,8 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		if executable.Source == nil {
 			continue
 		}
-		name, ok := polygonCompilers[executable.Source.Type]
-		if !ok {
-			name = "polygon." + executable.Source.Type
-		}
-		compiler, err := p.compilers.GetCompiler(ctx, name)
+		compilerName := "polygon." + executable.Source.Type
+		compiler, err := p.compilers.GetCompiler(ctx, compilerName)
 		if err != nil {
 			return err
 		}
@@ -81,7 +78,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		if !report.Success() {
 			return fmt.Errorf(
 				"cannot compile %q with compiler %q",
-				source, name,
+				source, compilerName,
 			)
 		}
 		p.compilers.logger.Debug(
@@ -95,11 +92,8 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 	}
 	if p.config.Assets != nil {
 		if checker := p.config.Assets.Checker; checker != nil {
-			name, ok := polygonCompilers[checker.Source.Type]
-			if !ok {
-				name = "polygon." + checker.Source.Type
-			}
-			compiler, err := p.compilers.GetCompiler(ctx, name)
+			polygonName := "polygon." + checker.Source.Type
+			compiler, err := p.compilers.GetCompiler(ctx, polygonName)
 			if err != nil {
 				return err
 			}
@@ -122,7 +116,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 				if !report.Success() {
 					return fmt.Errorf(
 						"cannot compile %q with compiler %q",
-						source, name,
+						source, compiler.Name(),
 					)
 				}
 				p.compilers.logger.Debug(
@@ -147,11 +141,8 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 	}
 	var solution compiled
 	{
-		name, ok := polygonCompilers[mainSolution.Source.Type]
-		if !ok {
-			name = "polygon." + mainSolution.Source.Type
-		}
-		compiler, err := p.compilers.GetCompiler(ctx, name)
+		polygonName := "polygon." + mainSolution.Source.Type
+		compiler, err := p.compilers.GetCompiler(ctx, polygonName)
 		if err != nil {
 			return err
 		}
@@ -168,7 +159,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		if !report.Success() {
 			return fmt.Errorf(
 				"cannot compile %q with compiler %q",
-				mainSolution.Source.Path, name,
+				mainSolution.Source.Path, compiler.Name(),
 			)
 		}
 		p.compilers.logger.Debug(
@@ -239,9 +230,10 @@ func (p *polygonProblem) GetExecutables() ([]ProblemExecutable, error) {
 	var executables []ProblemExecutable
 	if p.config.Assets != nil && p.config.Assets.Checker != nil {
 		checker := p.config.Assets.Checker
-		compilerName, ok := polygonCompilers[checker.Source.Type]
-		if !ok {
-			compilerName = "polygon." + checker.Source.Type
+		polygonName := "polygon." + checker.Source.Type
+		compiler, err := p.compilers.GetCompiler(context.TODO(), polygonName)
+		if err != nil {
+			return nil, err
 		}
 		source := checker.Source.Path
 		target := strings.TrimSuffix(source, filepath.Ext(source))
@@ -250,7 +242,7 @@ func (p *polygonProblem) GetExecutables() ([]ProblemExecutable, error) {
 			name:       "checker",
 			kind:       TestlibChecker,
 			binaryPath: targetPath,
-			compiler:   compilerName,
+			compiler:   compiler.Name(),
 		})
 	}
 	return executables, nil
@@ -443,11 +435,6 @@ func (p polygonProblemResource) GetMD5() (string, error) {
 
 func (p polygonProblemResource) Open() (*os.File, error) {
 	return os.Open(p.path)
-}
-
-var polygonCompilers = map[string]string{
-	"cpp.g++17": "cpp17-gcc",
-	"cpp.g++":   "cpp20-gcc",
 }
 
 var polygonLocales = map[string]string{

@@ -18,6 +18,19 @@ type ProblemTest interface {
 	OpenAnswer() (*os.File, error)
 }
 
+type ProblemExecutableKind string
+
+const (
+	TestlibChecker ProblemExecutableKind = "testlib_checker"
+)
+
+type ProblemExecutable interface {
+	Name() string
+	Kind() ProblemExecutableKind
+	Compiler() string
+	OpenBinary() (*os.File, error)
+}
+
 type ProblemTestGroup interface {
 	Name() string
 	TimeLimit() int64
@@ -39,6 +52,7 @@ type ProblemStatement interface {
 
 type Problem interface {
 	Compile(context.Context) error
+	GetExecutables() ([]ProblemExecutable, error)
 	GetTestGroups() ([]ProblemTestGroup, error)
 	GetStatements() ([]ProblemStatement, error)
 }

@@ -81,7 +81,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		if !report.Success() {
 			return fmt.Errorf(
 				"cannot compile %q with compiler %q",
-				executable.Source.Path, name,
+				source, name,
 			)
 		}
 		p.compilers.logger.Debug(
@@ -91,6 +91,49 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		p.executables[target] = compiled{
 			path:     targetPath,
 			compiler: compiler,
+		}
+	}
+	if p.config.Assets != nil {
+		if checker := p.config.Assets.Checker; checker != nil {
+			name, ok := polygonCompilers[checker.Source.Type]
+			if !ok {
+				name = "polygon." + checker.Source.Type
+			}
+			compiler, err := p.compilers.GetCompiler(ctx, name)
+			if err != nil {
+				return err
+			}
+			source := checker.Source.Path
+			target := strings.TrimSuffix(source, filepath.Ext(source))
+			if _, ok := p.executables[target]; !ok {
+				sourcePath := filepath.Join(p.path, source)
+				targetPath := filepath.Join(p.path, target)
+				testlibPath := filepath.Join(p.path, "files/testlib.h")
+				report, err := compiler.Compile(ctx, CompileOptions{
+					Source: sourcePath,
+					Target: targetPath,
+					InputFiles: []MountFile{
+						{Source: testlibPath, Target: "testlib.h"},
+					},
+				})
+				if err != nil {
+					return err
+				}
+				if !report.Success() {
+					return fmt.Errorf(
+						"cannot compile %q with compiler %q",
+						source, name,
+					)
+				}
+				p.compilers.logger.Debug(
+					"Compiled executable",
+					logs.Any("path", source),
+				)
+				p.executables[target] = compiled{
+					path:     targetPath,
+					compiler: compiler,
+				}
+			}
 		}
 	}
 	var mainSolution polygon.Solution
@@ -181,9 +224,59 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					return fmt.Errorf("solution exited with code: %v", report.ExitCode)
 				}
 			}
+
+			p.compilers.logger.Debug(
+				"Generated test",
+				logs.Any("input", input),
+				logs.Any("answer", answer),
+			)
 		}
 	}
 	return nil
+}
+
+func (p *polygonProblem) GetExecutables() ([]ProblemExecutable, error) {
+	var executables []ProblemExecutable
+	if p.config.Assets != nil && p.config.Assets.Checker != nil {
+		checker := p.config.Assets.Checker
+		compilerName, ok := polygonCompilers[checker.Source.Type]
+		if !ok {
+			compilerName = "polygon." + checker.Source.Type
+		}
+		source := checker.Source.Path
+		target := strings.TrimSuffix(source, filepath.Ext(source))
+		targetPath := filepath.Join(p.path, target)
+		executables = append(executables, problemExecutable{
+			name:       "checker",
+			kind:       TestlibChecker,
+			binaryPath: targetPath,
+			compiler:   compilerName,
+		})
+	}
+	return executables, nil
+}
+
+type problemExecutable struct {
+	name       string
+	kind       ProblemExecutableKind
+	binaryPath string
+	compiler   string
+}
+
+func (e problemExecutable) Name() string {
+	return e.name
+}
+
+func (e problemExecutable) Kind() ProblemExecutableKind {
+	return e.kind
+}
+
+func (e problemExecutable) Compiler() string {
+	return e.compiler
+}
+
+func (e problemExecutable) OpenBinary() (*os.File, error) {
+	return os.Open(e.binaryPath)
 }
 
 func (p *polygonProblem) GetTestGroups() ([]ProblemTestGroup, error) {
@@ -233,11 +326,10 @@ func (g *polygonProblemTestGroup) MemoryLimit() int64 {
 
 func (g *polygonProblemTestGroup) GetTests() ([]ProblemTest, error) {
 	var tests []ProblemTest
-	for i, config := range g.config.Tests {
+	for i := range g.config.Tests {
 		input := fmt.Sprintf(g.config.InputPathPattern, i+1)
 		answer := fmt.Sprintf(g.config.AnswerPathPattern, i+1)
-		tests = append(tests, polygonProblemTest{
-			config:     config,
+		tests = append(tests, problemTest{
 			inputPath:  filepath.Join(g.problem.path, input),
 			answerPath: filepath.Join(g.problem.path, answer),
 		})
@@ -245,17 +337,16 @@ func (g *polygonProblemTestGroup) GetTests() ([]ProblemTest, error) {
 	return tests, nil
 }
 
-type polygonProblemTest struct {
+type problemTest struct {
 	inputPath  string
 	answerPath string
-	config     polygon.Test
 }
 
-func (t polygonProblemTest) OpenInput() (*os.File, error) {
+func (t problemTest) OpenInput() (*os.File, error) {
 	return os.Open(t.inputPath)
 }
 
-func (t polygonProblemTest) OpenAnswer() (*os.File, error) {
+func (t problemTest) OpenAnswer() (*os.File, error) {
 	return os.Open(t.answerPath)
 }
 

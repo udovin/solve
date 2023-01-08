@@ -19,15 +19,27 @@ type problemTestConfig struct {
 }
 
 type problemTestGroupConfig struct {
+	Name        string              `json:"name"`
 	Dir         string              `json:"dir"`
 	Tests       []problemTestConfig `json:"tests"`
 	TimeLimit   int64               `json:"time_limit,omitempty"`
 	MemoryLimit int64               `json:"memory_limit,omitempty"`
 }
 
-type problemConfig struct {
-	Groups []problemTestGroupConfig `json:"groups"`
+type problemExecutableConfig struct {
+	Name     string `json:"name"`
+	Kind     string `json:"kind"`
+	Binary   string `json:"binary"`
+	Compiler string `json:"compiler"`
 }
+
+type problemConfig struct {
+	Version     string                    `json:"version"`
+	Executables []problemExecutableConfig `json:"executables"`
+	TestGroups  []problemTestGroupConfig  `json:"test_groups"`
+}
+
+const problemConfigVersion = "0.1"
 
 func buildCompiledProblem(problem Problem, target string) error {
 	file, err := os.Create(target)
@@ -37,6 +49,38 @@ func buildCompiledProblem(problem Problem, target string) error {
 	defer func() { _ = file.Close() }()
 	writer := zip.NewWriter(file)
 	defer func() { _ = writer.Close() }()
+	config := problemConfig{Version: problemConfigVersion}
+	executables, err := problem.GetExecutables()
+	if err != nil {
+		return err
+	}
+	if _, err := writer.Create("executables/"); err != nil {
+		return err
+	}
+	for _, executable := range executables {
+		executableConfig := problemExecutableConfig{
+			Name:     executable.Name(),
+			Kind:     string(executable.Kind()),
+			Binary:   path.Join("executables", path.Base(executable.Name())),
+			Compiler: executable.Compiler(),
+		}
+		if err := func() error {
+			binaryFile, err := executable.OpenBinary()
+			if err != nil {
+				return err
+			}
+			defer func() { _ = binaryFile.Close() }()
+			header, err := writer.Create(executableConfig.Binary)
+			if err != nil {
+				return err
+			}
+			_, err = io.Copy(header, binaryFile)
+			return err
+		}(); err != nil {
+			return err
+		}
+		config.Executables = append(config.Executables, executableConfig)
+	}
 	groups, err := problem.GetTestGroups()
 	if err != nil {
 		return err
@@ -44,7 +88,6 @@ func buildCompiledProblem(problem Problem, target string) error {
 	if _, err := writer.Create("groups/"); err != nil {
 		return err
 	}
-	config := problemConfig{}
 	for i, group := range groups {
 		tests, err := group.GetTests()
 		if err != nil {
@@ -52,9 +95,10 @@ func buildCompiledProblem(problem Problem, target string) error {
 		}
 		name := group.Name()
 		if name == "" {
-			name = fmt.Sprintf("group-%d", i+1)
+			name = fmt.Sprintf("group%d", i+1)
 		}
 		groupConfig := problemTestGroupConfig{
+			Name:        name,
 			Dir:         path.Join("groups", name),
 			TimeLimit:   group.TimeLimit(),
 			MemoryLimit: group.MemoryLimit(),
@@ -110,7 +154,7 @@ func buildCompiledProblem(problem Problem, target string) error {
 			}
 			groupConfig.Tests = append(groupConfig.Tests, testConfig)
 		}
-		config.Groups = append(config.Groups, groupConfig)
+		config.TestGroups = append(config.TestGroups, groupConfig)
 	}
 	header, err := writer.Create("problem.json")
 	if err != nil {
@@ -155,12 +199,60 @@ func (p *compiledProblem) Compile(ctx context.Context) error {
 	return nil
 }
 
+func (p *compiledProblem) GetExecutables() ([]ProblemExecutable, error) {
+	var executables []ProblemExecutable
+	for _, executable := range p.config.Executables {
+		executables = append(executables, problemExecutable{
+			name:       executable.Name,
+			kind:       ProblemExecutableKind(executable.Kind),
+			binaryPath: executable.Binary,
+			compiler:   executable.Compiler,
+		})
+	}
+	return executables, nil
+}
+
 func (p *compiledProblem) GetTestGroups() ([]ProblemTestGroup, error) {
-	return nil, nil
+	var groups []ProblemTestGroup
+	for _, group := range p.config.TestGroups {
+		groups = append(groups, &compiledProblemTestGroup{
+			path:   filepath.Join(p.path, group.Dir),
+			config: group,
+		})
+	}
+	return groups, nil
 }
 
 func (p *compiledProblem) GetStatements() ([]ProblemStatement, error) {
 	return nil, nil
+}
+
+type compiledProblemTestGroup struct {
+	path   string
+	config problemTestGroupConfig
+}
+
+func (g *compiledProblemTestGroup) Name() string {
+	return g.config.Name
+}
+
+func (g *compiledProblemTestGroup) TimeLimit() int64 {
+	return g.config.TimeLimit
+}
+
+func (g *compiledProblemTestGroup) MemoryLimit() int64 {
+	return g.config.MemoryLimit
+}
+
+func (g *compiledProblemTestGroup) GetTests() ([]ProblemTest, error) {
+	var tests []ProblemTest
+	for _, test := range g.config.Tests {
+		tests = append(tests, problemTest{
+			inputPath:  filepath.Join(g.path, test.Input),
+			answerPath: filepath.Join(g.path, test.Answer),
+		})
+	}
+	return tests, nil
 }
 
 var _ Problem = (*compiledProblem)(nil)

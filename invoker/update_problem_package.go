@@ -3,6 +3,8 @@ package invoker
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
@@ -19,6 +21,7 @@ type updateProblemPackageTask struct {
 	problem     models.Problem
 	file        models.File
 	resources   []models.ProblemResource
+	tempDir     string
 	problemImpl Problem
 }
 
@@ -53,9 +56,15 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("unable to fetch resources: %w", err)
 	}
+	tempDir, err := makeTempDir()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
 	t.problem = problem
 	t.file = file
 	t.resources = resources
+	t.tempDir = tempDir
 	return t.executeImpl(ctx)
 }
 
@@ -85,8 +94,14 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	if err := t.prepareProblem(ctx); err != nil {
 		return fmt.Errorf("cannot prepare problem: %w", err)
 	}
-	if err := t.problemImpl.Compile(ctx); err != nil {
-		return fmt.Errorf("cannot compile problem: %w", err)
+	problemPath := filepath.Join(t.tempDir, "problem.zip")
+	if t.config.Compile {
+		if err := t.problemImpl.Compile(ctx); err != nil {
+			return fmt.Errorf("cannot compile problem: %w", err)
+		}
+		if err := buildCompiledProblem(t.problemImpl, problemPath); err != nil {
+			return fmt.Errorf("cannot build compiled problem: %w", err)
+		}
 	}
 	groups, err := t.problemImpl.GetTestGroups()
 	if err != nil {
@@ -223,6 +238,23 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 		}
 	}
 	var files []models.File
+	if t.config.Compile {
+		if file, err := os.Open(problemPath); err != nil {
+			return fmt.Errorf("cannot open problem compiled package: %w", err)
+		} else {
+			defer func() { _ = file.Close() }()
+			fileReader := &managers.FileReader{
+				Reader: file,
+				Name:   "problem.zip",
+			}
+			file, err := t.invoker.files.UploadFile(ctx, fileReader)
+			if err != nil {
+				return err
+			}
+			files = append(files, file)
+			t.problem.CompiledID = models.NInt64(file.ID)
+		}
+	}
 	for key, fileReader := range fileReaders {
 		event, ok := events[key]
 		if !ok {

@@ -35,8 +35,8 @@ type problemExecutableConfig struct {
 
 type problemConfig struct {
 	Version     string                    `json:"version"`
-	Executables []problemExecutableConfig `json:"executables"`
-	TestGroups  []problemTestGroupConfig  `json:"test_groups"`
+	Executables []problemExecutableConfig `json:"executables,omitempty"`
+	TestGroups  []problemTestGroupConfig  `json:"test_groups,omitempty"`
 }
 
 const problemConfigVersion = "0.1"

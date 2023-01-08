@@ -447,6 +447,7 @@ func (p polygonProblemResource) Open() (*os.File, error) {
 
 var polygonCompilers = map[string]string{
 	"cpp.g++17": "cpp17-gcc",
+	"cpp.g++":   "cpp20-gcc",
 }
 
 var polygonLocales = map[string]string{

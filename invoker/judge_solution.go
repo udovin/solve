@@ -247,43 +247,44 @@ func (t *judgeSolutionTask) testSolution(
 			}
 			if !executeReport.Success() {
 				testReport.Verdict = models.RuntimeError
-			}
-			checkerLogPath := filepath.Join(t.tempDir, "checker.log")
-			checkerReport, err := checkerCompiler.Execute(ctx, ExecuteOptions{
-				Binary: checkerPath,
-				Args:   []string{"input.in", "output.out", "answer.ans"},
-				InputFiles: []MountFile{
-					{Source: inputPath, Target: "input.in"},
-					{Source: outputPath, Target: "output.out"},
-					{Source: answerPath, Target: "answer.ans"},
-				},
-				OutputFiles: []MountFile{
-					{Source: checkerLogPath, Target: "stderr"},
-				},
-			})
-			if err != nil {
-				return err
-			}
-			switch checkerReport.ExitCode {
-			case 0:
-				testReport.Verdict = models.Accepted
-			case 1:
-				testReport.Verdict = models.WrongAnswer
-			case 2, 4, 8:
-				testReport.Verdict = models.PresentationError
-			case 5:
-				testReport.Verdict = models.PartiallyAccepted
-			default:
-				if checkerReport.ExitCode < 16 {
-					return fmt.Errorf("checker exited with code: %d", checkerReport.ExitCode)
+			} else {
+				checkerLogPath := filepath.Join(t.tempDir, "checker.log")
+				checkerReport, err := checkerCompiler.Execute(ctx, ExecuteOptions{
+					Binary: checkerPath,
+					Args:   []string{"input.in", "output.out", "answer.ans"},
+					InputFiles: []MountFile{
+						{Source: inputPath, Target: "input.in"},
+						{Source: outputPath, Target: "output.out"},
+						{Source: answerPath, Target: "answer.ans"},
+					},
+					OutputFiles: []MountFile{
+						{Source: checkerLogPath, Target: "stderr"},
+					},
+				})
+				if err != nil {
+					return err
 				}
-				testReport.Verdict = models.PartiallyAccepted
+				switch checkerReport.ExitCode {
+				case 0:
+					testReport.Verdict = models.Accepted
+				case 1:
+					testReport.Verdict = models.WrongAnswer
+				case 2, 4, 8:
+					testReport.Verdict = models.PresentationError
+				case 5:
+					testReport.Verdict = models.PartiallyAccepted
+				default:
+					if checkerReport.ExitCode < 16 {
+						return fmt.Errorf("checker exited with code: %d", checkerReport.ExitCode)
+					}
+					testReport.Verdict = models.PartiallyAccepted
+				}
+				checkerLog, err := readFile(checkerLogPath, 256)
+				if err != nil {
+					return err
+				}
+				testReport.Check.Log = checkerLog
 			}
-			checkerLog, err := readFile(checkerLogPath, 256)
-			if err != nil {
-				return err
-			}
-			testReport.Check.Log = checkerLog
 			report.Tests = append(report.Tests, testReport)
 			if testReport.Verdict != models.Accepted {
 				report.Verdict = testReport.Verdict

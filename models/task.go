@@ -82,6 +82,10 @@ func (c JudgeSolutionTaskConfig) TaskKind() TaskKind {
 	return JudgeSolutionTask
 }
 
+type JudgeSolutionTaskState struct {
+	Stage string `json:"stage,omitempty"`
+}
+
 // UpdateProblemPackageTaskConfig represets config for JudgeSolution.
 type UpdateProblemPackageTaskConfig struct {
 	ProblemID int64 `json:"problem_id"`
@@ -130,7 +134,7 @@ func (o *Task) SetConfig(config TaskConfig) error {
 }
 
 func (o Task) ScanState(state any) error {
-	return json.Unmarshal(o.Config, state)
+	return json.Unmarshal(o.State, state)
 }
 
 func (o *Task) SetState(state any) error {
@@ -138,7 +142,7 @@ func (o *Task) SetState(state any) error {
 	if err != nil {
 		return err
 	}
-	o.Config = raw
+	o.State = raw
 	return nil
 }
 

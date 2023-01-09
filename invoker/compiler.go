@@ -74,14 +74,14 @@ func (c *compiler) Name() string {
 func (c *compiler) Compile(
 	ctx context.Context, options CompileOptions,
 ) (CompileReport, error) {
-	stdout := strings.Builder{}
+	stderr := strings.Builder{}
 	containerConfig := containerConfig{
 		Layers: []string{c.path},
 		Init: processConfig{
 			Args:   strings.Fields(c.config.Compile.Command),
 			Env:    c.config.Compile.Environ,
 			Dir:    c.config.Compile.Workdir,
-			Stdout: &stdout,
+			Stderr: &stderr,
 		},
 	}
 	container, err := c.factory.Create(containerConfig)
@@ -120,7 +120,7 @@ func (c *compiler) Compile(
 		} else {
 			return CompileReport{
 				ExitCode: err.ExitCode(),
-				Log:      stdout.String(),
+				Log:      stderr.String(),
 			}, nil
 		}
 	}
@@ -131,7 +131,7 @@ func (c *compiler) Compile(
 		}
 		return CompileReport{
 			ExitCode: code,
-			Log:      stdout.String(),
+			Log:      stderr.String(),
 		}, nil
 	}
 	if c.config.Compile.Binary != nil {
@@ -146,7 +146,7 @@ func (c *compiler) Compile(
 	}
 	report := CompileReport{
 		ExitCode: 0,
-		Log:      stdout.String(),
+		Log:      stderr.String(),
 	}
 	return report, nil
 }

@@ -66,14 +66,14 @@ func (v *View) tryFindSolutionTask(id int64) (models.Task, error) {
 }
 
 func (v *View) findSolutionTask(c echo.Context, id int64) (models.Task, error) {
-	tasks, err := v.tryFindSolutionTask(id)
+	task, err := v.tryFindSolutionTask(id)
 	if err == sql.ErrNoRows {
 		if err := v.core.Tasks.Sync(getContext(c)); err != nil {
 			return models.Task{}, err
 		}
 		return v.tryFindSolutionTask(id)
 	}
-	return tasks, err
+	return task, err
 }
 
 func (v *View) makeSolutionContent(c echo.Context, solution models.Solution) string {

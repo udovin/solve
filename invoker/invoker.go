@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -154,7 +155,7 @@ func readFile(name string, limit int) (string, error) {
 	}
 	bytes := make([]byte, limit+1)
 	read, err := file.Read(bytes)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return "", err
 	}
 	if read > limit {

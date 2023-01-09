@@ -115,6 +115,12 @@ func (t *judgeSolutionTask) prepareSolution(ctx TaskContext) error {
 func (t *judgeSolutionTask) compileSolution(
 	ctx TaskContext, report *models.SolutionReport,
 ) (bool, error) {
+	state := models.JudgeSolutionTaskState{
+		Stage: "compiling",
+	}
+	if err := ctx.SetState(ctx, state); err != nil {
+		return false, err
+	}
 	compileReport, err := t.compilerImpl.Compile(ctx, CompileOptions{
 		Source: t.solutionPath,
 		Target: t.compiledPath,
@@ -126,6 +132,97 @@ func (t *judgeSolutionTask) compileSolution(
 		Log: compileReport.Log,
 	}
 	return compileReport.Success(), nil
+}
+
+func (t *judgeSolutionTask) testSolution(
+	ctx TaskContext, report *models.SolutionReport,
+) error {
+	state := models.JudgeSolutionTaskState{
+		Stage: "testing",
+	}
+	if err := ctx.SetState(ctx, state); err != nil {
+		return err
+	}
+	groups, err := t.problemImpl.GetTestGroups()
+	if err != nil {
+		return err
+	}
+	for _, group := range groups {
+		tests, err := group.GetTests()
+		if err != nil {
+			return err
+		}
+		for _, test := range tests {
+			inputPath := filepath.Join(t.tempDir, "test.in")
+			outputPath := filepath.Join(t.tempDir, "test.out")
+			answerPath := filepath.Join(t.tempDir, "test.ans")
+			if err := func() error {
+				testFile, err := test.OpenInput()
+				if err != nil {
+					return err
+				}
+				file, err := os.Create(inputPath)
+				if err != nil {
+					return err
+				}
+				defer func() { _ = file.Close() }()
+				_, err = io.Copy(file, testFile)
+				return err
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				testFile, err := test.OpenAnswer()
+				if err != nil {
+					return err
+				}
+				file, err := os.Create(answerPath)
+				if err != nil {
+					return err
+				}
+				defer func() { _ = file.Close() }()
+				_, err = io.Copy(file, testFile)
+				return err
+			}(); err != nil {
+				return err
+			}
+			executeReport, err := t.compilerImpl.Execute(ctx, ExecuteOptions{
+				Binary: t.compiledPath,
+				InputFiles: []MountFile{
+					{Source: inputPath, Target: "stdin"},
+				},
+				OutputFiles: []MountFile{
+					{Source: outputPath, Target: "stdout"},
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("cannot execute solution: %w", err)
+			}
+			input, err := readFile(inputPath, 128)
+			if err != nil {
+				return err
+			}
+			output, err := readFile(outputPath, 128)
+			if err != nil {
+				return err
+			}
+			testReport := models.TestReport{
+				Verdict: models.Accepted,
+				Input:   input,
+				Output:  output,
+			}
+			if !executeReport.Success() {
+				testReport.Verdict = models.RuntimeError
+			}
+			report.Tests = append(report.Tests, testReport)
+			if testReport.Verdict != models.Accepted {
+				report.Verdict = testReport.Verdict
+				return nil
+			}
+		}
+	}
+	report.Verdict = models.Accepted
+	return nil
 }
 
 func (t *judgeSolutionTask) executeImpl(ctx TaskContext) error {
@@ -145,6 +242,10 @@ func (t *judgeSolutionTask) executeImpl(ctx TaskContext) error {
 		return fmt.Errorf("cannot compile solution: %w", err)
 	} else if !ok {
 		report.Verdict = models.CompilationError
+	} else {
+		if err := t.testSolution(ctx, &report); err != nil {
+			return fmt.Errorf("cannot judge solution: %w", err)
+		}
 	}
 	if err := t.solution.SetReport(&report); err != nil {
 		return err

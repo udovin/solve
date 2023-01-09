@@ -154,6 +154,7 @@ func (c *compiler) Compile(
 const (
 	stdinFile  = "stdin"
 	stdoutFile = "stdout"
+	stderrFile = "stderr"
 )
 
 func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (ExecuteReport, error) {
@@ -171,8 +172,9 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 		break
 	}
 	var stdout io.Writer
+	var stderr io.Writer
 	for _, output := range options.OutputFiles {
-		if output.Target != stdoutFile {
+		if output.Target != stdoutFile && output.Target != stderrFile {
 			continue
 		}
 		file, err := os.Create(output.Source)
@@ -180,7 +182,11 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 			return ExecuteReport{}, fmt.Errorf("cannot create output file: %w", err)
 		}
 		defer func() { _ = file.Close() }()
-		stdout = file
+		if output.Target == stdoutFile {
+			stdout = file
+		} else {
+			stderr = file
+		}
 		break
 	}
 	executeArgs := append(strings.Fields(c.config.Execute.Command), options.Args...)
@@ -192,6 +198,7 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 			Dir:    c.config.Execute.Workdir,
 			Stdin:  stdin,
 			Stdout: stdout,
+			Stderr: stderr,
 		},
 	}
 	container, err := c.factory.Create(containerConfig)
@@ -246,7 +253,7 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 		}, nil
 	}
 	for _, output := range options.OutputFiles {
-		if output.Target == stdoutFile {
+		if output.Target == stdoutFile || output.Target == stderrFile {
 			continue
 		}
 		containerPath := filepath.Join(
@@ -295,15 +302,19 @@ func newCompilerManager(
 	}, nil
 }
 
-func (m *compilerManager) GetCompiler(ctx context.Context, name string) (Compiler, error) {
+func (m *compilerManager) GetCompilerName(name string) (string, error) {
 	setting, err := m.settings.GetByKey("invoker.compilers." + name)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("cannot get compiler %q", name)
+			return "", fmt.Errorf("cannot get compiler %q", name)
 		}
-		return nil, err
+		return "", err
 	}
-	compiler, err := m.compilers.GetByName(setting.Value)
+	return setting.Value, nil
+}
+
+func (m *compilerManager) GetCompiler(ctx context.Context, name string) (Compiler, error) {
+	compiler, err := m.compilers.GetByName(name)
 	if err != nil {
 		return nil, err
 	}

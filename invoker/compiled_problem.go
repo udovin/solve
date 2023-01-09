@@ -221,7 +221,7 @@ func (p *compiledProblem) GetExecutables() ([]ProblemExecutable, error) {
 		executables = append(executables, problemExecutable{
 			name:       executable.Name,
 			kind:       ProblemExecutableKind(executable.Kind),
-			binaryPath: executable.Binary,
+			binaryPath: filepath.Join(p.path, executable.Binary),
 			compiler:   executable.Compiler,
 		})
 	}

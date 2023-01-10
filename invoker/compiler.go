@@ -17,6 +17,7 @@ import (
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg"
 	"github.com/udovin/solve/pkg/logs"
+	"golang.org/x/sys/unix"
 )
 
 type MountFile struct {
@@ -25,8 +26,9 @@ type MountFile struct {
 }
 
 type CompileReport struct {
-	ExitCode int
-	Log      string
+	ExitCode   int
+	Log        string
+	UsedMemory int64
 }
 
 func (r CompileReport) Success() bool {
@@ -41,7 +43,8 @@ type CompileOptions struct {
 }
 
 type ExecuteReport struct {
-	ExitCode int
+	ExitCode   int
+	UsedMemory int64
 }
 
 func (r ExecuteReport) Success() bool {
@@ -150,6 +153,10 @@ func (c *compiler) Compile(
 	report := CompileReport{
 		ExitCode: 0,
 		Log:      stderr.String(),
+	}
+	usage, ok := state.SysUsage().(*unix.Rusage)
+	if ok && usage != nil {
+		report.UsedMemory = usage.Maxrss
 	}
 	return report, nil
 }
@@ -271,6 +278,10 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 	}
 	report := ExecuteReport{
 		ExitCode: 0,
+	}
+	usage, ok := state.SysUsage().(*unix.Rusage)
+	if ok && usage != nil {
+		report.UsedMemory = usage.Maxrss
 	}
 	return report, nil
 }

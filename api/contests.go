@@ -783,14 +783,18 @@ func (v *View) observeContestSolution(c echo.Context) error {
 }
 
 type TestReport struct {
-	Verdict  models.Verdict `json:"verdict"`
-	CheckLog string         `json:"check_log,omitempty"`
-	Input    string         `json:"input,omitempty"`
-	Output   string         `json:"output,omitempty"`
+	Verdict    models.Verdict `json:"verdict"`
+	UsedTime   int64          `json:"used_time,omitempty"`
+	UsedMemory int64          `json:"used_memory,omitempty"`
+	CheckLog   string         `json:"check_log,omitempty"`
+	Input      string         `json:"input,omitempty"`
+	Output     string         `json:"output,omitempty"`
 }
 
 type SolutionReport struct {
 	Verdict    string       `json:"verdict"`
+	UsedTime   int64        `json:"used_time,omitempty"`
+	UsedMemory int64        `json:"used_memory,omitempty"`
 	Tests      []TestReport `json:"tests,omitempty"`
 	CompileLog string       `json:"compile_log,omitempty"`
 }

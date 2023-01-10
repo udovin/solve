@@ -115,14 +115,18 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 		}
 	}
 	resp := SolutionReport{
-		Verdict: report.Verdict.String(),
+		Verdict:    report.Verdict.String(),
+		UsedTime:   report.Usage.Time,
+		UsedMemory: report.Usage.Memory,
 	}
 	if withLogs {
 		resp.CompileLog = report.Compile.Log
 		for _, test := range report.Tests {
 			resp.Tests = append(resp.Tests, TestReport{
-				Verdict:  test.Verdict,
-				CheckLog: test.Check.Log,
+				Verdict:    test.Verdict,
+				CheckLog:   test.Check.Log,
+				UsedTime:   test.Usage.Time,
+				UsedMemory: test.Usage.Memory,
 			})
 		}
 	}

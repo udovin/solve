@@ -131,6 +131,9 @@ func (t *judgeSolutionTask) compileSolution(
 	}
 	report.Compile = models.CompileReport{
 		Log: compileReport.Log,
+		Usage: models.UsageReport{
+			Memory: compileReport.UsedMemory,
+		},
 	}
 	return compileReport.Success(), nil
 }
@@ -246,6 +249,9 @@ func (t *judgeSolutionTask) testSolution(
 				Verdict: models.Rejected,
 				Input:   input,
 				Output:  output,
+				Usage: models.UsageReport{
+					Memory: executeReport.UsedMemory,
+				},
 			}
 			if !executeReport.Success() {
 				testReport.Verdict = models.RuntimeError
@@ -286,9 +292,20 @@ func (t *judgeSolutionTask) testSolution(
 				if err != nil {
 					return err
 				}
-				testReport.Check.Log = checkerLog
+				testReport.Check = models.CheckReport{
+					Log: checkerLog,
+					Usage: models.UsageReport{
+						Memory: checkerReport.UsedMemory,
+					},
+				}
 			}
 			report.Tests = append(report.Tests, testReport)
+			if report.Usage.Time < testReport.Usage.Time {
+				report.Usage.Time = testReport.Usage.Time
+			}
+			if report.Usage.Memory < testReport.Usage.Memory {
+				report.Usage.Memory = testReport.Usage.Memory
+			}
 			if testReport.Verdict != models.Accepted {
 				report.Verdict = testReport.Verdict
 				return nil

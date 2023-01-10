@@ -227,7 +227,6 @@ func (f *factory) Create(config containerConfig) (*container, error) {
 			Name:   id,
 			Parent: "system",
 			Resources: &configs.Resources{
-				MemorySwappiness:  nil,
 				Devices:           configDevices(),
 				Memory:            config.MemoryLimit,
 				MemorySwap:        config.MemoryLimit,
@@ -272,7 +271,16 @@ func (f *factory) Create(config containerConfig) (*container, error) {
 			{Type: "loopback", Address: "127.0.0.1/0", Gateway: "localhost"},
 		},
 		Rlimits: []configs.Rlimit{
-			{Type: unix.RLIMIT_NOFILE, Hard: 1024, Soft: 1024},
+			{
+				Type: unix.RLIMIT_NOFILE,
+				Hard: 1024,
+				Soft: 1024,
+			},
+			// {
+			// 	Type: unix.RLIMIT_AS,
+			// 	Hard: uint64(config.MemoryLimit),
+			// 	Soft: uint64(config.MemoryLimit),
+			// },
 		},
 	}
 	c, err := f.factory.Create(id, &containerConfig)

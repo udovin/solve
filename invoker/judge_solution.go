@@ -122,8 +122,9 @@ func (t *judgeSolutionTask) compileSolution(
 		return false, err
 	}
 	compileReport, err := t.compilerImpl.Compile(ctx, CompileOptions{
-		Source: t.solutionPath,
-		Target: t.compiledPath,
+		Source:      t.solutionPath,
+		Target:      t.compiledPath,
+		MemoryLimit: 256 * 1024 * 1024,
 	})
 	if err != nil {
 		return false, err
@@ -228,6 +229,7 @@ func (t *judgeSolutionTask) testSolution(
 				OutputFiles: []MountFile{
 					{Source: outputPath, Target: "stdout"},
 				},
+				MemoryLimit: group.MemoryLimit(),
 			})
 			if err != nil {
 				return fmt.Errorf("cannot execute solution: %w", err)
@@ -260,6 +262,7 @@ func (t *judgeSolutionTask) testSolution(
 					OutputFiles: []MountFile{
 						{Source: checkerLogPath, Target: "stderr"},
 					},
+					MemoryLimit: 256 * 1024 * 1024,
 				})
 				if err != nil {
 					return err

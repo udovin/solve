@@ -34,9 +34,10 @@ func (r CompileReport) Success() bool {
 }
 
 type CompileOptions struct {
-	Source     string
-	Target     string
-	InputFiles []MountFile
+	Source      string
+	Target      string
+	InputFiles  []MountFile
+	MemoryLimit int64
 }
 
 type ExecuteReport struct {
@@ -52,6 +53,7 @@ type ExecuteOptions struct {
 	Args        []string
 	InputFiles  []MountFile
 	OutputFiles []MountFile
+	MemoryLimit int64
 }
 
 type Compiler interface {
@@ -83,6 +85,7 @@ func (c *compiler) Compile(
 			Dir:    c.config.Compile.Workdir,
 			Stderr: &stderr,
 		},
+		MemoryLimit: options.MemoryLimit,
 	}
 	container, err := c.factory.Create(containerConfig)
 	if err != nil {
@@ -200,6 +203,7 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 			Stdout: stdout,
 			Stderr: stderr,
 		},
+		MemoryLimit: options.MemoryLimit,
 	}
 	container, err := c.factory.Create(containerConfig)
 	if err != nil {

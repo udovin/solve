@@ -74,6 +74,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 			InputFiles: []MountFile{
 				{Source: testlibPath, Target: "testlib.h"},
 			},
+			MemoryLimit: 256 * 1024 * 1024,
 		})
 		if err != nil {
 			return err
@@ -116,6 +117,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					InputFiles: []MountFile{
 						{Source: testlibPath, Target: "testlib.h"},
 					},
+					MemoryLimit: 256 * 1024 * 1024,
 				})
 				if err != nil {
 					return err
@@ -160,8 +162,9 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		sourcePath := filepath.Join(p.path, mainSolution.Source.Path)
 		targetPath := strings.TrimSuffix(sourcePath, filepath.Ext(sourcePath))
 		report, err := compiler.Compile(ctx, CompileOptions{
-			Source: sourcePath,
-			Target: targetPath,
+			Source:      sourcePath,
+			Target:      targetPath,
+			MemoryLimit: 256 * 1024 * 1024,
 		})
 		if err != nil {
 			return err
@@ -200,6 +203,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					OutputFiles: []MountFile{
 						{Source: filepath.Join(p.path, input), Target: "stdout"},
 					},
+					MemoryLimit: 256 * 1024 * 1024,
 				})
 				if err != nil {
 					return fmt.Errorf("cannot execute generator %q: %w", args[0], err)
@@ -217,6 +221,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					OutputFiles: []MountFile{
 						{Source: filepath.Join(p.path, answer), Target: "stdout"},
 					},
+					MemoryLimit: testSet.MemoryLimit,
 				})
 				if err != nil {
 					return fmt.Errorf("cannot execute solution: %w", err)

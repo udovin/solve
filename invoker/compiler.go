@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/udovin/algo/futures"
 	"github.com/udovin/solve/core"
@@ -17,7 +18,6 @@ import (
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg"
 	"github.com/udovin/solve/pkg/logs"
-	"golang.org/x/sys/unix"
 )
 
 type MountFile struct {
@@ -154,9 +154,9 @@ func (c *compiler) Compile(
 		ExitCode: 0,
 		Log:      stderr.String(),
 	}
-	usage, ok := state.SysUsage().(*unix.Rusage)
+	usage, ok := state.SysUsage().(*syscall.Rusage)
 	if ok && usage != nil {
-		report.UsedMemory = usage.Maxrss
+		report.UsedMemory = usage.Maxrss * 1024
 	}
 	return report, nil
 }
@@ -279,9 +279,9 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 	report := ExecuteReport{
 		ExitCode: 0,
 	}
-	usage, ok := state.SysUsage().(*unix.Rusage)
+	usage, ok := state.SysUsage().(*syscall.Rusage)
 	if ok && usage != nil {
-		report.UsedMemory = usage.Maxrss
+		report.UsedMemory = usage.Maxrss * 1024
 	}
 	return report, nil
 }

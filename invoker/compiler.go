@@ -10,8 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
+	"time"
 
+	"github.com/opencontainers/runc/libcontainer"
 	"github.com/udovin/algo/futures"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/managers"
@@ -27,8 +28,9 @@ type MountFile struct {
 
 type CompileReport struct {
 	ExitCode   int
-	Log        string
+	UsedTime   int64
 	UsedMemory int64
+	Log        string
 }
 
 func (r CompileReport) Success() bool {
@@ -39,11 +41,13 @@ type CompileOptions struct {
 	Source      string
 	Target      string
 	InputFiles  []MountFile
+	TimeLimit   int64
 	MemoryLimit int64
 }
 
 type ExecuteReport struct {
 	ExitCode   int
+	UsedTime   int64
 	UsedMemory int64
 }
 
@@ -56,6 +60,7 @@ type ExecuteOptions struct {
 	Args        []string
 	InputFiles  []MountFile
 	OutputFiles []MountFile
+	TimeLimit   int64
 	MemoryLimit int64
 }
 
@@ -76,6 +81,111 @@ func (c *compiler) Name() string {
 	return c.name
 }
 
+type waitResult struct {
+	State *os.ProcessState
+	Err   error
+}
+
+type executeResult struct {
+	MaxMemory int64
+	Duration  time.Duration
+	ExitCode  int
+}
+
+func execute(container *container, memoryLimit int64, timeLimit time.Duration) (executeResult, error) {
+	process, err := container.Start()
+	if err != nil {
+		return executeResult{}, fmt.Errorf("unable to start compiler: %w", err)
+	}
+	waitChan := make(chan waitResult, 1)
+	defer close(waitChan)
+	var waiter sync.WaitGroup
+	defer waiter.Wait()
+	waiter.Add(1)
+	go func() {
+		defer waiter.Done()
+		state, err := process.Wait()
+		waitChan <- waitResult{State: state, Err: err}
+	}()
+	start := time.Now()
+	stats, err := container.container.Stats()
+	if err != nil {
+		return executeResult{}, fmt.Errorf("cannot get stats: %w", err)
+	}
+	if stats.CgroupStats == nil {
+		return executeResult{}, fmt.Errorf("cannot get cgroup stats")
+	}
+	maxMemory := stats.CgroupStats.MemoryStats.SwapUsage.Usage
+	if maxMemory > uint64(memoryLimit) {
+		return executeResult{
+			MaxMemory: int64(maxMemory),
+			Duration:  time.Since(start),
+			ExitCode:  -1,
+		}, nil
+	}
+	ticker := time.NewTicker(500 * time.Microsecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case waitResult := <-waitChan:
+			result := executeResult{
+				MaxMemory: int64(maxMemory),
+				Duration:  time.Since(start),
+			}
+			state, err := waitResult.State, waitResult.Err
+			if err != nil {
+				if _, ok := err.(*exec.ExitError); !ok {
+					status, statusErr := container.container.Status()
+					if statusErr != nil {
+						return executeResult{}, fmt.Errorf("cannot get status: %w", statusErr)
+					}
+					if status != libcontainer.Paused && status != libcontainer.Stopped {
+						return executeResult{}, fmt.Errorf("cannot wait process: %w", err)
+					}
+					result.ExitCode = -1
+					return result, nil
+				}
+			}
+			result.ExitCode = state.ExitCode()
+			if !state.Exited() {
+				result.ExitCode = -1
+			}
+			return result, nil
+		case <-ticker.C:
+			duration := time.Since(start)
+			if duration > timeLimit {
+				if container.Signal(os.Kill) != nil {
+					return executeResult{
+						ExitCode:  -1,
+						MaxMemory: int64(maxMemory),
+						Duration:  duration,
+					}, nil
+				}
+			}
+			stats, err := container.container.Stats()
+			if err != nil {
+				return executeResult{}, fmt.Errorf("cannot get stats: %w", err)
+			}
+			if stats.CgroupStats == nil {
+				return executeResult{}, fmt.Errorf("cannot get cgroup stats")
+			}
+			memory := stats.CgroupStats.MemoryStats.SwapUsage.Usage
+			if memory > maxMemory {
+				maxMemory = memory
+			}
+			if maxMemory > uint64(memoryLimit) {
+				if container.Signal(os.Kill) != nil {
+					return executeResult{
+						ExitCode:  -1,
+						MaxMemory: int64(maxMemory),
+						Duration:  duration,
+					}, nil
+				}
+			}
+		}
+	}
+}
+
 func (c *compiler) Compile(
 	ctx context.Context, options CompileOptions,
 ) (CompileReport, error) {
@@ -88,7 +198,7 @@ func (c *compiler) Compile(
 			Dir:    c.config.Compile.Workdir,
 			Stderr: &stderr,
 		},
-		MemoryLimit: options.MemoryLimit,
+		MemoryLimit: options.MemoryLimit + 16*1024*1024,
 	}
 	container, err := c.factory.Create(containerConfig)
 	if err != nil {
@@ -115,50 +225,29 @@ func (c *compiler) Compile(
 		}
 	}
 	defer func() { _ = container.Destroy() }()
-	process, err := container.Start()
+	timeLimit := time.Duration(options.TimeLimit) * time.Millisecond
+	result, err := execute(container, options.MemoryLimit, timeLimit)
 	if err != nil {
-		return CompileReport{}, fmt.Errorf("unable to start compiler: %w", err)
+		return CompileReport{}, err
 	}
-	state, err := process.Wait()
-	if err != nil {
-		if err, ok := err.(*exec.ExitError); !ok {
-			return CompileReport{}, fmt.Errorf("unable to wait compiler: %w", err)
-		} else {
-			return CompileReport{
-				ExitCode: err.ExitCode(),
-				Log:      stderr.String(),
-			}, nil
+	if result.ExitCode == 0 {
+		if c.config.Compile.Binary != nil {
+			containerBinaryPath := filepath.Join(
+				container.GetUpperDir(),
+				c.config.Compile.Workdir,
+				*c.config.Compile.Binary,
+			)
+			if err := copyFileRec(containerBinaryPath, options.Target); err != nil {
+				return CompileReport{}, fmt.Errorf("unable to copy binary: %w", err)
+			}
 		}
 	}
-	if !state.Exited() || state.ExitCode() != 0 {
-		code := state.ExitCode()
-		if code == 0 {
-			code = -1
-		}
-		return CompileReport{
-			ExitCode: code,
-			Log:      stderr.String(),
-		}, nil
-	}
-	if c.config.Compile.Binary != nil {
-		containerBinaryPath := filepath.Join(
-			container.GetUpperDir(),
-			c.config.Compile.Workdir,
-			*c.config.Compile.Binary,
-		)
-		if err := copyFileRec(containerBinaryPath, options.Target); err != nil {
-			return CompileReport{}, fmt.Errorf("unable to copy binary: %w", err)
-		}
-	}
-	report := CompileReport{
-		ExitCode: 0,
-		Log:      stderr.String(),
-	}
-	usage, ok := state.SysUsage().(*syscall.Rusage)
-	if ok && usage != nil {
-		report.UsedMemory = usage.Maxrss * 1024
-	}
-	return report, nil
+	return CompileReport{
+		ExitCode:   result.ExitCode,
+		UsedTime:   result.Duration.Milliseconds(),
+		UsedMemory: result.MaxMemory,
+		Log:        stderr.String(),
+	}, nil
 }
 
 const (
@@ -210,7 +299,7 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 			Stdout: stdout,
 			Stderr: stderr,
 		},
-		MemoryLimit: options.MemoryLimit,
+		MemoryLimit: options.MemoryLimit + 16*1024*1024,
 	}
 	container, err := c.factory.Create(containerConfig)
 	if err != nil {
@@ -240,50 +329,31 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 		}
 	}
 	defer func() { _ = container.Destroy() }()
-	process, err := container.Start()
+	timeLimit := time.Duration(options.TimeLimit) * time.Millisecond
+	result, err := execute(container, options.MemoryLimit, timeLimit)
 	if err != nil {
-		return ExecuteReport{}, fmt.Errorf("unable to start compiler: %w", err)
+		return ExecuteReport{}, err
 	}
-	state, err := process.Wait()
-	if err != nil {
-		if err, ok := err.(*exec.ExitError); !ok {
-			return ExecuteReport{}, fmt.Errorf("unable to wait compiler: %w", err)
-		} else {
-			return ExecuteReport{
-				ExitCode: err.ExitCode(),
-			}, nil
+	if result.ExitCode == 0 {
+		for _, output := range options.OutputFiles {
+			if output.Target == stdoutFile || output.Target == stderrFile {
+				continue
+			}
+			containerPath := filepath.Join(
+				container.GetUpperDir(),
+				c.config.Execute.Workdir,
+				output.Target,
+			)
+			if err := copyFileRec(containerPath, output.Source); err != nil {
+				return ExecuteReport{}, fmt.Errorf("unable to copy binary: %w", err)
+			}
 		}
 	}
-	if !state.Exited() || state.ExitCode() != 0 {
-		code := state.ExitCode()
-		if code == 0 {
-			code = -1
-		}
-		return ExecuteReport{
-			ExitCode: code,
-		}, nil
-	}
-	for _, output := range options.OutputFiles {
-		if output.Target == stdoutFile || output.Target == stderrFile {
-			continue
-		}
-		containerPath := filepath.Join(
-			container.GetUpperDir(),
-			c.config.Execute.Workdir,
-			output.Target,
-		)
-		if err := copyFileRec(containerPath, output.Source); err != nil {
-			return ExecuteReport{}, fmt.Errorf("unable to copy binary: %w", err)
-		}
-	}
-	report := ExecuteReport{
-		ExitCode: 0,
-	}
-	usage, ok := state.SysUsage().(*syscall.Rusage)
-	if ok && usage != nil {
-		report.UsedMemory = usage.Maxrss * 1024
-	}
-	return report, nil
+	return ExecuteReport{
+		ExitCode:   result.ExitCode,
+		UsedTime:   result.Duration.Milliseconds(),
+		UsedMemory: result.MaxMemory,
+	}, nil
 }
 
 type compilerManager struct {

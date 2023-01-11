@@ -74,6 +74,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 			InputFiles: []MountFile{
 				{Source: testlibPath, Target: "testlib.h"},
 			},
+			TimeLimit:   20 * 1000,
 			MemoryLimit: 256 * 1024 * 1024,
 		})
 		if err != nil {
@@ -117,6 +118,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					InputFiles: []MountFile{
 						{Source: testlibPath, Target: "testlib.h"},
 					},
+					TimeLimit:   20 * 1000,
 					MemoryLimit: 256 * 1024 * 1024,
 				})
 				if err != nil {
@@ -164,6 +166,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		report, err := compiler.Compile(ctx, CompileOptions{
 			Source:      sourcePath,
 			Target:      targetPath,
+			TimeLimit:   20 * 1000,
 			MemoryLimit: 256 * 1024 * 1024,
 		})
 		if err != nil {
@@ -203,6 +206,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					OutputFiles: []MountFile{
 						{Source: filepath.Join(p.path, input), Target: "stdout"},
 					},
+					TimeLimit:   20 * 1000,
 					MemoryLimit: 256 * 1024 * 1024,
 				})
 				if err != nil {
@@ -221,6 +225,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					OutputFiles: []MountFile{
 						{Source: filepath.Join(p.path, answer), Target: "stdout"},
 					},
+					TimeLimit:   testSet.TimeLimit,
 					MemoryLimit: testSet.MemoryLimit,
 				})
 				if err != nil {

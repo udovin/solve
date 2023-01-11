@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.17.3
-	github.com/aws/aws-sdk-go-v2/credentials v1.13.7
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.6
+	github.com/aws/aws-sdk-go-v2/credentials v1.13.8
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.30.0
 	github.com/jackc/pgx/v4 v4.17.2
 	github.com/labstack/echo/v4 v4.10.0
 	github.com/labstack/gommon v0.4.0
@@ -15,10 +15,10 @@ require (
 	github.com/spf13/cobra v1.6.1
 	github.com/udovin/algo v0.0.2
 	github.com/udovin/gosql v0.0.1
-	golang.org/x/crypto v0.4.0
-	golang.org/x/exp v0.0.0-20221230185412-738e83a70c30
-	golang.org/x/sys v0.3.0
-	golang.org/x/text v0.5.0
+	golang.org/x/crypto v0.5.0
+	golang.org/x/exp v0.0.0-20230108222341-4b8118a2686a
+	golang.org/x/sys v0.4.0
+	golang.org/x/text v0.6.0
 )
 
 require (
@@ -64,7 +64,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.1 // indirect
-	golang.org/x/net v0.4.0 // indirect
+	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )

@@ -124,6 +124,7 @@ func (t *judgeSolutionTask) compileSolution(
 	compileReport, err := t.compilerImpl.Compile(ctx, CompileOptions{
 		Source:      t.solutionPath,
 		Target:      t.compiledPath,
+		TimeLimit:   20 * 1000,
 		MemoryLimit: 256 * 1024 * 1024,
 	})
 	if err != nil {
@@ -132,6 +133,7 @@ func (t *judgeSolutionTask) compileSolution(
 	report.Compile = models.CompileReport{
 		Log: compileReport.Log,
 		Usage: models.UsageReport{
+			Time:   compileReport.UsedTime,
 			Memory: compileReport.UsedMemory,
 		},
 	}
@@ -232,6 +234,7 @@ func (t *judgeSolutionTask) testSolution(
 				OutputFiles: []MountFile{
 					{Source: outputPath, Target: "stdout"},
 				},
+				TimeLimit:   group.TimeLimit(),
 				MemoryLimit: group.MemoryLimit(),
 			})
 			if err != nil {
@@ -250,10 +253,15 @@ func (t *judgeSolutionTask) testSolution(
 				Input:   input,
 				Output:  output,
 				Usage: models.UsageReport{
+					Time:   executeReport.UsedTime,
 					Memory: executeReport.UsedMemory,
 				},
 			}
-			if !executeReport.Success() {
+			if executeReport.UsedTime > group.TimeLimit() {
+				testReport.Verdict = models.TimeLimitExceeded
+			} else if executeReport.UsedMemory > group.MemoryLimit() {
+				testReport.Verdict = models.MemoryLimitExceeded
+			} else if !executeReport.Success() {
 				testReport.Verdict = models.RuntimeError
 			} else {
 				checkerLogPath := filepath.Join(t.tempDir, "checker.log")
@@ -268,6 +276,7 @@ func (t *judgeSolutionTask) testSolution(
 					OutputFiles: []MountFile{
 						{Source: checkerLogPath, Target: "stderr"},
 					},
+					TimeLimit:   20 * 1000,
 					MemoryLimit: 256 * 1024 * 1024,
 				})
 				if err != nil {
@@ -295,6 +304,7 @@ func (t *judgeSolutionTask) testSolution(
 				testReport.Check = models.CheckReport{
 					Log: checkerLog,
 					Usage: models.UsageReport{
+						Time:   checkerReport.UsedTime,
 						Memory: checkerReport.UsedMemory,
 					},
 				}

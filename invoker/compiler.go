@@ -123,14 +123,14 @@ func execute(container *container, memoryLimit int64, timeLimit time.Duration) (
 			ExitCode:  -1,
 		}, nil
 	}
-	ticker := time.NewTicker(500 * time.Microsecond)
+	ticker := time.NewTicker(time.Millisecond)
 	defer ticker.Stop()
 	for {
 		select {
 		case waitResult := <-waitChan:
 			result := executeResult{
 				MaxMemory: int64(maxMemory),
-				Duration:  time.Since(start),
+				Duration:  time.Since(start).Truncate(time.Millisecond),
 			}
 			state, err := waitResult.State, waitResult.Err
 			if err != nil {
@@ -152,7 +152,7 @@ func execute(container *container, memoryLimit int64, timeLimit time.Duration) (
 			}
 			return result, nil
 		case <-ticker.C:
-			duration := time.Since(start)
+			duration := time.Since(start).Truncate(time.Millisecond)
 			if duration > timeLimit {
 				if container.Signal(os.Kill) != nil {
 					return executeResult{

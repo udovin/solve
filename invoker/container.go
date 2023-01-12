@@ -225,7 +225,7 @@ func (f *factory) Create(config containerConfig) (*container, error) {
 		Devices: specconv.AllowedDevices,
 		Cgroups: &configs.Cgroup{
 			Name:   id,
-			Parent: "system",
+			Parent: "solve",
 			Resources: &configs.Resources{
 				Devices:           configDevices(),
 				Memory:            config.MemoryLimit,

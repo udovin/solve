@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/opencontainers/runc/libcontainer"
 	"github.com/udovin/algo/futures"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/managers"
@@ -97,6 +97,8 @@ func execute(container *container, memoryLimit int64, timeLimit time.Duration) (
 	if err != nil {
 		return executeResult{}, fmt.Errorf("unable to start compiler: %w", err)
 	}
+	defer func() { _ = process.Signal(os.Kill) }()
+	start := time.Now()
 	waitChan := make(chan waitResult, 1)
 	defer close(waitChan)
 	var waiter sync.WaitGroup
@@ -107,82 +109,83 @@ func execute(container *container, memoryLimit int64, timeLimit time.Duration) (
 		state, err := process.Wait()
 		waitChan <- waitResult{State: state, Err: err}
 	}()
-	start := time.Now()
-	stats, err := container.container.Stats()
-	if err != nil {
-		return executeResult{}, fmt.Errorf("cannot get stats: %w", err)
-	}
-	if stats.CgroupStats == nil {
-		return executeResult{}, fmt.Errorf("cannot get cgroup stats")
-	}
-	maxMemory := stats.CgroupStats.MemoryStats.SwapUsage.Usage
-	if maxMemory > uint64(memoryLimit) {
-		return executeResult{
-			MaxMemory: int64(maxMemory),
-			Duration:  time.Since(start),
-			ExitCode:  -1,
-		}, nil
-	}
-	ticker := time.NewTicker(time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case waitResult := <-waitChan:
-			result := executeResult{
-				MaxMemory: int64(maxMemory),
-				Duration:  time.Since(start).Truncate(time.Millisecond),
-			}
-			state, err := waitResult.State, waitResult.Err
-			if err != nil {
-				if _, ok := err.(*exec.ExitError); !ok {
-					status, statusErr := container.container.Status()
-					if statusErr != nil {
-						return executeResult{}, fmt.Errorf("cannot get status: %w", statusErr)
-					}
-					if status != libcontainer.Paused && status != libcontainer.Stopped {
-						return executeResult{}, fmt.Errorf("cannot wait process: %w", err)
-					}
-					result.ExitCode = -1
-					return result, nil
-				}
-			}
-			result.ExitCode = state.ExitCode()
-			if !state.Exited() {
-				result.ExitCode = -1
-			}
-			return result, nil
-		case <-ticker.C:
-			duration := time.Since(start).Truncate(time.Millisecond)
-			if duration > timeLimit {
-				if container.Signal(os.Kill) != nil {
-					return executeResult{
-						ExitCode:  -1,
-						MaxMemory: int64(maxMemory),
-						Duration:  duration,
-					}, nil
-				}
-			}
-			stats, err := container.container.Stats()
-			if err != nil {
-				return executeResult{}, fmt.Errorf("cannot get stats: %w", err)
-			}
-			if stats.CgroupStats == nil {
-				return executeResult{}, fmt.Errorf("cannot get cgroup stats")
-			}
+	deadlineCtx, cancel := context.WithDeadline(context.Background(), start.Add(timeLimit+2*time.Millisecond))
+	defer cancel()
+	var maxMemory int64
+	waiter.Add(1)
+	go func() {
+		defer waiter.Done()
+		ticker := time.NewTicker(5 * time.Millisecond)
+		defer ticker.Stop()
+		stats, err := container.container.Stats()
+		if err == nil && stats.CgroupStats == nil {
 			memory := stats.CgroupStats.MemoryStats.SwapUsage.Usage
-			if memory > maxMemory {
-				maxMemory = memory
+			if int64(memory) > maxMemory {
+				atomic.StoreInt64(&maxMemory, int64(memory))
 			}
-			if maxMemory > uint64(memoryLimit) {
-				if container.Signal(os.Kill) != nil {
-					return executeResult{
-						ExitCode:  -1,
-						MaxMemory: int64(maxMemory),
-						Duration:  duration,
-					}, nil
+		}
+		for {
+			select {
+			case <-deadlineCtx.Done():
+				return
+			case <-ticker.C:
+				stats, err := container.container.Stats()
+				if err != nil {
+					continue
+				}
+				if stats.CgroupStats == nil {
+					continue
+				}
+				memory := stats.CgroupStats.MemoryStats.SwapUsage.Usage
+				if int64(memory) > maxMemory {
+					atomic.StoreInt64(&maxMemory, int64(memory))
 				}
 			}
 		}
+	}()
+	notifyOOM, err := container.container.NotifyOOM()
+	if err != nil {
+		return executeResult{}, fmt.Errorf("cannot setup oom notify: %w", err)
+	}
+	select {
+	case result := <-waitChan:
+		duration := time.Since(start)
+		memory := atomic.LoadInt64(&maxMemory)
+		state, err := result.State, result.Err
+		if err != nil {
+			if _, ok := err.(*exec.ExitError); !ok {
+				return executeResult{}, err
+			}
+		}
+		exitCode := state.ExitCode()
+		if !state.Exited() {
+			exitCode = -1
+		}
+		return executeResult{
+			Duration:  duration,
+			MaxMemory: memory,
+			ExitCode:  exitCode,
+		}, nil
+
+	case <-notifyOOM:
+		duration := time.Since(start)
+		memory := atomic.LoadInt64(&maxMemory)
+		if memory < memoryLimit {
+			memory = memoryLimit + 1024
+		}
+		return executeResult{
+			Duration:  duration,
+			MaxMemory: memory,
+			ExitCode:  -1,
+		}, nil
+	case <-deadlineCtx.Done():
+		duration := time.Since(start)
+		memory := atomic.LoadInt64(&maxMemory)
+		return executeResult{
+			Duration:  duration,
+			MaxMemory: memory,
+			ExitCode:  -1,
+		}, nil
 	}
 }
 
@@ -198,7 +201,7 @@ func (c *compiler) Compile(
 			Dir:    c.config.Compile.Workdir,
 			Stderr: &stderr,
 		},
-		MemoryLimit: options.MemoryLimit + 16*1024*1024,
+		MemoryLimit: options.MemoryLimit + 1024,
 	}
 	container, err := c.factory.Create(containerConfig)
 	if err != nil {
@@ -299,7 +302,7 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 			Stdout: stdout,
 			Stderr: stderr,
 		},
-		MemoryLimit: options.MemoryLimit + 16*1024*1024,
+		MemoryLimit: options.MemoryLimit + 1024,
 	}
 	container, err := c.factory.Create(containerConfig)
 	if err != nil {

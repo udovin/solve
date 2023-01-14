@@ -6,6 +6,8 @@
 #include <sys/mount.h>
 #include <sys/wait.h>
 #include <sys/sendfile.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -27,8 +29,8 @@ typedef struct {
     int stdoutFd;
     int stderrFd;
     char* rootfs;
-    char* upperdir;
     char* lowerdir;
+    char* upperdir;
     char* workdir;
     char** args;
     int argsLen;
@@ -37,18 +39,48 @@ typedef struct {
     Mount* outputFiles;
     int outputFilesLen;
     int pipe[2];
+    char* overlayWorkdir;
 } Context;
 
-#define STACK_SIZE 8096
+#define STACK_SIZE 16384
+
+void setupUserNamespace(Context* ctx) {
+    // We should wait for setup of user namespace from parent.
+    char c;
+    ensure(read(ctx->pipe[0], &c, 1) == 0, "cannot wait pipe to close");
+    close(ctx->pipe[0]);
+}
+
+#define OVERLAY_DATA "lowerdir=%s,upperdir=%s,workdir=%s"
+
+void setupMountNamespace(Context* ctx) {
+    // First of all make all changes are private for current root.
+    ensure(mount("/", "/", NULL, MS_REC | MS_PRIVATE, NULL) == 0, "cannot remount \"/\"");
+    char* data = malloc((strlen(ctx->lowerdir) + strlen(ctx->upperdir) + strlen(ctx->overlayWorkdir) + strlen(OVERLAY_DATA)) * sizeof(char));
+    ensure(data != 0, "cannot allocate rootfs overlay data");
+    sprintf(data, OVERLAY_DATA, ctx->lowerdir, ctx->upperdir, ctx->overlayWorkdir);
+    ensure(mount("overlay", ctx->rootfs, "overlay", 0, data) == 0, "cannot mount rootfs overlay");
+    int oldroot = open("/", O_DIRECTORY | O_RDONLY);
+    ensure(oldroot != -1, "cannot open old root");
+    int newroot = open(ctx->rootfs, O_DIRECTORY | O_RDONLY);
+    ensure(newroot != -1, "cannot open new root");
+    ensure(fchdir(newroot) == 0, "cannot chdir to new root");
+    ensure(syscall(SYS_pivot_root, ".", ".") == 0, "cannot pivot root");
+    ensure(fchdir(oldroot) == 0, "cannot chdir to new old");
+    ensure(mount("", ".", NULL, MS_SLAVE | MS_REC, NULL) == 0, "cannot remount old root");
+    ensure(umount2(".", MNT_DETACH) == 0, "cannot unmount old root");
+    ensure(chdir("/") == 0, "cannot chdir to \"/\"");
+    close(newroot);
+    close(oldroot);
+}
 
 int entrypoint(void* arg) {
     ensure(arg != 0, "cannot get config");
     Context* ctx = (Context*)arg;
     close(ctx->pipe[1]);
-    // We should wait for setup of user namespace from parent.
-    char c;
-    ensure(read(ctx->pipe[0], &c, 1) == 0, "cannot wait pipe to close");
-    close(ctx->pipe[0]);
+    // Setup user namespace first of all.
+    setupUserNamespace(ctx);
+    setupMountNamespace(ctx);
     printf("pid = %d\n", getpid());
     printf("uid = %d\n", getuid());
     printf("gid = %d\n", getgid());
@@ -56,9 +88,6 @@ int entrypoint(void* arg) {
     printf("stdout = %d\n", ctx->stdoutFd);
     printf("stderr = %d\n", ctx->stderrFd);
     printf("rootfs = %s\n", ctx->rootfs);
-    if (mount("/", "/", NULL, MS_REC | MS_PRIVATE, NULL) == -1) {
-        return EXIT_FAILURE;
-    }
     if (ctx->stdinFd != -1) {
         ensure(dup2(ctx->stdinFd, STDIN_FILENO) != -1, "cannot setup stdin");
         close(ctx->stdinFd);
@@ -74,7 +103,7 @@ int entrypoint(void* arg) {
     execve(ctx->args[0], ctx->args, 0);
 }
 
-void setupUserNamespace(int pid) {
+void prepareUserNamespace(int pid) {
     int fd;
     char path[64];
     char data[64];
@@ -211,7 +240,7 @@ void copyFile(char* target, char* source) {
 
 int main(int argc, char* argv[]) {
     Context* ctx = malloc(sizeof(Context));
-    ensure(ctx != 0, "cannot malloc context");
+    ensure(ctx != 0, "cannot allocate context");
     ctx->stdinFd = -1;
     ctx->stdoutFd = -1;
     ctx->stderrFd = -1;
@@ -228,7 +257,15 @@ int main(int argc, char* argv[]) {
     initContext(ctx, argc, argv);
     ensure(ctx->argsLen, "empty execve arguments");
     ensure(strlen(ctx->rootfs), "--rootfs argument is required");
-    ensure(pipe(ctx->pipe) != -1, "cannot create pipe");
+    ensure(strlen(ctx->lowerdir), "--lowerdir is required");
+    ensure(strlen(ctx->upperdir), "--upperdir is required");
+    ensure(pipe(ctx->pipe) == 0, "cannot create pipe");
+    ctx->overlayWorkdir = malloc((strlen(ctx->upperdir) + 5) * sizeof(char));
+    ensure(ctx->overlayWorkdir != 0, "cannot allocate overlay workdir path");
+    ctx->overlayWorkdir[0] = 0;
+    strcat(ctx->overlayWorkdir, ctx->upperdir);
+    strcat(ctx->overlayWorkdir, ".work");
+    ensure(mkdir(ctx->overlayWorkdir, 0777) == 0, "cannot create overlay workdir");
     char* stack = malloc(STACK_SIZE);
     ensure(stack != 0, "cannot allocate stack");
     int pid = clone(
@@ -238,17 +275,11 @@ int main(int argc, char* argv[]) {
         ctx);
     ensure(pid != -1, "cannot clone()");
     close(ctx->pipe[0]);
-    if (ctx->stdinFd != -1) {
-        close(ctx->stdinFd);
-    }
-    if (ctx->stdoutFd != -1) {
-        close(ctx->stdoutFd);
-    }
-    if (ctx->stderrFd != -1) {
-        close(ctx->stderrFd);
-    }
+    if (ctx->stdinFd != -1) { close(ctx->stdinFd); }
+    if (ctx->stdoutFd != -1) { close(ctx->stdoutFd); }
+    if (ctx->stderrFd != -1) { close(ctx->stderrFd); }
     // Setup user namespace.
-    setupUserNamespace(pid);
+    prepareUserNamespace(pid);
     // Now we should unlock child process.
     close(ctx->pipe[1]);
     //

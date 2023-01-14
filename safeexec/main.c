@@ -66,12 +66,12 @@ void setupMountNamespace(Context* ctx) {
     ensure(newroot != -1, "cannot open new root");
     ensure(fchdir(newroot) == 0, "cannot chdir to new root");
     ensure(syscall(SYS_pivot_root, ".", ".") == 0, "cannot pivot root");
+    close(newroot);
     ensure(fchdir(oldroot) == 0, "cannot chdir to new old");
     ensure(mount("", ".", NULL, MS_SLAVE | MS_REC, NULL) == 0, "cannot remount old root");
     ensure(umount2(".", MNT_DETACH) == 0, "cannot unmount old root");
-    ensure(chdir("/") == 0, "cannot chdir to \"/\"");
-    close(newroot);
     close(oldroot);
+    ensure(chdir("/") == 0, "cannot chdir to \"/\"");
 }
 
 int entrypoint(void* arg) {

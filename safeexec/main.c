@@ -43,6 +43,8 @@ typedef struct {
 } Context;
 
 #define STACK_SIZE 16384
+#define OVERLAY_DATA "lowerdir=%s,upperdir=%s,workdir=%s"
+#define PROC_PATH "/proc"
 
 void setupUserNamespace(Context* ctx) {
     // We should wait for setup of user namespace from parent.
@@ -51,15 +53,22 @@ void setupUserNamespace(Context* ctx) {
     close(ctx->pipe[0]);
 }
 
-#define OVERLAY_DATA "lowerdir=%s,upperdir=%s,workdir=%s"
-
-void setupMountNamespace(Context* ctx) {
-    // First of all make all changes are private for current root.
-    ensure(mount("/", "/", NULL, MS_REC | MS_PRIVATE, NULL) == 0, "cannot remount \"/\"");
+void setupOverlayfs(Context* ctx) {
     char* data = malloc((strlen(ctx->lowerdir) + strlen(ctx->upperdir) + strlen(ctx->overlayWorkdir) + strlen(OVERLAY_DATA)) * sizeof(char));
     ensure(data != 0, "cannot allocate rootfs overlay data");
     sprintf(data, OVERLAY_DATA, ctx->lowerdir, ctx->upperdir, ctx->overlayWorkdir);
     ensure(mount("overlay", ctx->rootfs, "overlay", 0, data) == 0, "cannot mount rootfs overlay");
+}
+
+void setupProcfs(Context* ctx) {
+    char* path = malloc((strlen(ctx->rootfs) + strlen(PROC_PATH)) * sizeof(char));
+    ensure(path != 0, "cannot allocate proc path");
+    strcat(path, ctx->rootfs);
+    strcat(path, PROC_PATH);
+    ensure(mount("proc", path, "proc", MS_NOEXEC | MS_NOSUID | MS_NODEV, NULL) == 0, "cannot mount \"/proc\"");
+}
+
+void pivotRoot(Context* ctx) {
     int oldroot = open("/", O_DIRECTORY | O_RDONLY);
     ensure(oldroot != -1, "cannot open old root");
     int newroot = open(ctx->rootfs, O_DIRECTORY | O_RDONLY);
@@ -68,10 +77,20 @@ void setupMountNamespace(Context* ctx) {
     ensure(syscall(SYS_pivot_root, ".", ".") == 0, "cannot pivot root");
     close(newroot);
     ensure(fchdir(oldroot) == 0, "cannot chdir to new old");
-    ensure(mount("", ".", NULL, MS_SLAVE | MS_REC, NULL) == 0, "cannot remount old root");
+    ensure(mount(NULL, ".", NULL, MS_SLAVE | MS_REC, NULL) == 0, "cannot remount old root");
     ensure(umount2(".", MNT_DETACH) == 0, "cannot unmount old root");
     close(oldroot);
     ensure(chdir("/") == 0, "cannot chdir to \"/\"");
+}
+
+void setupMountNamespace(Context* ctx) {
+    // First of all make all changes are private for current root.
+    ensure(mount(NULL, "/", NULL, MS_SLAVE | MS_REC, NULL) == 0, "cannot remount \"/\"");
+    ensure(mount(NULL, "/", NULL, MS_PRIVATE, NULL) == 0, "cannot remount \"/\"");
+    ensure(mount(ctx->rootfs, ctx->rootfs, "bind", MS_BIND | MS_REC, NULL) == 0, "cannot remount rootfs");
+    setupOverlayfs(ctx);
+    setupProcfs(ctx);
+    pivotRoot(ctx);
 }
 
 int entrypoint(void* arg) {
@@ -81,6 +100,7 @@ int entrypoint(void* arg) {
     // Setup user namespace first of all.
     setupUserNamespace(ctx);
     setupMountNamespace(ctx);
+    chdir(ctx->workdir);
     printf("pid = %d\n", getpid());
     printf("uid = %d\n", getuid());
     printf("gid = %d\n", getgid());
@@ -247,7 +267,7 @@ int main(int argc, char* argv[]) {
     ctx->rootfs = "";
     ctx->lowerdir = "";
     ctx->upperdir = "";
-    ctx->workdir = "";
+    ctx->workdir = "/";
     ctx->args = 0;
     ctx->argsLen = 0;
     ctx->inputFiles = 0;

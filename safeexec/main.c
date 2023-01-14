@@ -3,6 +3,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
 #include <sys/sendfile.h>
@@ -38,6 +39,8 @@ typedef struct {
 	int inputFilesLen;
 	Mount* outputFiles;
 	int outputFilesLen;
+	char* cgroupName;
+	char* cgroupParent;
 	int pipe[2];
 	char* overlayWorkdir;
 } Context;
@@ -45,6 +48,7 @@ typedef struct {
 #define STACK_SIZE 16384
 #define OVERLAY_DATA "lowerdir=%s,upperdir=%s,workdir=%s"
 #define PROC_PATH "/proc"
+#define CGROUP_PROCS_FILE "cgroup.procs"
 
 void setupUserNamespace(Context* ctx) {
 	// We should wait for setup of user namespace from parent.
@@ -58,14 +62,32 @@ void setupOverlayfs(Context* ctx) {
 	ensure(data != 0, "cannot allocate rootfs overlay data");
 	sprintf(data, OVERLAY_DATA, ctx->lowerdir, ctx->upperdir, ctx->overlayWorkdir);
 	ensure(mount("overlay", ctx->rootfs, "overlay", 0, data) == 0, "cannot mount rootfs overlay");
+	free(data);
 }
 
-void setupProcfs(Context* ctx) {
-	char* path = malloc((strlen(ctx->rootfs) + strlen(PROC_PATH)) * sizeof(char));
-	ensure(path != 0, "cannot allocate proc path");
-	strcat(path, ctx->rootfs);
-	strcat(path, PROC_PATH);
-	ensure(mount("proc", path, "proc", MS_NOEXEC | MS_NOSUID | MS_NODEV, NULL) == 0, "cannot mount \"/proc\"");
+void mkdirAll(int prefix, char* path) {
+	for (int i = prefix; path[i] != 0; ++i) {
+		if (path[i] == '/' && i > prefix) {
+			path[i] = 0;
+			if (mkdir(path, 0755) != 0) {
+				ensure(errno == EEXIST, "cannot create directory");
+			}
+			path[i] = '/';
+		}
+	}
+	if (mkdir(path, 0755) != 0) {
+		ensure(errno == EEXIST, "cannot create directory");
+	}
+}
+
+void setupMount(Context* ctx, const char* source, const char* target, const char* device, unsigned long flags, const void* data) {
+	char* path = malloc((strlen(ctx->rootfs) + strlen(target) + 1) * sizeof(char));
+	ensure(path != 0, "cannot allocate");
+	strcpy(path, ctx->rootfs);
+	strcat(path, target);
+	mkdirAll(strlen(ctx->rootfs), path);
+	ensure(mount(source, path, device, flags, data) == 0, "cannot mount");
+	free(path);
 }
 
 void pivotRoot(Context* ctx) {
@@ -89,7 +111,13 @@ void setupMountNamespace(Context* ctx) {
 	ensure(mount(NULL, "/", NULL, MS_PRIVATE, NULL) == 0, "cannot remount \"/\"");
 	ensure(mount(ctx->rootfs, ctx->rootfs, "bind", MS_BIND | MS_REC, NULL) == 0, "cannot remount rootfs");
 	setupOverlayfs(ctx);
-	setupProcfs(ctx);
+	setupMount(ctx, "sysfs", "/sys", "sysfs", MS_NOEXEC | MS_NOSUID | MS_NODEV | MS_RDONLY, NULL);
+	setupMount(ctx, "proc", PROC_PATH, "proc", MS_NOEXEC | MS_NOSUID | MS_NODEV, NULL);
+	setupMount(ctx, "tmpfs", "/dev", "tmpfs", MS_NOSUID | MS_STRICTATIME, "mode=755,size=65536k");
+	setupMount(ctx, "devpts", "/dev/pts", "devpts", MS_NOSUID | MS_NOEXEC, "newinstance,ptmxmode=0666,mode=0620");
+	setupMount(ctx, "shm", "/dev/shm", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV, "mode=1777,size=65536k");
+	setupMount(ctx, "mqueue", "/dev/mqueue", "mqueue", MS_NOEXEC | MS_NOSUID | MS_NODEV, NULL);
+	setupMount(ctx, "cgroup", "/sys/fs/cgroup", "cgroup2", MS_NOEXEC | MS_NOSUID | MS_NODEV | MS_RELATIME | MS_RDONLY, NULL);
 	pivotRoot(ctx);
 }
 
@@ -100,7 +128,7 @@ int entrypoint(void* arg) {
 	// Setup user namespace first of all.
 	setupUserNamespace(ctx);
 	setupMountNamespace(ctx);
-	chdir(ctx->workdir);
+	ensure(chdir(ctx->workdir) == 0, "cannot chdir to workdir");
 	printf("pid = %d\n", getpid());
 	printf("uid = %d\n", getuid());
 	printf("gid = %d\n", getgid());
@@ -149,6 +177,27 @@ void prepareUserNamespace(int pid) {
 	close(fd);
 }
 
+void prepareCgroupNamespace(Context* ctx, int pid) {
+	char* cgroupPath = malloc((strlen(ctx->cgroupParent) + strlen(ctx->cgroupName) + strlen(CGROUP_PROCS_FILE) + 3) * sizeof(char));
+	ensure(cgroupPath != 0, "cannot allocate cgroup path");
+	strcpy(cgroupPath, ctx->cgroupParent);
+	strcat(cgroupPath, "/");
+	strcat(cgroupPath, ctx->cgroupName);
+	if (mkdir(cgroupPath, 0755) != 0) {
+		ensure(errno == EEXIST, "cannot create cgroup");
+	}
+	strcat(cgroupPath, "/");
+	strcat(cgroupPath, CGROUP_PROCS_FILE);
+	puts(cgroupPath);
+	int fd = open(cgroupPath, O_WRONLY);
+	ensure(fd != -1, "cannot open cgroup.procs");
+	char pidStr[21];
+	sprintf(pidStr, "%d", pid);
+	ensure(write(fd, pidStr, strlen(pidStr)) != -1, "cannot write cgroup.procs");
+	close(fd);
+	free(cgroupPath);
+}
+
 void initContext(Context* ctx, int argc, char* argv[]) {
 	for (int i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--stdin") == 0) {
@@ -184,6 +233,12 @@ void initContext(Context* ctx, int argc, char* argv[]) {
 			++i;
 			ensure(i < argc, "--output-file requires two arguments");
 			++ctx->outputFilesLen;
+		} else if (strcmp(argv[i], "--cgroup-name") == 0) {
+			++i;
+			ensure(i < argc, "--cgroup-name requires argument");
+		} else if (strcmp(argv[i], "--cgroup-parent") == 0) {
+			++i;
+			ensure(i < argc, "--cgroup-parent requires argument");
 		} else {
 			ctx->argsLen = argc - i;
 		}
@@ -238,6 +293,12 @@ void initContext(Context* ctx, int argc, char* argv[]) {
 			++i;
 			ctx->outputFiles[outputFileIt].target = argv[i];
 			++outputFileIt;
+		} else if (strcmp(argv[i], "--cgroup-name") == 0) {
+			++i;
+			ctx->cgroupName = argv[i];
+		} else if (strcmp(argv[i], "--cgroup-parent") == 0) {
+			++i;
+			ctx->cgroupParent = argv[i];
 		} else {
 			for (int j = 0; i < argc; ++j) {
 				ctx->args[j] = argv[i];
@@ -274,16 +335,19 @@ int main(int argc, char* argv[]) {
 	ctx->inputFilesLen = 0;
 	ctx->outputFiles = 0;
 	ctx->outputFilesLen = 0;
+	ctx->cgroupName = "";
+	ctx->cgroupParent = "";
 	initContext(ctx, argc, argv);
 	ensure(ctx->argsLen, "empty execve arguments");
 	ensure(strlen(ctx->rootfs), "--rootfs argument is required");
 	ensure(strlen(ctx->lowerdir), "--lowerdir is required");
 	ensure(strlen(ctx->upperdir), "--upperdir is required");
+	ensure(strlen(ctx->cgroupName), "--cgroup-name is required");
+	ensure(strlen(ctx->cgroupParent), "--cgroup-parent is required");
 	ensure(pipe(ctx->pipe) == 0, "cannot create pipe");
-	ctx->overlayWorkdir = malloc((strlen(ctx->upperdir) + 5) * sizeof(char));
+	ctx->overlayWorkdir = malloc((strlen(ctx->upperdir) + 6) * sizeof(char));
 	ensure(ctx->overlayWorkdir != 0, "cannot allocate overlay workdir path");
-	ctx->overlayWorkdir[0] = 0;
-	strcat(ctx->overlayWorkdir, ctx->upperdir);
+	strcpy(ctx->overlayWorkdir, ctx->upperdir);
 	strcat(ctx->overlayWorkdir, ".work");
 	ensure(mkdir(ctx->overlayWorkdir, 0777) == 0, "cannot create overlay workdir");
 	char* stack = malloc(STACK_SIZE);
@@ -300,6 +364,8 @@ int main(int argc, char* argv[]) {
 	if (ctx->stderrFd != -1) { close(ctx->stderrFd); }
 	// Setup user namespace.
 	prepareUserNamespace(pid);
+	// Setup cgroup namespace.
+	prepareCgroupNamespace(ctx, pid);
 	// Now we should unlock child process.
 	close(ctx->pipe[1]);
 	//

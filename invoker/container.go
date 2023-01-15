@@ -14,6 +14,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/specconv"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
@@ -32,6 +33,7 @@ func init() {
 		}
 		panic("--this line should have never been executed, congratulations--")
 	}
+	logrus.SetLevel(logrus.FatalLevel)
 }
 
 type processConfig struct {

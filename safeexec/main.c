@@ -41,6 +41,7 @@ typedef struct {
 	int outputFilesLen;
 	char* cgroupName;
 	char* cgroupParent;
+	char* report;
 	int pipe[2];
 	char* overlayWorkdir;
 } Context;
@@ -49,6 +50,7 @@ typedef struct {
 #define OVERLAY_DATA "lowerdir=%s,upperdir=%s,workdir=%s"
 #define PROC_PATH "/proc"
 #define CGROUP_PROCS_FILE "cgroup.procs"
+#define OVERLAY_WORK ".work"
 
 void setupUserNamespace(Context* ctx) {
 	// We should wait for setup of user namespace from parent.
@@ -239,6 +241,9 @@ void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--cgroup-parent") == 0) {
 			++i;
 			ensure(i < argc, "--cgroup-parent requires argument");
+		} else if (strcmp(argv[i], "--report") == 0) {
+			++i;
+			ensure(i < argc, "--report requires argument");
 		} else {
 			ctx->argsLen = argc - i;
 		}
@@ -299,6 +304,9 @@ void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--cgroup-parent") == 0) {
 			++i;
 			ctx->cgroupParent = argv[i];
+		} else if (strcmp(argv[i], "--report") == 0) {
+			++i;
+			ctx->report = argv[i];
 		} else {
 			for (int j = 0; i < argc; ++j) {
 				ctx->args[j] = argv[i];
@@ -337,6 +345,7 @@ int main(int argc, char* argv[]) {
 	ctx->outputFilesLen = 0;
 	ctx->cgroupName = "";
 	ctx->cgroupParent = "";
+	ctx->report = "";
 	initContext(ctx, argc, argv);
 	ensure(ctx->argsLen, "empty execve arguments");
 	ensure(strlen(ctx->rootfs), "--rootfs argument is required");
@@ -345,10 +354,10 @@ int main(int argc, char* argv[]) {
 	ensure(strlen(ctx->cgroupName), "--cgroup-name is required");
 	ensure(strlen(ctx->cgroupParent), "--cgroup-parent is required");
 	ensure(pipe(ctx->pipe) == 0, "cannot create pipe");
-	ctx->overlayWorkdir = malloc((strlen(ctx->upperdir) + 6) * sizeof(char));
+	ctx->overlayWorkdir = malloc((strlen(ctx->upperdir) + strlen(OVERLAY_WORK) + 1) * sizeof(char));
 	ensure(ctx->overlayWorkdir != 0, "cannot allocate overlay workdir path");
 	strcpy(ctx->overlayWorkdir, ctx->upperdir);
-	strcat(ctx->overlayWorkdir, ".work");
+	strcat(ctx->overlayWorkdir, OVERLAY_WORK);
 	ensure(mkdir(ctx->overlayWorkdir, 0777) == 0, "cannot create overlay workdir");
 	char* stack = malloc(STACK_SIZE);
 	ensure(stack != 0, "cannot allocate stack");

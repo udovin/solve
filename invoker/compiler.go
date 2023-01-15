@@ -170,7 +170,7 @@ func execute(container *container, memoryLimit int64, timeLimit time.Duration) (
 	case <-notifyOOM:
 		duration := time.Since(start)
 		memory := atomic.LoadInt64(&maxMemory)
-		if memory < memoryLimit {
+		if memory <= memoryLimit {
 			memory = memoryLimit + 1024
 		}
 		return executeResult{

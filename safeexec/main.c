@@ -52,13 +52,6 @@ typedef struct {
 #define CGROUP_PROCS_FILE "cgroup.procs"
 #define OVERLAY_WORK ".work"
 
-void setupUserNamespace(Context* ctx) {
-	// We should wait for setup of user namespace from parent.
-	char c;
-	ensure(read(ctx->pipe[0], &c, 1) == 0, "cannot wait pipe to close");
-	close(ctx->pipe[0]);
-}
-
 void setupOverlayfs(Context* ctx) {
 	char* data = malloc((strlen(ctx->lowerdir) + strlen(ctx->upperdir) + strlen(ctx->overlayWorkdir) + strlen(OVERLAY_DATA)) * sizeof(char));
 	ensure(data != 0, "cannot allocate rootfs overlay data");
@@ -107,6 +100,17 @@ void pivotRoot(Context* ctx) {
 	ensure(chdir("/") == 0, "cannot chdir to \"/\"");
 }
 
+void setupUserNamespace(Context* ctx) {
+	// We should wait for setup of user namespace from parent.
+	char c;
+	ensure(read(ctx->pipe[0], &c, 1) == 0, "cannot wait pipe to close");
+	close(ctx->pipe[0]);
+}
+
+void setupCgroupNamespace(Context* ctx) {
+	ensure(unshare(CLONE_NEWCGROUP) == 0, "cannot unshare cgroup namespace");
+}
+
 void setupMountNamespace(Context* ctx) {
 	// First of all make all changes are private for current root.
 	ensure(mount(NULL, "/", NULL, MS_SLAVE | MS_REC, NULL) == 0, "cannot remount \"/\"");
@@ -129,6 +133,7 @@ int entrypoint(void* arg) {
 	close(ctx->pipe[1]);
 	// Setup user namespace first of all.
 	setupUserNamespace(ctx);
+	setupCgroupNamespace(ctx);
 	setupMountNamespace(ctx);
 	ensure(chdir(ctx->workdir) == 0, "cannot chdir to workdir");
 	printf("pid = %d\n", getpid());
@@ -364,7 +369,7 @@ int main(int argc, char* argv[]) {
 	int pid = clone(
 		entrypoint,
 		stack + STACK_SIZE,
-		SIGCHLD | CLONE_NEWUSER | CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET | CLONE_NEWIPC | CLONE_NEWUTS | CLONE_NEWCGROUP,
+		SIGCHLD | CLONE_NEWUSER | CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET | CLONE_NEWIPC | CLONE_NEWUTS,
 		ctx);
 	ensure(pid != -1, "cannot clone()");
 	close(ctx->pipe[0]);

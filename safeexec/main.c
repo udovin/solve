@@ -136,13 +136,6 @@ int entrypoint(void* arg) {
 	setupCgroupNamespace(ctx);
 	setupMountNamespace(ctx);
 	ensure(chdir(ctx->workdir) == 0, "cannot chdir to workdir");
-	printf("pid = %d\n", getpid());
-	printf("uid = %d\n", getuid());
-	printf("gid = %d\n", getgid());
-	printf("stdin = %d\n", ctx->stdinFd);
-	printf("stdout = %d\n", ctx->stdoutFd);
-	printf("stderr = %d\n", ctx->stderrFd);
-	printf("rootfs = %s\n", ctx->rootfs);
 	if (ctx->stdinFd != -1) {
 		ensure(dup2(ctx->stdinFd, STDIN_FILENO) != -1, "cannot setup stdin");
 		close(ctx->stdinFd);
@@ -195,7 +188,6 @@ void prepareCgroupNamespace(Context* ctx, int pid) {
 	}
 	strcat(cgroupPath, "/");
 	strcat(cgroupPath, CGROUP_PROCS_FILE);
-	puts(cgroupPath);
 	int fd = open(cgroupPath, O_WRONLY);
 	ensure(fd != -1, "cannot open cgroup.procs");
 	char pidStr[21];

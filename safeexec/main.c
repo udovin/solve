@@ -41,6 +41,8 @@ typedef struct {
 	int outputFilesLen;
 	char* cgroupName;
 	char* cgroupParent;
+	int memoryLimit;
+	int timeLimit;
 	char* report;
 	int pipe[2];
 	char* overlayWorkdir;
@@ -50,6 +52,8 @@ typedef struct {
 #define OVERLAY_DATA "lowerdir=%s,upperdir=%s,workdir=%s"
 #define PROC_PATH "/proc"
 #define CGROUP_PROCS_FILE "cgroup.procs"
+#define CGROUP_MEMORY_MAX_FILE "memory.max"
+#define CGROUP_MEMORY_SWAP_MAX_FILE "memory.swap.max"
 #define OVERLAY_WORK ".work"
 
 void setupOverlayfs(Context* ctx) {
@@ -178,22 +182,52 @@ void prepareUserNamespace(int pid) {
 }
 
 void prepareCgroupNamespace(Context* ctx, int pid) {
-	char* cgroupPath = malloc((strlen(ctx->cgroupParent) + strlen(ctx->cgroupName) + strlen(CGROUP_PROCS_FILE) + 3) * sizeof(char));
+	char* cgroupPath = malloc((strlen(ctx->cgroupParent) + strlen(ctx->cgroupName) + strlen(CGROUP_MEMORY_SWAP_MAX_FILE) + 3) * sizeof(char));
 	ensure(cgroupPath != 0, "cannot allocate cgroup path");
 	strcpy(cgroupPath, ctx->cgroupParent);
 	strcat(cgroupPath, "/");
 	strcat(cgroupPath, ctx->cgroupName);
+	if (rmdir(cgroupPath) != 0) {
+		ensure(errno == ENOENT, "cannot remove cgroup");
+	}
 	if (mkdir(cgroupPath, 0755) != 0) {
 		ensure(errno == EEXIST, "cannot create cgroup");
 	}
-	strcat(cgroupPath, "/");
-	strcat(cgroupPath, CGROUP_PROCS_FILE);
-	int fd = open(cgroupPath, O_WRONLY);
-	ensure(fd != -1, "cannot open cgroup.procs");
-	char pidStr[21];
-	sprintf(pidStr, "%d", pid);
-	ensure(write(fd, pidStr, strlen(pidStr)) != -1, "cannot write cgroup.procs");
-	close(fd);
+	{
+		strcat(cgroupPath, "/");
+		strcat(cgroupPath, CGROUP_PROCS_FILE);
+		int fd = open(cgroupPath, O_WRONLY);
+		ensure(fd != -1, "cannot open cgroup.procs");
+		char pidStr[21];
+		sprintf(pidStr, "%d", pid);
+		ensure(write(fd, pidStr, strlen(pidStr)) != -1, "cannot write cgroup.procs");
+		close(fd);
+	}
+	{
+		strcpy(cgroupPath, ctx->cgroupParent);
+		strcat(cgroupPath, "/");
+		strcat(cgroupPath, ctx->cgroupName);
+		strcat(cgroupPath, "/");
+		strcat(cgroupPath, CGROUP_MEMORY_MAX_FILE);
+		int fd = open(cgroupPath, O_WRONLY);
+		ensure(fd != -1, "cannot open memory.max");
+		char memoryStr[21];
+		sprintf(memoryStr, "%d", ctx->memoryLimit);
+		ensure(write(fd, memoryStr, strlen(memoryStr)) != -1, "cannot write cgroup.procs");
+		close(fd);
+	}
+	{
+		strcpy(cgroupPath, ctx->cgroupParent);
+		strcat(cgroupPath, "/");
+		strcat(cgroupPath, ctx->cgroupName);
+		strcat(cgroupPath, "/");
+		strcat(cgroupPath, CGROUP_MEMORY_SWAP_MAX_FILE);
+		int fd = open(cgroupPath, O_WRONLY);
+		ensure(fd != -1, "cannot open memory.swap.max");
+		char memoryStr[21];
+		ensure(write(fd, "0", strlen("0")) != -1, "cannot write cgroup.procs");
+		close(fd);
+	}
 	free(cgroupPath);
 }
 
@@ -238,6 +272,12 @@ void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--cgroup-parent") == 0) {
 			++i;
 			ensure(i < argc, "--cgroup-parent requires argument");
+		} else if (strcmp(argv[i], "--time-limit") == 0) {
+			++i;
+			ensure(i < argc, "--time-limit requires argument");
+		} else if (strcmp(argv[i], "--memory-limit") == 0) {
+			++i;
+			ensure(i < argc, "--memory-limit requires argument");
 		} else if (strcmp(argv[i], "--report") == 0) {
 			++i;
 			ensure(i < argc, "--report requires argument");
@@ -301,6 +341,12 @@ void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--cgroup-parent") == 0) {
 			++i;
 			ctx->cgroupParent = argv[i];
+		} else if (strcmp(argv[i], "--time-limit") == 0) {
+			++i;
+			ensure(sscanf(argv[i], "%d", &ctx->timeLimit) == 1, "--time-limit has invalid argument");
+		} else if (strcmp(argv[i], "--memory-limit") == 0) {
+			++i;
+			ensure(sscanf(argv[i], "%d", &ctx->memoryLimit) == 1, "--memory-limit has invalid argument");
 		} else if (strcmp(argv[i], "--report") == 0) {
 			++i;
 			ctx->report = argv[i];
@@ -342,6 +388,8 @@ int main(int argc, char* argv[]) {
 	ctx->outputFilesLen = 0;
 	ctx->cgroupName = "";
 	ctx->cgroupParent = "";
+	ctx->timeLimit = 0;
+	ctx->memoryLimit = 0;
 	ctx->report = "";
 	initContext(ctx, argc, argv);
 	ensure(ctx->argsLen, "empty execve arguments");
@@ -350,6 +398,8 @@ int main(int argc, char* argv[]) {
 	ensure(strlen(ctx->upperdir), "--upperdir is required");
 	ensure(strlen(ctx->cgroupName), "--cgroup-name is required");
 	ensure(strlen(ctx->cgroupParent), "--cgroup-parent is required");
+	ensure(ctx->timeLimit, "--time-limit is required");
+	ensure(ctx->memoryLimit, "--memory-limit is required");
 	ensure(pipe(ctx->pipe) == 0, "cannot create pipe");
 	ctx->overlayWorkdir = malloc((strlen(ctx->upperdir) + strlen(OVERLAY_WORK) + 1) * sizeof(char));
 	ensure(ctx->overlayWorkdir != 0, "cannot allocate overlay workdir path");
@@ -363,6 +413,7 @@ int main(int argc, char* argv[]) {
 		stack + STACK_SIZE,
 		SIGCHLD | CLONE_NEWUSER | CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET | CLONE_NEWIPC | CLONE_NEWUTS,
 		ctx);
+	free(stack);
 	ensure(pid != -1, "cannot clone()");
 	close(ctx->pipe[0]);
 	if (ctx->stdinFd != -1) { close(ctx->stdinFd); }
@@ -378,5 +429,11 @@ int main(int argc, char* argv[]) {
 	int status;
 	waitpid(pid, &status, 0);
 	printf("exit code = %d\n", WEXITSTATUS(status));
+	printf("exited = %d\n", WIFEXITED(status));
+	free(ctx->args);
+	free(ctx->inputFiles);
+	free(ctx->outputFiles);
+	free(ctx->overlayWorkdir);
+	free(ctx);
 	return EXIT_SUCCESS;
 }

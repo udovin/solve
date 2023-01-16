@@ -14,12 +14,13 @@
 #include <string.h>
 #include <stdlib.h>
 
-void ensure(int value, const char* message) {
-	if (!value) {
-		puts(message);
-		exit(EXIT_FAILURE);
-	}
-}
+#define STACK_SIZE 16384
+#define OVERLAY_DATA "lowerdir=%s,upperdir=%s,workdir=%s"
+#define PROC_PATH "/proc"
+#define CGROUP_PROCS_FILE "cgroup.procs"
+#define CGROUP_MEMORY_MAX_FILE "memory.max"
+#define CGROUP_MEMORY_SWAP_MAX_FILE "memory.swap.max"
+#define OVERLAY_WORK ".work"
 
 typedef struct {
 	char* source;
@@ -50,15 +51,14 @@ typedef struct {
 	char* overlayWorkdir;
 } Context;
 
-#define STACK_SIZE 16384
-#define OVERLAY_DATA "lowerdir=%s,upperdir=%s,workdir=%s"
-#define PROC_PATH "/proc"
-#define CGROUP_PROCS_FILE "cgroup.procs"
-#define CGROUP_MEMORY_MAX_FILE "memory.max"
-#define CGROUP_MEMORY_SWAP_MAX_FILE "memory.swap.max"
-#define OVERLAY_WORK ".work"
+static inline void ensure(int value, const char* message) {
+	if (!value) {
+		puts(message);
+		exit(EXIT_FAILURE);
+	}
+}
 
-void setupOverlayfs(Context* ctx) {
+static inline void setupOverlayfs(Context* ctx) {
 	char* data = malloc((strlen(ctx->lowerdir) + strlen(ctx->upperdir) + strlen(ctx->overlayWorkdir) + strlen(OVERLAY_DATA)) * sizeof(char));
 	ensure(data != 0, "cannot allocate rootfs overlay data");
 	sprintf(data, OVERLAY_DATA, ctx->lowerdir, ctx->upperdir, ctx->overlayWorkdir);
@@ -66,7 +66,7 @@ void setupOverlayfs(Context* ctx) {
 	free(data);
 }
 
-void mkdirAll(int prefix, char* path) {
+static inline void mkdirAll(int prefix, char* path) {
 	for (int i = prefix; path[i] != 0; ++i) {
 		if (path[i] == '/' && i > prefix) {
 			path[i] = 0;
@@ -81,7 +81,7 @@ void mkdirAll(int prefix, char* path) {
 	}
 }
 
-void setupMount(Context* ctx, const char* source, const char* target, const char* device, unsigned long flags, const void* data) {
+static inline void setupMount(Context* ctx, const char* source, const char* target, const char* device, unsigned long flags, const void* data) {
 	char* path = malloc((strlen(ctx->rootfs) + strlen(target) + 1) * sizeof(char));
 	ensure(path != 0, "cannot allocate");
 	strcpy(path, ctx->rootfs);
@@ -91,7 +91,7 @@ void setupMount(Context* ctx, const char* source, const char* target, const char
 	free(path);
 }
 
-void pivotRoot(Context* ctx) {
+static inline void pivotRoot(Context* ctx) {
 	int oldroot = open("/", O_DIRECTORY | O_RDONLY);
 	ensure(oldroot != -1, "cannot open old root");
 	int newroot = open(ctx->rootfs, O_DIRECTORY | O_RDONLY);
@@ -106,18 +106,18 @@ void pivotRoot(Context* ctx) {
 	ensure(chdir("/") == 0, "cannot chdir to \"/\"");
 }
 
-void setupUserNamespace(Context* ctx) {
+static inline void setupUserNamespace(Context* ctx) {
 	// We should wait for setup of user namespace from parent.
 	char c;
 	ensure(read(ctx->initializePipe[0], &c, 1) == 0, "cannot wait initialize pipe to close");
 	close(ctx->initializePipe[0]);
 }
 
-void setupCgroupNamespace(Context* ctx) {
+static inline void setupCgroupNamespace(Context* ctx) {
 	ensure(unshare(CLONE_NEWCGROUP) == 0, "cannot unshare cgroup namespace");
 }
 
-void setupMountNamespace(Context* ctx) {
+static inline void setupMountNamespace(Context* ctx) {
 	// First of all make all changes are private for current root.
 	ensure(mount(NULL, "/", NULL, MS_SLAVE | MS_REC, NULL) == 0, "cannot remount \"/\"");
 	ensure(mount(NULL, "/", NULL, MS_PRIVATE, NULL) == 0, "cannot remount \"/\"");
@@ -133,38 +133,11 @@ void setupMountNamespace(Context* ctx) {
 	pivotRoot(ctx);
 }
 
-void setupUtsNamespace(Context* ctx) {
+static inline void setupUtsNamespace(Context* ctx) {
 	ensure(sethostname("sandbox", strlen("sandbox")) == 0, "cannot set hostname");
 }
 
-int entrypoint(void* arg) {
-	ensure(arg != 0, "cannot get config");
-	Context* ctx = (Context*)arg;
-	close(ctx->initializePipe[1]);
-	close(ctx->finalizePipe[0]);
-	// Setup user namespace first of all.
-	setupUserNamespace(ctx);
-	setupCgroupNamespace(ctx);
-	setupMountNamespace(ctx);
-	setupUtsNamespace(ctx);
-	ensure(chdir(ctx->workdir) == 0, "cannot chdir to workdir");
-	if (ctx->stdinFd != -1) {
-		ensure(dup2(ctx->stdinFd, STDIN_FILENO) != -1, "cannot setup stdin");
-		close(ctx->stdinFd);
-	}
-	if (ctx->stdoutFd != -1) {
-		ensure(dup2(ctx->stdoutFd, STDOUT_FILENO) != -1, "cannot setup stdout");
-		close(ctx->stdoutFd);
-	}
-	if (ctx->stderrFd != -1) {
-		ensure(dup2(ctx->stderrFd, STDERR_FILENO) != -1, "cannot setup stderr");
-		close(ctx->stderrFd);
-	}
-	close(ctx->finalizePipe[1]);
-	execve(ctx->args[0], ctx->args, 0);
-}
-
-void prepareUserNamespace(int pid) {
+static inline void prepareUserNamespace(int pid) {
 	int fd;
 	char path[64];
 	char data[64];
@@ -190,7 +163,7 @@ void prepareUserNamespace(int pid) {
 	close(fd);
 }
 
-void prepareCgroupNamespace(Context* ctx, int pid) {
+static inline void prepareCgroupNamespace(Context* ctx, int pid) {
 	char* cgroupPath = malloc((strlen(ctx->cgroupParent) + strlen(ctx->cgroupName) + strlen(CGROUP_MEMORY_SWAP_MAX_FILE) + 3) * sizeof(char));
 	ensure(cgroupPath != 0, "cannot allocate cgroup path");
 	strcpy(cgroupPath, ctx->cgroupParent);
@@ -240,7 +213,7 @@ void prepareCgroupNamespace(Context* ctx, int pid) {
 	free(cgroupPath);
 }
 
-void initContext(Context* ctx, int argc, char* argv[]) {
+static inline void initContext(Context* ctx, int argc, char* argv[]) {
 	for (int i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--stdin") == 0) {
 			++i;
@@ -369,7 +342,7 @@ void initContext(Context* ctx, int argc, char* argv[]) {
 	}
 }
 
-void copyFile(char* target, char* source) {
+static inline void copyFile(char* target, char* source) {
 	int input = open(source, O_RDONLY);
 	ensure(input != -1, "cannot open source file");
 	struct stat fileinfo = {};
@@ -380,17 +353,17 @@ void copyFile(char* target, char* source) {
 	ensure(sendfile(output, input, &bytesCopied, fileinfo.st_size) != -1, "cannot copy source to target");
 }
 
-void waitReady(Context* ctx) {
+static inline void waitReady(Context* ctx) {
 	char c;
 	ensure(read(ctx->finalizePipe[0], &c, 1) == 0, "cannot wait finalize pipe to close");
 	close(ctx->finalizePipe[0]);
 }
 
-long getTimeDiff(struct timespec end, struct timespec begin) {
+static inline long getTimeDiff(struct timespec end, struct timespec begin) {
 	return (long)(end.tv_sec - begin.tv_sec) * 1000 + (end.tv_nsec - begin.tv_nsec) / 1000000;
 }
 
-int main(int argc, char* argv[]) {
+static inline Context* newContext() {
 	Context* ctx = malloc(sizeof(Context));
 	ensure(ctx != 0, "cannot allocate context");
 	ctx->stdinFd = -1;
@@ -400,17 +373,58 @@ int main(int argc, char* argv[]) {
 	ctx->lowerdir = "";
 	ctx->upperdir = "";
 	ctx->workdir = "/";
-	ctx->args = 0;
+	ctx->args = NULL;
 	ctx->argsLen = 0;
-	ctx->inputFiles = 0;
+	ctx->inputFiles = NULL;
 	ctx->inputFilesLen = 0;
-	ctx->outputFiles = 0;
+	ctx->outputFiles = NULL;
 	ctx->outputFilesLen = 0;
 	ctx->cgroupName = "";
 	ctx->cgroupParent = "";
 	ctx->timeLimit = 0;
 	ctx->memoryLimit = 0;
 	ctx->report = "";
+	ctx->overlayWorkdir = NULL;
+	return ctx;
+}
+
+static inline void freeContext(Context* ctx) {
+	free(ctx->args);
+	free(ctx->inputFiles);
+	free(ctx->outputFiles);
+	free(ctx->overlayWorkdir);
+	free(ctx);
+}
+
+int entrypoint(void* arg) {
+	ensure(arg != 0, "cannot get config");
+	Context* ctx = (Context*)arg;
+	close(ctx->initializePipe[1]);
+	close(ctx->finalizePipe[0]);
+	// Setup user namespace first of all.
+	setupUserNamespace(ctx);
+	setupCgroupNamespace(ctx);
+	setupMountNamespace(ctx);
+	setupUtsNamespace(ctx);
+	ensure(chdir(ctx->workdir) == 0, "cannot chdir to workdir");
+	if (ctx->stdinFd != -1) {
+		ensure(dup2(ctx->stdinFd, STDIN_FILENO) != -1, "cannot setup stdin");
+		close(ctx->stdinFd);
+	}
+	if (ctx->stdoutFd != -1) {
+		ensure(dup2(ctx->stdoutFd, STDOUT_FILENO) != -1, "cannot setup stdout");
+		close(ctx->stdoutFd);
+	}
+	if (ctx->stderrFd != -1) {
+		ensure(dup2(ctx->stderrFd, STDERR_FILENO) != -1, "cannot setup stderr");
+		close(ctx->stderrFd);
+	}
+	close(ctx->finalizePipe[1]);
+	execvpe(ctx->args[0], ctx->args, NULL);
+}
+
+int main(int argc, char* argv[]) {
+	Context* ctx = newContext();
 	initContext(ctx, argc, argv);
 	ensure(ctx->argsLen, "empty execve arguments");
 	ensure(strlen(ctx->rootfs), "--rootfs argument is required");
@@ -464,16 +478,11 @@ int main(int argc, char* argv[]) {
 				ensure(errno == ESRCH, "cannot kill process");
 			}
 		}
-		printf("%ld\n", getTimeDiff(currentTime, startTime));
 		usleep(10000);
 	} while (result == 0);
 	printf("time used = %ld", getTimeDiff(currentTime, startTime));
 	printf("exit code = %d\n", WEXITSTATUS(status));
 	printf("exited = %d\n", WIFEXITED(status));
-	free(ctx->args);
-	free(ctx->inputFiles);
-	free(ctx->outputFiles);
-	free(ctx->overlayWorkdir);
-	free(ctx);
+	freeContext(ctx);
 	return EXIT_SUCCESS;
 }

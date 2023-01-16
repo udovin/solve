@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <time.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
 #include <sys/sendfile.h>
@@ -44,7 +45,8 @@ typedef struct {
 	int memoryLimit;
 	int timeLimit;
 	char* report;
-	int pipe[2];
+	int initializePipe[2];
+	int finalizePipe[2];
 	char* overlayWorkdir;
 } Context;
 
@@ -107,8 +109,8 @@ void pivotRoot(Context* ctx) {
 void setupUserNamespace(Context* ctx) {
 	// We should wait for setup of user namespace from parent.
 	char c;
-	ensure(read(ctx->pipe[0], &c, 1) == 0, "cannot wait pipe to close");
-	close(ctx->pipe[0]);
+	ensure(read(ctx->initializePipe[0], &c, 1) == 0, "cannot wait initialize pipe to close");
+	close(ctx->initializePipe[0]);
 }
 
 void setupCgroupNamespace(Context* ctx) {
@@ -131,14 +133,20 @@ void setupMountNamespace(Context* ctx) {
 	pivotRoot(ctx);
 }
 
+void setupUtsNamespace(Context* ctx) {
+	ensure(sethostname("sandbox", strlen("sandbox")) == 0, "cannot set hostname");
+}
+
 int entrypoint(void* arg) {
 	ensure(arg != 0, "cannot get config");
 	Context* ctx = (Context*)arg;
-	close(ctx->pipe[1]);
+	close(ctx->initializePipe[1]);
+	close(ctx->finalizePipe[0]);
 	// Setup user namespace first of all.
 	setupUserNamespace(ctx);
 	setupCgroupNamespace(ctx);
 	setupMountNamespace(ctx);
+	setupUtsNamespace(ctx);
 	ensure(chdir(ctx->workdir) == 0, "cannot chdir to workdir");
 	if (ctx->stdinFd != -1) {
 		ensure(dup2(ctx->stdinFd, STDIN_FILENO) != -1, "cannot setup stdin");
@@ -152,6 +160,7 @@ int entrypoint(void* arg) {
 		ensure(dup2(ctx->stderrFd, STDERR_FILENO) != -1, "cannot setup stderr");
 		close(ctx->stderrFd);
 	}
+	close(ctx->finalizePipe[1]);
 	execve(ctx->args[0], ctx->args, 0);
 }
 
@@ -283,6 +292,7 @@ void initContext(Context* ctx, int argc, char* argv[]) {
 			ensure(i < argc, "--report requires argument");
 		} else {
 			ctx->argsLen = argc - i;
+			break;
 		}
 	}
 	ctx->args = malloc((ctx->argsLen + 1) * sizeof(char*));
@@ -370,6 +380,16 @@ void copyFile(char* target, char* source) {
 	ensure(sendfile(output, input, &bytesCopied, fileinfo.st_size) != -1, "cannot copy source to target");
 }
 
+void waitReady(Context* ctx) {
+	char c;
+	ensure(read(ctx->finalizePipe[0], &c, 1) == 0, "cannot wait finalize pipe to close");
+	close(ctx->finalizePipe[0]);
+}
+
+long getTimeDiff(struct timespec end, struct timespec begin) {
+	return (long)(end.tv_sec - begin.tv_sec) * 1000 + (end.tv_nsec - begin.tv_nsec) / 1000000;
+}
+
 int main(int argc, char* argv[]) {
 	Context* ctx = malloc(sizeof(Context));
 	ensure(ctx != 0, "cannot allocate context");
@@ -400,7 +420,8 @@ int main(int argc, char* argv[]) {
 	ensure(strlen(ctx->cgroupParent), "--cgroup-parent is required");
 	ensure(ctx->timeLimit, "--time-limit is required");
 	ensure(ctx->memoryLimit, "--memory-limit is required");
-	ensure(pipe(ctx->pipe) == 0, "cannot create pipe");
+	ensure(pipe(ctx->initializePipe) == 0, "cannot create initialize pipe");
+	ensure(pipe(ctx->finalizePipe) == 0, "cannot create finalize pipe");
 	ctx->overlayWorkdir = malloc((strlen(ctx->upperdir) + strlen(OVERLAY_WORK) + 1) * sizeof(char));
 	ensure(ctx->overlayWorkdir != 0, "cannot allocate overlay workdir path");
 	strcpy(ctx->overlayWorkdir, ctx->upperdir);
@@ -411,11 +432,12 @@ int main(int argc, char* argv[]) {
 	int pid = clone(
 		entrypoint,
 		stack + STACK_SIZE,
-		SIGCHLD | CLONE_NEWUSER | CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET | CLONE_NEWIPC | CLONE_NEWUTS,
+		CLONE_NEWUSER | CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET | CLONE_NEWIPC | CLONE_NEWUTS,
 		ctx);
 	free(stack);
 	ensure(pid != -1, "cannot clone()");
-	close(ctx->pipe[0]);
+	close(ctx->initializePipe[0]);
+	close(ctx->finalizePipe[1]);
 	if (ctx->stdinFd != -1) { close(ctx->stdinFd); }
 	if (ctx->stdoutFd != -1) { close(ctx->stdoutFd); }
 	if (ctx->stderrFd != -1) { close(ctx->stderrFd); }
@@ -424,10 +446,28 @@ int main(int argc, char* argv[]) {
 	// Setup cgroup namespace.
 	prepareCgroupNamespace(ctx, pid);
 	// Now we should unlock child process.
-	close(ctx->pipe[1]);
+	close(ctx->initializePipe[1]);
 	//
+	waitReady(ctx);
+	struct timespec startTime, currentTime;
+	ensure(clock_gettime(CLOCK_MONOTONIC, &startTime) == 0, "cannot get start time");
 	int status;
-	waitpid(pid, &status, 0);
+	pid_t result;
+	do {
+		result = waitpid(pid, &status, WUNTRACED | WNOHANG | __WALL);
+		if (result < 0) {
+			ensure(errno == EINTR, "cannot wait for child process");
+		}
+		ensure(clock_gettime(CLOCK_MONOTONIC, &currentTime) == 0, "cannot get current time");
+		if (getTimeDiff(currentTime, startTime) > ctx->timeLimit) {
+			if (kill(pid, SIGKILL) != 0) {
+				ensure(errno == ESRCH, "cannot kill process");
+			}
+		}
+		printf("%ld\n", getTimeDiff(currentTime, startTime));
+		usleep(10000);
+	} while (result == 0);
+	printf("time used = %ld", getTimeDiff(currentTime, startTime));
 	printf("exit code = %d\n", WEXITSTATUS(status));
 	printf("exited = %d\n", WIFEXITED(status));
 	free(ctx->args);

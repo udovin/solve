@@ -32,8 +32,9 @@ typedef struct {
 	int stdoutFd;
 	int stderrFd;
 	char* rootfs;
-	char* lowerdir;
-	char* upperdir;
+	char* overlayLowerdir;
+	char* overlayUpperdir;
+	char* overlayWorkdir;
 	char* workdir;
 	char** args;
 	int argsLen;
@@ -41,14 +42,12 @@ typedef struct {
 	int inputFilesLen;
 	Mount* outputFiles;
 	int outputFilesLen;
-	char* cgroupName;
-	char* cgroupParent;
+	char* cgroupPath;
 	int memoryLimit;
 	int timeLimit;
 	char* report;
 	int initializePipe[2];
 	int finalizePipe[2];
-	char* overlayWorkdir;
 } Context;
 
 static inline void ensure(int value, const char* message) {
@@ -59,9 +58,9 @@ static inline void ensure(int value, const char* message) {
 }
 
 static inline void setupOverlayfs(Context* ctx) {
-	char* data = malloc((strlen(ctx->lowerdir) + strlen(ctx->upperdir) + strlen(ctx->overlayWorkdir) + strlen(OVERLAY_DATA)) * sizeof(char));
+	char* data = malloc((strlen(ctx->overlayLowerdir) + strlen(ctx->overlayUpperdir) + strlen(ctx->overlayWorkdir) + strlen(OVERLAY_DATA)) * sizeof(char));
 	ensure(data != 0, "cannot allocate rootfs overlay data");
-	sprintf(data, OVERLAY_DATA, ctx->lowerdir, ctx->upperdir, ctx->overlayWorkdir);
+	sprintf(data, OVERLAY_DATA, ctx->overlayLowerdir, ctx->overlayUpperdir, ctx->overlayWorkdir);
 	ensure(mount("overlay", ctx->rootfs, "overlay", 0, data) == 0, "cannot mount rootfs overlay");
 	free(data);
 }
@@ -164,18 +163,16 @@ static inline void prepareUserNamespace(int pid) {
 }
 
 static inline void prepareCgroupNamespace(Context* ctx, int pid) {
-	char* cgroupPath = malloc((strlen(ctx->cgroupParent) + strlen(ctx->cgroupName) + strlen(CGROUP_MEMORY_SWAP_MAX_FILE) + 3) * sizeof(char));
-	ensure(cgroupPath != 0, "cannot allocate cgroup path");
-	strcpy(cgroupPath, ctx->cgroupParent);
-	strcat(cgroupPath, "/");
-	strcat(cgroupPath, ctx->cgroupName);
-	if (rmdir(cgroupPath) != 0) {
+	if (rmdir(ctx->cgroupPath) != 0) {
 		ensure(errno == ENOENT, "cannot remove cgroup");
 	}
-	if (mkdir(cgroupPath, 0755) != 0) {
+	if (mkdir(ctx->cgroupPath, 0755) != 0) {
 		ensure(errno == EEXIST, "cannot create cgroup");
 	}
+	char* cgroupPath = malloc((strlen(ctx->cgroupPath) + strlen(CGROUP_MEMORY_SWAP_MAX_FILE) + 3) * sizeof(char));
+	ensure(cgroupPath != 0, "cannot allocate cgroup path");
 	{
+		strcpy(cgroupPath, ctx->cgroupPath);
 		strcat(cgroupPath, "/");
 		strcat(cgroupPath, CGROUP_PROCS_FILE);
 		int fd = open(cgroupPath, O_WRONLY);
@@ -186,9 +183,7 @@ static inline void prepareCgroupNamespace(Context* ctx, int pid) {
 		close(fd);
 	}
 	{
-		strcpy(cgroupPath, ctx->cgroupParent);
-		strcat(cgroupPath, "/");
-		strcat(cgroupPath, ctx->cgroupName);
+		strcpy(cgroupPath, ctx->cgroupPath);
 		strcat(cgroupPath, "/");
 		strcat(cgroupPath, CGROUP_MEMORY_MAX_FILE);
 		int fd = open(cgroupPath, O_WRONLY);
@@ -199,9 +194,7 @@ static inline void prepareCgroupNamespace(Context* ctx, int pid) {
 		close(fd);
 	}
 	{
-		strcpy(cgroupPath, ctx->cgroupParent);
-		strcat(cgroupPath, "/");
-		strcat(cgroupPath, ctx->cgroupName);
+		strcpy(cgroupPath, ctx->cgroupPath);
 		strcat(cgroupPath, "/");
 		strcat(cgroupPath, CGROUP_MEMORY_SWAP_MAX_FILE);
 		int fd = open(cgroupPath, O_WRONLY);
@@ -227,12 +220,15 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--rootfs") == 0) {
 			++i;
 			ensure(i < argc, "--rootfs requires argument");
-		} else if (strcmp(argv[i], "--upperdir") == 0) {
+		} else if (strcmp(argv[i], "--overlay-upperdir") == 0) {
 			++i;
-			ensure(i < argc, "--upperdir requires argument");
-		} else if (strcmp(argv[i], "--lowerdir") == 0) {
+			ensure(i < argc, "--overlay-upperdir requires argument");
+		} else if (strcmp(argv[i], "--overlay-lowerdir") == 0) {
 			++i;
-			ensure(i < argc, "--lowerdir requires argument");
+			ensure(++i < argc, "--overlay-lowerdir requires argument");
+		} else if (strcmp(argv[i], "--overlay-workdir") == 0) {
+			++i;
+			ensure(++i < argc, "--overlay-workdir requires argument");
 		} else if (strcmp(argv[i], "--workdir") == 0) {
 			++i;
 			ensure(i < argc, "--workdir requires argument");
@@ -248,12 +244,9 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 			++i;
 			ensure(i < argc, "--output-file requires two arguments");
 			++ctx->outputFilesLen;
-		} else if (strcmp(argv[i], "--cgroup-name") == 0) {
+		} else if (strcmp(argv[i], "--cgroup-path") == 0) {
 			++i;
-			ensure(i < argc, "--cgroup-name requires argument");
-		} else if (strcmp(argv[i], "--cgroup-parent") == 0) {
-			++i;
-			ensure(i < argc, "--cgroup-parent requires argument");
+			ensure(i < argc, "--cgroup-path requires argument");
 		} else if (strcmp(argv[i], "--time-limit") == 0) {
 			++i;
 			ensure(i < argc, "--time-limit requires argument");
@@ -297,12 +290,15 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--rootfs") == 0) {
 			++i;
 			ctx->rootfs = argv[i];
-		} else if (strcmp(argv[i], "--upperdir") == 0) {
+		} else if (strcmp(argv[i], "--overlay-upperdir") == 0) {
 			++i;
-			ctx->upperdir = argv[i];
-		} else if (strcmp(argv[i], "--lowerdir") == 0) {
+			ctx->overlayUpperdir = argv[i];
+		} else if (strcmp(argv[i], "--overlay-lowerdir") == 0) {
 			++i;
-			ctx->lowerdir = argv[i];
+			ctx->overlayLowerdir = argv[i];
+		} else if (strcmp(argv[i], "--overlay-workdir") == 0) {
+			++i;
+			ctx->overlayWorkdir = argv[i];
 		} else if (strcmp(argv[i], "--workdir") == 0) {
 			++i;
 			ctx->workdir = argv[i];
@@ -318,12 +314,9 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 			++i;
 			ctx->outputFiles[outputFileIt].target = argv[i];
 			++outputFileIt;
-		} else if (strcmp(argv[i], "--cgroup-name") == 0) {
+		} else if (strcmp(argv[i], "--cgroup-path") == 0) {
 			++i;
-			ctx->cgroupName = argv[i];
-		} else if (strcmp(argv[i], "--cgroup-parent") == 0) {
-			++i;
-			ctx->cgroupParent = argv[i];
+			ctx->cgroupPath = argv[i];
 		} else if (strcmp(argv[i], "--time-limit") == 0) {
 			++i;
 			ensure(sscanf(argv[i], "%d", &ctx->timeLimit) == 1, "--time-limit has invalid argument");
@@ -370,8 +363,9 @@ static inline Context* newContext() {
 	ctx->stdoutFd = -1;
 	ctx->stderrFd = -1;
 	ctx->rootfs = "";
-	ctx->lowerdir = "";
-	ctx->upperdir = "";
+	ctx->overlayLowerdir = "";
+	ctx->overlayUpperdir = "";
+	ctx->overlayWorkdir = "";
 	ctx->workdir = "/";
 	ctx->args = NULL;
 	ctx->argsLen = 0;
@@ -379,12 +373,10 @@ static inline Context* newContext() {
 	ctx->inputFilesLen = 0;
 	ctx->outputFiles = NULL;
 	ctx->outputFilesLen = 0;
-	ctx->cgroupName = "";
-	ctx->cgroupParent = "";
+	ctx->cgroupPath = "";
 	ctx->timeLimit = 0;
 	ctx->memoryLimit = 0;
 	ctx->report = "";
-	ctx->overlayWorkdir = NULL;
 	return ctx;
 }
 
@@ -392,7 +384,6 @@ static inline void freeContext(Context* ctx) {
 	free(ctx->args);
 	free(ctx->inputFiles);
 	free(ctx->outputFiles);
-	free(ctx->overlayWorkdir);
 	free(ctx);
 }
 
@@ -428,19 +419,14 @@ int main(int argc, char* argv[]) {
 	initContext(ctx, argc, argv);
 	ensure(ctx->argsLen, "empty execve arguments");
 	ensure(strlen(ctx->rootfs), "--rootfs argument is required");
-	ensure(strlen(ctx->lowerdir), "--lowerdir is required");
-	ensure(strlen(ctx->upperdir), "--upperdir is required");
-	ensure(strlen(ctx->cgroupName), "--cgroup-name is required");
-	ensure(strlen(ctx->cgroupParent), "--cgroup-parent is required");
+	ensure(strlen(ctx->overlayLowerdir), "--overlay-lowerdir is required");
+	ensure(strlen(ctx->overlayUpperdir), "--overlay-upperdir is required");
+	ensure(strlen(ctx->overlayWorkdir), "--overlay-workdir is required");
+	ensure(strlen(ctx->cgroupPath), "--cgroup-path is required");
 	ensure(ctx->timeLimit, "--time-limit is required");
 	ensure(ctx->memoryLimit, "--memory-limit is required");
 	ensure(pipe(ctx->initializePipe) == 0, "cannot create initialize pipe");
 	ensure(pipe(ctx->finalizePipe) == 0, "cannot create finalize pipe");
-	ctx->overlayWorkdir = malloc((strlen(ctx->upperdir) + strlen(OVERLAY_WORK) + 1) * sizeof(char));
-	ensure(ctx->overlayWorkdir != 0, "cannot allocate overlay workdir path");
-	strcpy(ctx->overlayWorkdir, ctx->upperdir);
-	strcat(ctx->overlayWorkdir, OVERLAY_WORK);
-	ensure(mkdir(ctx->overlayWorkdir, 0777) == 0, "cannot create overlay workdir");
 	char* stack = malloc(STACK_SIZE);
 	ensure(stack != 0, "cannot allocate stack");
 	int pid = clone(

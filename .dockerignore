@@ -4,3 +4,5 @@
 /.data/
 /config*.json
 /solve
+
+/safeexec/safeexec

@@ -473,16 +473,25 @@ int main(int argc, char* argv[]) {
 			ensure(errno == EINTR, "cannot wait for child process");
 		}
 		ensure(clock_gettime(CLOCK_MONOTONIC, &currentTime) == 0, "cannot get current time");
-		if (getTimeDiff(currentTime, startTime) > ctx->timeLimit) {
+		if (result == 0 && getTimeDiff(currentTime, startTime) > ctx->timeLimit) {
 			if (kill(pid, SIGKILL) != 0) {
 				ensure(errno == ESRCH, "cannot kill process");
 			}
 		}
-		usleep(10000);
+		usleep(5000);
 	} while (result == 0);
-	printf("time used = %ld", getTimeDiff(currentTime, startTime));
-	printf("exit code = %d\n", WEXITSTATUS(status));
-	printf("exited = %d\n", WIFEXITED(status));
+	if (strlen(ctx->report) != 0) {
+		char line[60];
+		int fd = open(ctx->report, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+		ensure(fd != -1, "cannot open report file");
+		sprintf(line, "time %ld\n", getTimeDiff(currentTime, startTime));
+		ensure(write(fd, line, strlen(line)) != -1, "cannot write report file");
+		sprintf(line, "memory %d\n", 1024);
+		ensure(write(fd, line, strlen(line)) != -1, "cannot write report file");
+		sprintf(line, "exit_code %d\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+		ensure(write(fd, line, strlen(line)) != -1, "cannot write report file");
+		close(fd);
+	}
 	freeContext(ctx);
 	return EXIT_SUCCESS;
 }

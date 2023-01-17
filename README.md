@@ -9,10 +9,10 @@ Solve is distributed under Apache 2.0 License.
 
 # How to start development
 
-First of all you should build `solve` binary:
+First of all you should build `solve` and `safeexec` binaries:
 
 ```bash
-go build .
+make all
 ```
 
 Then create config file `config.json` with following contents:
@@ -29,7 +29,10 @@ Then create config file `config.json` with following contents:
     "port": 4242
   },
   "invoker": {
-    "workers": 1
+    "workers": 1,
+    "safeexec": {
+      "path": "safeexec/safeexec"
+    }
   },
   "security": {
     "password_salt": "qwerty123"

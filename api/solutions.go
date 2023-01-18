@@ -110,6 +110,11 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 				Verdict: models.FailedTask.String(),
 			}
 		}
+		if task.Status == models.SucceededTask {
+			return &SolutionReport{
+				Verdict: models.RunningTask.String(),
+			}
+		}
 		return &SolutionReport{
 			Verdict: task.Status.String(),
 		}

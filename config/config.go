@@ -105,6 +105,12 @@ type Security struct {
 type Invoker struct {
 	// Workers contains amount of parallel workers.
 	Workers int `json:"workers"`
+	// Safeexec contains config for safeexec binary.
+	Safeexec Safeexec `json:"safeexec"`
+}
+
+type Safeexec struct {
+	Path string `json:"path"`
 }
 
 var configFuncs = template.FuncMap{

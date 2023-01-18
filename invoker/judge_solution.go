@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/udovin/solve/models"
 )
@@ -124,7 +125,7 @@ func (t *judgeSolutionTask) compileSolution(
 	compileReport, err := t.compilerImpl.Compile(ctx, CompileOptions{
 		Source:      t.solutionPath,
 		Target:      t.compiledPath,
-		TimeLimit:   20 * 1000,
+		TimeLimit:   20 * time.Second,
 		MemoryLimit: 256 * 1024 * 1024,
 	})
 	if err != nil {
@@ -133,7 +134,7 @@ func (t *judgeSolutionTask) compileSolution(
 	report.Compile = models.CompileReport{
 		Log: compileReport.Log,
 		Usage: models.UsageReport{
-			Time:   compileReport.UsedTime,
+			Time:   compileReport.UsedTime.Milliseconds(),
 			Memory: compileReport.UsedMemory,
 		},
 	}
@@ -234,7 +235,7 @@ func (t *judgeSolutionTask) testSolution(
 				OutputFiles: []MountFile{
 					{Source: outputPath, Target: "stdout"},
 				},
-				TimeLimit:   group.TimeLimit(),
+				TimeLimit:   time.Duration(group.TimeLimit()) * time.Millisecond,
 				MemoryLimit: group.MemoryLimit(),
 			})
 			if err != nil {
@@ -253,11 +254,11 @@ func (t *judgeSolutionTask) testSolution(
 				Input:   input,
 				Output:  output,
 				Usage: models.UsageReport{
-					Time:   executeReport.UsedTime,
+					Time:   executeReport.UsedTime.Milliseconds(),
 					Memory: executeReport.UsedMemory,
 				},
 			}
-			if executeReport.UsedTime > group.TimeLimit() {
+			if executeReport.UsedTime.Milliseconds() > group.TimeLimit() {
 				testReport.Verdict = models.TimeLimitExceeded
 			} else if executeReport.UsedMemory > group.MemoryLimit() {
 				testReport.Verdict = models.MemoryLimitExceeded
@@ -276,17 +277,19 @@ func (t *judgeSolutionTask) testSolution(
 					OutputFiles: []MountFile{
 						{Source: checkerLogPath, Target: "stderr"},
 					},
-					TimeLimit:   20 * 1000,
+					TimeLimit:   20 * time.Second,
 					MemoryLimit: 256 * 1024 * 1024,
 				})
 				if err != nil {
-					return err
+					return fmt.Errorf("cannot check solution: %w", err)
 				}
 				switch checkerReport.ExitCode {
 				case 0:
 					testReport.Verdict = models.Accepted
 				case 1:
 					testReport.Verdict = models.WrongAnswer
+				case 3:
+					testReport.Verdict = models.Failed
 				case 2, 4, 8:
 					testReport.Verdict = models.PresentationError
 				case 5:
@@ -304,7 +307,7 @@ func (t *judgeSolutionTask) testSolution(
 				testReport.Check = models.CheckReport{
 					Log: checkerLog,
 					Usage: models.UsageReport{
-						Time:   checkerReport.UsedTime,
+						Time:   checkerReport.UsedTime.Milliseconds(),
 						Memory: checkerReport.UsedMemory,
 					},
 				}

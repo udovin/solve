@@ -45,12 +45,17 @@ func New(core *core.Core) *Invoker {
 //
 // This function will spawn config.Invoker.Workers amount of goroutines.
 func (s *Invoker) Start() error {
-	factory, err := newFactory("/tmp/solve-containers")
+	safeexecConfig := s.core.Config.Invoker.Safeexec
+	safeexec, err := newSafeexecProcessor(
+		safeexecConfig.Path,
+		"/tmp/solve-safeexec",
+		"solve-safeexec",
+	)
 	if err != nil {
 		return err
 	}
 	compilers, err := newCompilerManager(
-		s.files, "/tmp/solve-compilers", factory, s.core,
+		s.files, "/tmp/solve-compilers", safeexec, s.core,
 	)
 	if err != nil {
 		return err

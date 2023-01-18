@@ -84,7 +84,7 @@ func (p *safeexecProcess) Wait() (safeexecReport, error) {
 			}
 			report.Time = time.Duration(value) * time.Millisecond
 		case "exit_code":
-			value, err := strconv.ParseInt(parts[1], 10, 64)
+			value, err := strconv.ParseInt(parts[1], 10, 32)
 			if err != nil {
 				return safeexecReport{}, fmt.Errorf("cannot parse exit_code: %w", err)
 			}

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,9 +23,9 @@ type executeFileConfig struct {
 type safeexecProcessConfig struct {
 	TimeLimit   time.Duration
 	MemoryLimit int64
-	StdinPath   string
-	StdoutPath  string
-	StderrPath  string
+	Stdin       io.Reader
+	Stdout      io.Writer
+	Stderr      io.Writer
 	ImagePath   string
 	Workdir     string
 	Command     []string
@@ -39,6 +40,15 @@ type safeexecProcess struct {
 	cmd        *exec.Cmd
 }
 
+func (p *safeexecProcess) Start() error {
+	return p.cmd.Start()
+}
+
+func (p *safeexecProcess) Wait() error {
+	return p.cmd.Wait()
+}
+
+// Release releases all associatet resources with process.
 func (p *safeexecProcess) Release() error {
 	if p.cmd != nil {
 		if p.cmd.Process != nil {
@@ -56,7 +66,7 @@ type safeexecProcessor struct {
 	cgroupPath    string
 }
 
-func (m *safeexecProcessor) Execute(ctx context.Context, config safeexecProcessConfig) (*safeexecProcess, error) {
+func (m *safeexecProcessor) Create(ctx context.Context, config safeexecProcessConfig) (*safeexecProcess, error) {
 	process, err := m.prepareProcess()
 	if err != nil {
 		return nil, err
@@ -72,17 +82,11 @@ func (m *safeexecProcessor) Execute(ctx context.Context, config safeexecProcessC
 	if len(config.Workdir) > 0 {
 		args = append(args, "--workdir", config.Workdir)
 	}
-	if len(config.StdinPath) > 0 {
-		args = append(args, "--stdin", config.StdinPath)
-	}
-	if len(config.StdoutPath) > 0 {
-		args = append(args, "--stdout", config.StdoutPath)
-	}
-	if len(config.StderrPath) > 0 {
-		args = append(args, "--stderr", config.StderrPath)
-	}
 	args = append(args, config.Command...)
 	cmd := exec.CommandContext(ctx, m.path, args...)
+	cmd.Stdin = config.Stdin
+	cmd.Stdout = config.Stdout
+	cmd.Stderr = config.Stderr
 	process.cmd = cmd
 	return process, nil
 }
@@ -150,7 +154,7 @@ func newSafeexecProcessor(path, executionPath, cgroupName string) (*safeexecProc
 			cgroupPath = filepath.Join(dir, cgroupName)
 		}
 	}
-	if err := os.Mkdir(cgroupPath, os.ModePerm); err != nil && !os.IsExist(err) {
+	if err := setupCgroup(cgroupPath); err != nil {
 		return nil, err
 	}
 	if err := os.MkdirAll(executionPath, os.ModePerm); err != nil && !os.IsExist(err) {
@@ -163,13 +167,41 @@ func newSafeexecProcessor(path, executionPath, cgroupName string) (*safeexecProc
 	}, nil
 }
 
+func setupCgroup(path string) error {
+	if err := os.Mkdir(path, os.ModePerm); err != nil && !os.IsExist(err) {
+		return err
+	}
+	file, err := os.Open(filepath.Join(path, "cgroup.controllers"))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = file.Close() }()
+	subtreeFile, err := os.OpenFile(filepath.Join(path, "cgroup.subtree_control"), os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = subtreeFile.Close() }()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		text := scanner.Text()
+		parts := strings.Split(text, " ")
+		for _, part := range parts {
+			_, err = subtreeFile.WriteString(fmt.Sprintf("+%s", part))
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return scanner.Err()
+}
+
 func getCgroupParentPath() (string, error) {
-	f, err := os.Open("/proc/self/cgroup")
+	file, err := os.Open("/proc/self/cgroup")
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = f.Close() }()
-	scanner := bufio.NewScanner(f)
+	defer func() { _ = file.Close() }()
+	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		text := scanner.Text()
 		parts := strings.SplitN(text, ":", 3)

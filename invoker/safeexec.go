@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -40,12 +41,54 @@ type safeexecProcess struct {
 	cmd        *exec.Cmd
 }
 
+type safeexecReport struct {
+	Memory   int64
+	Time     time.Duration
+	ExitCode int
+}
+
 func (p *safeexecProcess) Start() error {
 	return p.cmd.Start()
 }
 
-func (p *safeexecProcess) Wait() error {
-	return p.cmd.Wait()
+func (p *safeexecProcess) Wait() (safeexecReport, error) {
+	if err := p.cmd.Wait(); err != nil {
+		return safeexecReport{}, err
+	}
+	file, err := os.Open(filepath.Join(p.path, "report.txt"))
+	if err != nil {
+		return safeexecReport{}, err
+	}
+	report := safeexecReport{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) != 2 {
+			return safeexecReport{}, fmt.Errorf("cannot read report")
+		}
+		switch parts[0] {
+		case "memory":
+			value, err := strconv.ParseInt(parts[1], 10, 64)
+			if err != nil {
+				return safeexecReport{}, fmt.Errorf("cannot parse memory: %w", err)
+			}
+			report.Memory = value
+		case "time":
+			value, err := strconv.ParseInt(parts[1], 10, 64)
+			if err != nil {
+				return safeexecReport{}, fmt.Errorf("cannot parse time: %w", err)
+			}
+			report.Time = time.Duration(value) * time.Millisecond
+		case "exit_code":
+			value, err := strconv.ParseInt(parts[1], 10, 64)
+			if err != nil {
+				return safeexecReport{}, fmt.Errorf("cannot parse exit_code: %w", err)
+			}
+			report.ExitCode = int(value)
+		}
+	}
+	return report, nil
 }
 
 // Release releases all associatet resources with process.
@@ -79,6 +122,7 @@ func (m *safeexecProcessor) Create(ctx context.Context, config safeexecProcessCo
 	args = append(args, "--overlay-workdir", filepath.Join(process.path, "workdir"))
 	args = append(args, "--rootfs", filepath.Join(process.path, "rootfs"))
 	args = append(args, "--cgroup-path", process.cgroupPath)
+	args = append(args, "--report", filepath.Join(process.path, "report.txt"))
 	if len(config.Workdir) > 0 {
 		args = append(args, "--workdir", config.Workdir)
 	}

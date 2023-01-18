@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #define STACK_SIZE 8096
 #define OVERLAY_DATA "lowerdir=%s,upperdir=%s,workdir=%s"
@@ -21,12 +22,9 @@
 #define CGROUP_MEMORY_MAX_FILE "memory.max"
 #define CGROUP_MEMORY_SWAP_MAX_FILE "memory.swap.max"
 #define CGROUP_MEMORY_CURRENT_FILE "memory.current"
-#define OVERLAY_WORK ".work"
+#define CGROUP_MEMORY_EVENTS_FILE "memory.events"
 
 typedef struct {
-	int stdinFd;
-	int stdoutFd;
-	int stderrFd;
 	char* rootfs;
 	char* overlayLowerdir;
 	char* overlayUpperdir;
@@ -163,7 +161,7 @@ static inline void prepareCgroupNamespace(const Context* ctx, int pid) {
 	if (mkdir(ctx->cgroupPath, 0755) != 0) {
 		ensure(errno == EEXIST, "cannot create cgroup");
 	}
-	char* cgroupPath = malloc((strlen(ctx->cgroupPath) + strlen(CGROUP_MEMORY_SWAP_MAX_FILE) + 3) * sizeof(char));
+	char* cgroupPath = malloc((strlen(ctx->cgroupPath) + strlen(CGROUP_MEMORY_SWAP_MAX_FILE) + 2) * sizeof(char));
 	ensure(cgroupPath != 0, "cannot allocate cgroup path");
 	{
 		strcpy(cgroupPath, ctx->cgroupPath);
@@ -184,7 +182,7 @@ static inline void prepareCgroupNamespace(const Context* ctx, int pid) {
 		ensure(fd != -1, "cannot open memory.max");
 		char memoryStr[21];
 		sprintf(memoryStr, "%d", ctx->memoryLimit);
-		ensure(write(fd, memoryStr, strlen(memoryStr)) != -1, "cannot write cgroup.procs");
+		ensure(write(fd, memoryStr, strlen(memoryStr)) != -1, "cannot write memory.max");
 		close(fd);
 	}
 	{
@@ -193,8 +191,7 @@ static inline void prepareCgroupNamespace(const Context* ctx, int pid) {
 		strcat(cgroupPath, CGROUP_MEMORY_SWAP_MAX_FILE);
 		int fd = open(cgroupPath, O_WRONLY);
 		ensure(fd != -1, "cannot open memory.swap.max");
-		char memoryStr[21];
-		ensure(write(fd, "0", strlen("0")) != -1, "cannot write cgroup.procs");
+		ensure(write(fd, "0", strlen("0")) != -1, "cannot write memory.swap.max");
 		close(fd);
 	}
 	free(cgroupPath);
@@ -202,16 +199,7 @@ static inline void prepareCgroupNamespace(const Context* ctx, int pid) {
 
 static inline void initContext(Context* ctx, int argc, char* argv[]) {
 	for (int i = 1; i < argc; ++i) {
-		if (strcmp(argv[i], "--stdin") == 0) {
-			++i;
-			ensure(i < argc, "--stdin requires argument");
-		} else if (strcmp(argv[i], "--stdout") == 0) {
-			++i;
-			ensure(i < argc, "--stdout requires argument");
-		} else if (strcmp(argv[i], "--stderr") == 0) {
-			++i;
-			ensure(i < argc, "--stderr requires argument");
-		} else if (strcmp(argv[i], "--rootfs") == 0) {
+		if (strcmp(argv[i], "--rootfs") == 0) {
 			++i;
 			ensure(i < argc, "--rootfs requires argument");
 		} else if (strcmp(argv[i], "--overlay-upperdir") == 0) {
@@ -255,19 +243,7 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 	ctx->environ[ctx->environLen] = NULL;
 	int environIt = 0;
 	for (int i = 1; i < argc; ++i) {
-		if (strcmp(argv[i], "--stdin") == 0) {
-			++i;
-			ctx->stdinFd = open(argv[i], O_RDONLY);
-			ensure(ctx->stdinFd != -1, "cannot open stdin file");
-		} else if (strcmp(argv[i], "--stdout") == 0) {
-			++i;
-			ctx->stdoutFd = open(argv[i], O_WRONLY | O_TRUNC | O_CREAT, 0644);
-			ensure(ctx->stdoutFd != -1, "cannot open stdout file");
-		} else if (strcmp(argv[i], "--stderr") == 0) {
-			++i;
-			ctx->stderrFd = open(argv[i], O_WRONLY | O_TRUNC | O_CREAT, 0644);
-			ensure(ctx->stderrFd != -1, "cannot open stderr file");
-		} else if (strcmp(argv[i], "--rootfs") == 0) {
+		if (strcmp(argv[i], "--rootfs") == 0) {
 			++i;
 			ctx->rootfs = argv[i];
 		} else if (strcmp(argv[i], "--overlay-upperdir") == 0) {
@@ -310,17 +286,6 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 	ensure(environIt == ctx->environLen, "corrupted environ count");
 }
 
-static inline void copyFile(char* target, char* source) {
-	int input = open(source, O_RDONLY);
-	ensure(input != -1, "cannot open source file");
-	struct stat fileinfo = {};
-	ensure(fstat(input, &fileinfo) == 0, "cannot fstat source file");
-	int output = open(source, O_WRONLY | O_TRUNC | O_CREAT, fileinfo.st_mode);
-	ensure(output != -1, "cannot open target file");
-	off_t bytesCopied = 0;
-	ensure(sendfile(output, input, &bytesCopied, fileinfo.st_size) != -1, "cannot copy source to target");
-}
-
 static inline void waitReady(const Context* ctx) {
 	char c;
 	ensure(read(ctx->finalizePipe[0], &c, 1) == 0, "cannot wait finalize pipe to close");
@@ -334,9 +299,6 @@ static inline long getTimeDiff(struct timespec end, struct timespec begin) {
 static inline Context* newContext() {
 	Context* ctx = malloc(sizeof(Context));
 	ensure(ctx != 0, "cannot allocate context");
-	ctx->stdinFd = -1;
-	ctx->stdoutFd = -1;
-	ctx->stderrFd = -1;
 	ctx->rootfs = "";
 	ctx->overlayLowerdir = "";
 	ctx->overlayUpperdir = "";
@@ -370,23 +332,11 @@ int entrypoint(void* arg) {
 	setupMountNamespace(ctx);
 	setupUtsNamespace(ctx);
 	ensure(chdir(ctx->workdir) == 0, "cannot chdir to workdir");
-	if (ctx->stdinFd != -1) {
-		ensure(dup2(ctx->stdinFd, STDIN_FILENO) != -1, "cannot setup stdin");
-		close(ctx->stdinFd);
-	}
-	if (ctx->stdoutFd != -1) {
-		ensure(dup2(ctx->stdoutFd, STDOUT_FILENO) != -1, "cannot setup stdout");
-		close(ctx->stdoutFd);
-	}
-	if (ctx->stderrFd != -1) {
-		ensure(dup2(ctx->stderrFd, STDERR_FILENO) != -1, "cannot setup stderr");
-		close(ctx->stderrFd);
-	}
 	close(ctx->finalizePipe[1]);
-	execvpe(ctx->args[0], ctx->args, ctx->environ);
+	return execvpe(ctx->args[0], ctx->args, ctx->environ);
 }
 
-static inline void readCgroupValue(const char* path, long* value) {
+static inline void readCgroupMemory(const char* path, long* value) {
 	char data[21];
 	int fd = open(path, O_RDONLY);
 	ensure(fd != -1, "cannot open cgroup file");
@@ -394,8 +344,32 @@ static inline void readCgroupValue(const char* path, long* value) {
 	ensure(bytes != -1 && bytes != EOF, "cannot read cgroup file");
 	ensure(bytes > 0 && bytes <= 20, "invalid cgroup file size");
 	data[bytes] = 0;
-	ensure(sscanf(data, "%ld", value) == 1, "cannot read cgroup value");
+	*value = strtol(data, NULL, 10);
+	ensure(*value != LONG_MAX, "invalid memory.current value");
 	close(fd);
+}
+
+static inline void readCgroupOomCount(const Context* ctx, long* value) {
+	char* filePath = malloc(strlen(ctx->cgroupPath) + strlen(CGROUP_MEMORY_EVENTS_FILE) + 2);
+	ensure(filePath != NULL, "cannot allocate memory.current path");
+	strcpy(filePath, ctx->cgroupPath);
+	strcat(filePath, "/");
+	strcat(filePath, CGROUP_MEMORY_EVENTS_FILE);
+	FILE* file = fopen(filePath, "re");
+	ensure(file != NULL, "cannot open cgroup.events file");
+	char* data = NULL;
+	size_t len = 0;
+	ssize_t bytes = 0;
+	while ((bytes = getline(&data, &len, file)) != -1) {
+		if (bytes < 6 || memcmp(data, "oom ", 4)) {
+			continue;
+		}
+		*value = strtol(&data[4], NULL, 10);
+		ensure(*value != LONG_MAX, "invalid cgroup.events oom value");
+	}
+	fclose(file);
+	free(data);
+	free(filePath);
 }
 
 int main(int argc, char* argv[]) {
@@ -422,9 +396,6 @@ int main(int argc, char* argv[]) {
 	ensure(pid != -1, "cannot clone()");
 	close(ctx->initializePipe[0]);
 	close(ctx->finalizePipe[1]);
-	if (ctx->stdinFd != -1) { close(ctx->stdinFd); }
-	if (ctx->stdoutFd != -1) { close(ctx->stdoutFd); }
-	if (ctx->stderrFd != -1) { close(ctx->stderrFd); }
 	// Setup user namespace.
 	prepareUserNamespace(pid);
 	// Setup cgroup namespace.
@@ -456,7 +427,7 @@ int main(int argc, char* argv[]) {
 				ensure(errno == ESRCH, "cannot kill process");
 			}
 		}
-		readCgroupValue(memoryCurrentPath, &currentMemory);
+		readCgroupMemory(memoryCurrentPath, &currentMemory);
 		if (currentMemory > memory) {
 			memory = currentMemory;
 			if (memory > ctx->memoryLimit) {
@@ -467,10 +438,14 @@ int main(int argc, char* argv[]) {
 		}
 		usleep(5000);
 	} while (result == 0);
-	readCgroupValue(memoryCurrentPath, &currentMemory);
+	readCgroupMemory(memoryCurrentPath, &currentMemory);
 	int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 	if (exitCode != 0) {
-		// TODO: Read OOM count.
+		long oomCount = 0;
+		readCgroupOomCount(ctx, &oomCount);
+		if (oomCount > 0) {
+			memory = ctx->memoryLimit + 1024;
+		}
 	}
 	if (strlen(ctx->report) != 0) {
 		char line[60];

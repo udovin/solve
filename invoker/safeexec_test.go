@@ -93,6 +93,9 @@ func TestSafeexecMemoryLimit(t *testing.T) {
 	if report.ExitCode == 0 {
 		t.Fatal("Expected non-zero exit code")
 	}
+	if report.Memory <= 1024 {
+		t.Fatal("Invalid memory:", report.Memory)
+	}
 }
 
 func TestSafeexecTimeLimit(t *testing.T) {

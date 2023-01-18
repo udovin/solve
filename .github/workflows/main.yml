@@ -4,11 +4,6 @@ jobs:
   test:
     name: Test Repository
     runs-on: ubuntu-22.04
-    container:
-      image: alpine
-      options: --privileged
-      volumes:
-        - /sys/fs/cgroup:/sys/fs/cgroup
     services:
       postgres:
         image: postgres
@@ -39,7 +34,7 @@ jobs:
     - name: Run tests
       run: |
         make -C safeexec
-        go test -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...
+        sudo -E PATH="$PATH" script -e -c 'go test -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...'
       env:
         POSTGRES_HOST: localhost
         POSTGRES_PORT: 5432

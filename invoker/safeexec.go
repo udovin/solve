@@ -16,11 +16,6 @@ import (
 	"time"
 )
 
-type executeFileConfig struct {
-	Source string
-	Target string
-}
-
 type safeexecProcessConfig struct {
 	TimeLimit   time.Duration
 	MemoryLimit int64

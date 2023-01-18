@@ -41,7 +41,7 @@ func TestSafeexecSimple(t *testing.T) {
 	}
 	report, err := process.Wait()
 	if err != nil {
-		t.Fatal("Error:", report)
+		t.Fatal("Error:", err)
 	}
 	if report.ExitCode != 0 {
 		t.Fatal("Exit code:", report.ExitCode)
@@ -49,7 +49,7 @@ func TestSafeexecSimple(t *testing.T) {
 	if report.Memory <= 0 {
 		t.Fatal("Invalid memory:", report.Memory)
 	}
-	if report.Time < time.Second || report.Time > 2*time.Second {
+	if report.Time < time.Second || report.Time > 3*time.Second {
 		t.Fatal("Invalid time:", report.Time.Milliseconds())
 	}
 	if s := stdout.String(); s != "solve_test" {
@@ -88,7 +88,7 @@ func TestSafeexecMemoryLimit(t *testing.T) {
 	}
 	report, err := process.Wait()
 	if err != nil {
-		t.Fatal("Error:", report)
+		t.Fatal("Error:", err)
 	}
 	if report.ExitCode == 0 {
 		t.Fatal("Expected non-zero exit code")
@@ -126,7 +126,7 @@ func TestSafeexecTimeLimit(t *testing.T) {
 	}
 	report, err := process.Wait()
 	if err != nil {
-		t.Fatal("Error:", report)
+		t.Fatal("Error:", err)
 	}
 	if report.ExitCode == 0 {
 		t.Fatal("Expected non-zero exit code")

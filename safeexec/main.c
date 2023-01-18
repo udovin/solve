@@ -14,12 +14,13 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define STACK_SIZE 16384
+#define STACK_SIZE 8096
 #define OVERLAY_DATA "lowerdir=%s,upperdir=%s,workdir=%s"
 #define PROC_PATH "/proc"
 #define CGROUP_PROCS_FILE "cgroup.procs"
 #define CGROUP_MEMORY_MAX_FILE "memory.max"
 #define CGROUP_MEMORY_SWAP_MAX_FILE "memory.swap.max"
+#define CGROUP_MEMORY_CURRENT_FILE "memory.current"
 #define OVERLAY_WORK ".work"
 
 typedef struct {
@@ -50,7 +51,7 @@ static inline void ensure(int value, const char* message) {
 	}
 }
 
-static inline void setupOverlayfs(Context* ctx) {
+static inline void setupOverlayfs(const Context* ctx) {
 	char* data = malloc((strlen(ctx->overlayLowerdir) + strlen(ctx->overlayUpperdir) + strlen(ctx->overlayWorkdir) + strlen(OVERLAY_DATA)) * sizeof(char));
 	ensure(data != 0, "cannot allocate rootfs overlay data");
 	sprintf(data, OVERLAY_DATA, ctx->overlayLowerdir, ctx->overlayUpperdir, ctx->overlayWorkdir);
@@ -73,7 +74,7 @@ static inline void mkdirAll(int prefix, char* path) {
 	}
 }
 
-static inline void setupMount(Context* ctx, const char* source, const char* target, const char* device, unsigned long flags, const void* data) {
+static inline void setupMount(const Context* ctx, const char* source, const char* target, const char* device, unsigned long flags, const void* data) {
 	char* path = malloc((strlen(ctx->rootfs) + strlen(target) + 1) * sizeof(char));
 	ensure(path != 0, "cannot allocate");
 	strcpy(path, ctx->rootfs);
@@ -83,7 +84,7 @@ static inline void setupMount(Context* ctx, const char* source, const char* targ
 	free(path);
 }
 
-static inline void pivotRoot(Context* ctx) {
+static inline void pivotRoot(const Context* ctx) {
 	int oldroot = open("/", O_DIRECTORY | O_RDONLY);
 	ensure(oldroot != -1, "cannot open old root");
 	int newroot = open(ctx->rootfs, O_DIRECTORY | O_RDONLY);
@@ -98,18 +99,18 @@ static inline void pivotRoot(Context* ctx) {
 	ensure(chdir("/") == 0, "cannot chdir to \"/\"");
 }
 
-static inline void setupUserNamespace(Context* ctx) {
+static inline void setupUserNamespace(const Context* ctx) {
 	// We should wait for setup of user namespace from parent.
 	char c;
 	ensure(read(ctx->initializePipe[0], &c, 1) == 0, "cannot wait initialize pipe to close");
 	close(ctx->initializePipe[0]);
 }
 
-static inline void setupCgroupNamespace(Context* ctx) {
+static inline void setupCgroupNamespace(const Context* ctx) {
 	ensure(unshare(CLONE_NEWCGROUP) == 0, "cannot unshare cgroup namespace");
 }
 
-static inline void setupMountNamespace(Context* ctx) {
+static inline void setupMountNamespace(const Context* ctx) {
 	// First of all make all changes are private for current root.
 	ensure(mount(NULL, "/", NULL, MS_SLAVE | MS_REC, NULL) == 0, "cannot remount \"/\"");
 	ensure(mount(NULL, "/", NULL, MS_PRIVATE, NULL) == 0, "cannot remount \"/\"");
@@ -125,7 +126,7 @@ static inline void setupMountNamespace(Context* ctx) {
 	pivotRoot(ctx);
 }
 
-static inline void setupUtsNamespace(Context* ctx) {
+static inline void setupUtsNamespace(const Context* ctx) {
 	ensure(sethostname("sandbox", strlen("sandbox")) == 0, "cannot set hostname");
 }
 
@@ -155,7 +156,7 @@ static inline void prepareUserNamespace(int pid) {
 	close(fd);
 }
 
-static inline void prepareCgroupNamespace(Context* ctx, int pid) {
+static inline void prepareCgroupNamespace(const Context* ctx, int pid) {
 	if (rmdir(ctx->cgroupPath) != 0) {
 		ensure(errno == ENOENT, "cannot remove cgroup");
 	}
@@ -320,7 +321,7 @@ static inline void copyFile(char* target, char* source) {
 	ensure(sendfile(output, input, &bytesCopied, fileinfo.st_size) != -1, "cannot copy source to target");
 }
 
-static inline void waitReady(Context* ctx) {
+static inline void waitReady(const Context* ctx) {
 	char c;
 	ensure(read(ctx->finalizePipe[0], &c, 1) == 0, "cannot wait finalize pipe to close");
 	close(ctx->finalizePipe[0]);
@@ -385,6 +386,18 @@ int entrypoint(void* arg) {
 	execvpe(ctx->args[0], ctx->args, ctx->environ);
 }
 
+static inline void readCgroupValue(const char* path, long* value) {
+	char data[21];
+	int fd = open(path, O_RDONLY);
+	ensure(fd != -1, "cannot open cgroup file");
+	int bytes = read(fd, data, 20);
+	ensure(bytes != -1 && bytes != EOF, "cannot read cgroup file");
+	ensure(bytes > 0 && bytes <= 20, "invalid cgroup file size");
+	data[bytes] = 0;
+	ensure(sscanf(data, "%ld", value) == 1, "cannot read cgroup value");
+	close(fd);
+}
+
 int main(int argc, char* argv[]) {
 	Context* ctx = newContext();
 	initContext(ctx, argc, argv);
@@ -399,7 +412,7 @@ int main(int argc, char* argv[]) {
 	ensure(pipe(ctx->initializePipe) == 0, "cannot create initialize pipe");
 	ensure(pipe(ctx->finalizePipe) == 0, "cannot create finalize pipe");
 	char* stack = malloc(STACK_SIZE);
-	ensure(stack != 0, "cannot allocate stack");
+	ensure(stack != NULL, "cannot allocate stack");
 	int pid = clone(
 		entrypoint,
 		stack + STACK_SIZE,
@@ -416,6 +429,12 @@ int main(int argc, char* argv[]) {
 	prepareUserNamespace(pid);
 	// Setup cgroup namespace.
 	prepareCgroupNamespace(ctx, pid);
+	// Setup cgroup file paths.
+	char* memoryCurrentPath = malloc(strlen(ctx->cgroupPath) + strlen(CGROUP_MEMORY_CURRENT_FILE) + 2);
+	ensure(memoryCurrentPath != NULL, "cannot allocate memory.current path");
+	strcpy(memoryCurrentPath, ctx->cgroupPath);
+	strcat(memoryCurrentPath, "/");
+	strcat(memoryCurrentPath, CGROUP_MEMORY_CURRENT_FILE);
 	// Now we should unlock child process.
 	close(ctx->initializePipe[1]);
 	//
@@ -424,6 +443,8 @@ int main(int argc, char* argv[]) {
 	ensure(clock_gettime(CLOCK_MONOTONIC, &startTime) == 0, "cannot get start time");
 	int status;
 	pid_t result;
+	long memory = 0;
+	long currentMemory = 0;
 	do {
 		result = waitpid(pid, &status, WUNTRACED | WNOHANG | __WALL);
 		if (result < 0) {
@@ -435,20 +456,35 @@ int main(int argc, char* argv[]) {
 				ensure(errno == ESRCH, "cannot kill process");
 			}
 		}
+		readCgroupValue(memoryCurrentPath, &currentMemory);
+		if (currentMemory > memory) {
+			memory = currentMemory;
+			if (memory > ctx->memoryLimit) {
+				if (kill(pid, SIGKILL) != 0) {
+					ensure(errno == ESRCH, "cannot kill process");
+				}
+			}
+		}
 		usleep(5000);
 	} while (result == 0);
+	readCgroupValue(memoryCurrentPath, &currentMemory);
+	int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+	if (exitCode != 0) {
+		// TODO: Read OOM count.
+	}
 	if (strlen(ctx->report) != 0) {
 		char line[60];
 		int fd = open(ctx->report, O_WRONLY | O_TRUNC | O_CREAT, 0644);
 		ensure(fd != -1, "cannot open report file");
 		sprintf(line, "time %ld\n", getTimeDiff(currentTime, startTime));
 		ensure(write(fd, line, strlen(line)) != -1, "cannot write report file");
-		sprintf(line, "memory %d\n", 1024);
+		sprintf(line, "memory %ld\n", memory);
 		ensure(write(fd, line, strlen(line)) != -1, "cannot write report file");
-		sprintf(line, "exit_code %d\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+		sprintf(line, "exit_code %d\n", exitCode);
 		ensure(write(fd, line, strlen(line)) != -1, "cannot write report file");
 		close(fd);
 	}
+	free(memoryCurrentPath);
 	freeContext(ctx);
 	return EXIT_SUCCESS;
 }

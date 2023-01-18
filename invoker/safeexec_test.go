@@ -25,7 +25,7 @@ func TestSafeexecSimple(t *testing.T) {
 	}
 	stdout := strings.Builder{}
 	processConfig := safeexecProcessConfig{
-		ImagePath:   alpinePath,
+		Layers:      []string{alpinePath},
 		Command:     []string{"/bin/sh", "-c", "sleep 1 && echo -n 'solve_test'"},
 		TimeLimit:   2 * time.Second,
 		MemoryLimit: 1024 * 1024,
@@ -72,7 +72,7 @@ func TestSafeexecMemoryLimit(t *testing.T) {
 	}
 	stdout := strings.Builder{}
 	processConfig := safeexecProcessConfig{
-		ImagePath:   alpinePath,
+		Layers:      []string{alpinePath},
 		Command:     []string{"/bin/sh", "-c", "echo -n 'solve_test'"},
 		TimeLimit:   time.Second,
 		MemoryLimit: 1024,
@@ -110,7 +110,7 @@ func TestSafeexecTimeLimit(t *testing.T) {
 	}
 	stdout := strings.Builder{}
 	processConfig := safeexecProcessConfig{
-		ImagePath:   alpinePath,
+		Layers:      []string{alpinePath},
 		Command:     []string{"/bin/sh", "-c", "sleep 2 && echo -n 'solve_test'"},
 		TimeLimit:   time.Second,
 		MemoryLimit: 1024 * 1024,

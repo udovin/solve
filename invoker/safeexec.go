@@ -27,11 +27,10 @@ type safeexecProcessConfig struct {
 	Stdin       io.Reader
 	Stdout      io.Writer
 	Stderr      io.Writer
-	ImagePath   string
+	Layers      []string
+	Environ     []string
 	Workdir     string
 	Command     []string
-	InputFiles  []executeFileConfig
-	OutputFiles []executeFileConfig
 }
 
 type safeexecProcess struct {
@@ -49,6 +48,10 @@ type safeexecReport struct {
 
 func (p *safeexecProcess) Start() error {
 	return p.cmd.Start()
+}
+
+func (p *safeexecProcess) GetUpperDir() string {
+	return filepath.Join(p.path, "upper")
 }
 
 func (p *safeexecProcess) Wait() (safeexecReport, error) {
@@ -117,7 +120,7 @@ func (m *safeexecProcessor) Create(ctx context.Context, config safeexecProcessCo
 	var args []string
 	args = append(args, "--time-limit", fmt.Sprint(config.TimeLimit.Milliseconds()))
 	args = append(args, "--memory-limit", fmt.Sprint(config.MemoryLimit))
-	args = append(args, "--overlay-lowerdir", config.ImagePath)
+	args = append(args, "--overlay-lowerdir", strings.Join(config.Layers, ":"))
 	args = append(args, "--overlay-upperdir", filepath.Join(process.path, "upper"))
 	args = append(args, "--overlay-workdir", filepath.Join(process.path, "workdir"))
 	args = append(args, "--rootfs", filepath.Join(process.path, "rootfs"))
@@ -125,6 +128,9 @@ func (m *safeexecProcessor) Create(ctx context.Context, config safeexecProcessCo
 	args = append(args, "--report", filepath.Join(process.path, "report.txt"))
 	if len(config.Workdir) > 0 {
 		args = append(args, "--workdir", config.Workdir)
+	}
+	for _, env := range config.Environ {
+		args = append(args, "--env", env)
 	}
 	args = append(args, config.Command...)
 	cmd := exec.CommandContext(ctx, m.path, args...)

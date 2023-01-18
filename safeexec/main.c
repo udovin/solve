@@ -23,11 +23,6 @@
 #define OVERLAY_WORK ".work"
 
 typedef struct {
-	char* source;
-	char* target;
-} Mount;
-
-typedef struct {
 	int stdinFd;
 	int stdoutFd;
 	int stderrFd;
@@ -38,10 +33,8 @@ typedef struct {
 	char* workdir;
 	char** args;
 	int argsLen;
-	Mount* inputFiles;
-	int inputFilesLen;
-	Mount* outputFiles;
-	int outputFilesLen;
+	char** environ;
+	int environLen;
 	char* cgroupPath;
 	int memoryLimit;
 	int timeLimit;
@@ -225,25 +218,17 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 			ensure(i < argc, "--overlay-upperdir requires argument");
 		} else if (strcmp(argv[i], "--overlay-lowerdir") == 0) {
 			++i;
-			ensure(++i < argc, "--overlay-lowerdir requires argument");
+			ensure(i < argc, "--overlay-lowerdir requires argument");
 		} else if (strcmp(argv[i], "--overlay-workdir") == 0) {
 			++i;
-			ensure(++i < argc, "--overlay-workdir requires argument");
+			ensure(i < argc, "--overlay-workdir requires argument");
 		} else if (strcmp(argv[i], "--workdir") == 0) {
 			++i;
 			ensure(i < argc, "--workdir requires argument");
-		} else if (strcmp(argv[i], "--input-file") == 0) {
+		} else if (strcmp(argv[i], "--env") == 0) {
 			++i;
-			ensure(i < argc, "--input-file requires two arguments");
-			++i;
-			ensure(i < argc, "--input-file requires two arguments");
-			++ctx->inputFilesLen;
-		} else if (strcmp(argv[i], "--output-file") == 0) {
-			++i;
-			ensure(i < argc, "--output-file requires two arguments");
-			++i;
-			ensure(i < argc, "--output-file requires two arguments");
-			++ctx->outputFilesLen;
+			ensure(i < argc, "--env requires argument");
+			++ctx->environLen;
 		} else if (strcmp(argv[i], "--cgroup-path") == 0) {
 			++i;
 			ensure(i < argc, "--cgroup-path requires argument");
@@ -262,18 +247,12 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 		}
 	}
 	ctx->args = malloc((ctx->argsLen + 1) * sizeof(char*));
-	ensure(ctx->args != 0, "cannot malloc arguments");
-	ctx->args[ctx->argsLen] = 0;
-	if (ctx->inputFilesLen) {
-		ctx->inputFiles = malloc(ctx->inputFilesLen * sizeof(Mount));
-		ensure(ctx->inputFiles != 0, "cannot malloc input files");
-	}
-	if (ctx->outputFilesLen) {
-		ctx->outputFiles = malloc(ctx->outputFilesLen * sizeof(Mount));
-		ensure(ctx->outputFiles != 0, "cannot malloc output files");
-	}
-	int inputFileIt = 0;
-	int outputFileIt = 0;
+	ensure(ctx->args != NULL, "cannot malloc arguments");
+	ctx->args[ctx->argsLen] = NULL;
+	ctx->environ = malloc((ctx->environLen + 1) * sizeof(char*));
+	ensure(ctx->environ != NULL, "cannot malloc environ");
+	ctx->environ[ctx->environLen] = NULL;
+	int environIt = 0;
 	for (int i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--stdin") == 0) {
 			++i;
@@ -302,18 +281,10 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--workdir") == 0) {
 			++i;
 			ctx->workdir = argv[i];
-		} else if (strcmp(argv[i], "--input-file") == 0) {
+		} else if (strcmp(argv[i], "--env") == 0) {
 			++i;
-			ctx->inputFiles[inputFileIt].source = argv[i];
-			++i;
-			ctx->inputFiles[inputFileIt].target = argv[i];
-			++inputFileIt;
-		} else if (strcmp(argv[i], "--output-file") == 0) {
-			++i;
-			ctx->outputFiles[outputFileIt].source = argv[i];
-			++i;
-			ctx->outputFiles[outputFileIt].target = argv[i];
-			++outputFileIt;
+			ctx->environ[environIt] = argv[i];
+			++environIt;
 		} else if (strcmp(argv[i], "--cgroup-path") == 0) {
 			++i;
 			ctx->cgroupPath = argv[i];
@@ -327,12 +298,15 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 			++i;
 			ctx->report = argv[i];
 		} else {
-			for (int j = 0; i < argc; ++j) {
-				ctx->args[j] = argv[i];
-				++i;
+			int argIt = 0;
+			for (; i < argc; ++i) {
+				ctx->args[argIt] = argv[i];
+				++argIt;
 			}
+			ensure(argIt == ctx->argsLen, "corrupted argument count");
 		}
 	}
+	ensure(environIt == ctx->environLen, "corrupted environ count");
 }
 
 static inline void copyFile(char* target, char* source) {
@@ -369,10 +343,8 @@ static inline Context* newContext() {
 	ctx->workdir = "/";
 	ctx->args = NULL;
 	ctx->argsLen = 0;
-	ctx->inputFiles = NULL;
-	ctx->inputFilesLen = 0;
-	ctx->outputFiles = NULL;
-	ctx->outputFilesLen = 0;
+	ctx->environ = NULL;
+	ctx->environLen = 0;
 	ctx->cgroupPath = "";
 	ctx->timeLimit = 0;
 	ctx->memoryLimit = 0;
@@ -382,8 +354,7 @@ static inline Context* newContext() {
 
 static inline void freeContext(Context* ctx) {
 	free(ctx->args);
-	free(ctx->inputFiles);
-	free(ctx->outputFiles);
+	free(ctx->environ);
 	free(ctx);
 }
 
@@ -411,7 +382,7 @@ int entrypoint(void* arg) {
 		close(ctx->stderrFd);
 	}
 	close(ctx->finalizePipe[1]);
-	execvpe(ctx->args[0], ctx->args, NULL);
+	execvpe(ctx->args[0], ctx->args, ctx->environ);
 }
 
 int main(int argc, char* argv[]) {

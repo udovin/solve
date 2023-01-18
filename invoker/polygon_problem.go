@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg"
@@ -74,7 +75,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 			InputFiles: []MountFile{
 				{Source: testlibPath, Target: "testlib.h"},
 			},
-			TimeLimit:   20 * 1000,
+			TimeLimit:   20 * time.Second,
 			MemoryLimit: 256 * 1024 * 1024,
 		})
 		if err != nil {
@@ -118,7 +119,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					InputFiles: []MountFile{
 						{Source: testlibPath, Target: "testlib.h"},
 					},
-					TimeLimit:   20 * 1000,
+					TimeLimit:   20 * time.Second,
 					MemoryLimit: 256 * 1024 * 1024,
 				})
 				if err != nil {
@@ -166,7 +167,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		report, err := compiler.Compile(ctx, CompileOptions{
 			Source:      sourcePath,
 			Target:      targetPath,
-			TimeLimit:   20 * 1000,
+			TimeLimit:   20 * time.Second,
 			MemoryLimit: 256 * 1024 * 1024,
 		})
 		if err != nil {
@@ -206,7 +207,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					OutputFiles: []MountFile{
 						{Source: filepath.Join(p.path, input), Target: "stdout"},
 					},
-					TimeLimit:   20 * 1000,
+					TimeLimit:   20 * time.Second,
 					MemoryLimit: 256 * 1024 * 1024,
 				})
 				if err != nil {
@@ -225,7 +226,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					OutputFiles: []MountFile{
 						{Source: filepath.Join(p.path, answer), Target: "stdout"},
 					},
-					TimeLimit:   testSet.TimeLimit,
+					TimeLimit:   time.Duration(testSet.TimeLimit) * time.Millisecond,
 					MemoryLimit: testSet.MemoryLimit,
 				})
 				if err != nil {
@@ -235,7 +236,6 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					return fmt.Errorf("solution exited with code: %v", report.ExitCode)
 				}
 			}
-
 			p.compilers.logger.Debug(
 				"Generated test",
 				logs.Any("input", input),

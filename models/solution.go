@@ -28,6 +28,8 @@ const (
 	PresentationError Verdict = 8
 	// PartiallyAccepted means that solution is partially accepted.
 	PartiallyAccepted Verdict = 9
+	// Failed means that solution checker is failed.
+	Failed Verdict = 10
 )
 
 func (v Verdict) String() string {
@@ -50,6 +52,8 @@ func (v Verdict) String() string {
 		return "presentation_error"
 	case PartiallyAccepted:
 		return "partially_accepted"
+	case Failed:
+		return "failed"
 	default:
 		return fmt.Sprintf("Verdict(%d)", v)
 	}
@@ -79,6 +83,8 @@ func (v *Verdict) UnmarshalText(data []byte) error {
 		*v = PresentationError
 	case "partially_accepted":
 		*v = PartiallyAccepted
+	case "failed":
+		*v = Failed
 	default:
 		return fmt.Errorf("unsupported kind: %q", s)
 	}

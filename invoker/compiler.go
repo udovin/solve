@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/udovin/algo/futures"
@@ -28,7 +26,7 @@ type MountFile struct {
 
 type CompileReport struct {
 	ExitCode   int
-	UsedTime   int64
+	UsedTime   time.Duration
 	UsedMemory int64
 	Log        string
 }
@@ -41,13 +39,13 @@ type CompileOptions struct {
 	Source      string
 	Target      string
 	InputFiles  []MountFile
-	TimeLimit   int64
+	TimeLimit   time.Duration
 	MemoryLimit int64
 }
 
 type ExecuteReport struct {
 	ExitCode   int
-	UsedTime   int64
+	UsedTime   time.Duration
 	UsedMemory int64
 }
 
@@ -60,7 +58,7 @@ type ExecuteOptions struct {
 	Args        []string
 	InputFiles  []MountFile
 	OutputFiles []MountFile
-	TimeLimit   int64
+	TimeLimit   time.Duration
 	MemoryLimit int64
 }
 
@@ -71,145 +69,36 @@ type Compiler interface {
 }
 
 type compiler struct {
-	factory *factory
-	name    string
-	config  models.CompilerConfig
-	path    string
+	safeexec *safeexecProcessor
+	name     string
+	config   models.CompilerConfig
+	path     string
 }
 
 func (c *compiler) Name() string {
 	return c.name
 }
 
-type waitResult struct {
-	State *os.ProcessState
-	Err   error
-}
-
-type executeResult struct {
-	MaxMemory int64
-	Duration  time.Duration
-	ExitCode  int
-}
-
-func execute(container *container, memoryLimit int64, timeLimit time.Duration) (executeResult, error) {
-	process, err := container.Start()
-	if err != nil {
-		return executeResult{}, fmt.Errorf("unable to start compiler: %w", err)
-	}
-	defer func() { _ = process.Signal(os.Kill) }()
-	start := time.Now()
-	waitChan := make(chan waitResult, 1)
-	defer close(waitChan)
-	var waiter sync.WaitGroup
-	defer waiter.Wait()
-	waiter.Add(1)
-	go func() {
-		defer waiter.Done()
-		state, err := process.Wait()
-		waitChan <- waitResult{State: state, Err: err}
-	}()
-	deadlineCtx, cancel := context.WithDeadline(context.Background(), start.Add(timeLimit+2*time.Millisecond))
-	defer cancel()
-	var maxMemory int64
-	waiter.Add(1)
-	go func() {
-		defer waiter.Done()
-		ticker := time.NewTicker(5 * time.Millisecond)
-		defer ticker.Stop()
-		stats, err := container.container.Stats()
-		if err == nil && stats.CgroupStats == nil {
-			memory := stats.CgroupStats.MemoryStats.SwapUsage.Usage
-			if int64(memory) > maxMemory {
-				atomic.StoreInt64(&maxMemory, int64(memory))
-			}
-		}
-		for {
-			select {
-			case <-deadlineCtx.Done():
-				return
-			case <-ticker.C:
-				stats, err := container.container.Stats()
-				if err != nil {
-					continue
-				}
-				if stats.CgroupStats == nil {
-					continue
-				}
-				memory := stats.CgroupStats.MemoryStats.SwapUsage.Usage
-				if int64(memory) > maxMemory {
-					atomic.StoreInt64(&maxMemory, int64(memory))
-				}
-			}
-		}
-	}()
-	notifyOOM, err := container.container.NotifyOOM()
-	if err != nil {
-		return executeResult{}, fmt.Errorf("cannot setup oom notify: %w", err)
-	}
-	select {
-	case result := <-waitChan:
-		duration := time.Since(start)
-		memory := atomic.LoadInt64(&maxMemory)
-		state, err := result.State, result.Err
-		if err != nil {
-			if _, ok := err.(*exec.ExitError); !ok {
-				return executeResult{}, err
-			}
-		}
-		exitCode := state.ExitCode()
-		if !state.Exited() {
-			exitCode = -1
-		}
-		return executeResult{
-			Duration:  duration,
-			MaxMemory: memory,
-			ExitCode:  exitCode,
-		}, nil
-
-	case <-notifyOOM:
-		duration := time.Since(start)
-		memory := atomic.LoadInt64(&maxMemory)
-		if memory <= memoryLimit {
-			memory = memoryLimit + 1024
-		}
-		return executeResult{
-			Duration:  duration,
-			MaxMemory: memory,
-			ExitCode:  -1,
-		}, nil
-	case <-deadlineCtx.Done():
-		duration := time.Since(start)
-		memory := atomic.LoadInt64(&maxMemory)
-		return executeResult{
-			Duration:  duration,
-			MaxMemory: memory,
-			ExitCode:  -1,
-		}, nil
-	}
-}
-
 func (c *compiler) Compile(
 	ctx context.Context, options CompileOptions,
 ) (CompileReport, error) {
 	stderr := strings.Builder{}
-	containerConfig := containerConfig{
-		Layers: []string{c.path},
-		Init: processConfig{
-			Args:   strings.Fields(c.config.Compile.Command),
-			Env:    c.config.Compile.Environ,
-			Dir:    c.config.Compile.Workdir,
-			Stderr: &stderr,
-		},
-		MemoryLimit: options.MemoryLimit + 1024,
+	config := safeexecProcessConfig{
+		Layers:      []string{c.path},
+		Command:     strings.Fields(c.config.Compile.Command),
+		Environ:     c.config.Compile.Environ,
+		Workdir:     c.config.Compile.Workdir,
+		Stderr:      &stderr,
+		TimeLimit:   options.TimeLimit,
+		MemoryLimit: options.MemoryLimit,
 	}
-	container, err := c.factory.Create(containerConfig)
+	process, err := c.safeexec.Create(ctx, config)
 	if err != nil {
 		return CompileReport{}, fmt.Errorf("unable to create compiler: %w", err)
 	}
 	if c.config.Compile.Source != nil {
 		path := filepath.Join(
-			container.GetUpperDir(),
+			process.GetUpperDir(),
 			c.config.Compile.Workdir,
 			*c.config.Compile.Source,
 		)
@@ -219,7 +108,7 @@ func (c *compiler) Compile(
 	}
 	for _, file := range options.InputFiles {
 		path := filepath.Join(
-			container.GetUpperDir(),
+			process.GetUpperDir(),
 			c.config.Compile.Workdir,
 			file.Target,
 		)
@@ -227,16 +116,18 @@ func (c *compiler) Compile(
 			return CompileReport{}, fmt.Errorf("unable to write file: %w", err)
 		}
 	}
-	defer func() { _ = container.Destroy() }()
-	timeLimit := time.Duration(options.TimeLimit) * time.Millisecond
-	result, err := execute(container, options.MemoryLimit, timeLimit)
+	defer func() { _ = process.Release() }()
+	if err := process.Start(); err != nil {
+		return CompileReport{}, fmt.Errorf("cannot start compiler: %w", err)
+	}
+	report, err := process.Wait()
 	if err != nil {
 		return CompileReport{}, err
 	}
-	if result.ExitCode == 0 {
+	if report.ExitCode == 0 {
 		if c.config.Compile.Binary != nil {
 			containerBinaryPath := filepath.Join(
-				container.GetUpperDir(),
+				process.GetUpperDir(),
 				c.config.Compile.Workdir,
 				*c.config.Compile.Binary,
 			)
@@ -246,9 +137,9 @@ func (c *compiler) Compile(
 		}
 	}
 	return CompileReport{
-		ExitCode:   result.ExitCode,
-		UsedTime:   result.Duration.Milliseconds(),
-		UsedMemory: result.MaxMemory,
+		ExitCode:   report.ExitCode,
+		UsedTime:   report.Time,
+		UsedMemory: report.Memory,
 		Log:        stderr.String(),
 	}, nil
 }
@@ -292,25 +183,24 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 		break
 	}
 	executeArgs := append(strings.Fields(c.config.Execute.Command), options.Args...)
-	containerConfig := containerConfig{
-		Layers: []string{c.path},
-		Init: processConfig{
-			Args:   executeArgs,
-			Env:    c.config.Execute.Environ,
-			Dir:    c.config.Execute.Workdir,
-			Stdin:  stdin,
-			Stdout: stdout,
-			Stderr: stderr,
-		},
-		MemoryLimit: options.MemoryLimit + 1024,
+	config := safeexecProcessConfig{
+		Layers:      []string{c.path},
+		Command:     executeArgs,
+		Environ:     c.config.Execute.Environ,
+		Workdir:     c.config.Execute.Workdir,
+		Stdin:       stdin,
+		Stdout:      stdout,
+		Stderr:      stderr,
+		TimeLimit:   options.TimeLimit,
+		MemoryLimit: options.MemoryLimit,
 	}
-	container, err := c.factory.Create(containerConfig)
+	process, err := c.safeexec.Create(ctx, config)
 	if err != nil {
 		return ExecuteReport{}, fmt.Errorf("unable to create compiler: %w", err)
 	}
 	if c.config.Execute.Binary != nil {
 		path := filepath.Join(
-			container.GetUpperDir(),
+			process.GetUpperDir(),
 			c.config.Execute.Workdir,
 			*c.config.Execute.Binary,
 		)
@@ -323,7 +213,7 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 			continue
 		}
 		path := filepath.Join(
-			container.GetUpperDir(),
+			process.GetUpperDir(),
 			c.config.Execute.Workdir,
 			file.Target,
 		)
@@ -331,19 +221,21 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 			return ExecuteReport{}, fmt.Errorf("unable to write file: %w", err)
 		}
 	}
-	defer func() { _ = container.Destroy() }()
-	timeLimit := time.Duration(options.TimeLimit) * time.Millisecond
-	result, err := execute(container, options.MemoryLimit, timeLimit)
+	defer func() { _ = process.Release() }()
+	if err := process.Start(); err != nil {
+		return ExecuteReport{}, fmt.Errorf("cannot start compiler: %w", err)
+	}
+	report, err := process.Wait()
 	if err != nil {
 		return ExecuteReport{}, err
 	}
-	if result.ExitCode == 0 {
+	if report.ExitCode == 0 {
 		for _, output := range options.OutputFiles {
 			if output.Target == stdoutFile || output.Target == stderrFile {
 				continue
 			}
 			containerPath := filepath.Join(
-				container.GetUpperDir(),
+				process.GetUpperDir(),
 				c.config.Execute.Workdir,
 				output.Target,
 			)
@@ -353,16 +245,16 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 		}
 	}
 	return ExecuteReport{
-		ExitCode:   result.ExitCode,
-		UsedTime:   result.Duration.Milliseconds(),
-		UsedMemory: result.MaxMemory,
+		ExitCode:   report.ExitCode,
+		UsedTime:   report.Time,
+		UsedMemory: report.Memory,
 	}, nil
 }
 
 type compilerManager struct {
 	files     *managers.FileManager
 	cacheDir  string
-	factory   *factory
+	safeexec  *safeexecProcessor
 	compilers *models.CompilerStore
 	settings  *models.SettingStore
 	images    map[int64]futures.Future[string]
@@ -373,7 +265,7 @@ type compilerManager struct {
 func newCompilerManager(
 	files *managers.FileManager,
 	cacheDir string,
-	factory *factory,
+	safeexec *safeexecProcessor,
 	core *core.Core,
 ) (*compilerManager, error) {
 	if err := os.MkdirAll(cacheDir, os.ModePerm); err != nil {
@@ -382,7 +274,7 @@ func newCompilerManager(
 	return &compilerManager{
 		files:     files,
 		cacheDir:  cacheDir,
-		factory:   factory,
+		safeexec:  safeexec,
 		compilers: core.Compilers,
 		settings:  core.Settings,
 		images:    map[int64]futures.Future[string]{},
@@ -419,10 +311,10 @@ func (m *compilerManager) DownloadCompiler(ctx context.Context, c models.Compile
 		return nil, err
 	}
 	return &compiler{
-		factory: m.factory,
-		path:    imagePath,
-		name:    c.Name,
-		config:  config,
+		safeexec: m.safeexec,
+		path:     imagePath,
+		name:     c.Name,
+		config:   config,
 	}, nil
 }
 

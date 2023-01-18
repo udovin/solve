@@ -96,6 +96,24 @@ func (v *View) makeSolutionContent(c echo.Context, solution models.Solution) str
 	return result
 }
 
+type TestReport struct {
+	Verdict    models.Verdict `json:"verdict"`
+	UsedTime   int64          `json:"used_time,omitempty"`
+	UsedMemory int64          `json:"used_memory,omitempty"`
+	CheckLog   string         `json:"check_log,omitempty"`
+	Input      string         `json:"input,omitempty"`
+	Output     string         `json:"output,omitempty"`
+}
+
+type SolutionReport struct {
+	Verdict    string       `json:"verdict"`
+	UsedTime   int64        `json:"used_time,omitempty"`
+	UsedMemory int64        `json:"used_memory,omitempty"`
+	Tests      []TestReport `json:"tests,omitempty"`
+	TestNumber int          `json:"test_number,omitempty"`
+	CompileLog string       `json:"compile_log,omitempty"`
+}
+
 func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, withLogs bool) *SolutionReport {
 	report, err := solution.GetReport()
 	if err != nil {
@@ -123,6 +141,14 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 		Verdict:    report.Verdict.String(),
 		UsedTime:   report.Usage.Time,
 		UsedMemory: report.Usage.Memory,
+	}
+	if report.Verdict != models.Accepted {
+		for i, test := range report.Tests {
+			if test.Verdict == report.Verdict {
+				resp.TestNumber = i + 1
+				break
+			}
+		}
 	}
 	if withLogs {
 		resp.CompileLog = report.Compile.Log

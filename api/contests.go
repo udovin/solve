@@ -782,23 +782,6 @@ func (v *View) observeContestSolution(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-type TestReport struct {
-	Verdict    models.Verdict `json:"verdict"`
-	UsedTime   int64          `json:"used_time,omitempty"`
-	UsedMemory int64          `json:"used_memory,omitempty"`
-	CheckLog   string         `json:"check_log,omitempty"`
-	Input      string         `json:"input,omitempty"`
-	Output     string         `json:"output,omitempty"`
-}
-
-type SolutionReport struct {
-	Verdict    string       `json:"verdict"`
-	UsedTime   int64        `json:"used_time,omitempty"`
-	UsedMemory int64        `json:"used_memory,omitempty"`
-	Tests      []TestReport `json:"tests,omitempty"`
-	CompileLog string       `json:"compile_log,omitempty"`
-}
-
 type ContestSolution struct {
 	ID          int64               `json:"id"`
 	ContestID   int64               `json:"contest_id"`

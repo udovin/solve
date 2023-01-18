@@ -34,7 +34,7 @@ jobs:
     - name: Run tests
       run: |
         make -C safeexec
-        sudo -E PATH="$PATH" script -e -c 'go test -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...'
+        sudo -E PATH="$PATH" -- go test -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...
       env:
         POSTGRES_HOST: localhost
         POSTGRES_PORT: 5432

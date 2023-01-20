@@ -3,6 +3,7 @@ package managers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
@@ -64,10 +65,6 @@ func addContestRegularPermissions(
 	}
 }
 
-func addContestVirtualPermissions(permissions PermissionSet) {
-	permissions.AddPermission(models.ObserveContestRole)
-}
-
 func addContestUpsolvingPermissions(
 	permissions PermissionSet, stage ContestStage,
 ) {
@@ -92,8 +89,6 @@ func getParticipantPermissions(
 		addContestRegularPermissions(permissions, stage)
 	case models.UpsolvingParticipant:
 		addContestUpsolvingPermissions(permissions, stage)
-	case models.VirtualParticipant:
-		addContestVirtualPermissions(permissions)
 	case models.ManagerParticipant:
 		addContestManagerPermissions(permissions)
 	}
@@ -125,8 +120,9 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 		Contest:        contest,
 		Permissions:    PermissionSet{},
 		Stage:          ContestNotPlanned,
+		Now:            models.GetNow(ctx),
 	}
-	now := models.GetNow(ctx).Unix()
+	now := c.Now.Unix()
 	if config.BeginTime != 0 {
 		c.Stage = ContestNotStarted
 		if now >= int64(config.BeginTime) {
@@ -213,6 +209,7 @@ type ContestContext struct {
 	Participants []models.ContestParticipant
 	Permissions  PermissionSet
 	Stage        ContestStage
+	Now          time.Time
 	effectivePos int
 }
 

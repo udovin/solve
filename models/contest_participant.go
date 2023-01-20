@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/udovin/gosql"
@@ -12,7 +13,6 @@ const (
 	RegularParticipant   ParticipantKind = 1
 	UpsolvingParticipant ParticipantKind = 2
 	ManagerParticipant   ParticipantKind = 3
-	VirtualParticipant   ParticipantKind = 4
 )
 
 // String returns string representation.
@@ -47,6 +47,10 @@ func (k *ParticipantKind) UnmarshalText(data []byte) error {
 	return nil
 }
 
+type RegularParticipantConfig struct {
+	BeginTime NInt64 `json:"begin_time,omitempty"`
+}
+
 // ContestParticipant represents participant.
 type ContestParticipant struct {
 	baseObject
@@ -64,6 +68,22 @@ type ContestParticipant struct {
 func (o ContestParticipant) Clone() ContestParticipant {
 	o.Config = o.Config.Clone()
 	return o
+}
+
+func (o ContestParticipant) ScanConfig(config any) error {
+	if len(o.Config) == 0 {
+		return nil
+	}
+	return json.Unmarshal(o.Config, config)
+}
+
+func (o *ContestParticipant) SetConfig(config any) error {
+	raw, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	o.Config = raw
+	return nil
 }
 
 // ContestParticipant represents participant event.

@@ -816,7 +816,6 @@ func (f *SubmitSolutionForm) Parse(c echo.Context) error {
 }
 
 func (v *View) submitContestProblemSolution(c echo.Context) error {
-	now := getNow(c)
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
 		return fmt.Errorf("contest not extracted")
@@ -850,6 +849,29 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		); err != nil {
 			return err
 		}
+	} else {
+		if participant.Kind == models.RegularParticipant &&
+			contestCtx.Stage == managers.ContestStarted {
+			contestConfig, err := contestCtx.Contest.GetConfig()
+			if err != nil {
+				return err
+			}
+			var config models.RegularParticipantConfig
+			if err := participant.ScanConfig(&config); err != nil {
+				return err
+			}
+			if config.BeginTime != contestConfig.BeginTime {
+				config.BeginTime = contestConfig.BeginTime
+				if err := participant.SetConfig(config); err != nil {
+					return err
+				}
+				if err := v.core.ContestParticipants.Update(
+					getContext(c), *participant,
+				); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	if participant.ID == 0 {
 		return fmt.Errorf("unable to register participant")
@@ -872,7 +894,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		ProblemID:  problem.ProblemID,
 		AuthorID:   account.ID,
 		CompilerID: form.CompilerID,
-		CreateTime: now.Unix(),
+		CreateTime: contestCtx.Now.Unix(),
 	}
 	contestSolution := models.ContestSolution{
 		ContestID:     contest.ID,

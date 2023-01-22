@@ -98,7 +98,6 @@ func serverMain(cmd *cobra.Command, _ []string) {
 		testCtx, os.Interrupt, syscall.SIGTERM,
 	)
 	defer cancel()
-	v.StartDaemons()
 	if file := cfg.SocketFile; file != "" {
 		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
 			panic(err)
@@ -125,6 +124,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	if cfg.Server != nil {
 		srv := newServer(c.Logger())
 		v.Register(srv.Group("/api"))
+		v.StartDaemons()
 		waiter.Add(1)
 		go func() {
 			defer waiter.Done()

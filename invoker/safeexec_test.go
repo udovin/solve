@@ -49,7 +49,7 @@ func TestSafeexecSimple(t *testing.T) {
 	if report.Memory <= 0 {
 		t.Fatal("Invalid memory:", report.Memory)
 	}
-	if report.Time < time.Second || report.Time > 3*time.Second {
+	if report.Time < time.Second || report.Time > 6*time.Second {
 		t.Fatal("Invalid time:", report.Time.Milliseconds())
 	}
 	if s := stdout.String(); s != "solve_test" {

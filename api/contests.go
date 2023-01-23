@@ -157,6 +157,7 @@ var contestPermissions = []string{
 	models.SubmitContestSolutionRole,
 	models.UpdateContestSolutionRole,
 	models.DeleteContestSolutionRole,
+	models.ObserveContestStandingsRole,
 }
 
 func makeContestStage(stage managers.ContestStage) string {

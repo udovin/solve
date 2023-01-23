@@ -85,6 +85,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerRoleHandlers(g)
 	v.registerSessionHandlers(g)
 	v.registerContestHandlers(g)
+	v.registerContestStandingsHandlers(g)
 	v.registerProblemHandlers(g)
 	v.registerSolutionHandlers(g)
 	v.registerCompilerHandlers(g)

@@ -137,12 +137,17 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 			Verdict: task.Status.String(),
 		}
 	}
+	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	if !ok {
+		permissions = managers.PermissionSet{}
+	}
 	resp := SolutionReport{
 		Verdict:    report.Verdict.String(),
 		UsedTime:   report.Usage.Time,
 		UsedMemory: report.Usage.Memory,
 	}
-	if report.Verdict != models.Accepted {
+	if report.Verdict != models.Accepted &&
+		permissions.HasPermission(models.ObserveSolutionReportTestNumber) {
 		for i, test := range report.Tests {
 			if test.Verdict == report.Verdict {
 				resp.TestNumber = i + 1
@@ -150,7 +155,8 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 			}
 		}
 	}
-	if withLogs {
+	if withLogs &&
+		permissions.HasPermission(models.ObserveSolutionReportCheckerLogs) {
 		resp.CompileLog = report.Compile.Log
 		for _, test := range report.Tests {
 			resp.Tests = append(resp.Tests, TestReport{

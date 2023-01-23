@@ -118,7 +118,7 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 	c := ContestContext{
 		AccountContext: ctx,
 		Contest:        contest,
-		Permissions:    PermissionSet{},
+		Permissions:    ctx.Permissions.Clone(),
 		Stage:          ContestNotPlanned,
 		Now:            models.GetNow(ctx),
 	}
@@ -214,7 +214,7 @@ type ContestContext struct {
 }
 
 func (c *ContestContext) HasPermission(name string) bool {
-	return c.Permissions.HasPermission(name) || c.AccountContext.HasPermission(name)
+	return c.Permissions.HasPermission(name)
 }
 
 func (c *ContestContext) GetEffectiveParticipant() *models.ContestParticipant {

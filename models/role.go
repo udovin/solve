@@ -163,6 +163,8 @@ const (
 	DeleteContestSolutionRole = "delete_contest_solution"
 	//
 	ObserveContestStandingsRole = "observe_contest_standings"
+	//
+	ObserveContestFullStandingsRole = "observe_contest_full_standings"
 	// CreateContestRole represents role for creating contest.
 	CreateContestRole = "create_contest"
 	// UpdateContestRole represents role for updating contest.
@@ -240,6 +242,7 @@ var builtInRoles = map[string]struct{}{
 	UpdateContestSolutionRole:        {},
 	DeleteContestSolutionRole:        {},
 	ObserveContestStandingsRole:      {},
+	ObserveContestFullStandingsRole:  {},
 	ObserveContestsRole:              {},
 	CreateContestRole:                {},
 	UpdateContestRole:                {},

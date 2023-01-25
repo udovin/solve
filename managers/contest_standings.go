@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"sort"
+	"time"
 
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
@@ -25,7 +26,7 @@ func NewContestStandingsManager(core *core.Core) *ContestStandingsManager {
 	}
 }
 
-func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest models.Contest) (*ContestStandings, error) {
+func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest models.Contest, now time.Time) (*ContestStandings, error) {
 	contestConfig, err := contest.GetConfig()
 	if err != nil {
 		return nil, err
@@ -98,12 +99,18 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 				continue
 			}
 			sortFunc(solutions, func(lhs, rhs models.Solution) bool {
+				if lhs.CreateTime != rhs.CreateTime {
+					return lhs.CreateTime < rhs.CreateTime
+				}
 				return lhs.ID < rhs.ID
 			})
 			cell := ContestStandingsCell{
 				Column: i,
 			}
 			for _, solution := range solutions {
+				if solution.CreateTime >= now.Unix() {
+					continue
+				}
 				report, err := solution.GetReport()
 				if err != nil {
 					continue

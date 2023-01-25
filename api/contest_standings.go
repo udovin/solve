@@ -46,7 +46,7 @@ func (v *View) observeContestStandings(c echo.Context) error {
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
-	standings, err := v.standings.BuildStandings(getContext(c), contest)
+	standings, err := v.standings.BuildStandings(getContext(c), contest, contestCtx.Now)
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,19 @@ func (v *View) observeContestStandings(c echo.Context) error {
 			Code: column.Problem.Code,
 		})
 	}
+	observeFullStandings := contestCtx.HasPermission(models.ObserveContestFullStandingsRole)
 	for _, row := range standings.Rows {
+		if !observeFullStandings {
+			switch row.Participant.Kind {
+			case models.RegularParticipant:
+			case models.UpsolvingParticipant:
+				if contestCtx.Stage != managers.ContestFinished {
+					continue
+				}
+			default:
+				continue
+			}
+		}
 		rowResp := ContestStandingsRow{
 			Participant: makeContestParticipant(row.Participant, v.core),
 			Score:       row.Score,

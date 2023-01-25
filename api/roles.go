@@ -143,7 +143,7 @@ func (f createRoleForm) Update(
 		errors["name"] = errorField{
 			Message: localize(c, "Name is too short."),
 		}
-	} else if len(f.Name) > 32 {
+	} else if len(f.Name) > 64 {
 		errors["name"] = errorField{
 			Message: localize(c, "Name is too long."),
 		}

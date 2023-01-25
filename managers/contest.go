@@ -39,6 +39,10 @@ func addContestManagerPermissions(permissions PermissionSet) {
 		models.UpdateContestSolutionRole,
 		models.DeleteContestSolutionRole,
 		models.SubmitContestSolutionRole,
+		models.ObserveContestStandingsRole,
+		models.ObserveContestFullStandingsRole,
+		models.ObserveSolutionReportTestNumber,
+		models.ObserveSolutionReportCheckerLogs,
 	)
 }
 
@@ -55,12 +59,16 @@ func addContestRegularPermissions(
 			models.ObserveContestProblemRole,
 			models.ObserveContestSolutionsRole,
 			models.SubmitContestSolutionRole,
+			models.ObserveContestStandingsRole,
+			models.ObserveSolutionReportTestNumber,
 		)
 	case ContestFinished:
 		permissions.AddPermission(
 			models.ObserveContestProblemsRole,
 			models.ObserveContestProblemRole,
 			models.ObserveContestSolutionsRole,
+			models.ObserveContestStandingsRole,
+			models.ObserveSolutionReportTestNumber,
 		)
 	}
 }
@@ -75,6 +83,8 @@ func addContestUpsolvingPermissions(
 			models.ObserveContestProblemRole,
 			models.ObserveContestSolutionsRole,
 			models.SubmitContestSolutionRole,
+			models.ObserveContestStandingsRole,
+			models.ObserveSolutionReportTestNumber,
 		)
 	}
 }
@@ -118,7 +128,7 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 	c := ContestContext{
 		AccountContext: ctx,
 		Contest:        contest,
-		Permissions:    PermissionSet{},
+		Permissions:    ctx.Permissions.Clone(),
 		Stage:          ContestNotPlanned,
 		Now:            models.GetNow(ctx),
 	}
@@ -214,7 +224,7 @@ type ContestContext struct {
 }
 
 func (c *ContestContext) HasPermission(name string) bool {
-	return c.Permissions.HasPermission(name) || c.AccountContext.HasPermission(name)
+	return c.Permissions.HasPermission(name)
 }
 
 func (c *ContestContext) GetEffectiveParticipant() *models.ContestParticipant {

@@ -18,7 +18,8 @@
     "permissions": [
       "observe_contest_problems",
       "observe_contest_solutions",
-      "submit_contest_solution"
+      "submit_contest_solution",
+      "observe_contest_standings"
     ],
     "enable_registration": true,
     "enable_upsolving": true,

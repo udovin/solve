@@ -6,13 +6,13 @@ import (
 )
 
 type SolutionManager struct {
-	Solutions *models.SolutionStore
-	Files     *FileManager
+	solutions *models.SolutionStore
+	files     *FileManager
 }
 
 func NewSolutionManager(core *core.Core, files *FileManager) *SolutionManager {
 	return &SolutionManager{
-		Solutions: core.Solutions,
-		Files:     files,
+		solutions: core.Solutions,
+		files:     files,
 	}
 }

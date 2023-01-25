@@ -29,6 +29,7 @@ type View struct {
 	contests  *managers.ContestManager
 	files     *managers.FileManager
 	solutions *managers.SolutionManager
+	standings *managers.ContestStandingsManager
 	visits    chan visitContext
 }
 
@@ -84,6 +85,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerRoleHandlers(g)
 	v.registerSessionHandlers(g)
 	v.registerContestHandlers(g)
+	v.registerContestStandingsHandlers(g)
 	v.registerProblemHandlers(g)
 	v.registerSolutionHandlers(g)
 	v.registerCompilerHandlers(g)
@@ -117,9 +119,10 @@ func (v *View) health(c echo.Context) error {
 // NewView returns a new instance of view.
 func NewView(core *core.Core) *View {
 	v := View{
-		core:     core,
-		accounts: managers.NewAccountManager(core),
-		contests: managers.NewContestManager(core),
+		core:      core,
+		accounts:  managers.NewAccountManager(core),
+		contests:  managers.NewContestManager(core),
+		standings: managers.NewContestStandingsManager(core),
 	}
 	if core.Config.Storage != nil {
 		v.files = managers.NewFileManager(core)

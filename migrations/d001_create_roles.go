@@ -80,9 +80,7 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 		models.LogoutRole,
 		models.StatusRole,
 		models.ObserveUserRole,
-		models.ObserveProblemsRole,
 		models.ObserveContestsRole,
-		models.ObserveSolutionsRole,
 		models.ObserveCompilersRole,
 		models.RegisterContestsRole,
 	} {

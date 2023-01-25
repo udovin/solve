@@ -44,7 +44,8 @@
           "create_contest_solution",
           "submit_contest_solution",
           "update_contest_solution",
-          "delete_contest_solution"
+          "delete_contest_solution",
+          "observe_contest_standings"
         ],
         "enable_registration": true,
         "enable_upsolving": true,
@@ -71,7 +72,8 @@
           "create_contest_solution",
           "submit_contest_solution",
           "update_contest_solution",
-          "delete_contest_solution"
+          "delete_contest_solution",
+          "observe_contest_standings"
         ],
         "enable_registration": false,
         "enable_upsolving": false,
@@ -100,7 +102,8 @@
       "create_contest_solution",
       "submit_contest_solution",
       "update_contest_solution",
-      "delete_contest_solution"
+      "delete_contest_solution",
+      "observe_contest_standings"
     ],
     "enable_registration": false,
     "enable_upsolving": false,

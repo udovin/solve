@@ -51,6 +51,16 @@ type polygonProblem struct {
 
 func (p *polygonProblem) Compile(ctx context.Context) error {
 	p.executables = map[string]compiled{}
+	resources := []MountFile{}
+	for _, resource := range p.config.Files.Resources {
+		if resource.Type != "h.g++" {
+			continue
+		}
+		resources = append(resources, MountFile{
+			Source: filepath.Join(p.path, resource.Path),
+			Target: filepath.Base(resource.Path),
+		})
+	}
 	for _, executable := range p.config.Files.Executables {
 		if executable.Source == nil {
 			continue
@@ -68,13 +78,10 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		target := strings.TrimSuffix(source, filepath.Ext(source))
 		sourcePath := filepath.Join(p.path, source)
 		targetPath := filepath.Join(p.path, target)
-		testlibPath := filepath.Join(p.path, "files/testlib.h")
 		report, err := compiler.Compile(ctx, CompileOptions{
-			Source: sourcePath,
-			Target: targetPath,
-			InputFiles: []MountFile{
-				{Source: testlibPath, Target: "testlib.h"},
-			},
+			Source:      sourcePath,
+			Target:      targetPath,
+			InputFiles:  resources,
 			TimeLimit:   20 * time.Second,
 			MemoryLimit: 256 * 1024 * 1024,
 		})
@@ -112,13 +119,10 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 			if _, ok := p.executables[target]; !ok {
 				sourcePath := filepath.Join(p.path, source)
 				targetPath := filepath.Join(p.path, target)
-				testlibPath := filepath.Join(p.path, "files/testlib.h")
 				report, err := compiler.Compile(ctx, CompileOptions{
-					Source: sourcePath,
-					Target: targetPath,
-					InputFiles: []MountFile{
-						{Source: testlibPath, Target: "testlib.h"},
-					},
+					Source:      sourcePath,
+					Target:      targetPath,
+					InputFiles:  resources,
 					TimeLimit:   20 * time.Second,
 					MemoryLimit: 256 * 1024 * 1024,
 				})

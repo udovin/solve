@@ -41,10 +41,10 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 	sortFunc(contestProblems, func(lhs, rhs models.ContestProblem) bool {
 		return lhs.Code < rhs.Code
 	})
-	var columns []ContestStandingsColumn
+	standings := ContestStandings{}
 	columnByProblem := map[int64]int{}
 	for i, problem := range contestProblems {
-		columns = append(columns, ContestStandingsColumn{
+		standings.Columns = append(standings.Columns, ContestStandingsColumn{
 			Problem: problem,
 		})
 		columnByProblem[problem.ID] = i
@@ -59,7 +59,6 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 			solutionsByParticipant[solution.ParticipantID], solution,
 		)
 	}
-	standings := ContestStandings{}
 	for _, participant := range participants {
 		beginTime := int64(contestConfig.BeginTime)
 		if participant.Kind == models.RegularParticipant {
@@ -75,9 +74,6 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 		if !ok {
 			continue
 		}
-		sortFunc(participantSolutions, func(lhs, rhs models.ContestSolution) bool {
-			return lhs.ID < rhs.ID
-		})
 		solutionsByColumn := map[int][]models.Solution{}
 		for _, participantSolution := range participantSolutions {
 			solution, err := m.solutions.Get(participantSolution.SolutionID)
@@ -96,11 +92,14 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 		row := ContestStandingsRow{
 			Participant: participant,
 		}
-		for i := range columns {
+		for i := range standings.Columns {
 			solutions, ok := solutionsByColumn[i]
 			if !ok {
 				continue
 			}
+			sortFunc(solutions, func(lhs, rhs models.Solution) bool {
+				return lhs.ID < rhs.ID
+			})
 			cell := ContestStandingsCell{
 				Column: i,
 			}
@@ -132,11 +131,17 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 		for _, cell := range row.Cells {
 			if cell.Verdict == models.Accepted {
 				row.Score++
-				row.Penalty = int64(cell.Attempt-1)*20 + cell.Time/60
+				row.Penalty += int64(cell.Attempt-1)*20 + cell.Time/60
 			}
 		}
 		standings.Rows = append(standings.Rows, row)
 	}
+	sortFunc(standings.Rows, func(lhs, rhs ContestStandingsRow) bool {
+		if lhs.Score != rhs.Score {
+			return lhs.Score > rhs.Score
+		}
+		return lhs.Penalty < rhs.Penalty
+	})
 	return &standings, nil
 }
 

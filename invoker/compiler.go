@@ -82,13 +82,20 @@ func (c *compiler) Name() string {
 func (c *compiler) Compile(
 	ctx context.Context, options CompileOptions,
 ) (CompileReport, error) {
-	stderr := strings.Builder{}
+	if c.config.Compile == nil {
+		if err := copyFileRec(options.Source, options.Target); err != nil {
+			return CompileReport{}, fmt.Errorf("unable to copy source: %w", err)
+		}
+		return CompileReport{}, nil
+	}
+	log := strings.Builder{}
 	config := safeexecProcessConfig{
 		Layers:      []string{c.path},
 		Command:     strings.Fields(c.config.Compile.Command),
 		Environ:     c.config.Compile.Environ,
 		Workdir:     c.config.Compile.Workdir,
-		Stderr:      &stderr,
+		Stdout:      &log,
+		Stderr:      &log,
 		TimeLimit:   options.TimeLimit,
 		MemoryLimit: options.MemoryLimit,
 	}
@@ -140,7 +147,7 @@ func (c *compiler) Compile(
 		ExitCode:   report.ExitCode,
 		UsedTime:   report.Time,
 		UsedMemory: report.Memory,
-		Log:        stderr.String(),
+		Log:        log.String(),
 	}, nil
 }
 
@@ -151,6 +158,9 @@ const (
 )
 
 func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (ExecuteReport, error) {
+	if c.config.Execute == nil {
+		return ExecuteReport{}, nil
+	}
 	var stdin io.Reader
 	for _, input := range options.InputFiles {
 		if input.Target != stdinFile {
@@ -205,7 +215,7 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 			*c.config.Execute.Binary,
 		)
 		if err := copyFileRec(options.Binary, path); err != nil {
-			return ExecuteReport{}, fmt.Errorf("unable to write source: %w", err)
+			return ExecuteReport{}, fmt.Errorf("unable to write binary: %w", err)
 		}
 	}
 	for _, file := range options.InputFiles {

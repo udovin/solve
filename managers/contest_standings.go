@@ -127,7 +127,7 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 				cell.Verdict = report.Verdict
 				if report.Verdict == models.Accepted {
 					cell.Time = solution.CreateTime - beginTime
-					if cell.Time < 0 {
+					if beginTime == 0 || cell.Time < 0 {
 						cell.Time = 0
 					}
 					break

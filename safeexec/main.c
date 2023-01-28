@@ -6,10 +6,11 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/mount.h>
-#include <sys/wait.h>
+#include <sys/resource.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -362,6 +363,12 @@ int entrypoint(void* arg) {
 	setupMountNamespace(ctx);
 	setupUtsNamespace(ctx);
 	ensure(chdir(ctx->workdir) == 0, "cannot chdir to workdir");
+	// Setup stack limit.
+	struct rlimit limit;
+	limit.rlim_cur = RLIM_INFINITY;
+	limit.rlim_max = RLIM_INFINITY;
+	ensure(setrlimit(RLIMIT_STACK, &limit) == 0, "cannot set stack limit");
+	// Unlock parent process.
 	close(ctx->finalizePipe[1]);
 	return execvpe(ctx->args[0], ctx->args, ctx->environ);
 }

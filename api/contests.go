@@ -64,6 +64,12 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.extractAuth(v.sessionAuth), v.extractContest,
 		v.requirePermission(models.CreateContestProblemRole),
 	)
+	g.PATCH(
+		"/v0/contests/:contest/problems/:problem", v.updateContestProblem,
+		v.extractAuth(v.sessionAuth), v.extractContest,
+		v.extractContestProblem,
+		v.requirePermission(models.UpdateContestProblemRole),
+	)
 	g.DELETE(
 		"/v0/contests/:contest/problems/:problem", v.deleteContestProblem,
 		v.extractAuth(v.sessionAuth), v.extractContest,
@@ -454,26 +460,30 @@ func (v *View) observeContestProblem(c echo.Context) error {
 	return c.JSON(http.StatusOK, v.makeContestProblem(c, problem, true))
 }
 
-type createContestProblemForm struct {
-	Code      string `json:"code"`
-	ProblemID int64  `json:"problem_id"`
+type updateContestProblemForm struct {
+	Code      *string `json:"code"`
+	ProblemID *int64  `json:"problem_id"`
+	Points    *int    `json:"points"`
 }
 
-func (f createContestProblemForm) Update(
+func (f updateContestProblemForm) Update(
 	c echo.Context,
 	problem *models.ContestProblem,
 	problems *models.ProblemStore,
-) *errorResponse {
+) error {
 	errors := errorFields{}
-	if len(f.Code) == 0 {
-		errors["code"] = errorField{
-			Message: localize(c, "Code is empty."),
+	if f.Code != nil {
+		if len(*f.Code) == 0 {
+			errors["code"] = errorField{
+				Message: localize(c, "Code is empty."),
+			}
 		}
-	}
-	if len(f.Code) > 4 {
-		errors["code"] = errorField{
-			Message: localize(c, "Code is too long."),
+		if len(*f.Code) > 4 {
+			errors["code"] = errorField{
+				Message: localize(c, "Code is too long."),
+			}
 		}
+		problem.Code = *f.Code
 	}
 	if len(errors) > 0 {
 		return &errorResponse{
@@ -482,18 +492,59 @@ func (f createContestProblemForm) Update(
 			InvalidFields: errors,
 		}
 	}
-	if _, err := problems.Get(f.ProblemID); err != nil {
+	if f.ProblemID != nil {
+		if _, err := problems.Get(*f.ProblemID); err != nil {
+			return &errorResponse{
+				Code: http.StatusNotFound,
+				Message: localize(
+					c, "Problem {id} does not exists.",
+					replaceField("id", *f.ProblemID),
+				),
+			}
+		}
+		problem.ProblemID = *f.ProblemID
+	}
+	if f.Points != nil {
+		config, err := problem.GetConfig()
+		if err != nil {
+			return err
+		}
+		config.Points = f.Points
+		if err := problem.SetConfig(config); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type createContestProblemForm updateContestProblemForm
+
+func (f *createContestProblemForm) Update(
+	c echo.Context,
+	problem *models.ContestProblem,
+	problems *models.ProblemStore,
+) error {
+	if f.Code == nil {
+		return &errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Form has invalid fields."),
+			InvalidFields: errorFields{
+				"title": errorField{
+					Message: localize(c, "Code is empty."),
+				},
+			},
+		}
+	}
+	if f.ProblemID == nil {
 		return &errorResponse{
 			Code: http.StatusNotFound,
 			Message: localize(
 				c, "Problem {id} does not exists.",
-				replaceField("id", f.ProblemID),
+				replaceField("id", 0),
 			),
 		}
 	}
-	problem.Code = f.Code
-	problem.ProblemID = f.ProblemID
-	return nil
+	return (*createContestProblemForm)(f).Update(c, problem, problems)
 }
 
 func (v *View) createContestProblem(c echo.Context) error {
@@ -547,6 +598,27 @@ func (v *View) createContestProblem(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusCreated, v.makeContestProblem(c, problem, false))
+}
+
+func (v *View) updateContestProblem(c echo.Context) error {
+	problem, ok := c.Get(contestProblemKey).(models.ContestProblem)
+	if !ok {
+		return fmt.Errorf("contest problem not extracted")
+	}
+	var form updateContestProblemForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if err := form.Update(c, &problem, v.core.Problems); err != nil {
+		return err
+	}
+	if err := v.core.ContestProblems.Update(
+		getContext(c), problem,
+	); err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, v.makeContestProblem(c, problem, false))
 }
 
 func (v *View) deleteContestProblem(c echo.Context) error {

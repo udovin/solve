@@ -79,8 +79,8 @@ func TestContestSimpleScenario(t *testing.T) {
 			t.Fatal("Error:", err)
 		}
 		form := createContestProblemForm{
-			Code:      fmt.Sprintf("%c", 'A'+i),
-			ProblemID: problem.ID,
+			Code:      getPtr(fmt.Sprintf("%c", 'A'+i)),
+			ProblemID: getPtr(problem.ID),
 		}
 		contestProblem, err := e.Client.CreateContestProblem(contest.ID, form)
 		if err != nil {
@@ -126,8 +126,8 @@ func TestContestParticipation(t *testing.T) {
 			t.Fatal("Error:", err)
 		}
 		problemForm := createContestProblemForm{
-			Code:      "A",
-			ProblemID: problem.ID,
+			Code:      getPtr("A"),
+			ProblemID: getPtr(problem.ID),
 		}
 		if contestProblem, err = e.Client.CreateContestProblem(contest.ID, problemForm); err != nil {
 			t.Fatal("Error:", err)

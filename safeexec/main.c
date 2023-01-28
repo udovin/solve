@@ -82,6 +82,31 @@ static inline void setupMount(const Context* ctx, const char* source, const char
 	free(path);
 }
 
+static inline void createDev(int prefix, char* path) {
+	for (int i = prefix; path[i] != 0; ++i) {
+		if (path[i] == '/' && i > prefix) {
+			path[i] = 0;
+			if (mkdir(path, 0755) != 0) {
+				ensure(errno == EEXIST, "cannot create directory");
+			}
+			path[i] = '/';
+		}
+	}
+	int fd = open(path, O_CREAT, 0000);
+	ensure(fd != -1, "cannot create file");
+	close(fd);
+}
+
+static inline void setupDevMount(const Context* ctx, const char* source, const char* target) {
+	char* path = malloc((strlen(ctx->rootfs) + strlen(target) + 1) * sizeof(char));
+	ensure(path != 0, "cannot allocate");
+	strcpy(path, ctx->rootfs);
+	strcat(path, target);
+	createDev(strlen(ctx->rootfs), path);
+	ensure(mount(source, path, NULL, MS_BIND, NULL) == 0, "cannot mount");
+	free(path);
+}
+
 static inline void pivotRoot(const Context* ctx) {
 	int oldroot = open("/", O_DIRECTORY | O_RDONLY);
 	ensure(oldroot != -1, "cannot open old root");
@@ -116,11 +141,16 @@ static inline void setupMountNamespace(const Context* ctx) {
 	setupOverlayfs(ctx);
 	setupMount(ctx, "sysfs", "/sys", "sysfs", MS_NOEXEC | MS_NOSUID | MS_NODEV | MS_RDONLY, NULL);
 	setupMount(ctx, "proc", PROC_PATH, "proc", MS_NOEXEC | MS_NOSUID | MS_NODEV, NULL);
-	setupMount(ctx, "tmpfs", "/dev", "tmpfs", MS_NOSUID | MS_STRICTATIME, "mode=755,size=65536k");
+	setupMount(ctx, "tmpfs", "/dev", "tmpfs", MS_NOSUID | MS_STRICTATIME, "mode=755,size=8192k");
 	setupMount(ctx, "devpts", "/dev/pts", "devpts", MS_NOSUID | MS_NOEXEC, "newinstance,ptmxmode=0666,mode=0620");
-	setupMount(ctx, "shm", "/dev/shm", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV, "mode=1777,size=65536k");
+	setupMount(ctx, "shm", "/dev/shm", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV, "mode=1777,size=8192k");
 	setupMount(ctx, "mqueue", "/dev/mqueue", "mqueue", MS_NOEXEC | MS_NOSUID | MS_NODEV, NULL);
 	setupMount(ctx, "cgroup", "/sys/fs/cgroup", "cgroup2", MS_NOEXEC | MS_NOSUID | MS_NODEV | MS_RELATIME | MS_RDONLY, NULL);
+	// Setup dev mounts.
+	setupDevMount(ctx, "/dev/null", "/dev/null");
+	setupDevMount(ctx, "/dev/random", "/dev/random");
+	setupDevMount(ctx, "/dev/urandom", "/dev/urandom");
+	// Pivot root.
 	pivotRoot(ctx);
 }
 

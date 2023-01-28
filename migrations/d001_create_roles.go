@@ -39,6 +39,7 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 		"pending_user_group",
 		"active_user_group",
 		"blocked_user_group",
+		"internal_user_group",
 		"admin_group",
 	}
 	for _, role := range allRoles {

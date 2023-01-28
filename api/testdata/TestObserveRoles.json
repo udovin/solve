@@ -2,8 +2,12 @@
   {
     "roles": [
       {
-        "id": 76,
+        "id": 77,
         "name": "admin_group"
+      },
+      {
+        "id": 76,
+        "name": "internal_user_group"
       },
       {
         "id": 75,

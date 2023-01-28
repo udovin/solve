@@ -2,68 +2,73 @@
   {
     "roles": [
       {
-        "id": 75,
+        "id": 76,
         "name": "admin_group"
       },
       {
-        "id": 74,
+        "id": 75,
         "name": "blocked_user_group"
       },
       {
-        "id": 73,
+        "id": 74,
         "name": "active_user_group"
       },
       {
-        "id": 72,
+        "id": 73,
         "name": "pending_user_group"
       },
       {
-        "id": 71,
+        "id": 72,
         "name": "guest_group"
       },
       {
-        "id": 70,
+        "id": 71,
         "name": "update_user_password",
         "built_in": true
       },
       {
-        "id": 69,
+        "id": 70,
         "name": "update_user_middle_name",
         "built_in": true
       },
       {
-        "id": 68,
+        "id": 69,
         "name": "update_user_last_name",
         "built_in": true
       },
       {
-        "id": 67,
+        "id": 68,
         "name": "update_user_first_name",
         "built_in": true
       },
       {
-        "id": 66,
+        "id": 67,
         "name": "update_user_email",
         "built_in": true
       },
       {
-        "id": 65,
+        "id": 66,
         "name": "update_user",
         "built_in": true
       },
       {
-        "id": 64,
+        "id": 65,
         "name": "update_setting",
         "built_in": true
       },
       {
-        "id": 63,
+        "id": 64,
         "name": "update_problem",
         "built_in": true
       },
       {
-        "id": 62,
+        "id": 63,
         "name": "update_contest_solution",
+        "built_in": true
+      },
+      {
+        "id": 62,
+        "name": "update_contest_problem",
         "built_in": true
       },
       {

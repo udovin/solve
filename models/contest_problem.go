@@ -1,8 +1,14 @@
 package models
 
 import (
+	"encoding/json"
+
 	"github.com/udovin/gosql"
 )
+
+type ContestProblemConfig struct {
+	Points *int `json:"points,omitempty"`
+}
 
 // ContestProblem represents connection for problems.
 type ContestProblem struct {
@@ -13,10 +19,31 @@ type ContestProblem struct {
 	ContestID int64 `db:"contest_id"`
 	// Code contains code of problem.
 	Code string `db:"code"`
+	// Config contains problem config.
+	Config JSON `db:"config"`
+}
+
+func (o ContestProblem) GetConfig() (ContestProblemConfig, error) {
+	var config ContestProblemConfig
+	if len(o.Config) == 0 {
+		return config, nil
+	}
+	err := json.Unmarshal(o.Config, &config)
+	return config, err
+}
+
+func (o *ContestProblem) SetConfig(config ContestProblemConfig) error {
+	raw, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	o.Config = raw
+	return nil
 }
 
 // Clone creates copy of contest problem.
 func (o ContestProblem) Clone() ContestProblem {
+	o.Config = o.Config.Clone()
 	return o
 }
 

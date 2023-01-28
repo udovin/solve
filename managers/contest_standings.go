@@ -10,6 +10,29 @@ import (
 	"github.com/udovin/solve/models"
 )
 
+type ContestStandingsColumn struct {
+	Problem models.ContestProblem
+}
+
+type ContestStandingsCell struct {
+	Column  int
+	Verdict models.Verdict
+	Attempt int
+	Time    int64
+}
+
+type ContestStandingsRow struct {
+	Participant models.ContestParticipant
+	Cells       []ContestStandingsCell
+	Score       int
+	Penalty     int64
+}
+
+type ContestStandings struct {
+	Columns []ContestStandingsColumn
+	Rows    []ContestStandingsRow
+}
+
 type ContestStandingsManager struct {
 	contestParticipants *models.ContestParticipantStore
 	contestSolutions    *models.ContestSolutionStore
@@ -139,13 +162,19 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 		}
 		for _, cell := range row.Cells {
 			if cell.Verdict == models.Accepted {
-				row.Score++
+				problem := standings.Columns[cell.Column].Problem
+				row.Score += getProblemScore(problem)
 				row.Penalty += int64(cell.Attempt-1)*20 + cell.Time/60
 			}
 		}
 		standings.Rows = append(standings.Rows, row)
 	}
 	sortFunc(standings.Rows, func(lhs, rhs ContestStandingsRow) bool {
+		lhsOrder := getParticipantOrder(lhs.Participant.Kind)
+		rhsOrder := getParticipantOrder(rhs.Participant.Kind)
+		if lhsOrder != rhsOrder {
+			return lhsOrder < rhsOrder
+		}
 		if lhs.Score != rhs.Score {
 			return lhs.Score > rhs.Score
 		}
@@ -154,27 +183,26 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 	return &standings, nil
 }
 
-type ContestStandingsColumn struct {
-	Problem models.ContestProblem
+func getParticipantOrder(kind models.ParticipantKind) int {
+	switch kind {
+	case models.ManagerParticipant:
+		return 0
+	case models.RegularParticipant:
+		return 1
+	default:
+		return 2
+	}
 }
 
-type ContestStandingsCell struct {
-	Column  int
-	Verdict models.Verdict
-	Attempt int
-	Time    int64
-}
-
-type ContestStandingsRow struct {
-	Participant models.ContestParticipant
-	Cells       []ContestStandingsCell
-	Score       int
-	Penalty     int64
-}
-
-type ContestStandings struct {
-	Columns []ContestStandingsColumn
-	Rows    []ContestStandingsRow
+func getProblemScore(problem models.ContestProblem) int {
+	config, err := problem.GetConfig()
+	if err != nil {
+		return 1
+	}
+	if config.Points != nil {
+		return *config.Points
+	}
+	return 1
 }
 
 func sortFunc[T any](a []T, less func(T, T) bool) {

@@ -23,21 +23,21 @@ type ContestStandingsColumn struct {
 
 type ContestStandingsCell struct {
 	Column  int    `json:"column"`
-	Verdict string `json:"verdict,omitempty"`
-	Attempt int    `json:"attempt,omitempty"`
-	Time    int64  `json:"time,omitempty"`
+	Verdict string `json:"verdict"`
+	Attempt int    `json:"attempt"`
+	Time    *int64 `json:"time,omitempty"`
 }
 
 type ContestStandingsRow struct {
 	Participant ContestParticipant     `json:"participant,omitempty"`
-	Score       int                    `json:"score,omitempty"`
-	Penalty     int64                  `json:"penalty,omitempty"`
+	Score       int                    `json:"score"`
+	Penalty     *int64                 `json:"penalty,omitempty"`
 	Cells       []ContestStandingsCell `json:"cells,omitempty"`
 }
 
 type ContestStandings struct {
-	Columns []ContestStandingsColumn `json:"columns"`
-	Rows    []ContestStandingsRow    `json:"rows"`
+	Columns []ContestStandingsColumn `json:"columns,omitempty"`
+	Rows    []ContestStandingsRow    `json:"rows,omitempty"`
 }
 
 func (v *View) observeContestStandings(c echo.Context) error {
@@ -72,13 +72,17 @@ func (v *View) observeContestStandings(c echo.Context) error {
 		rowResp := ContestStandingsRow{
 			Participant: makeContestParticipant(row.Participant, v.core),
 			Score:       row.Score,
-			Penalty:     row.Penalty,
+		}
+		if row.Participant.Kind == models.RegularParticipant {
+			rowResp.Penalty = getPtr(row.Penalty)
 		}
 		for _, cell := range row.Cells {
 			cellResp := ContestStandingsCell{
 				Column:  cell.Column,
 				Attempt: cell.Attempt,
-				Time:    cell.Time,
+			}
+			if row.Participant.Kind == models.RegularParticipant {
+				cellResp.Time = getPtr(cell.Time)
 			}
 			if cell.Verdict != 0 {
 				if cell.Verdict == models.Accepted {

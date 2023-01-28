@@ -28,6 +28,7 @@ func addContestManagerPermissions(permissions PermissionSet) {
 		models.ObserveContestProblemsRole,
 		models.ObserveContestProblemRole,
 		models.CreateContestProblemRole,
+		models.UpdateContestProblemRole,
 		models.DeleteContestProblemRole,
 		models.ObserveContestParticipantsRole,
 		models.ObserveContestParticipantRole,

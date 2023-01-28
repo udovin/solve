@@ -13,7 +13,8 @@ func (t *contestProblemStoreTest) prepareDB(tx *sql.Tx) error {
 			`"id" integer PRIMARY KEY,` +
 			`"contest_id" integer NOT NULL,` +
 			`"problem_id" integer NOT NULL,` +
-			`"code" varchar(32) NOT NULL)`,
+			`"code" varchar(32) NOT NULL,` +
+			`"config" text NOT NULL)`,
 	); err != nil {
 		return err
 	}
@@ -26,7 +27,8 @@ func (t *contestProblemStoreTest) prepareDB(tx *sql.Tx) error {
 			`"id" integer NOT NULL,` +
 			`"contest_id" integer NOT NULL,` +
 			`"problem_id" integer NOT NULL,` +
-			`"code" varchar(32) NOT NULL)`,
+			`"code" varchar(32) NOT NULL,` +
+			`"config" text NOT NULL)`,
 	)
 	return err
 }

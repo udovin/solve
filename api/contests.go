@@ -148,6 +148,7 @@ var contestPermissions = []string{
 	models.DeregisterContestRole,
 	models.ObserveContestProblemsRole,
 	models.CreateContestProblemRole,
+	models.UpdateContestProblemRole,
 	models.DeleteContestProblemRole,
 	models.ObserveContestParticipantsRole,
 	models.CreateContestParticipantRole,

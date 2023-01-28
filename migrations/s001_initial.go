@@ -488,6 +488,7 @@ var s001 = []schema.Operation{
 			{Name: "contest_id", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},
 			{Name: "code", Type: schema.String},
+			{Name: "config", Type: schema.JSON},
 		},
 		ForeignKeys: []schema.ForeignKey{
 			{Column: "contest_id", ParentTable: "solve_contest", ParentColumn: "id"},
@@ -515,6 +516,7 @@ var s001 = []schema.Operation{
 			{Name: "contest_id", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},
 			{Name: "code", Type: schema.String},
+			{Name: "config", Type: schema.JSON},
 		},
 	},
 	schema.CreateIndex{

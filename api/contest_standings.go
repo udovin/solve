@@ -18,7 +18,8 @@ func (v *View) registerContestStandingsHandlers(g *echo.Group) {
 }
 
 type ContestStandingsColumn struct {
-	Code string `json:"code"`
+	Code   string `json:"code"`
+	Points *int   `json:"points,omitempty"`
 }
 
 type ContestStandingsCell struct {
@@ -52,9 +53,14 @@ func (v *View) observeContestStandings(c echo.Context) error {
 	}
 	resp := ContestStandings{}
 	for _, column := range standings.Columns {
-		resp.Columns = append(resp.Columns, ContestStandingsColumn{
+		columnResp := ContestStandingsColumn{
 			Code: column.Problem.Code,
-		})
+		}
+		config, err := column.Problem.GetConfig()
+		if err == nil && config.Points != nil {
+			columnResp.Points = config.Points
+		}
+		resp.Columns = append(resp.Columns, columnResp)
 	}
 	observeFullStandings := contestCtx.HasPermission(models.ObserveContestFullStandingsRole)
 	for _, row := range standings.Rows {

@@ -544,7 +544,7 @@ func (f *createContestProblemForm) Update(
 			),
 		}
 	}
-	return (*createContestProblemForm)(f).Update(c, problem, problems)
+	return (*updateContestProblemForm)(f).Update(c, problem, problems)
 }
 
 func (v *View) createContestProblem(c echo.Context) error {

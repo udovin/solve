@@ -94,7 +94,7 @@ func (s *UserStore) GetByLogin(login string) (User, error) {
 	return User{}, sql.ErrNoRows
 }
 
-// GetByAccount returns user by login.
+// GetByAccount returns user by account id.
 func (s *UserStore) GetByAccount(id int64) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()

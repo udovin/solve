@@ -100,6 +100,18 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 			return err
 		}
 	}
+	for _, role := range []string{
+		models.LoginRole,
+		models.LogoutRole,
+		models.StatusRole,
+		models.ObserveUserRole,
+		models.ObserveContestsRole,
+		models.ObserveCompilersRole,
+	} {
+		if err := join(role, "internal_user_group"); err != nil {
+			return err
+		}
+	}
 	for _, role := range allRoles {
 		if err := join(role, "admin_group"); err != nil {
 			return err

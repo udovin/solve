@@ -159,6 +159,10 @@ func migrateMain(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
+	from, err := cmd.Flags().GetString("from")
+	if err != nil {
+		panic(err)
+	}
 	cfg, err := getConfig(cmd)
 	if err != nil {
 		panic(err)
@@ -169,8 +173,13 @@ func migrateMain(cmd *cobra.Command, args []string) {
 	}
 	c.SetupAllStores()
 	var options []db.MigrateOption
+	if len(from) > 0 {
+		options = append(options, db.WithFromMigration(from))
+		withData = false
+	}
 	if len(args) > 0 {
 		options = append(options, db.WithMigration(args[0]))
+		withData = args[0] == "zero"
 	}
 	if err := db.ApplyMigrations(
 		context.Background(), c.DB, "solve", migrations.Schema,
@@ -178,7 +187,7 @@ func migrateMain(cmd *cobra.Command, args []string) {
 	); err != nil {
 		panic(err)
 	}
-	if (len(args) == 0 && withData) || (len(args) > 0 && args[0] == "zero") {
+	if withData {
 		if err := db.ApplyMigrations(
 			context.Background(), c.DB, "solve_data", migrations.Data,
 			options...,
@@ -218,6 +227,7 @@ func main() {
 		Short: "Applies migrations to database",
 	}
 	migrateCmd.Flags().Bool("with-data", false, "Enable data migrations")
+	migrateCmd.Flags().String("from", "", "Repeat migrations from specified name")
 	rootCmd.AddCommand(&migrateCmd)
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",

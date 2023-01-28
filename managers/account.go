@@ -11,12 +11,13 @@ import (
 )
 
 type AccountManager struct {
-	accounts     *models.AccountStore
-	users        *models.UserStore
-	roles        *models.RoleStore
-	roleEdges    *models.RoleEdgeStore
-	accountRoles *models.AccountRoleStore
-	settings     *models.SettingStore
+	accounts      *models.AccountStore
+	users         *models.UserStore
+	internalUsers *models.InternalUserStore
+	roles         *models.RoleStore
+	roleEdges     *models.RoleEdgeStore
+	accountRoles  *models.AccountRoleStore
+	settings      *models.SettingStore
 }
 
 func NewAccountManager(core *core.Core) *AccountManager {
@@ -38,7 +39,8 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 	}
 	var roleIDs []int64
 	if account != nil {
-		if account.Kind == models.UserAccount {
+		switch account.Kind {
+		case models.UserAccount:
 			user, err := m.users.GetByAccount(account.ID)
 			if err != nil {
 				return nil, err
@@ -49,13 +51,26 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 				return nil, err
 			}
 			roleIDs = append(roleIDs, role.ID)
-		}
-		edges, err := m.accountRoles.FindByAccount(account.ID)
-		if err != nil {
-			return nil, err
-		}
-		for _, edge := range edges {
-			roleIDs = append(roleIDs, edge.RoleID)
+			edges, err := m.accountRoles.FindByAccount(account.ID)
+			if err != nil {
+				return nil, err
+			}
+			for _, edge := range edges {
+				roleIDs = append(roleIDs, edge.RoleID)
+			}
+		case models.InternalUserAccount:
+			user, err := m.internalUsers.GetByAccount(account.ID)
+			if err != nil {
+				return nil, err
+			}
+			c.InternalUser = &user
+			role, err := m.getInternalUserRole()
+			if err != nil {
+				return nil, err
+			}
+			roleIDs = append(roleIDs, role.ID)
+		default:
+			return nil, fmt.Errorf("unknown account kind: %v", account.Kind)
 		}
 	} else {
 		role, err := m.getGuestRole()
@@ -86,6 +101,17 @@ func (m *AccountManager) getGuestRole() (models.Role, error) {
 func (m *AccountManager) getUserRole(status models.UserStatus) (models.Role, error) {
 	roleName := fmt.Sprintf("%s_user_group", status)
 	roleNameSetting, err := m.settings.GetByKey(fmt.Sprintf("accounts.%s_user_role", status))
+	if err == nil {
+		roleName = roleNameSetting.Value
+	} else if err != sql.ErrNoRows {
+		return models.Role{}, err
+	}
+	return m.roles.GetByName(roleName)
+}
+
+func (m *AccountManager) getInternalUserRole() (models.Role, error) {
+	roleName := "internal_user_group"
+	roleNameSetting, err := m.settings.GetByKey("accounts.internal_user_role")
 	if err == nil {
 		roleName = roleNameSetting.Value
 	} else if err != sql.ErrNoRows {
@@ -150,10 +176,11 @@ func (p PermissionSet) Clone() PermissionSet {
 }
 
 type AccountContext struct {
-	context     context.Context
-	Account     *models.Account
-	User        *models.User
-	Permissions PermissionSet
+	context      context.Context
+	Account      *models.Account
+	User         *models.User
+	InternalUser *models.InternalUser
+	Permissions  PermissionSet
 }
 
 func (c *AccountContext) HasPermission(name string) bool {

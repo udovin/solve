@@ -1,9 +1,11 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"sort"
@@ -411,8 +413,8 @@ type userAuthForm struct {
 
 func (v *View) userAuth(c echo.Context) (bool, error) {
 	var form userAuthForm
-	if err := c.Bind(&form); err != nil {
-		return false, err
+	if err := reusableBind(c, &form); err != nil {
+		return false, nil
 	}
 	if form.Login == "" || form.Password == "" {
 		return false, nil
@@ -449,6 +451,64 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 		c.Logger().Errorf(
 			"Account %v should have %v kind, but has %v",
 			account.ID, models.UserAccount, account.Kind,
+		)
+		return false, fmt.Errorf("invalid account kind %q", account.Kind)
+	}
+	accountCtx, err := v.accounts.MakeContext(getContext(c), &account)
+	if err != nil {
+		return false, err
+	}
+	c.Set(accountCtxKey, accountCtx)
+	c.Set(permissionCtxKey, accountCtx)
+	return true, nil
+}
+
+type internalUserAuthForm struct {
+	GroupID  int64  `json:"group_id"`
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}
+
+func (v *View) internalUserAuth(c echo.Context) (bool, error) {
+	var form internalUserAuthForm
+	if err := reusableBind(c, &form); err != nil {
+		return false, nil
+	}
+	if form.GroupID == 0 || form.Login == "" || form.Password == "" {
+		return false, nil
+	}
+	if err := syncStore(c, v.core.InternalUsers); err != nil {
+		return false, err
+	}
+	user, err := v.core.InternalUsers.GetByGroupLogin(form.GroupID, form.Login)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			resp := errorResponse{
+				Code:    http.StatusForbidden,
+				Message: localize(c, "User not found."),
+			}
+			return false, resp
+		}
+		return false, err
+	}
+	if !v.core.InternalUsers.CheckPassword(user, form.Password) {
+		resp := errorResponse{
+			Code:    http.StatusForbidden,
+			Message: localize(c, "Invalid password."),
+		}
+		return false, resp
+	}
+	if err := syncStore(c, v.core.Accounts); err != nil {
+		return false, err
+	}
+	account, err := v.core.Accounts.Get(user.AccountID)
+	if err != nil {
+		return false, err
+	}
+	if account.Kind != models.InternalUserAccount {
+		c.Logger().Errorf(
+			"Account %v should have %v kind, but has %v",
+			account.ID, models.InternalUserAccount, account.Kind,
 		)
 		return false, fmt.Errorf("invalid account kind %q", account.Kind)
 	}
@@ -693,4 +753,18 @@ func (s *sortFuncImpl[T]) Swap(i, j int) {
 
 func (s *sortFuncImpl[T]) Less(i, j int) bool {
 	return s.less(s.data[i], s.data[j])
+}
+
+// reusableBind is required when we need to use Bind multiple times.
+func reusableBind(c echo.Context, form any) error {
+	if c.Request().Body != nil {
+		body := c.Request().Body
+		defer func() { _ = body.Close() }()
+		buffer := bytes.Buffer{}
+		c.Request().Body = io.NopCloser(io.TeeReader(body, &buffer))
+		err := c.Bind(form)
+		c.Request().Body = io.NopCloser(&buffer)
+		return err
+	}
+	return c.Bind(form)
 }

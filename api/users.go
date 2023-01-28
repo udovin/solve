@@ -65,12 +65,12 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/v0/status", v.status,
-		v.extractAuth(v.sessionAuth, v.userAuth, v.guestAuth),
+		v.extractAuth(v.sessionAuth, v.internalUserAuth, v.userAuth, v.guestAuth),
 		v.requirePermission(models.StatusRole),
 	)
 	g.POST(
 		"/v0/login", v.loginAccount,
-		v.extractAuth(v.userAuth),
+		v.extractAuth(v.internalUserAuth, v.userAuth),
 		v.requirePermission(models.LoginRole),
 	)
 	g.POST(

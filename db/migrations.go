@@ -221,13 +221,13 @@ func (m *manager) getState(ctx context.Context, g MigrationGroup) ([]migrationSt
 	return result, nil
 }
 
-type MigrateOption func(state []migrationState, endPos *int) error
+type MigrateOption func(state []migrationState, beginPos, endPos *int) error
 
 func WithMigration(name string) MigrateOption {
 	if name == "zero" {
 		return WithZeroMigration
 	}
-	return func(state []migrationState, endPos *int) error {
+	return func(state []migrationState, beginPos, endPos *int) error {
 		for i := 0; i < len(state); i++ {
 			if state[i].Name == name {
 				*endPos = i + 1
@@ -238,9 +238,21 @@ func WithMigration(name string) MigrateOption {
 	}
 }
 
-func WithZeroMigration(state []migrationState, endPos *int) error {
+func WithZeroMigration(state []migrationState, beginPos, endPos *int) error {
 	*endPos = 0
 	return nil
+}
+
+func WithFromMigration(name string) MigrateOption {
+	return func(state []migrationState, beginPos, endPos *int) error {
+		for i := 0; i < len(state); i++ {
+			if state[i].Name == name {
+				*beginPos = i
+				return nil
+			}
+		}
+		return fmt.Errorf("invalid migration %q", name)
+	}
 }
 
 func (m *manager) Apply(ctx context.Context, g MigrationGroup, options ...MigrateOption) error {
@@ -256,7 +268,7 @@ func (m *manager) Apply(ctx context.Context, g MigrationGroup, options ...Migrat
 	}
 	endPos := len(state)
 	for _, option := range options {
-		if err := option(state, &endPos); err != nil {
+		if err := option(state, &beginPos, &endPos); err != nil {
 			return err
 		}
 	}
@@ -279,6 +291,10 @@ func (m *manager) applyForward(ctx context.Context, g MigrationGroup, migrations
 			// Apply migration.
 			if err := impl.Apply(ctx, m.db); err != nil {
 				return err
+			}
+			// Ignore update of migrations table with applied migration.
+			if mgr.Applied {
+				return nil
 			}
 			// Save to database that migration was applied.
 			object := migration{

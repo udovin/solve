@@ -179,19 +179,19 @@ const (
 	// RegisterContestRole represents role for register to contest.
 	RegisterContestRole = "register_contest"
 	// DeregisterContestRole represents role for deregister from contest.
-	DeregisterContestRole = "deregister_contest_role"
+	DeregisterContestRole = "deregister_contest"
 	// ObserveFileContentRole represents role for observing file content.
 	ObserveFileContentRole = "observe_file_content"
 	//
-	ObserveInternalGroupsRole = "observe_internal_groups_role"
-	ObserveInternalGroupRole  = "observe_internal_group_role"
-	CreateInternalGroupRole   = "create_internal_group_role"
-	UpdateInternalGroupRole   = "update_internal_group_role"
-	DeleteInternalGroupRole   = "delete_internal_group_role"
-	ObserveInternalUserRole   = "observe_internal_user_role"
-	CreateInternalUserRole    = "create_internal_user_role"
-	UpdateInternalUserRole    = "update_internal_user_role"
-	DeleteInternalUserRole    = "delete_internal_user_role"
+	ObserveInternalGroupsRole = "observe_internal_groups"
+	ObserveInternalGroupRole  = "observe_internal_group"
+	CreateInternalGroupRole   = "create_internal_group"
+	UpdateInternalGroupRole   = "update_internal_group"
+	DeleteInternalGroupRole   = "delete_internal_group"
+	ObserveInternalUserRole   = "observe_internal_user"
+	CreateInternalUserRole    = "create_internal_user"
+	UpdateInternalUserRole    = "update_internal_user"
+	DeleteInternalUserRole    = "delete_internal_user"
 )
 
 var builtInRoles = map[string]struct{}{

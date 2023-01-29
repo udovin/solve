@@ -32,7 +32,8 @@ type Solution struct {
 	ID         int64           `json:"id"`
 	Problem    *Problem        `json:"problem"`
 	Compiler   *Compiler       `json:"compiler"`
-	User       *User           `json:"user"`
+	User       *User           `json:"user,omitempty"`
+	ScopeUser  *ScopeUser      `json:"scope_user,omitempty"`
 	Content    string          `json:"content,omitempty"`
 	Report     *SolutionReport `json:"report"`
 	CreateTime int64           `json:"create_time"`
@@ -189,7 +190,18 @@ func (v *View) makeSolution(
 		switch account.Kind {
 		case models.UserAccount:
 			if user, err := v.core.Users.GetByAccount(account.ID); err == nil {
-				resp.User = &User{ID: user.ID, Login: user.Login}
+				resp.User = &User{
+					ID:    user.ID,
+					Login: user.Login,
+				}
+			}
+		case models.ScopeUserAccount:
+			if user, err := v.core.ScopeUsers.GetByAccount(account.ID); err == nil {
+				resp.ScopeUser = &ScopeUser{
+					ID:    user.ID,
+					Login: user.Login,
+					Title: string(user.Title),
+				}
 			}
 		}
 	}

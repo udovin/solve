@@ -635,9 +635,10 @@ func (v *View) deleteContestProblem(c echo.Context) error {
 }
 
 type ContestParticipant struct {
-	ID        int64 `json:"id,omitempty"`
-	User      *User `json:"user,omitempty"`
-	ContestID int64 `json:"contest_id,omitempty"`
+	ID        int64      `json:"id,omitempty"`
+	User      *User      `json:"user,omitempty"`
+	ScopeUser *ScopeUser `json:"scope_user,omitempty"`
+	ContestID int64      `json:"contest_id,omitempty"`
 	// Kind contains kind.
 	Kind models.ParticipantKind `json:"kind"`
 }
@@ -1072,7 +1073,18 @@ func makeContestParticipant(
 		switch account.Kind {
 		case models.UserAccount:
 			if user, err := core.Users.GetByAccount(account.ID); err == nil {
-				resp.User = &User{ID: user.ID, Login: user.Login}
+				resp.User = &User{
+					ID:    user.ID,
+					Login: user.Login,
+				}
+			}
+		case models.ScopeUserAccount:
+			if user, err := core.ScopeUsers.GetByAccount(account.ID); err == nil {
+				resp.ScopeUser = &ScopeUser{
+					ID:    user.ID,
+					Login: user.Login,
+					Title: string(user.Title),
+				}
 			}
 		}
 	}

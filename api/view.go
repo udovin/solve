@@ -84,6 +84,7 @@ func (v *View) Register(g *echo.Group) {
 	g.GET("/ping", v.ping)
 	g.GET("/health", v.health)
 	v.registerUserHandlers(g)
+	v.registerInternalUserHandlers(g)
 	v.registerRoleHandlers(g)
 	v.registerSessionHandlers(g)
 	v.registerContestHandlers(g)
@@ -155,6 +156,8 @@ const (
 	compilerKey           = "compiler"
 	fileKey               = "file"
 	settingKey            = "setting"
+	internalGroupKey      = "internal_group"
+	internalUserKey       = "internal_user"
 	localeKey             = "locale"
 	syncKey               = "sync"
 )

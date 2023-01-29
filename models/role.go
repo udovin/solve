@@ -182,6 +182,16 @@ const (
 	DeregisterContestRole = "deregister_contest_role"
 	// ObserveFileContentRole represents role for observing file content.
 	ObserveFileContentRole = "observe_file_content"
+	//
+	ObserveInternalGroupsRole = "observe_internal_groups_role"
+	ObserveInternalGroupRole  = "observe_internal_group_role"
+	CreateInternalGroupRole   = "create_internal_group_role"
+	UpdateInternalGroupRole   = "update_internal_group_role"
+	DeleteInternalGroupRole   = "delete_internal_group_role"
+	ObserveInternalUserRole   = "observe_internal_user_role"
+	CreateInternalUserRole    = "create_internal_user_role"
+	UpdateInternalUserRole    = "update_internal_user_role"
+	DeleteInternalUserRole    = "delete_internal_user_role"
 )
 
 var builtInRoles = map[string]struct{}{
@@ -256,6 +266,15 @@ var builtInRoles = map[string]struct{}{
 	RegisterContestRole:              {},
 	DeregisterContestRole:            {},
 	ObserveFileContentRole:           {},
+	ObserveInternalGroupsRole:        {},
+	ObserveInternalGroupRole:         {},
+	CreateInternalGroupRole:          {},
+	UpdateInternalGroupRole:          {},
+	DeleteInternalGroupRole:          {},
+	ObserveInternalUserRole:          {},
+	CreateInternalUserRole:           {},
+	UpdateInternalUserRole:           {},
+	DeleteInternalUserRole:           {},
 }
 
 // GetBuildInRoles returns all built-in roles.

@@ -37,10 +37,10 @@ type Core struct {
 	Sessions *models.SessionStore
 	// Users contains user store.
 	Users *models.UserStore
-	// InternalGroups contains internal group store.
-	InternalGroups *models.InternalGroupStore
-	// InternalUsers contains internal user store.
-	InternalUsers *models.InternalUserStore
+	// Scopes contains scope store.
+	Scopes *models.ScopeStore
+	// ScopeUsers contains scope user store.
+	ScopeUsers *models.ScopeUserStore
 	// Problems contains problems store.
 	Problems *models.ProblemStore
 	// ProblemResources contains problem resources store.

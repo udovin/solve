@@ -153,6 +153,10 @@ func encodeBase64(bytes []byte) string {
 	return base64.StdEncoding.EncodeToString(bytes)
 }
 
+func decodeBase64(encoded string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(encoded)
+}
+
 func hashString(value string) string {
 	bytes := sha3.Sum512([]byte(value))
 	return encodeBase64(bytes[:])

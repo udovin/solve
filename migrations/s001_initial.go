@@ -304,7 +304,7 @@ var s001 = []schema.Operation{
 		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
-		Name: "solve_internal_group",
+		Name: "solve_scope",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
@@ -315,7 +315,7 @@ var s001 = []schema.Operation{
 		},
 	},
 	schema.CreateTable{
-		Name: "solve_internal_group_event",
+		Name: "solve_scope_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_kind", Type: schema.Int64},
@@ -326,34 +326,37 @@ var s001 = []schema.Operation{
 			{Name: "title", Type: schema.String},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_scope_event",
+		Columns: []string{"id", "event_id"},
+	},
 	schema.CreateTable{
-		Name: "solve_internal_user",
+		Name: "solve_scope_user",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "account_id", Type: schema.Int64},
-			{Name: "group_id", Type: schema.Int64},
+			{Name: "scope_id", Type: schema.Int64},
 			{Name: "login", Type: schema.String},
-			{Name: "password_hash", Type: schema.String},
-			{Name: "password_salt", Type: schema.String},
+			{Name: "password_text", Type: schema.String},
 			{Name: "title", Type: schema.String, Nullable: true},
 		},
 		ForeignKeys: []schema.ForeignKey{
 			{Column: "account_id", ParentTable: "solve_account", ParentColumn: "id"},
-			{Column: "group_id", ParentTable: "solve_internal_group", ParentColumn: "id"},
+			{Column: "scope_id", ParentTable: "solve_scope", ParentColumn: "id"},
 		},
 	},
 	schema.CreateIndex{
-		Table:   "solve_internal_user",
+		Table:   "solve_scope_user",
 		Columns: []string{"account_id"},
 		Unique:  true,
 	},
 	schema.CreateIndex{
-		Table:      "solve_internal_user",
-		Expression: "\"group_id\", LOWER(\"login\")",
+		Table:      "solve_scope_user",
+		Expression: "\"scope_id\", LOWER(\"login\")",
 		Unique:     true,
 	},
 	schema.CreateTable{
-		Name: "solve_internal_user_event",
+		Name: "solve_scope_user_event",
 		Columns: []schema.Column{
 			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "event_kind", Type: schema.Int64},
@@ -361,15 +364,14 @@ var s001 = []schema.Operation{
 			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
 			{Name: "id", Type: schema.Int64},
 			{Name: "account_id", Type: schema.Int64},
-			{Name: "group_id", Type: schema.Int64},
+			{Name: "scope_id", Type: schema.Int64},
 			{Name: "login", Type: schema.String},
-			{Name: "password_hash", Type: schema.String},
-			{Name: "password_salt", Type: schema.String},
+			{Name: "password_text", Type: schema.String},
 			{Name: "title", Type: schema.String, Nullable: true},
 		},
 	},
 	schema.CreateIndex{
-		Table:   "solve_internal_user_event",
+		Table:   "solve_scope_user_event",
 		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{

@@ -107,8 +107,16 @@
         "text": "Неправильный ID задачи."
       },
       {
+        "key": "invalid_scope_id",
+        "text": "Неправильный ID скоупа."
+      },
+      {
         "key": "invalid_solution_id",
         "text": "Неправильный ID решения."
+      },
+      {
+        "key": "invalid_user_id",
+        "text": "Неправильный ID пользователя."
       },
       {
         "key": "last_name_too_long",
@@ -221,6 +229,10 @@
       {
         "key": "role_role_not_found",
         "text": "Роль \"{role}\" не найдена."
+      },
+      {
+        "key": "scope_not_found",
+        "text": "Скоуп не найден."
       },
       {
         "key": "session_not_found",

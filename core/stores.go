@@ -41,12 +41,12 @@ func (c *Core) SetupAllStores() {
 			c.DB, "solve_user", "solve_user_event",
 			c.Config.Security.PasswordSalt,
 		)
-		c.InternalGroups = models.NewInternalGroupStore(
-			c.DB, "solve_internal_group", "solve_internal_group_event",
+		c.Scopes = models.NewScopeStore(
+			c.DB, "solve_scope", "solve_scope_event",
 		)
-		c.InternalUsers = models.NewInternalUserStore(
-			c.DB, "solve_internal_user", "solve_internal_user_event",
-			c.Config.Security.PasswordSalt,
+		c.ScopeUsers = models.NewScopeUserStore(
+			c.DB, "solve_scope_user", "solve_scope_user_event",
+			c.Config.Security.PasswordKey,
 		)
 	}
 	c.Contests = models.NewContestStore(
@@ -86,8 +86,8 @@ func (c *Core) startStores(start func(models.Store, string, time.Duration)) {
 	start(c.AccountRoles, "account_roles", time.Second)
 	start(c.Sessions, "sessions", time.Second)
 	start(c.Users, "users", time.Second)
-	start(c.InternalGroups, "internal_groups", time.Second*5)
-	start(c.InternalUsers, "internal_users", time.Second)
+	start(c.Scopes, "scopes", time.Second*5)
+	start(c.ScopeUsers, "scope_users", time.Second)
 	start(c.Contests, "contests", time.Second)
 	start(c.Problems, "problems", time.Second)
 	start(c.ProblemResources, "problem_resources", time.Second)

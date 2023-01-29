@@ -667,9 +667,10 @@ func (v *View) observeContestParticipants(c echo.Context) error {
 }
 
 type createContestParticipantForm struct {
-	UserID    *int64                 `json:"user_id"`
-	UserLogin *string                `json:"user_login"`
-	Kind      models.ParticipantKind `json:"kind"`
+	UserID      *int64                 `json:"user_id"`
+	UserLogin   *string                `json:"user_login"`
+	ScopeUserID *int64                 `json:"scope_user_id"`
+	Kind        models.ParticipantKind `json:"kind"`
 }
 
 func (f createContestParticipantForm) Update(
@@ -695,6 +696,18 @@ func (f createContestParticipantForm) Update(
 				Message: localize(
 					c, "User \"{login}\" does not exists.",
 					replaceField("login", *f.UserLogin),
+				),
+			}
+		}
+		participant.AccountID = user.AccountID
+	} else if f.ScopeUserID != nil {
+		user, err := core.ScopeUsers.Get(*f.ScopeUserID)
+		if err != nil {
+			return &errorResponse{
+				Code: http.StatusBadRequest,
+				Message: localize(
+					c, "User {id} does not exists.",
+					replaceField("id", *f.ScopeUserID),
 				),
 			}
 		}

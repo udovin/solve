@@ -11,19 +11,20 @@ import (
 )
 
 type AccountManager struct {
-	accounts      *models.AccountStore
-	users         *models.UserStore
-	internalUsers *models.InternalUserStore
-	roles         *models.RoleStore
-	roleEdges     *models.RoleEdgeStore
-	accountRoles  *models.AccountRoleStore
-	settings      *models.SettingStore
+	accounts     *models.AccountStore
+	users        *models.UserStore
+	scopeUsers   *models.ScopeUserStore
+	roles        *models.RoleStore
+	roleEdges    *models.RoleEdgeStore
+	accountRoles *models.AccountRoleStore
+	settings     *models.SettingStore
 }
 
 func NewAccountManager(core *core.Core) *AccountManager {
 	return &AccountManager{
 		accounts:     core.Accounts,
 		users:        core.Users,
+		scopeUsers:   core.ScopeUsers,
 		roles:        core.Roles,
 		roleEdges:    core.RoleEdges,
 		accountRoles: core.AccountRoles,
@@ -58,13 +59,13 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 			for _, edge := range edges {
 				roleIDs = append(roleIDs, edge.RoleID)
 			}
-		case models.InternalUserAccount:
-			user, err := m.internalUsers.GetByAccount(account.ID)
+		case models.ScopeUserAccount:
+			user, err := m.scopeUsers.GetByAccount(account.ID)
 			if err != nil {
 				return nil, err
 			}
-			c.InternalUser = &user
-			role, err := m.getInternalUserRole()
+			c.ScopeUser = &user
+			role, err := m.getScopeUserRole()
 			if err != nil {
 				return nil, err
 			}
@@ -109,9 +110,9 @@ func (m *AccountManager) getUserRole(status models.UserStatus) (models.Role, err
 	return m.roles.GetByName(roleName)
 }
 
-func (m *AccountManager) getInternalUserRole() (models.Role, error) {
-	roleName := "internal_user_group"
-	roleNameSetting, err := m.settings.GetByKey("accounts.internal_user_role")
+func (m *AccountManager) getScopeUserRole() (models.Role, error) {
+	roleName := "scope_user_group"
+	roleNameSetting, err := m.settings.GetByKey("accounts.scope_user_role")
 	if err == nil {
 		roleName = roleNameSetting.Value
 	} else if err != sql.ErrNoRows {
@@ -176,11 +177,11 @@ func (p PermissionSet) Clone() PermissionSet {
 }
 
 type AccountContext struct {
-	context      context.Context
-	Account      *models.Account
-	User         *models.User
-	InternalUser *models.InternalUser
-	Permissions  PermissionSet
+	context     context.Context
+	Account     *models.Account
+	User        *models.User
+	ScopeUser   *models.ScopeUser
+	Permissions PermissionSet
 }
 
 func (c *AccountContext) HasPermission(name string) bool {

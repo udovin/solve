@@ -84,7 +84,7 @@ func (v *View) Register(g *echo.Group) {
 	g.GET("/ping", v.ping)
 	g.GET("/health", v.health)
 	v.registerUserHandlers(g)
-	v.registerInternalUserHandlers(g)
+	v.registerScopeHandlers(g)
 	v.registerRoleHandlers(g)
 	v.registerSessionHandlers(g)
 	v.registerContestHandlers(g)
@@ -156,8 +156,8 @@ const (
 	compilerKey           = "compiler"
 	fileKey               = "file"
 	settingKey            = "setting"
-	internalGroupKey      = "internal_group"
-	internalUserKey       = "internal_user"
+	scopeKey              = "scope"
+	scopeUserKey          = "scope_user"
 	localeKey             = "locale"
 	syncKey               = "sync"
 )
@@ -466,24 +466,24 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 	return true, nil
 }
 
-type internalUserAuthForm struct {
-	GroupID  int64  `json:"group_id"`
+type scopeUserAuthForm struct {
+	ScopeID  int64  `json:"scope_id"`
 	Login    string `json:"login"`
 	Password string `json:"password"`
 }
 
-func (v *View) internalUserAuth(c echo.Context) (bool, error) {
-	var form internalUserAuthForm
+func (v *View) scopeUserAuth(c echo.Context) (bool, error) {
+	var form scopeUserAuthForm
 	if err := reusableBind(c, &form); err != nil {
 		return false, nil
 	}
-	if form.GroupID == 0 || form.Login == "" || form.Password == "" {
+	if form.ScopeID == 0 || form.Login == "" || form.Password == "" {
 		return false, nil
 	}
-	if err := syncStore(c, v.core.InternalUsers); err != nil {
+	if err := syncStore(c, v.core.ScopeUsers); err != nil {
 		return false, err
 	}
-	user, err := v.core.InternalUsers.GetByGroupLogin(form.GroupID, form.Login)
+	user, err := v.core.ScopeUsers.GetByScopeLogin(form.ScopeID, form.Login)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
@@ -494,7 +494,7 @@ func (v *View) internalUserAuth(c echo.Context) (bool, error) {
 		}
 		return false, err
 	}
-	if !v.core.InternalUsers.CheckPassword(user, form.Password) {
+	if !v.core.ScopeUsers.CheckPassword(user, form.Password) {
 		resp := errorResponse{
 			Code:    http.StatusForbidden,
 			Message: localize(c, "Invalid password."),
@@ -508,10 +508,10 @@ func (v *View) internalUserAuth(c echo.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if account.Kind != models.InternalUserAccount {
+	if account.Kind != models.ScopeUserAccount {
 		c.Logger().Errorf(
 			"Account %v should have %v kind, but has %v",
-			account.ID, models.InternalUserAccount, account.Kind,
+			account.ID, models.ScopeUserAccount, account.Kind,
 		)
 		return false, fmt.Errorf("invalid account kind %q", account.Kind)
 	}

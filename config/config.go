@@ -99,6 +99,8 @@ func (s Server) Address() string {
 type Security struct {
 	// PasswordSalt contains salt for password hashing.
 	PasswordSalt string `json:"password_salt"`
+	// PasswordKey contains key for AES password encryption.
+	PasswordKey string `json:"password_key"`
 }
 
 // Invoker contains invoker config.

@@ -10,8 +10,8 @@ type AccountKind int
 const (
 	// UserAccount represents kind of account for user.
 	UserAccount AccountKind = 1
-	// InternalUserAccount represents kind of account for internal user.
-	InternalUserAccount AccountKind = 2
+	// ScopeUserAccount represents kind of account for scope user.
+	ScopeUserAccount AccountKind = 2
 )
 
 // Account represents an account.

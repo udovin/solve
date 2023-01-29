@@ -35,10 +35,11 @@ type User struct {
 
 // Status represents current authorization status.
 type Status struct {
-	User        *User    `json:"user,omitempty"`
-	Session     *Session `json:"session,omitempty"`
-	Permissions []string `json:"permissions"`
-	Locale      string   `json:"locale,omitempty"`
+	User        *User      `json:"user,omitempty"`
+	ScopeUser   *ScopeUser `json:"scope_user,omitempty"`
+	Session     *Session   `json:"session,omitempty"`
+	Permissions []string   `json:"permissions"`
+	Locale      string     `json:"locale,omitempty"`
 }
 
 // registerUserHandlers registers handlers for user management.
@@ -65,12 +66,12 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	)
 	g.GET(
 		"/v0/status", v.status,
-		v.extractAuth(v.sessionAuth, v.internalUserAuth, v.userAuth, v.guestAuth),
+		v.extractAuth(v.sessionAuth, v.scopeUserAuth, v.userAuth, v.guestAuth),
 		v.requirePermission(models.StatusRole),
 	)
 	g.POST(
 		"/v0/login", v.loginAccount,
-		v.extractAuth(v.internalUserAuth, v.userAuth),
+		v.extractAuth(v.scopeUserAuth, v.userAuth),
 		v.requirePermission(models.LoginRole),
 	)
 	g.POST(
@@ -327,6 +328,9 @@ func (v *View) status(c echo.Context) error {
 	}
 	if user := accountCtx.User; user != nil {
 		status.User = &User{ID: user.ID, Login: user.Login}
+	}
+	if user := accountCtx.ScopeUser; user != nil {
+		status.ScopeUser = &ScopeUser{ID: user.ID, Login: user.Login}
 	}
 	for permission := range accountCtx.Permissions {
 		status.Permissions = append(status.Permissions, permission)

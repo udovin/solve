@@ -93,6 +93,12 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.extractContest, v.extractContestSolution,
 		v.requirePermission(models.ObserveContestSolutionRole),
 	)
+	g.POST(
+		"/v0/contests/:contest/solutions/:solution/rejudge", v.rejudgeContestSolution,
+		v.extractAuth(v.sessionAuth),
+		v.extractContest, v.extractContestSolution,
+		v.requirePermission(models.UpdateContestSolutionRole),
+	)
 	g.GET(
 		"/v0/contests/:contest/participants", v.observeContestParticipants,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
@@ -865,6 +871,24 @@ func (v *View) observeContestSolution(c echo.Context) error {
 	solution, ok := c.Get(contestSolutionKey).(models.ContestSolution)
 	if !ok {
 		return fmt.Errorf("solution not extracted")
+	}
+	resp := v.makeContestSolution(c, solution, true)
+	return c.JSON(http.StatusOK, resp)
+}
+
+func (v *View) rejudgeContestSolution(c echo.Context) error {
+	solution, ok := c.Get(contestSolutionKey).(models.ContestSolution)
+	if !ok {
+		return fmt.Errorf("solution not extracted")
+	}
+	task := models.Task{}
+	if err := task.SetConfig(models.JudgeSolutionTaskConfig{
+		SolutionID: solution.SolutionID,
+	}); err != nil {
+		return err
+	}
+	if err := v.core.Tasks.Create(getContext(c), &task); err != nil {
+		return err
 	}
 	resp := v.makeContestSolution(c, solution, true)
 	return c.JSON(http.StatusOK, resp)

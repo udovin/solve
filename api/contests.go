@@ -891,6 +891,9 @@ func (v *View) rejudgeContestSolution(c echo.Context) error {
 		return err
 	}
 	resp := v.makeContestSolution(c, solution, true)
+	resp.Report = &SolutionReport{
+		Verdict: models.QueuedTask.String(),
+	}
 	return c.JSON(http.StatusOK, resp)
 }
 

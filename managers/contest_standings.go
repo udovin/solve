@@ -158,7 +158,9 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 					break
 				}
 			}
-			row.Cells = append(row.Cells, cell)
+			if cell.Attempt > 0 {
+				row.Cells = append(row.Cells, cell)
+			}
 		}
 		for _, cell := range row.Cells {
 			if cell.Verdict == models.Accepted {

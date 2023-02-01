@@ -120,6 +120,7 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 		Kind   models.ProblemResourceKind
 		Name   string
 	}
+	duplicates := []models.ProblemResource{}
 	events := map[eventKey]models.ProblemResourceEvent{}
 	fileReaders := map[eventKey]*managers.FileReader{}
 	defer func() {
@@ -138,6 +139,9 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 			key.Locale = config.Locale
 			event := models.ProblemResourceEvent{ProblemResource: resource}
 			event.BaseEventKind = models.DeleteEvent
+			if duplicate, ok := events[key]; ok {
+				duplicates = append(duplicates, duplicate.ProblemResource)
+			}
 			events[key] = event
 		case models.ProblemStatementResource:
 			config := models.ProblemStatementResourceConfig{}
@@ -148,6 +152,9 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 			key.Name = config.Name
 			event := models.ProblemResourceEvent{ProblemResource: resource}
 			event.BaseEventKind = models.DeleteEvent
+			if duplicate, ok := events[key]; ok {
+				duplicates = append(duplicates, duplicate.ProblemResource)
+			}
 			events[key] = event
 		}
 	}
@@ -271,6 +278,13 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	return t.invoker.core.WrapTx(ctx, func(ctx context.Context) error {
 		for _, file := range files {
 			if err := t.invoker.files.ConfirmUploadFile(ctx, &file); err != nil {
+				return err
+			}
+		}
+		for _, duplicate := range duplicates {
+			if err := t.invoker.core.ProblemResources.Delete(
+				ctx, duplicate.ID,
+			); err != nil {
 				return err
 			}
 		}

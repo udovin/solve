@@ -50,6 +50,10 @@ var s001 = []schema.Operation{
 			{Name: "expire_time", Type: schema.Int64, Nullable: true},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_task",
+		Columns: []string{"status"},
+	},
 	schema.CreateTable{
 		Name: "solve_task_event",
 		Columns: []schema.Column{

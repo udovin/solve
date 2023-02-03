@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/pkg/logs"
 )
 
 func init() {
@@ -188,12 +189,14 @@ func (t *judgeSolutionTask) testSolution(
 	if err != nil {
 		return err
 	}
+	testNumber := 0
 	for _, group := range groups {
 		tests, err := group.GetTests()
 		if err != nil {
 			return err
 		}
 		for _, test := range tests {
+			testNumber++
 			inputPath := filepath.Join(t.tempDir, "test.in")
 			outputPath := filepath.Join(t.tempDir, "test.out")
 			answerPath := filepath.Join(t.tempDir, "test.ans")
@@ -319,6 +322,11 @@ func (t *judgeSolutionTask) testSolution(
 			if report.Usage.Memory < testReport.Usage.Memory {
 				report.Usage.Memory = testReport.Usage.Memory
 			}
+			ctx.Logger().Debug(
+				"Solution test completed",
+				logs.Any("test", testNumber),
+				logs.Any("verdict", testReport.Verdict.String()),
+			)
 			if testReport.Verdict != models.Accepted {
 				report.Verdict = testReport.Verdict
 				return nil

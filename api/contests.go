@@ -147,6 +147,7 @@ type ContestProblem struct {
 	Problem
 	ContestID int64  `json:"contest_id"`
 	Code      string `json:"code"`
+	Solved    bool   `json:"solved,omitempty"`
 }
 
 type ContestProblems struct {
@@ -437,6 +438,33 @@ func (v *View) deleteContest(c echo.Context) error {
 	return c.JSON(http.StatusOK, makeContest(contest, contestCtx, nil))
 }
 
+func getSolvedProblems(ctx *managers.ContestContext, c *core.Core) map[int64]struct{} {
+	solved := map[int64]struct{}{}
+	for _, participant := range ctx.Participants {
+		if participant.ID == 0 {
+			continue
+		}
+		solutions, err := c.ContestSolutions.FindByParticipant(participant.ID)
+		if err != nil {
+			continue
+		}
+		for _, contestSolution := range solutions {
+			solution, err := c.Solutions.Get(contestSolution.SolutionID)
+			if err != nil {
+				continue
+			}
+			report, err := solution.GetReport()
+			if err != nil || report == nil {
+				continue
+			}
+			if report.Verdict == models.Accepted {
+				solved[contestSolution.ProblemID] = struct{}{}
+			}
+		}
+	}
+	return solved
+}
+
 func (v *View) observeContestProblems(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
@@ -447,11 +475,16 @@ func (v *View) observeContestProblems(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	solvedProblems := getSolvedProblems(contestCtx, v.core)
 	resp := ContestProblems{}
 	for _, problem := range problems {
+		problemResp := v.makeContestProblem(c, problem, false)
+		if _, ok := solvedProblems[problem.ID]; ok {
+			problemResp.Solved = true
+		}
 		resp.Problems = append(
 			resp.Problems,
-			v.makeContestProblem(c, problem, false),
+			problemResp,
 		)
 	}
 	sortFunc(resp.Problems, contestProblemLess)

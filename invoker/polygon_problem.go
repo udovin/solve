@@ -90,8 +90,8 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		}
 		if !report.Success() {
 			return fmt.Errorf(
-				"cannot compile %q with compiler %q",
-				source, compilerName,
+				"cannot compile %q with compiler %q: %q",
+				source, compilerName, report.Log,
 			)
 		}
 		p.compilers.logger.Debug(
@@ -131,8 +131,8 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 				}
 				if !report.Success() {
 					return fmt.Errorf(
-						"cannot compile %q with compiler %q",
-						source, compilerName,
+						"cannot compile %q with compiler %q: %q",
+						source, compilerName, report.Log,
 					)
 				}
 				p.compilers.logger.Debug(
@@ -179,8 +179,8 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 		}
 		if !report.Success() {
 			return fmt.Errorf(
-				"cannot compile %q with compiler %q",
-				mainSolution.Source.Path, compilerName,
+				"cannot compile %q with compiler %q: %q",
+				mainSolution.Source.Path, compilerName, report.Log,
 			)
 		}
 		p.compilers.logger.Debug(

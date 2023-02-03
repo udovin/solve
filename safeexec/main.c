@@ -453,6 +453,9 @@ int main(int argc, char* argv[]) {
 	pid_t result;
 	long memory = 0;
 	long currentMemory = 0;
+	struct timespec sleepSpec;
+	sleepSpec.tv_sec = 0;
+	sleepSpec.tv_nsec = 5000000;
 	do {
 		result = waitpid(pid, &status, WUNTRACED | WNOHANG | __WALL);
 		if (result < 0) {
@@ -473,7 +476,7 @@ int main(int argc, char* argv[]) {
 				}
 			}
 		}
-		usleep(5000);
+		nanosleep(&sleepSpec, NULL);
 	} while (result == 0);
 	readCgroupMemory(memoryCurrentPath, &currentMemory);
 	int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;

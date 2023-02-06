@@ -63,306 +63,316 @@
       },
       {
         "id": 13,
+        "key": "localization.ru.file_is_empty",
+        "value": "Файл пустой."
+      },
+      {
+        "id": 14,
         "key": "localization.ru.file_is_required",
         "value": "Файл является обязательным."
       },
       {
-        "id": 14,
+        "id": 15,
+        "key": "localization.ru.file_is_too_large",
+        "value": "Файл слишком большой."
+      },
+      {
+        "id": 16,
         "key": "localization.ru.file_not_found",
         "value": "Файл не найден."
       },
       {
-        "id": 15,
+        "id": 17,
         "key": "localization.ru.first_name_too_long",
         "value": "Имя слишком длинное."
       },
       {
-        "id": 16,
+        "id": 18,
         "key": "localization.ru.first_name_too_short",
         "value": "Имя слишком короткое."
       },
       {
-        "id": 17,
+        "id": 19,
         "key": "localization.ru.form_has_invalid_field",
         "value": "Форма содержит неправильные значения."
       },
       {
-        "id": 18,
+        "id": 20,
         "key": "localization.ru.invalid_config",
         "value": "Неправильная конфигурация."
       },
       {
-        "id": 19,
+        "id": 21,
         "key": "localization.ru.invalid_contest_id",
         "value": "Неправильный ID соревнования."
       },
       {
-        "id": 20,
+        "id": 22,
         "key": "localization.ru.invalid_file_id",
         "value": "Неправильный ID файла."
       },
       {
-        "id": 21,
+        "id": 23,
         "key": "localization.ru.invalid_filter",
         "value": "Неправильный фильтр."
       },
       {
-        "id": 22,
+        "id": 24,
         "key": "localization.ru.invalid_form",
         "value": "Неверная форма."
       },
       {
-        "id": 23,
+        "id": 25,
         "key": "localization.ru.invalid_participant_id",
         "value": "Неправильный ID участника."
       },
       {
-        "id": 24,
+        "id": 26,
         "key": "localization.ru.invalid_password",
         "value": "Неверный пароль."
       },
       {
-        "id": 25,
+        "id": 27,
         "key": "localization.ru.invalid_problem_id",
         "value": "Неправильный ID задачи."
       },
       {
-        "id": 26,
+        "id": 28,
         "key": "localization.ru.invalid_scope_id",
         "value": "Неправильный ID скоупа."
       },
       {
-        "id": 27,
+        "id": 29,
         "key": "localization.ru.invalid_solution_id",
         "value": "Неправильный ID решения."
       },
       {
-        "id": 28,
+        "id": 30,
         "key": "localization.ru.invalid_user_id",
         "value": "Неправильный ID пользователя."
       },
       {
-        "id": 29,
+        "id": 31,
         "key": "localization.ru.last_name_too_long",
         "value": "Фамилия слишком длинная."
       },
       {
-        "id": 30,
+        "id": 32,
         "key": "localization.ru.last_name_too_short",
         "value": "Фамилия слишком короткая."
       },
       {
-        "id": 31,
+        "id": 33,
         "key": "localization.ru.login_has_invalid_format",
         "value": "Логин не соотвествует формату."
       },
       {
-        "id": 32,
+        "id": 34,
         "key": "localization.ru.login_too_long",
         "value": "Логин слишком длинный"
       },
       {
-        "id": 33,
+        "id": 35,
         "key": "localization.ru.login_too_short",
         "value": "Логин слишком короткий"
       },
       {
-        "id": 34,
+        "id": 36,
         "key": "localization.ru.mail_server_host_not_responding",
         "value": "Почтовый сервер \"{host}\" не отвечает."
       },
       {
-        "id": 35,
+        "id": 37,
         "key": "localization.ru.middle_name_too_long",
         "value": "Отчество слишком длинное."
       },
       {
-        "id": 36,
+        "id": 38,
         "key": "localization.ru.middle_name_too_short",
         "value": "Отчество слишком короткое."
       },
       {
-        "id": 37,
+        "id": 39,
         "key": "localization.ru.name_has_invalid_format",
         "value": "Название не соотвествует формату."
       },
       {
-        "id": 38,
+        "id": 40,
         "key": "localization.ru.name_is_required",
         "value": "Имя является обязательным."
       },
       {
-        "id": 39,
+        "id": 41,
         "key": "localization.ru.name_is_too_long",
         "value": "Название слишком длинное."
       },
       {
-        "id": 40,
+        "id": 42,
         "key": "localization.ru.name_is_too_short",
         "value": "Название слишком короткое."
       },
       {
-        "id": 41,
+        "id": 43,
         "key": "localization.ru.old_and_new_passwords_are_the_same",
         "value": "Старый и новый пароли совпадают."
       },
       {
-        "id": 42,
+        "id": 44,
         "key": "localization.ru.old_password_should_not_be_empty",
         "value": "Старый пароль не может быть пустым."
       },
       {
-        "id": 43,
+        "id": 45,
         "key": "localization.ru.participant_account_is_not_specified",
         "value": "Аккаунт участника не указан."
       },
       {
-        "id": 44,
+        "id": 46,
         "key": "localization.ru.participant_not_found",
         "value": "Участник не найден."
       },
       {
-        "id": 45,
+        "id": 47,
         "key": "localization.ru.participant_with_kind_kind_already_exists",
         "value": "Участник с типом {kind} уже существует."
       },
       {
-        "id": 46,
+        "id": 48,
         "key": "localization.ru.password_too_long",
         "value": "Пароль слишком длинный."
       },
       {
-        "id": 47,
+        "id": 49,
         "key": "localization.ru.password_too_short",
         "value": "Пароль слишком короткий."
       },
       {
-        "id": 48,
+        "id": 50,
         "key": "localization.ru.problem_code_does_not_exists",
         "value": "Задача {code} не существует."
       },
       {
-        "id": 49,
+        "id": 51,
         "key": "localization.ru.problem_id_already_exists",
         "value": "Задача {id} уже добавлена."
       },
       {
-        "id": 50,
+        "id": 52,
         "key": "localization.ru.problem_id_does_not_exists",
         "value": "Задача {id} не существует."
       },
       {
-        "id": 51,
+        "id": 53,
         "key": "localization.ru.problem_not_found",
         "value": "Задача не найдена."
       },
       {
-        "id": 52,
+        "id": 54,
         "key": "localization.ru.problem_with_code_code_already_exists",
         "value": "Задача с кодом {code} уже добавлена."
       },
       {
-        "id": 53,
+        "id": 55,
         "key": "localization.ru.role_role_already_exists",
         "value": "Роль \"{role}\" уже существует."
       },
       {
-        "id": 54,
+        "id": 56,
         "key": "localization.ru.role_role_already_has_child_child",
         "value": "Роль \"{role}\" уже содержит роль \"{child}\"."
       },
       {
-        "id": 55,
+        "id": 57,
         "key": "localization.ru.role_role_does_not_have_child_child",
         "value": "Роль \"{role}\" не содержит роль \"{child}\"."
       },
       {
-        "id": 56,
+        "id": 58,
         "key": "localization.ru.role_role_not_found",
         "value": "Роль \"{role}\" не найдена."
       },
       {
-        "id": 57,
+        "id": 59,
         "key": "localization.ru.scope_not_found",
         "value": "Скоуп не найден."
       },
       {
-        "id": 58,
+        "id": 60,
         "key": "localization.ru.session_not_found",
         "value": "Сессия не найдена."
       },
       {
-        "id": 59,
+        "id": 61,
         "key": "localization.ru.setting_key_cannot_be_empty",
         "value": "Ключ настройки не может быть пустым."
       },
       {
-        "id": 60,
+        "id": 62,
         "key": "localization.ru.setting_not_found",
         "value": "Настройка не найдена."
       },
       {
-        "id": 61,
+        "id": 63,
         "key": "localization.ru.solution_not_found",
         "value": "Решение не найдено."
       },
       {
-        "id": 62,
+        "id": 64,
         "key": "localization.ru.title_is_required",
         "value": "Заголовок является обязательным."
       },
       {
-        "id": 63,
+        "id": 65,
         "key": "localization.ru.title_is_too_long",
         "value": "Заголовок слишком длинный."
       },
       {
-        "id": 64,
+        "id": 66,
         "key": "localization.ru.title_is_too_short",
         "value": "Заголовок слишком короткий."
       },
       {
-        "id": 65,
+        "id": 67,
         "key": "localization.ru.unable_to_authorize",
         "value": "Авторизация не пройдена."
       },
       {
-        "id": 66,
+        "id": 68,
         "key": "localization.ru.unable_to_delete_builtin_role",
         "value": "Не удалось удалить встроенную роль."
       },
       {
-        "id": 67,
+        "id": 69,
         "key": "localization.ru.unknown_error",
         "value": "Неизвестная ошибка."
       },
       {
-        "id": 68,
+        "id": 70,
         "key": "localization.ru.user_id_does_not_exists",
         "value": "Пользователь {id} не существует."
       },
       {
-        "id": 69,
+        "id": 71,
         "key": "localization.ru.user_login_does_not_exists",
         "value": "Пользователь \"{login}\" не существует."
       },
       {
-        "id": 70,
+        "id": 72,
         "key": "localization.ru.user_not_found",
         "value": "Пользователь не найден."
       },
       {
-        "id": 71,
+        "id": 73,
         "key": "localization.ru.user_user_already_has_role_role",
         "value": "Пользователь \"{user}\" уже имеет роль \"{role}\"."
       },
       {
-        "id": 72,
+        "id": 74,
         "key": "localization.ru.user_user_does_not_have_role_role",
         "value": "Пользователь \"{user}\" не имеет роли \"{role}\"."
       },
       {
-        "id": 73,
+        "id": 75,
         "key": "localization.ru.user_with_login_login_already_exists",
         "value": "Пользователь с логином \"{login}\" уже существует."
       }

@@ -55,8 +55,16 @@
         "text": "Код задачи не указан."
       },
       {
+        "key": "file_is_empty",
+        "text": "Файл пустой."
+      },
+      {
         "key": "file_is_required",
         "text": "Файл является обязательным."
+      },
+      {
+        "key": "file_is_too_large",
+        "text": "Файл слишком большой."
       },
       {
         "key": "file_not_found",

@@ -79,6 +79,26 @@ func (c *compiler) Name() string {
 	return c.name
 }
 
+type truncateBuffer struct {
+	strings.Builder
+	limit int
+}
+
+func (b *truncateBuffer) Write(p []byte) (int, error) {
+	l := len(p)
+	if b.Builder.Len()+l > b.limit {
+		p = p[:b.limit-b.Builder.Len()]
+	}
+	if len(p) == 0 {
+		return l, nil
+	}
+	n, err := b.Builder.Write(p)
+	if err != nil {
+		return n, err
+	}
+	return l, nil
+}
+
 func (c *compiler) Compile(
 	ctx context.Context, options CompileOptions,
 ) (CompileReport, error) {
@@ -88,7 +108,7 @@ func (c *compiler) Compile(
 		}
 		return CompileReport{}, nil
 	}
-	log := strings.Builder{}
+	log := truncateBuffer{limit: 2048}
 	config := safeexecProcessConfig{
 		Layers:      []string{c.path},
 		Command:     strings.Fields(c.config.Compile.Command),

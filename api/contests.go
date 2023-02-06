@@ -1029,6 +1029,18 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		return err
 	}
 	defer func() { _ = form.ContentFile.Close() }()
+	if form.ContentFile.Size <= 0 {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "File is empty."),
+		}
+	}
+	if form.ContentFile.Size >= 256*1024 {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "File is too large."),
+		}
+	}
 	if _, err := v.core.Compilers.Get(form.CompilerID); err != nil {
 		if err == sql.ErrNoRows {
 			return errorResponse{

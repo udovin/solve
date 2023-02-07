@@ -35,8 +35,8 @@ func GetTx(ctx context.Context) *sql.Tx {
 	return nil
 }
 
-// RowReader represents reader for events.
-type RowReader[T any] interface {
+// Rows represents reader for events.
+type Rows[T any] interface {
 	// Next should read next event and return true if event exists.
 	Next() bool
 	// Row should return current row.
@@ -99,6 +99,32 @@ func newRowReader[T any](rows *sql.Rows) *rowReader[T] {
 	r := &rowReader[T]{rows: rows}
 	r.refs = getRowFields(&r.row)
 	return r
+}
+
+type sliceRows[T any] struct {
+	rows []T
+	pos  int
+}
+
+func (r *sliceRows[T]) Next() bool {
+	r.pos++
+	return r.pos < len(r.rows)
+}
+
+func (r *sliceRows[T]) Row() T {
+	return r.rows[r.pos]
+}
+
+func (r *sliceRows[T]) Close() error {
+	return nil
+}
+
+func (r *sliceRows[T]) Err() error {
+	return nil
+}
+
+func NewSliceRows[T any](rows []T) Rows[T] {
+	return &sliceRows[T]{rows: rows, pos: -1}
 }
 
 func checkColumns(rows *sql.Rows, cols []string) error {

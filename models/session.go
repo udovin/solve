@@ -71,7 +71,7 @@ func (e *SessionEvent) SetObject(o Session) {
 
 // SessionStore represents store for sessions.
 type SessionStore struct {
-	baseStore[Session, SessionEvent, *Session, *SessionEvent]
+	cachedStore[Session, SessionEvent, *Session, *SessionEvent]
 	byAccount *index[int64, Session, *Session]
 }
 
@@ -117,7 +117,7 @@ func NewSessionStore(
 	impl := &SessionStore{
 		byAccount: newIndex(func(o Session) int64 { return o.AccountID }),
 	}
-	impl.baseStore = makeBaseStore[Session, SessionEvent](
+	impl.cachedStore = makeBaseStore[Session, SessionEvent](
 		db, table, eventTable, impl, impl.byAccount,
 	)
 	return impl

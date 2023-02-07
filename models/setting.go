@@ -36,7 +36,7 @@ func (e *SettingEvent) SetObject(o Setting) {
 
 // SettingStore represents store for settings.
 type SettingStore struct {
-	baseStore[Setting, SettingEvent, *Setting, *SettingEvent]
+	cachedStore[Setting, SettingEvent, *Setting, *SettingEvent]
 	byKey *index[string, Setting, *Setting]
 }
 
@@ -59,7 +59,7 @@ func NewSettingStore(db *gosql.DB, table, eventTable string) *SettingStore {
 	impl := &SettingStore{
 		byKey: newIndex(func(o Setting) string { return o.Key }),
 	}
-	impl.baseStore = makeBaseStore[Setting, SettingEvent](
+	impl.cachedStore = makeBaseStore[Setting, SettingEvent](
 		db, table, eventTable, impl, impl.byKey,
 	)
 	return impl

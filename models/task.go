@@ -164,7 +164,7 @@ func (e *TaskEvent) SetObject(o Task) {
 
 // TaskStore represents store for tasks.
 type TaskStore struct {
-	baseStore[Task, TaskEvent, *Task, *TaskEvent]
+	cachedStore[Task, TaskEvent, *Task, *TaskEvent]
 	bySolution *index[int64, Task, *Task]
 }
 
@@ -245,7 +245,7 @@ func NewTaskStore(
 			return 0
 		}),
 	}
-	impl.baseStore = makeBaseStore[Task, TaskEvent](
+	impl.cachedStore = makeBaseStore[Task, TaskEvent](
 		db, table, eventTable, impl, impl.bySolution,
 	)
 	return impl

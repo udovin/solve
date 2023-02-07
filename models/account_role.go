@@ -36,7 +36,7 @@ func (e *AccountRoleEvent) SetObject(o AccountRole) {
 
 // AccountRoleStore represents store for account roles.
 type AccountRoleStore struct {
-	baseStore[AccountRole, AccountRoleEvent, *AccountRole, *AccountRoleEvent]
+	cachedStore[AccountRole, AccountRoleEvent, *AccountRole, *AccountRoleEvent]
 	byAccount *index[int64, AccountRole, *AccountRole]
 }
 
@@ -62,7 +62,7 @@ func NewAccountRoleStore(
 	impl := &AccountRoleStore{
 		byAccount: newIndex(func(o AccountRole) int64 { return o.AccountID }),
 	}
-	impl.baseStore = makeBaseStore[AccountRole, AccountRoleEvent](
+	impl.cachedStore = makeBaseStore[AccountRole, AccountRoleEvent](
 		db, table, eventTable, impl, impl.byAccount,
 	)
 	return impl

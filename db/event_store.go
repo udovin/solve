@@ -53,7 +53,7 @@ type EventROStore[T any] interface {
 	// if there is no events.
 	LastEventID(ctx context.Context) (int64, error)
 	// LoadEvents should load events from store in specified range.
-	LoadEvents(ctx context.Context, ranges []EventRange) (RowReader[T], error)
+	LoadEvents(ctx context.Context, ranges []EventRange) (Rows[T], error)
 }
 
 // EventStore represents persistent store for events.
@@ -100,7 +100,7 @@ func (s *eventStore[T, TPtr]) getEventsWhere(ranges []EventRange) gosql.BoolExpr
 
 func (s *eventStore[T, TPtr]) LoadEvents(
 	ctx context.Context, ranges []EventRange,
-) (RowReader[T], error) {
+) (Rows[T], error) {
 	builder := s.db.Select(s.table)
 	builder.SetNames(s.columns...)
 	builder.SetWhere(s.getEventsWhere(ranges))

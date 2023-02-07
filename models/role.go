@@ -318,7 +318,7 @@ func (e *RoleEvent) SetObject(o Role) {
 
 // RoleStore represents a role store.
 type RoleStore struct {
-	baseStore[Role, RoleEvent, *Role, *RoleEvent]
+	cachedStore[Role, RoleEvent, *Role, *RoleEvent]
 	byName *index[string, Role, *Role]
 }
 
@@ -346,7 +346,7 @@ func NewRoleStore(
 	impl := &RoleStore{
 		byName: newIndex(func(o Role) string { return o.Name }),
 	}
-	impl.baseStore = makeBaseStore[Role, RoleEvent](
+	impl.cachedStore = makeBaseStore[Role, RoleEvent](
 		db, table, eventTable, impl, impl.byName,
 	)
 	return impl

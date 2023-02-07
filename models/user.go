@@ -76,7 +76,7 @@ func (e *UserEvent) SetObject(o User) {
 
 // UserStore represents users store.
 type UserStore struct {
-	baseStore[User, UserEvent, *User, *UserEvent]
+	cachedStore[User, UserEvent, *User, *UserEvent]
 	byAccount *index[int64, User, *User]
 	byLogin   *index[string, User, *User]
 	salt      string
@@ -139,7 +139,7 @@ func NewUserStore(
 		byLogin:   newIndex(func(o User) string { return strings.ToLower(o.Login) }),
 		salt:      salt,
 	}
-	impl.baseStore = makeBaseStore[User, UserEvent](
+	impl.cachedStore = makeBaseStore[User, UserEvent](
 		db, table, eventTable, impl, impl.byAccount, impl.byLogin,
 	)
 	return impl

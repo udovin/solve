@@ -19,11 +19,11 @@ type ObjectPtr[T any] interface {
 // ObjectROStore represents read-only store for objects.
 type ObjectROStore[T any] interface {
 	// LoadObjects should load objects from store.
-	LoadObjects(ctx context.Context) (RowReader[T], error)
+	LoadObjects(ctx context.Context) (Rows[T], error)
 	// FindObjects should bind objects with specified expression.
 	FindObjects(
 		ctx context.Context, where gosql.BoolExpression,
-	) (RowReader[T], error)
+	) (Rows[T], error)
 }
 
 // ObjectStore represents persistent store for objects.
@@ -44,7 +44,7 @@ type objectStore[T any, TPtr ObjectPtr[T]] struct {
 	columns []string
 }
 
-func (s *objectStore[T, TPtr]) LoadObjects(ctx context.Context) (RowReader[T], error) {
+func (s *objectStore[T, TPtr]) LoadObjects(ctx context.Context) (Rows[T], error) {
 	builder := s.db.Select(s.table)
 	builder.SetNames(s.columns...)
 	builder.SetOrderBy(gosql.Ascending(s.id))
@@ -60,7 +60,7 @@ func (s *objectStore[T, TPtr]) LoadObjects(ctx context.Context) (RowReader[T], e
 
 func (s *objectStore[T, TPtr]) FindObjects(
 	ctx context.Context, where gosql.BoolExpression,
-) (RowReader[T], error) {
+) (Rows[T], error) {
 	builder := s.db.Select(s.table)
 	builder.SetNames(s.columns...)
 	builder.SetWhere(where)

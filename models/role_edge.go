@@ -36,7 +36,7 @@ func (e *RoleEdgeEvent) SetObject(o RoleEdge) {
 
 // RoleEdgeStore represents a role edge store.
 type RoleEdgeStore struct {
-	baseStore[RoleEdge, RoleEdgeEvent, *RoleEdge, *RoleEdgeEvent]
+	cachedStore[RoleEdge, RoleEdgeEvent, *RoleEdge, *RoleEdgeEvent]
 	byRole *index[int64, RoleEdge, *RoleEdge]
 }
 
@@ -62,7 +62,7 @@ func NewRoleEdgeStore(
 	impl := &RoleEdgeStore{
 		byRole: newIndex(func(o RoleEdge) int64 { return o.RoleID }),
 	}
-	impl.baseStore = makeBaseStore[RoleEdge, RoleEdgeEvent](
+	impl.cachedStore = makeBaseStore[RoleEdge, RoleEdgeEvent](
 		db, table, eventTable, impl, impl.byRole,
 	)
 	return impl

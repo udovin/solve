@@ -83,7 +83,7 @@ func (e *FileEvent) SetObject(o File) {
 
 // FileStore represents store for files.
 type FileStore struct {
-	baseStore[File, FileEvent, *File, *FileEvent]
+	cachedStore[File, FileEvent, *File, *FileEvent]
 }
 
 var _ baseStoreImpl[File] = (*FileStore)(nil)
@@ -93,7 +93,7 @@ func NewFileStore(
 	db *gosql.DB, table, eventTable string,
 ) *FileStore {
 	impl := &FileStore{}
-	impl.baseStore = makeBaseStore[File, FileEvent](
+	impl.cachedStore = makeBaseStore[File, FileEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

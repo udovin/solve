@@ -94,7 +94,7 @@ func (e *ProblemResourceEvent) SetObject(o ProblemResource) {
 
 // ProblemResourceStore represents store for problem resources.
 type ProblemResourceStore struct {
-	baseStore[ProblemResource, ProblemResourceEvent, *ProblemResource, *ProblemResourceEvent]
+	cachedStore[ProblemResource, ProblemResourceEvent, *ProblemResource, *ProblemResourceEvent]
 	byProblem *index[int64, ProblemResource, *ProblemResource]
 }
 
@@ -119,7 +119,7 @@ func NewProblemResourceStore(
 	impl := &ProblemResourceStore{
 		byProblem: newIndex(func(o ProblemResource) int64 { return o.ProblemID }),
 	}
-	impl.baseStore = makeBaseStore[ProblemResource, ProblemResourceEvent](
+	impl.cachedStore = makeBaseStore[ProblemResource, ProblemResourceEvent](
 		db, table, eventTable, impl, impl.byProblem,
 	)
 	return impl

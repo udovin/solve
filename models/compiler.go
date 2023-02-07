@@ -74,7 +74,7 @@ func (e *CompilerEvent) SetObject(o Compiler) {
 
 // CompilerStore represents store for compilers.
 type CompilerStore struct {
-	baseStore[Compiler, CompilerEvent, *Compiler, *CompilerEvent]
+	cachedStore[Compiler, CompilerEvent, *Compiler, *CompilerEvent]
 	byName *index[string, Compiler, *Compiler]
 }
 
@@ -97,7 +97,7 @@ func NewCompilerStore(db *gosql.DB, table, eventTable string) *CompilerStore {
 	impl := &CompilerStore{
 		byName: newIndex(func(o Compiler) string { return o.Name }),
 	}
-	impl.baseStore = makeBaseStore[Compiler, CompilerEvent](
+	impl.cachedStore = makeBaseStore[Compiler, CompilerEvent](
 		db, table, eventTable, impl, impl.byName,
 	)
 	return impl

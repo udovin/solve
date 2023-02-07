@@ -44,7 +44,7 @@ func (e *AccountEvent) SetObject(o Account) {
 
 // AccountStore represents store for accounts.
 type AccountStore struct {
-	baseStore[Account, AccountEvent, *Account, *AccountEvent]
+	cachedStore[Account, AccountEvent, *Account, *AccountEvent]
 }
 
 var _ baseStoreImpl[Account] = (*AccountStore)(nil)
@@ -54,7 +54,7 @@ func NewAccountStore(
 	db *gosql.DB, table, eventTable string,
 ) *AccountStore {
 	impl := &AccountStore{}
-	impl.baseStore = makeBaseStore[Account, AccountEvent](
+	impl.cachedStore = makeBaseStore[Account, AccountEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

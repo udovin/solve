@@ -221,7 +221,7 @@ type Store interface {
 	Sync(ctx context.Context) error
 }
 
-type baseStore[
+type cachedStore[
 	T any, E any, TPtr ObjectPtr[T], EPtr ObjectEventPtr[T, E],
 ] struct {
 	db       *gosql.DB
@@ -236,17 +236,17 @@ type baseStore[
 }
 
 // DB returns store database.
-func (s *baseStore[T, E, TPtr, EPtr]) DB() *gosql.DB {
+func (s *cachedStore[T, E, TPtr, EPtr]) DB() *gosql.DB {
 	return s.db
 }
 
-func (s *baseStore[T, E, TPtr, EPtr]) Init(ctx context.Context) error {
+func (s *cachedStore[T, E, TPtr, EPtr]) Init(ctx context.Context) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.initUnlocked(ctx)
 }
 
-func (s *baseStore[T, E, TPtr, EPtr]) initUnlocked(ctx context.Context) error {
+func (s *cachedStore[T, E, TPtr, EPtr]) initUnlocked(ctx context.Context) error {
 	if tx := db.GetTx(ctx); tx == nil {
 		return gosql.WrapTx(ctx, s.db, func(tx *sql.Tx) error {
 			return s.initUnlocked(db.WithTx(ctx, tx))
@@ -260,7 +260,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) initUnlocked(ctx context.Context) error {
 
 const eventGapSkipWindow = 25000
 
-func (s *baseStore[T, E, TPtr, EPtr]) initEvents(ctx context.Context) error {
+func (s *cachedStore[T, E, TPtr, EPtr]) initEvents(ctx context.Context) error {
 	beginID, err := s.events.LastEventID(ctx)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -279,7 +279,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) initEvents(ctx context.Context) error {
 	})
 }
 
-func (s *baseStore[T, E, TPtr, EPtr]) initObjects(ctx context.Context) error {
+func (s *cachedStore[T, E, TPtr, EPtr]) initObjects(ctx context.Context) error {
 	rows, err := s.store.LoadObjects(ctx)
 	if err != nil && err != sql.ErrNoRows {
 		return err
@@ -294,14 +294,14 @@ func (s *baseStore[T, E, TPtr, EPtr]) initObjects(ctx context.Context) error {
 	return rows.Err()
 }
 
-func (s *baseStore[T, E, TPtr, EPtr]) Sync(ctx context.Context) error {
+func (s *cachedStore[T, E, TPtr, EPtr]) Sync(ctx context.Context) error {
 	if tx := db.GetTx(ctx); tx != nil {
 		return fmt.Errorf("sync cannot be run in transaction")
 	}
 	return s.consumer.ConsumeEvents(ctx, s.consumeEvent)
 }
 
-func (s *baseStore[T, E, TPtr, EPtr]) newObjectEvent(ctx context.Context, kind EventKind) EPtr {
+func (s *cachedStore[T, E, TPtr, EPtr]) newObjectEvent(ctx context.Context, kind EventKind) EPtr {
 	var event E
 	var eventPtr EPtr = &event
 	eventPtr.SetEventTime(time.Now())
@@ -311,7 +311,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) newObjectEvent(ctx context.Context, kind E
 }
 
 // Create creates object and returns copy with valid ID.
-func (s *baseStore[T, E, TPtr, EPtr]) Create(ctx context.Context, object TPtr) error {
+func (s *cachedStore[T, E, TPtr, EPtr]) Create(ctx context.Context, object TPtr) error {
 	eventPtr := s.newObjectEvent(ctx, CreateEvent)
 	eventPtr.SetObject(*object)
 	if err := s.createObjectEvent(ctx, eventPtr); err != nil {
@@ -322,28 +322,28 @@ func (s *baseStore[T, E, TPtr, EPtr]) Create(ctx context.Context, object TPtr) e
 }
 
 // Update updates object with specified ID.
-func (s *baseStore[T, E, TPtr, EPtr]) Update(ctx context.Context, object T) error {
+func (s *cachedStore[T, E, TPtr, EPtr]) Update(ctx context.Context, object T) error {
 	eventPtr := s.newObjectEvent(ctx, UpdateEvent)
 	eventPtr.SetObject(object)
 	return s.createObjectEvent(ctx, eventPtr)
 }
 
 // Delete deletes compiler with specified ID.
-func (s *baseStore[T, E, TPtr, EPtr]) Delete(ctx context.Context, id int64) error {
+func (s *cachedStore[T, E, TPtr, EPtr]) Delete(ctx context.Context, id int64) error {
 	eventPtr := s.newObjectEvent(ctx, DeleteEvent)
 	eventPtr.SetObjectID(id)
 	return s.createObjectEvent(ctx, eventPtr)
 }
 
 // Find finds objects with specified query.
-func (s *baseStore[T, E, TPtr, EPtr]) Find(ctx context.Context, where gosql.BoolExpression) (db.RowReader[T], error) {
+func (s *cachedStore[T, E, TPtr, EPtr]) Find(ctx context.Context, where gosql.BoolExpression) (db.Rows[T], error) {
 	return s.store.FindObjects(ctx, where)
 }
 
 // Get returns object by id.
 //
 // Returns sql.ErrNoRows if object does not exist.
-func (s *baseStore[T, E, TPtr, EPtr]) Get(id int64) (T, error) {
+func (s *cachedStore[T, E, TPtr, EPtr]) Get(id int64) (T, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if object, ok := s.objects[id]; ok {
@@ -354,7 +354,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) Get(id int64) (T, error) {
 }
 
 // All returns all objects contained by this store.
-func (s *baseStore[T, E, TPtr, EPtr]) All() ([]T, error) {
+func (s *cachedStore[T, E, TPtr, EPtr]) All() ([]T, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var objects []T
@@ -369,7 +369,7 @@ var (
 	sqlReadOnly       = gosql.WithReadOnly(true)
 )
 
-func (s *baseStore[T, E, TPtr, EPtr]) createObjectEvent(
+func (s *cachedStore[T, E, TPtr, EPtr]) createObjectEvent(
 	ctx context.Context, eventPtr EPtr,
 ) error {
 	// Force creation of new transaction.
@@ -397,7 +397,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) createObjectEvent(
 	return s.events.CreateEvent(ctx, eventPtr)
 }
 
-func (s *baseStore[T, E, TPtr, EPtr]) lockStore(tx *sql.Tx) error {
+func (s *cachedStore[T, E, TPtr, EPtr]) lockStore(tx *sql.Tx) error {
 	switch s.db.Dialect() {
 	case gosql.SQLiteDialect:
 		return nil
@@ -408,7 +408,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) lockStore(tx *sql.Tx) error {
 }
 
 //lint:ignore U1000 Used in generic interface.
-func (s *baseStore[T, E, TPtr, EPtr]) reset() {
+func (s *cachedStore[T, E, TPtr, EPtr]) reset() {
 	for _, index := range s.indexes {
 		index.Reset()
 	}
@@ -416,7 +416,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) reset() {
 }
 
 //lint:ignore U1000 Used in generic interface.
-func (s *baseStore[T, E, TPtr, EPtr]) onCreateObject(object T) {
+func (s *cachedStore[T, E, TPtr, EPtr]) onCreateObject(object T) {
 	id := TPtr(&object).ObjectID()
 	s.objects[id] = object
 	for _, index := range s.indexes {
@@ -425,7 +425,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) onCreateObject(object T) {
 }
 
 //lint:ignore U1000 Used in generic interface.
-func (s *baseStore[T, E, TPtr, EPtr]) onDeleteObject(id int64) {
+func (s *cachedStore[T, E, TPtr, EPtr]) onDeleteObject(id int64) {
 	if object, ok := s.objects[id]; ok {
 		for _, index := range s.indexes {
 			index.Deregister(object)
@@ -435,12 +435,12 @@ func (s *baseStore[T, E, TPtr, EPtr]) onDeleteObject(id int64) {
 }
 
 //lint:ignore U1000 Used in generic interface.
-func (s *baseStore[T, E, TPtr, EPtr]) onUpdateObject(object T) {
+func (s *cachedStore[T, E, TPtr, EPtr]) onUpdateObject(object T) {
 	s.impl.onDeleteObject(TPtr(&object).ObjectID())
 	s.impl.onCreateObject(object)
 }
 
-func (s *baseStore[T, E, TPtr, EPtr]) consumeEvent(event E) error {
+func (s *cachedStore[T, E, TPtr, EPtr]) consumeEvent(event E) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	var eventPtr EPtr = &event
@@ -462,8 +462,8 @@ func makeBaseStore[T any, E any, TPtr ObjectPtr[T], EPtr ObjectEventPtr[T, E]](
 	table, eventTable string,
 	impl baseStoreImpl[T],
 	indexes ...storeIndex[T],
-) baseStore[T, E, TPtr, EPtr] {
-	return baseStore[T, E, TPtr, EPtr]{
+) cachedStore[T, E, TPtr, EPtr] {
+	return cachedStore[T, E, TPtr, EPtr]{
 		db:      conn,
 		table:   table,
 		store:   db.NewObjectStore[T, TPtr]("id", table, conn),

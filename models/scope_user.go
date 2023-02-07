@@ -51,7 +51,7 @@ func (e *ScopeUserEvent) SetObject(o ScopeUser) {
 
 // ScopeUserStore represents scope users store.
 type ScopeUserStore struct {
-	baseStore[ScopeUser, ScopeUserEvent, *ScopeUser, *ScopeUserEvent]
+	cachedStore[ScopeUser, ScopeUserEvent, *ScopeUser, *ScopeUserEvent]
 	byAccount    *index[int64, ScopeUser, *ScopeUser]
 	byScope      *index[int64, ScopeUser, *ScopeUser]
 	byScopeLogin *index[pair[int64, string], ScopeUser, *ScopeUser]
@@ -162,7 +162,7 @@ func NewScopeUserStore(
 		}),
 		key: key,
 	}
-	impl.baseStore = makeBaseStore[ScopeUser, ScopeUserEvent](
+	impl.cachedStore = makeBaseStore[ScopeUser, ScopeUserEvent](
 		db, table, eventTable, impl, impl.byAccount, impl.byScope, impl.byScopeLogin,
 	)
 	return impl

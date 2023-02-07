@@ -65,7 +65,7 @@ func (e *ContestProblemEvent) SetObject(o ContestProblem) {
 
 // ContestProblemStore represents a problem store.
 type ContestProblemStore struct {
-	baseStore[ContestProblem, ContestProblemEvent, *ContestProblem, *ContestProblemEvent]
+	cachedStore[ContestProblem, ContestProblemEvent, *ContestProblem, *ContestProblemEvent]
 	byContest *index[int64, ContestProblem, *ContestProblem]
 }
 
@@ -91,7 +91,7 @@ func NewContestProblemStore(
 	impl := &ContestProblemStore{
 		byContest: newIndex(func(o ContestProblem) int64 { return o.ContestID }),
 	}
-	impl.baseStore = makeBaseStore[ContestProblem, ContestProblemEvent](
+	impl.cachedStore = makeBaseStore[ContestProblem, ContestProblemEvent](
 		db, table, eventTable, impl, impl.byContest,
 	)
 	return impl

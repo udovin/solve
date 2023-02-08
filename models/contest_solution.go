@@ -53,7 +53,7 @@ func (s *ContestSolutionStore) FindByContest(
 	defer s.mutex.RUnlock()
 	var objects []ContestSolution
 	for id := range s.byContest.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}
@@ -68,7 +68,7 @@ func (s *ContestSolutionStore) FindByParticipant(
 	defer s.mutex.RUnlock()
 	var objects []ContestSolution
 	for id := range s.byParticipant.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}

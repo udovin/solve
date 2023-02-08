@@ -66,7 +66,7 @@ func (s *ScopeUserStore) FindByScope(scope int64) ([]ScopeUser, error) {
 	defer s.mutex.RUnlock()
 	var objects []ScopeUser
 	for id := range s.byScope.Get(scope) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object)
 		}
 	}
@@ -78,7 +78,7 @@ func (s *ScopeUserStore) GetByScopeLogin(scope int64, login string) (ScopeUser, 
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byScopeLogin.Get(makePair(scope, strings.ToLower(login))) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			return object.Clone(), nil
 		}
 	}
@@ -90,7 +90,7 @@ func (s *ScopeUserStore) GetByAccount(id int64) (ScopeUser, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			return object.Clone(), nil
 		}
 	}

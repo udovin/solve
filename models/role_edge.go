@@ -46,7 +46,7 @@ func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
 	defer s.mutex.RUnlock()
 	var objects []RoleEdge
 	for id := range s.byRole.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}

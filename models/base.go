@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/udovin/algo/maps"
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
@@ -231,7 +232,7 @@ type cachedStore[
 	consumer db.EventConsumer[E, EPtr]
 	impl     baseStoreImpl[T]
 	mutex    sync.RWMutex
-	objects  map[int64]T
+	objects  *maps.Map[int64, T]
 	indexes  []storeIndex[T]
 }
 
@@ -346,7 +347,7 @@ func (s *cachedStore[T, E, TPtr, EPtr]) Find(ctx context.Context, where gosql.Bo
 func (s *cachedStore[T, E, TPtr, EPtr]) Get(id int64) (T, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if object, ok := s.objects[id]; ok {
+	if object, ok := s.objects.Get(id); ok {
 		return TPtr(&object).Clone(), nil
 	}
 	var empty T
@@ -358,7 +359,8 @@ func (s *cachedStore[T, E, TPtr, EPtr]) All() ([]T, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var objects []T
-	for _, object := range s.objects {
+	for it := s.objects.Front(); it != nil; it = it.Next() {
+		object := it.Value()
 		objects = append(objects, TPtr(&object).Clone())
 	}
 	return objects, nil
@@ -412,13 +414,17 @@ func (s *cachedStore[T, E, TPtr, EPtr]) reset() {
 	for _, index := range s.indexes {
 		index.Reset()
 	}
-	s.objects = map[int64]T{}
+	s.objects = maps.NewMap[int64, T](lessInt64)
+}
+
+func lessInt64(lhs, rhs int64) bool {
+	return lhs < rhs
 }
 
 //lint:ignore U1000 Used in generic interface.
 func (s *cachedStore[T, E, TPtr, EPtr]) onCreateObject(object T) {
 	id := TPtr(&object).ObjectID()
-	s.objects[id] = object
+	s.objects.Set(id, object)
 	for _, index := range s.indexes {
 		index.Register(object)
 	}
@@ -426,11 +432,11 @@ func (s *cachedStore[T, E, TPtr, EPtr]) onCreateObject(object T) {
 
 //lint:ignore U1000 Used in generic interface.
 func (s *cachedStore[T, E, TPtr, EPtr]) onDeleteObject(id int64) {
-	if object, ok := s.objects[id]; ok {
+	if it := s.objects.Find(id); it != nil {
 		for _, index := range s.indexes {
-			index.Deregister(object)
+			index.Deregister(it.Value())
 		}
-		delete(s.objects, id)
+		s.objects.Erase(it)
 	}
 }
 

@@ -174,7 +174,7 @@ func (s *TaskStore) FindBySolution(id int64) ([]Task, error) {
 	defer s.mutex.RUnlock()
 	var objects []Task
 	for id := range s.bySolution.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}

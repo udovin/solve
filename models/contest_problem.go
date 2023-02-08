@@ -75,7 +75,7 @@ func (s *ContestProblemStore) FindByContest(id int64) ([]ContestProblem, error) 
 	defer s.mutex.RUnlock()
 	var objects []ContestProblem
 	for id := range s.byContest.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}

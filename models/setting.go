@@ -45,7 +45,7 @@ func (s *SettingStore) GetByKey(key string) (Setting, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byKey.Get(key) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			return object.Clone(), nil
 		}
 	}

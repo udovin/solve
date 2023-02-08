@@ -330,7 +330,7 @@ func (s *RoleStore) GetByName(name string) (Role, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byName.Get(name) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			return object.Clone(), nil
 		}
 	}

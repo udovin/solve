@@ -87,7 +87,7 @@ func (s *UserStore) GetByLogin(login string) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byLogin.Get(strings.ToLower(login)) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			return object.Clone(), nil
 		}
 	}
@@ -99,7 +99,7 @@ func (s *UserStore) GetByAccount(id int64) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			return object.Clone(), nil
 		}
 	}

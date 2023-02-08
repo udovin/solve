@@ -46,7 +46,7 @@ func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
 	defer s.mutex.RUnlock()
 	var objects []AccountRole
 	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}

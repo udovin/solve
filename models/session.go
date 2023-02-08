@@ -81,7 +81,7 @@ func (s *SessionStore) FindByAccount(id int64) ([]Session, error) {
 	defer s.mutex.RUnlock()
 	var objects []Session
 	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}

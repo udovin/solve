@@ -147,7 +147,7 @@ func (s *cachedStore[T, E, TPtr, EPtr]) Find(ctx context.Context, where gosql.Bo
 // Get returns object by id.
 //
 // Returns sql.ErrNoRows if object does not exist.
-func (s *cachedStore[T, E, TPtr, EPtr]) Get(id int64) (T, error) {
+func (s *cachedStore[T, E, TPtr, EPtr]) Get(_ context.Context, id int64) (T, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if object, ok := s.objects.Get(id); ok {

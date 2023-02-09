@@ -4,6 +4,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -209,5 +210,100 @@ func makeBaseEvent(t EventKind) baseEvent {
 type baseStore[
 	T any, E any, TPtr ObjectPtr[T], EPtr ObjectEventPtr[T, E],
 ] struct {
-	db *gosql.DB
+	db     *gosql.DB
+	store  db.ObjectStore[T, TPtr]
+	events db.EventStore[E, EPtr]
+}
+
+// DB returns store database.
+func (s *baseStore[T, E, TPtr, EPtr]) DB() *gosql.DB {
+	return s.db
+}
+
+// Create creates object and returns copy with valid ID.
+func (s *baseStore[T, E, TPtr, EPtr]) Create(ctx context.Context, object TPtr) error {
+	eventPtr := s.newObjectEvent(ctx, CreateEvent)
+	eventPtr.SetObject(*object)
+	if err := s.createObjectEvent(ctx, eventPtr); err != nil {
+		return err
+	}
+	*object = eventPtr.Object()
+	return nil
+}
+
+// Update updates object with specified ID.
+func (s *baseStore[T, E, TPtr, EPtr]) Update(ctx context.Context, object T) error {
+	eventPtr := s.newObjectEvent(ctx, UpdateEvent)
+	eventPtr.SetObject(object)
+	return s.createObjectEvent(ctx, eventPtr)
+}
+
+// Delete deletes object with specified ID.
+func (s *baseStore[T, E, TPtr, EPtr]) Delete(ctx context.Context, id int64) error {
+	eventPtr := s.newObjectEvent(ctx, DeleteEvent)
+	eventPtr.SetObjectID(id)
+	return s.createObjectEvent(ctx, eventPtr)
+}
+
+// Find finds objects with specified query.
+func (s *baseStore[T, E, TPtr, EPtr]) Find(ctx context.Context, where gosql.BoolExpression) (db.Rows[T], error) {
+	return s.store.FindObjects(ctx, where)
+}
+
+// FindOne finds one object with specified query.
+func (s *baseStore[T, E, TPtr, EPtr]) FindOne(ctx context.Context, where gosql.BoolExpression) (T, error) {
+	var empty T
+	rows, err := s.Find(ctx, where)
+	if err != nil {
+		return empty, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return empty, err
+		}
+		return empty, sql.ErrNoRows
+	}
+	return rows.Row(), nil
+}
+
+func (s *baseStore[T, E, TPtr, EPtr]) Get(ctx context.Context, id int64) (T, error) {
+	return s.FindOne(ctx, gosql.Column("id").Equal(id))
+}
+
+func (s *baseStore[T, E, TPtr, EPtr]) newObjectEvent(ctx context.Context, kind EventKind) EPtr {
+	var event E
+	var eventPtr EPtr = &event
+	eventPtr.SetEventTime(time.Now())
+	eventPtr.SetEventKind(kind)
+	eventPtr.SetEventAccountID(GetAccountID(ctx))
+	return eventPtr
+}
+
+func (s *baseStore[T, E, TPtr, EPtr]) createObjectEvent(
+	ctx context.Context, eventPtr EPtr,
+) error {
+	// Force creation of new transaction.
+	if tx := db.GetTx(ctx); tx == nil {
+		return gosql.WrapTx(ctx, s.db, func(tx *sql.Tx) error {
+			return s.createObjectEvent(db.WithTx(ctx, tx), eventPtr)
+		}, sqlRepeatableRead)
+	}
+	switch object := eventPtr.Object(); eventPtr.EventKind() {
+	case CreateEvent:
+		if err := s.store.CreateObject(ctx, &object); err != nil {
+			return err
+		}
+		eventPtr.SetObject(object)
+	case UpdateEvent:
+		if err := s.store.UpdateObject(ctx, &object); err != nil {
+			return err
+		}
+		eventPtr.SetObject(object)
+	case DeleteEvent:
+		if err := s.store.DeleteObject(ctx, eventPtr.ObjectID()); err != nil {
+			return err
+		}
+	}
+	return s.events.CreateEvent(ctx, eventPtr)
 }

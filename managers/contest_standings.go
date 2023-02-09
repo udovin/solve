@@ -100,7 +100,7 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 		}
 		solutionsByColumn := map[int][]models.Solution{}
 		for _, participantSolution := range participantSolutions {
-			solution, err := m.solutions.Get(participantSolution.SolutionID)
+			solution, err := m.solutions.Get(ctx, participantSolution.SolutionID)
 			if err != nil {
 				if err == sql.ErrNoRows {
 					continue

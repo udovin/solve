@@ -325,7 +325,7 @@ func (m *FileManager) ConfirmUploadFile(
 }
 
 func (m *FileManager) DeleteFile(ctx context.Context, id int64) error {
-	file, err := m.files.Get(id)
+	file, err := m.files.Get(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -351,12 +351,12 @@ func (m *FileManager) DeleteFile(ctx context.Context, id int64) error {
 func (m *FileManager) DownloadFile(
 	ctx context.Context, id int64,
 ) (io.ReadCloser, error) {
-	file, err := m.files.Get(id)
+	file, err := m.files.Get(ctx, id)
 	if err == sql.ErrNoRows {
 		if err := m.files.Sync(ctx); err != nil {
 			return nil, err
 		}
-		file, err = m.files.Get(id)
+		file, err = m.files.Get(ctx, id)
 	}
 	if err != nil {
 		return nil, err
@@ -388,7 +388,7 @@ func (m *FileManager) waitFileAvailable(
 		if err := m.files.Sync(ctx); err != nil {
 			return err
 		}
-		syncedFile, err := m.files.Get(file.ID)
+		syncedFile, err := m.files.Get(ctx, file.ID)
 		if err != nil {
 			return err
 		}

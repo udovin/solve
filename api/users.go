@@ -616,7 +616,7 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Set(permissionCtxKey, v.getUserPermissions(accountCtx, user))
 			return next(c)
 		}
-		user, err := v.core.Users.Get(id)
+		user, err := v.core.Users.Get(getContext(c), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

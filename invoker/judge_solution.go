@@ -42,11 +42,11 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("unable to fetch solution: %w", err)
 	}
-	problem, err := t.invoker.core.Problems.Get(solution.ProblemID)
+	problem, err := t.invoker.core.Problems.Get(ctx, solution.ProblemID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch problem: %w", err)
 	}
-	compiler, err := t.invoker.core.Compilers.Get(solution.CompilerID)
+	compiler, err := t.invoker.core.Compilers.Get(ctx, solution.CompilerID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch compiler: %w", err)
 	}

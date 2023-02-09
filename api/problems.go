@@ -231,7 +231,7 @@ func (v *View) observeProblemResource(c echo.Context) error {
 			Message: localize(c, "File not found."),
 		}
 	}
-	file, err := v.core.Files.Get(int64(foundResource.FileID))
+	file, err := v.core.Files.Get(getContext(c), int64(foundResource.FileID))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return errorResponse{
@@ -520,7 +520,7 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.Problems); err != nil {
 			return err
 		}
-		problem, err := v.core.Problems.Get(id)
+		problem, err := v.core.Problems.Get(getContext(c), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

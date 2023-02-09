@@ -395,7 +395,7 @@ func (v *View) sessionAuth(c echo.Context) (bool, error) {
 	if err := syncStore(c, v.core.Accounts); err != nil {
 		return false, err
 	}
-	account, err := v.core.Accounts.Get(session.AccountID)
+	account, err := v.core.Accounts.Get(getContext(c), session.AccountID)
 	if err != nil {
 		return false, err
 	}
@@ -446,7 +446,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 	if err := syncStore(c, v.core.Accounts); err != nil {
 		return false, err
 	}
-	account, err := v.core.Accounts.Get(user.AccountID)
+	account, err := v.core.Accounts.Get(getContext(c), user.AccountID)
 	if err != nil {
 		return false, err
 	}
@@ -504,7 +504,7 @@ func (v *View) scopeUserAuth(c echo.Context) (bool, error) {
 	if err := syncStore(c, v.core.Accounts); err != nil {
 		return false, err
 	}
-	account, err := v.core.Accounts.Get(user.AccountID)
+	account, err := v.core.Accounts.Get(getContext(c), user.AccountID)
 	if err != nil {
 		return false, err
 	}

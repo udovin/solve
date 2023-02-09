@@ -373,7 +373,7 @@ func (v *View) extractScope(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.Scopes); err != nil {
 			return err
 		}
-		scope, err := v.core.Scopes.Get(id)
+		scope, err := v.core.Scopes.Get(getContext(c), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{
@@ -406,7 +406,7 @@ func (v *View) extractScopeUser(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.Scopes); err != nil {
 			return err
 		}
-		user, err := v.core.ScopeUsers.Get(id)
+		user, err := v.core.ScopeUsers.Get(getContext(c), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

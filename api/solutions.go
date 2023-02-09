@@ -178,15 +178,15 @@ func (v *View) makeSolution(
 		ID:         solution.ID,
 		CreateTime: solution.CreateTime,
 	}
-	if problem, err := v.core.Problems.Get(solution.ProblemID); err == nil {
+	if problem, err := v.core.Problems.Get(getContext(c), solution.ProblemID); err == nil {
 		problemResp := v.makeProblem(c, problem, managers.PermissionSet{}, false)
 		resp.Problem = &problemResp
 	}
-	if compiler, err := v.core.Compilers.Get(solution.CompilerID); err == nil {
+	if compiler, err := v.core.Compilers.Get(getContext(c), solution.CompilerID); err == nil {
 		compilerResp := makeCompiler(compiler)
 		resp.Compiler = &compilerResp
 	}
-	if account, err := v.core.Accounts.Get(solution.AuthorID); err == nil {
+	if account, err := v.core.Accounts.Get(getContext(c), solution.AuthorID); err == nil {
 		switch account.Kind {
 		case models.UserAccount:
 			if user, err := v.core.Users.GetByAccount(account.ID); err == nil {
@@ -289,7 +289,7 @@ func (v *View) extractSolution(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.Solutions); err != nil {
 			return err
 		}
-		solution, err := v.core.Solutions.Get(id)
+		solution, err := v.core.Solutions.Get(getContext(c), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

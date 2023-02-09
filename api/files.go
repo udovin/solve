@@ -56,7 +56,7 @@ func (v *View) extractFile(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.Files); err != nil {
 			return err
 		}
-		file, err := v.core.Files.Get(id)
+		file, err := v.core.Files.Get(getContext(c), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

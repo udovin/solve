@@ -231,7 +231,7 @@ func (v *View) observeRoleRoles(c echo.Context) error {
 	}
 	var resp Roles
 	for _, edge := range edges {
-		role, err := v.core.Roles.Get(edge.ChildID)
+		role, err := v.core.Roles.Get(getContext(c), edge.ChildID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				c.Logger().Warnf("Role %v not found", edge.ChildID)
@@ -340,7 +340,7 @@ func (v *View) observeUserRoles(c echo.Context) error {
 	}
 	var resp Roles
 	for _, edge := range edges {
-		role, err := v.core.Roles.Get(edge.RoleID)
+		role, err := v.core.Roles.Get(getContext(c), edge.RoleID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				c.Logger().Warnf("Role %v not found", edge.RoleID)
@@ -438,12 +438,16 @@ func (v *View) deleteUserRole(c echo.Context) error {
 	})
 }
 
-func getRoleByParam(roles *models.RoleStore, name string) (models.Role, error) {
+func getRoleByParam(
+	c echo.Context,
+	roles *models.RoleStore,
+	name string,
+) (models.Role, error) {
 	id, err := strconv.ParseInt(name, 10, 64)
 	if err != nil {
 		return roles.GetByName(name)
 	}
-	return roles.Get(id)
+	return roles.Get(getContext(c), id)
 }
 
 func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
@@ -452,7 +456,7 @@ func (v *View) extractRole(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.Roles); err != nil {
 			return err
 		}
-		role, err := getRoleByParam(v.core.Roles, name)
+		role, err := getRoleByParam(c, v.core.Roles, name)
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
 				Message: localize(
@@ -476,7 +480,7 @@ func (v *View) extractChildRole(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.Roles); err != nil {
 			return err
 		}
-		role, err := getRoleByParam(v.core.Roles, name)
+		role, err := getRoleByParam(c, v.core.Roles, name)
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
 				Message: localize(

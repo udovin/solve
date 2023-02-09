@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
@@ -98,7 +99,7 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	session, err := s.Get(id)
+	session, err := s.Get(context.Background(), id)
 	if err != nil {
 		return Session{}, err
 	}

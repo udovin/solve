@@ -262,7 +262,7 @@ func (v *View) extractCompiler(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.Compilers); err != nil {
 			return err
 		}
-		compiler, err := v.core.Compilers.Get(id)
+		compiler, err := v.core.Compilers.Get(getContext(c), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

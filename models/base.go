@@ -207,6 +207,12 @@ func makeBaseEvent(t EventKind) baseEvent {
 	return baseEvent{BaseEventKind: t, BaseEventTime: time.Now().Unix()}
 }
 
+type Store[T any] interface {
+	Create(context.Context, *T) error
+	Update(context.Context, T) error
+	Delete(context.Context, int64) error
+}
+
 type baseStore[
 	T any, E any, TPtr ObjectPtr[T], EPtr ObjectEventPtr[T, E],
 ] struct {
@@ -246,14 +252,18 @@ func (s *baseStore[T, E, TPtr, EPtr]) Delete(ctx context.Context, id int64) erro
 }
 
 // Find finds objects with specified query.
-func (s *baseStore[T, E, TPtr, EPtr]) Find(ctx context.Context, where gosql.BoolExpression) (db.Rows[T], error) {
-	return s.store.FindObjects(ctx, where)
+func (s *baseStore[T, E, TPtr, EPtr]) Find(
+	ctx context.Context, options ...db.FindObjectsOption,
+) (db.Rows[T], error) {
+	return s.store.FindObjects(ctx, options...)
 }
 
 // FindOne finds one object with specified query.
-func (s *baseStore[T, E, TPtr, EPtr]) FindOne(ctx context.Context, where gosql.BoolExpression) (T, error) {
+func (s *baseStore[T, E, TPtr, EPtr]) FindOne(
+	ctx context.Context, options ...db.FindObjectsOption,
+) (T, error) {
 	var empty T
-	rows, err := s.Find(ctx, where)
+	rows, err := s.Find(ctx, append(options, db.WithLimit(1))...)
 	if err != nil {
 		return empty, err
 	}
@@ -267,8 +277,11 @@ func (s *baseStore[T, E, TPtr, EPtr]) FindOne(ctx context.Context, where gosql.B
 	return rows.Row(), nil
 }
 
+// Get returns object by id.
+//
+// Returns sql.ErrNoRows if object does not exist.
 func (s *baseStore[T, E, TPtr, EPtr]) Get(ctx context.Context, id int64) (T, error) {
-	return s.FindOne(ctx, gosql.Column("id").Equal(id))
+	return s.FindOne(ctx, db.FindQuery{Where: gosql.Column("id").Equal(id)})
 }
 
 func (s *baseStore[T, E, TPtr, EPtr]) newObjectEvent(ctx context.Context, kind EventKind) EPtr {
@@ -306,4 +319,14 @@ func (s *baseStore[T, E, TPtr, EPtr]) createObjectEvent(
 		}
 	}
 	return s.events.CreateEvent(ctx, eventPtr)
+}
+
+func makeBaseStore[T any, E any, TPtr ObjectPtr[T], EPtr ObjectEventPtr[T, E]](
+	conn *gosql.DB, table, eventTable string,
+) baseStore[T, E, TPtr, EPtr] {
+	return baseStore[T, E, TPtr, EPtr]{
+		db:     conn,
+		store:  db.NewObjectStore[T, TPtr]("id", table, conn),
+		events: db.NewEventStore[E, EPtr]("event_id", eventTable, conn),
+	}
 }

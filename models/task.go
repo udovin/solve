@@ -201,7 +201,10 @@ func (s *TaskStore) PopQueued(
 	if err := s.lockStore(tx); err != nil {
 		return Task{}, err
 	}
-	reader, err := s.Find(ctx, gosql.Column("status").Equal(QueuedTask))
+	reader, err := s.Find(ctx, db.FindQuery{
+		Where: gosql.Column("status").Equal(QueuedTask),
+		Limit: 10,
+	})
 	if err != nil {
 		return Task{}, err
 	}

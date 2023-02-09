@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/md5"
 	"crypto/rand"
-	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -185,7 +184,7 @@ func (s *S3Storage) DeleteFile(ctx context.Context, filePath string) error {
 }
 
 type FileManager struct {
-	files         *models.FileStore
+	files         models.FileStore
 	storage       FileStorage
 	uploadTimeout time.Duration
 }
@@ -351,13 +350,7 @@ func (m *FileManager) DeleteFile(ctx context.Context, id int64) error {
 func (m *FileManager) DownloadFile(
 	ctx context.Context, id int64,
 ) (io.ReadCloser, error) {
-	file, err := m.files.Get(ctx, id)
-	if err == sql.ErrNoRows {
-		if err := m.files.Sync(ctx); err != nil {
-			return nil, err
-		}
-		file, err = m.files.Get(ctx, id)
-	}
+	file, err := m.files.Get(models.WithSync(ctx), id)
 	if err != nil {
 		return nil, err
 	}
@@ -385,10 +378,7 @@ func (m *FileManager) waitFileAvailable(
 			return ctx.Err()
 		case <-timer.C:
 		}
-		if err := m.files.Sync(ctx); err != nil {
-			return err
-		}
-		syncedFile, err := m.files.Get(ctx, file.ID)
+		syncedFile, err := m.files.Get(models.WithSync(ctx), file.ID)
 		if err != nil {
 			return err
 		}

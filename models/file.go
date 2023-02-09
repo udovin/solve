@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -81,16 +82,39 @@ func (e *FileEvent) SetObject(o File) {
 	e.File = o
 }
 
-// FileStore represents store for files.
-type FileStore struct {
+type FileStore interface {
+	Store[File]
+	Base() FileStore
+	Get(ctx context.Context, id int64) (File, error)
+}
+
+type fileStore struct {
+	baseStore[File, FileEvent, *File, *FileEvent]
+}
+
+func (s *fileStore) Base() FileStore {
+	return s
+}
+
+type cachedFileStore struct {
+	fileStore
 	cachedStore[File, FileEvent, *File, *FileEvent]
 }
 
-// NewFileStore creates a new instance of FileStore.
+// newFileStore creates a new instance of FileStore.
 func NewFileStore(
 	db *gosql.DB, table, eventTable string,
-) *FileStore {
-	impl := &FileStore{}
+) FileStore {
+	impl := &fileStore{}
+	impl.baseStore = makeBaseStore[File, FileEvent](db, table, eventTable)
+	return impl
+}
+
+// NewCachedFileStore creates a new instance of FileStore.
+func NewCachedFileStore(
+	db *gosql.DB, table, eventTable string,
+) FileStore {
+	impl := &cachedFileStore{}
 	impl.cachedStore = makeCachedStore[File, FileEvent](
 		db, table, eventTable, impl,
 	)

@@ -719,9 +719,13 @@ func getNow(c echo.Context) time.Time {
 	return t
 }
 
-func syncStore(c echo.Context, s models.CachedStore) error {
+func syncStore(c echo.Context, s any) error {
+	store, ok := s.(models.CachedStore)
+	if !ok {
+		return nil
+	}
 	if sync, ok := c.Get(syncKey).(bool); ok && sync {
-		return s.Sync(c.Request().Context())
+		return store.Sync(c.Request().Context())
 	}
 	return nil
 }

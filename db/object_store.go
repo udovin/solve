@@ -16,13 +16,17 @@ type ObjectPtr[T any] interface {
 	SetObjectID(int64)
 }
 
+type FindObjectsOption interface {
+	UpdateSelect(query gosql.SelectQuery)
+}
+
 // ObjectROStore represents read-only store for objects.
 type ObjectROStore[T any] interface {
 	// LoadObjects should load objects from store.
 	LoadObjects(ctx context.Context) (Rows[T], error)
 	// FindObjects should bind objects with specified expression.
 	FindObjects(
-		ctx context.Context, where gosql.BoolExpression,
+		ctx context.Context, options ...FindObjectsOption,
 	) (Rows[T], error)
 }
 
@@ -59,12 +63,14 @@ func (s *objectStore[T, TPtr]) LoadObjects(ctx context.Context) (Rows[T], error)
 }
 
 func (s *objectStore[T, TPtr]) FindObjects(
-	ctx context.Context, where gosql.BoolExpression,
+	ctx context.Context, options ...FindObjectsOption,
 ) (Rows[T], error) {
 	builder := s.db.Select(s.table)
 	builder.SetNames(s.columns...)
-	builder.SetWhere(where)
 	builder.SetOrderBy(gosql.Ascending(s.id))
+	for _, option := range options {
+		option.UpdateSelect(builder)
+	}
 	query, values := builder.Build()
 	rows, err := GetRunner(ctx, s.db.RO).QueryContext(ctx, query, values...)
 	if err != nil {
@@ -103,4 +109,24 @@ func NewObjectStore[T any, TPtr ObjectPtr[T]](
 		table:   table,
 		columns: getColumns[T](),
 	}
+}
+
+type FindQuery struct {
+	Where   gosql.BoolExpression
+	Limit   int
+	OrderBy []any
+}
+
+func (q FindQuery) UpdateSelect(query gosql.SelectQuery) {
+	query.SetWhere(q.Where)
+	query.SetLimit(q.Limit)
+	if q.OrderBy != nil {
+		query.SetOrderBy(q.OrderBy...)
+	}
+}
+
+type WithLimit int
+
+func (q WithLimit) UpdateSelect(query gosql.SelectQuery) {
+	query.SetLimit(int(q))
 }

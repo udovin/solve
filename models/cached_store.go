@@ -140,20 +140,38 @@ func (s *cachedStore[T, E, TPtr, EPtr]) Delete(ctx context.Context, id int64) er
 }
 
 // Find finds objects with specified query.
-func (s *cachedStore[T, E, TPtr, EPtr]) Find(ctx context.Context, where gosql.BoolExpression) (db.Rows[T], error) {
-	return s.store.FindObjects(ctx, where)
+func (s *cachedStore[T, E, TPtr, EPtr]) Find(
+	ctx context.Context, options ...db.FindObjectsOption,
+) (db.Rows[T], error) {
+	return s.store.FindObjects(ctx, options...)
+}
+
+type syncKey struct{}
+
+func WithSync(ctx context.Context) context.Context {
+	return context.WithValue(ctx, syncKey{}, time.Now())
+}
+
+func GetSync(ctx context.Context) bool {
+	_, ok := ctx.Value(syncKey{}).(time.Time)
+	return ok
 }
 
 // Get returns object by id.
 //
 // Returns sql.ErrNoRows if object does not exist.
-func (s *cachedStore[T, E, TPtr, EPtr]) Get(_ context.Context, id int64) (T, error) {
+func (s *cachedStore[T, E, TPtr, EPtr]) Get(ctx context.Context, id int64) (T, error) {
+	var empty T
+	if GetSync(ctx) {
+		if err := s.Sync(ctx); err != nil {
+			return empty, err
+		}
+	}
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if object, ok := s.objects.Get(id); ok {
 		return TPtr(&object).Clone(), nil
 	}
-	var empty T
 	return empty, sql.ErrNoRows
 }
 

@@ -40,10 +40,7 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("unable to fetch problem: %w", err)
 	}
-	if err := t.invoker.core.Files.Sync(ctx); err != nil {
-		return fmt.Errorf("unable to sync files: %w", err)
-	}
-	file, err := t.invoker.core.Files.Get(ctx, t.config.FileID)
+	file, err := t.invoker.core.Files.Get(models.WithSync(ctx), t.config.FileID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch problem: %w", err)
 	}

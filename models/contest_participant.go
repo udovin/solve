@@ -138,8 +138,6 @@ func (s *ContestParticipantStore) FindByContestAccount(
 	return objects, nil
 }
 
-var _ baseStoreImpl[ContestParticipant] = (*ContestParticipantStore)(nil)
-
 // NewContestParticipantStore creates a new instance of
 // ContestParticipantStore.
 func NewContestParticipantStore(
@@ -151,7 +149,7 @@ func NewContestParticipantStore(
 			return makePair(o.ContestID, o.AccountID)
 		}),
 	}
-	impl.cachedStore = makeBaseStore[ContestParticipant, ContestParticipantEvent](
+	impl.cachedStore = makeCachedStore[ContestParticipant, ContestParticipantEvent](
 		db, table, eventTable, impl, impl.byContest, impl.byContestAccount,
 	)
 	return impl

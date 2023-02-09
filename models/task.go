@@ -227,8 +227,6 @@ func (s *TaskStore) PopQueued(
 	return Task{}, sql.ErrNoRows
 }
 
-var _ baseStoreImpl[Task] = (*TaskStore)(nil)
-
 // NewTaskStore creates a new instance of TaskStore.
 func NewTaskStore(
 	db *gosql.DB, table, eventTable string,
@@ -245,7 +243,7 @@ func NewTaskStore(
 			return 0
 		}),
 	}
-	impl.cachedStore = makeBaseStore[Task, TaskEvent](
+	impl.cachedStore = makeCachedStore[Task, TaskEvent](
 		db, table, eventTable, impl, impl.bySolution,
 	)
 	return impl

@@ -128,8 +128,6 @@ func (s *UserStore) CheckPassword(user User, password string) bool {
 	return passwordHash == user.PasswordHash
 }
 
-var _ baseStoreImpl[User] = (*UserStore)(nil)
-
 // NewUserStore creates new instance of user store.
 func NewUserStore(
 	db *gosql.DB, table, eventTable, salt string,
@@ -139,7 +137,7 @@ func NewUserStore(
 		byLogin:   newIndex(func(o User) string { return strings.ToLower(o.Login) }),
 		salt:      salt,
 	}
-	impl.cachedStore = makeBaseStore[User, UserEvent](
+	impl.cachedStore = makeCachedStore[User, UserEvent](
 		db, table, eventTable, impl, impl.byAccount, impl.byLogin,
 	)
 	return impl

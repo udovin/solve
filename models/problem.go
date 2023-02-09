@@ -66,14 +66,12 @@ type ProblemStore struct {
 	cachedStore[Problem, ProblemEvent, *Problem, *ProblemEvent]
 }
 
-var _ baseStoreImpl[Problem] = (*ProblemStore)(nil)
-
 // NewProblemStore creates a new instance of ProblemStore.
 func NewProblemStore(
 	db *gosql.DB, table, eventTable string,
 ) *ProblemStore {
 	impl := &ProblemStore{}
-	impl.cachedStore = makeBaseStore[Problem, ProblemEvent](
+	impl.cachedStore = makeCachedStore[Problem, ProblemEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

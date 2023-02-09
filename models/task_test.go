@@ -36,7 +36,7 @@ func (t *taskStoreTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *taskStoreTest) newStore() Store {
+func (t *taskStoreTest) newStore() CachedStore {
 	return NewTaskStore(testDB, "task", "task_event")
 }
 
@@ -45,7 +45,7 @@ func (t *taskStoreTest) newObject() object {
 }
 
 func (t *taskStoreTest) createObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	task := o.(Task)
 	err := s.(*TaskStore).Create(wrapContext(tx), &task)
@@ -53,13 +53,13 @@ func (t *taskStoreTest) createObject(
 }
 
 func (t *taskStoreTest) updateObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	return o, s.(*TaskStore).Update(wrapContext(tx), o.(Task))
 }
 
 func (t *taskStoreTest) deleteObject(
-	s Store, tx *sql.Tx, id int64,
+	s CachedStore, tx *sql.Tx, id int64,
 ) error {
 	return s.(*TaskStore).Delete(wrapContext(tx), id)
 }
@@ -115,6 +115,6 @@ func TestTaskKind(t *testing.T) {
 func TestTaskStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := StoreTester{&taskStoreTest{}}
+	tester := CachedStoreTester{&taskStoreTest{}}
 	tester.Test(t)
 }

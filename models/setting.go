@@ -52,14 +52,12 @@ func (s *SettingStore) GetByKey(key string) (Setting, error) {
 	return Setting{}, sql.ErrNoRows
 }
 
-var _ baseStoreImpl[Setting] = (*SettingStore)(nil)
-
 // NewSettingStore creates a new instance of SettingStore.
 func NewSettingStore(db *gosql.DB, table, eventTable string) *SettingStore {
 	impl := &SettingStore{
 		byKey: newIndex(func(o Setting) string { return o.Key }),
 	}
-	impl.cachedStore = makeBaseStore[Setting, SettingEvent](
+	impl.cachedStore = makeCachedStore[Setting, SettingEvent](
 		db, table, eventTable, impl, impl.byKey,
 	)
 	return impl

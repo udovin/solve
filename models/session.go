@@ -108,8 +108,6 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 	return session, nil
 }
 
-var _ baseStoreImpl[Session] = (*SessionStore)(nil)
-
 // NewSessionStore creates a new instance of SessionStore.
 func NewSessionStore(
 	db *gosql.DB, table, eventTable string,
@@ -117,7 +115,7 @@ func NewSessionStore(
 	impl := &SessionStore{
 		byAccount: newIndex(func(o Session) int64 { return o.AccountID }),
 	}
-	impl.cachedStore = makeBaseStore[Session, SessionEvent](
+	impl.cachedStore = makeCachedStore[Session, SessionEvent](
 		db, table, eventTable, impl, impl.byAccount,
 	)
 	return impl

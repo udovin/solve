@@ -53,8 +53,6 @@ func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
 	return objects, nil
 }
 
-var _ baseStoreImpl[AccountRole] = (*AccountRoleStore)(nil)
-
 // NewAccountRoleStore creates a new instance of AccountRoleStore.
 func NewAccountRoleStore(
 	db *gosql.DB, table, eventTable string,
@@ -62,7 +60,7 @@ func NewAccountRoleStore(
 	impl := &AccountRoleStore{
 		byAccount: newIndex(func(o AccountRole) int64 { return o.AccountID }),
 	}
-	impl.cachedStore = makeBaseStore[AccountRole, AccountRoleEvent](
+	impl.cachedStore = makeCachedStore[AccountRole, AccountRoleEvent](
 		db, table, eventTable, impl, impl.byAccount,
 	)
 	return impl

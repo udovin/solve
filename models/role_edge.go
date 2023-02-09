@@ -53,8 +53,6 @@ func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
 	return objects, nil
 }
 
-var _ baseStoreImpl[RoleEdge] = (*RoleEdgeStore)(nil)
-
 // NewRoleEdgeStore creates a new instance of RoleEdgeStore.
 func NewRoleEdgeStore(
 	db *gosql.DB, table, eventTable string,
@@ -62,7 +60,7 @@ func NewRoleEdgeStore(
 	impl := &RoleEdgeStore{
 		byRole: newIndex(func(o RoleEdge) int64 { return o.RoleID }),
 	}
-	impl.cachedStore = makeBaseStore[RoleEdge, RoleEdgeEvent](
+	impl.cachedStore = makeCachedStore[RoleEdge, RoleEdgeEvent](
 		db, table, eventTable, impl, impl.byRole,
 	)
 	return impl

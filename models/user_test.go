@@ -43,7 +43,7 @@ func (t *userStoreTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *userStoreTest) newStore() Store {
+func (t *userStoreTest) newStore() CachedStore {
 	return NewUserStore(testDB, "user", "user_event", "")
 }
 
@@ -52,7 +52,7 @@ func (t *userStoreTest) newObject() object {
 }
 
 func (t *userStoreTest) createObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	user := o.(User)
 	if err := s.(*UserStore).Create(wrapContext(tx), &user); err != nil {
@@ -62,13 +62,13 @@ func (t *userStoreTest) createObject(
 }
 
 func (t *userStoreTest) updateObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	return o, s.(*UserStore).Update(wrapContext(tx), o.(User))
 }
 
 func (t *userStoreTest) deleteObject(
-	s Store, tx *sql.Tx, id int64,
+	s CachedStore, tx *sql.Tx, id int64,
 ) error {
 	return s.(*UserStore).Delete(wrapContext(tx), id)
 }
@@ -76,6 +76,6 @@ func (t *userStoreTest) deleteObject(
 func TestUserStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := StoreTester{&userStoreTest{}}
+	tester := CachedStoreTester{&userStoreTest{}}
 	tester.Test(t)
 }

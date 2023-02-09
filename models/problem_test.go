@@ -39,7 +39,7 @@ func (t *problemStoreTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *problemStoreTest) newStore() Store {
+func (t *problemStoreTest) newStore() CachedStore {
 	return NewProblemStore(testDB, "problem", "problem_event")
 }
 
@@ -48,7 +48,7 @@ func (t *problemStoreTest) newObject() object {
 }
 
 func (t *problemStoreTest) createObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	problem := o.(Problem)
 	if err := s.(*ProblemStore).Create(wrapContext(tx), &problem); err != nil {
@@ -58,13 +58,13 @@ func (t *problemStoreTest) createObject(
 }
 
 func (t *problemStoreTest) updateObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	return o, s.(*ProblemStore).Update(wrapContext(tx), o.(Problem))
 }
 
 func (t *problemStoreTest) deleteObject(
-	s Store, tx *sql.Tx, id int64,
+	s CachedStore, tx *sql.Tx, id int64,
 ) error {
 	return s.(*ProblemStore).Delete(wrapContext(tx), id)
 }
@@ -72,7 +72,7 @@ func (t *problemStoreTest) deleteObject(
 func TestProblemStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := StoreTester{&problemStoreTest{}}
+	tester := CachedStoreTester{&problemStoreTest{}}
 	tester.Test(t)
 }
 

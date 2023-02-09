@@ -76,7 +76,7 @@ func (c *Core) SetupAllStores() {
 	c.Visits = models.NewVisitStore(c.DB, "solve_visit")
 }
 
-func (c *Core) startStores(start func(models.Store, string, time.Duration)) {
+func (c *Core) startStores(start func(models.CachedStore, string, time.Duration)) {
 	start(c.Settings, "settings", time.Second*5)
 	start(c.Tasks, "tasks", time.Second)
 	start(c.Files, "files", time.Second)
@@ -102,7 +102,7 @@ func (c *Core) startStoreLoops() (err error) {
 	once := sync.Once{}
 	var waiter sync.WaitGroup
 	defer waiter.Wait()
-	start := func(store models.Store, name string, delay time.Duration) {
+	start := func(store models.CachedStore, name string, delay time.Duration) {
 		if isNil(store) {
 			return
 		}
@@ -132,7 +132,7 @@ func (c *Core) startStoreLoops() (err error) {
 	return
 }
 
-func (c *Core) storeLoop(store models.Store, name string, delay time.Duration) {
+func (c *Core) storeLoop(store models.CachedStore, name string, delay time.Duration) {
 	logger := c.Logger().With(logs.Any("store", name))
 	logger.Debug("Store sync loop started")
 	defer logger.Debug("Store sync loop stopped")

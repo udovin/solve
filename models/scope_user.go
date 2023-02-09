@@ -58,8 +58,6 @@ type ScopeUserStore struct {
 	key          []byte
 }
 
-var _ baseStoreImpl[ScopeUser] = (*ScopeUserStore)(nil)
-
 // FindByScope returns scope users by scope.
 func (s *ScopeUserStore) FindByScope(scope int64) ([]ScopeUser, error) {
 	s.mutex.RLock()
@@ -144,8 +142,6 @@ func (s *ScopeUserStore) CheckPassword(user ScopeUser, password string) bool {
 	return err == nil && userPassword == password
 }
 
-var _ baseStoreImpl[ScopeUser] = (*ScopeUserStore)(nil)
-
 // NewScopeUserStore creates new instance of scope user store.
 func NewScopeUserStore(
 	db *gosql.DB, table, eventTable, password string,
@@ -162,7 +158,7 @@ func NewScopeUserStore(
 		}),
 		key: key,
 	}
-	impl.cachedStore = makeBaseStore[ScopeUser, ScopeUserEvent](
+	impl.cachedStore = makeCachedStore[ScopeUser, ScopeUserEvent](
 		db, table, eventTable, impl, impl.byAccount, impl.byScope, impl.byScopeLogin,
 	)
 	return impl

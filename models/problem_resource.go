@@ -110,8 +110,6 @@ func (s *ProblemResourceStore) FindByProblem(id int64) ([]ProblemResource, error
 	return objects, nil
 }
 
-var _ baseStoreImpl[ProblemResource] = (*ProblemResourceStore)(nil)
-
 // NewProblemResourceStore creates a new instance of ProblemResourceStore.
 func NewProblemResourceStore(
 	db *gosql.DB, table, eventTable string,
@@ -119,7 +117,7 @@ func NewProblemResourceStore(
 	impl := &ProblemResourceStore{
 		byProblem: newIndex(func(o ProblemResource) int64 { return o.ProblemID }),
 	}
-	impl.cachedStore = makeBaseStore[ProblemResource, ProblemResourceEvent](
+	impl.cachedStore = makeCachedStore[ProblemResource, ProblemResourceEvent](
 		db, table, eventTable, impl, impl.byProblem,
 	)
 	return impl

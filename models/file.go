@@ -86,14 +86,12 @@ type FileStore struct {
 	cachedStore[File, FileEvent, *File, *FileEvent]
 }
 
-var _ baseStoreImpl[File] = (*FileStore)(nil)
-
 // NewFileStore creates a new instance of FileStore.
 func NewFileStore(
 	db *gosql.DB, table, eventTable string,
 ) *FileStore {
 	impl := &FileStore{}
-	impl.cachedStore = makeBaseStore[File, FileEvent](
+	impl.cachedStore = makeCachedStore[File, FileEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

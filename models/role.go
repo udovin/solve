@@ -337,8 +337,6 @@ func (s *RoleStore) GetByName(name string) (Role, error) {
 	return Role{}, sql.ErrNoRows
 }
 
-var _ baseStoreImpl[Role] = (*RoleStore)(nil)
-
 // NewRoleStore creates a new instance of RoleStore.
 func NewRoleStore(
 	db *gosql.DB, table, eventTable string,
@@ -346,7 +344,7 @@ func NewRoleStore(
 	impl := &RoleStore{
 		byName: newIndex(func(o Role) string { return o.Name }),
 	}
-	impl.cachedStore = makeBaseStore[Role, RoleEvent](
+	impl.cachedStore = makeCachedStore[Role, RoleEvent](
 		db, table, eventTable, impl, impl.byName,
 	)
 	return impl

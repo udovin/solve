@@ -75,8 +75,6 @@ func (s *ContestSolutionStore) FindByParticipant(
 	return objects, nil
 }
 
-var _ baseStoreImpl[ContestSolution] = (*ContestSolutionStore)(nil)
-
 // NewContestSolutionStore creates a new instance of ContestSolutionStore.
 func NewContestSolutionStore(
 	db *gosql.DB, table, eventTable string,
@@ -85,7 +83,7 @@ func NewContestSolutionStore(
 		byContest:     newIndex(func(o ContestSolution) int64 { return o.ContestID }),
 		byParticipant: newIndex(func(o ContestSolution) int64 { return o.ParticipantID }),
 	}
-	impl.cachedStore = makeBaseStore[ContestSolution, ContestSolutionEvent](
+	impl.cachedStore = makeCachedStore[ContestSolution, ContestSolutionEvent](
 		db, table, eventTable, impl, impl.byContest, impl.byParticipant,
 	)
 	return impl

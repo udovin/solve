@@ -15,7 +15,7 @@ func (t *sessionStoreTest) prepareDB(tx *sql.Tx) error {
 			`"secret" varchar(255) NOT NULL,` +
 			`"create_time" integer NOT NULL,` +
 			`"expire_time" integer NOT NULL,` +
-			`"remote_addr" varchar(255) NOT NULL,` +
+			`"real_ip" varchar(255) NOT NULL,` +
 			`"user_agent" varchar(255) NOT NULL)`,
 	); err != nil {
 		return err
@@ -31,7 +31,7 @@ func (t *sessionStoreTest) prepareDB(tx *sql.Tx) error {
 			`"secret" varchar(255) NOT NULL,` +
 			`"create_time" integer NOT NULL,` +
 			`"expire_time" integer NOT NULL,` +
-			`"remote_addr" varchar(255) NOT NULL,` +
+			`"real_ip" varchar(255) NOT NULL,` +
 			`"user_agent" varchar(255) NOT NULL)`,
 	)
 	return err

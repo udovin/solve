@@ -12,18 +12,17 @@ import (
 
 // Visit represents user visit.
 type Visit struct {
-	ID         int64  `db:"id"`
-	Time       int64  `db:"time"`
-	AccountID  NInt64 `db:"account_id"`
-	SessionID  NInt64 `db:"session_id"`
-	Host       string `db:"host"`
-	Protocol   string `db:"protocol"`
-	Method     string `db:"method" `
-	RemoteAddr string `db:"remote_addr"`
-	UserAgent  string `db:"user_agent"`
-	Path       string `db:"path"`
-	RealIP     string `db:"real_ip"`
-	Status     int    `db:"status"`
+	ID        int64  `db:"id"`
+	Time      int64  `db:"time"`
+	AccountID NInt64 `db:"account_id"`
+	SessionID NInt64 `db:"session_id"`
+	Host      string `db:"host"`
+	Protocol  string `db:"protocol"`
+	Method    string `db:"method"`
+	UserAgent string `db:"user_agent"`
+	Path      string `db:"path"`
+	RealIP    string `db:"real_ip"`
+	Status    int    `db:"status"`
 }
 
 // EventID returns ID of visit.
@@ -50,14 +49,13 @@ type VisitStore struct {
 // MakeFromContext creates Visit from context.
 func (s *VisitStore) MakeFromContext(c echo.Context) Visit {
 	return Visit{
-		Time:       time.Now().Unix(),
-		Host:       c.Request().Host,
-		Protocol:   c.Request().Proto,
-		Method:     c.Request().Method,
-		RemoteAddr: c.Request().RemoteAddr,
-		UserAgent:  c.Request().UserAgent(),
-		Path:       c.Request().URL.RequestURI(),
-		RealIP:     c.RealIP(),
+		Time:      time.Now().Unix(),
+		Host:      c.Request().Host,
+		Protocol:  c.Request().Proto,
+		Method:    c.Request().Method,
+		UserAgent: c.Request().UserAgent(),
+		Path:      c.Request().URL.RequestURI(),
+		RealIP:    c.RealIP(),
 	}
 }
 

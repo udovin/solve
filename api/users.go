@@ -355,7 +355,7 @@ func (v *View) loginAccount(c echo.Context) error {
 		AccountID:  accountCtx.Account.ID,
 		CreateTime: now.Unix(),
 		ExpireTime: expires.Unix(),
-		RemoteAddr: c.Request().RemoteAddr,
+		RealIP:     c.RealIP(),
 		UserAgent:  c.Request().UserAgent(),
 	}
 	if err := session.GenerateSecret(); err != nil {

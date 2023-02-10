@@ -76,7 +76,7 @@ func (e *UserEvent) SetObject(o User) {
 
 // UserStore represents users store.
 type UserStore struct {
-	baseStore[User, UserEvent, *User, *UserEvent]
+	cachedStore[User, UserEvent, *User, *UserEvent]
 	byAccount *index[int64, User, *User]
 	byLogin   *index[string, User, *User]
 	salt      string
@@ -87,7 +87,7 @@ func (s *UserStore) GetByLogin(login string) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byLogin.Get(strings.ToLower(login)) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			return object.Clone(), nil
 		}
 	}
@@ -99,7 +99,7 @@ func (s *UserStore) GetByAccount(id int64) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			return object.Clone(), nil
 		}
 	}
@@ -128,8 +128,6 @@ func (s *UserStore) CheckPassword(user User, password string) bool {
 	return passwordHash == user.PasswordHash
 }
 
-var _ baseStoreImpl[User] = (*UserStore)(nil)
-
 // NewUserStore creates new instance of user store.
 func NewUserStore(
 	db *gosql.DB, table, eventTable, salt string,
@@ -139,7 +137,7 @@ func NewUserStore(
 		byLogin:   newIndex(func(o User) string { return strings.ToLower(o.Login) }),
 		salt:      salt,
 	}
-	impl.baseStore = makeBaseStore[User, UserEvent](
+	impl.cachedStore = makeCachedStore[User, UserEvent](
 		db, table, eventTable, impl, impl.byAccount, impl.byLogin,
 	)
 	return impl

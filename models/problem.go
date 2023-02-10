@@ -63,17 +63,15 @@ func (e *ProblemEvent) SetObject(o Problem) {
 
 // ProblemStore represents store for problems.
 type ProblemStore struct {
-	baseStore[Problem, ProblemEvent, *Problem, *ProblemEvent]
+	cachedStore[Problem, ProblemEvent, *Problem, *ProblemEvent]
 }
-
-var _ baseStoreImpl[Problem] = (*ProblemStore)(nil)
 
 // NewProblemStore creates a new instance of ProblemStore.
 func NewProblemStore(
 	db *gosql.DB, table, eventTable string,
 ) *ProblemStore {
 	impl := &ProblemStore{}
-	impl.baseStore = makeBaseStore[Problem, ProblemEvent](
+	impl.cachedStore = makeCachedStore[Problem, ProblemEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

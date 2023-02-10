@@ -58,7 +58,7 @@ func (e eventSorter) Swap(i, j int) {
 
 func (s *mockEventStore) LoadEvents(
 	ctx context.Context, ranges []EventRange,
-) (RowReader[mockEvent], error) {
+) (Rows[mockEvent], error) {
 	var events []mockEvent
 	for _, rng := range ranges {
 		for _, event := range s.events {
@@ -68,40 +68,13 @@ func (s *mockEventStore) LoadEvents(
 		}
 	}
 	sort.Sort(eventSorter(events))
-	return &mockEventReader{events: events}, nil
+	return NewSliceRows(events), nil
 }
 
 func (s *mockEventStore) FindEvents(
 	tx *sql.Tx, where string, args ...any,
-) (RowReader[mockEvent], error) {
+) (Rows[mockEvent], error) {
 	return nil, sql.ErrNoRows
-}
-
-type mockEventReader struct {
-	events []mockEvent
-	event  mockEvent
-	pos    int
-}
-
-func (r *mockEventReader) Next() bool {
-	if r.pos < len(r.events) {
-		r.event = r.events[r.pos]
-		r.pos++
-		return true
-	}
-	return false
-}
-
-func (r *mockEventReader) Row() mockEvent {
-	return r.event
-}
-
-func (r *mockEventReader) Close() error {
-	return nil
-}
-
-func (r *mockEventReader) Err() error {
-	return nil
 }
 
 func TestEventConsumer(t *testing.T) {

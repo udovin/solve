@@ -313,7 +313,9 @@ func (m *manager) applyForward(ctx context.Context, g MigrationGroup, migrations
 }
 
 func (m *manager) getAppliedMigration(ctx context.Context, group string, name string) (migration, error) {
-	rows, err := m.store.FindObjects(ctx, gosql.Column("group").Equal(group).And(gosql.Column("name").Equal(name)))
+	rows, err := m.store.FindObjects(ctx, FindQuery{
+		Where: gosql.Column("group").Equal(group).And(gosql.Column("name").Equal(name)),
+	})
 	if err != nil {
 		return migration{}, err
 	}

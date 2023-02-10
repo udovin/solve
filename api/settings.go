@@ -141,12 +141,16 @@ func (v *View) deleteSetting(c echo.Context) error {
 	return c.JSON(http.StatusOK, makeSetting(setting))
 }
 
-func getSettingByParam(settings *models.SettingStore, key string) (models.Setting, error) {
+func getSettingByParam(
+	c echo.Context,
+	settings *models.SettingStore,
+	key string,
+) (models.Setting, error) {
 	id, err := strconv.ParseInt(key, 10, 64)
 	if err != nil {
 		return settings.GetByKey(key)
 	}
-	return settings.Get(id)
+	return settings.Get(getContext(c), id)
 }
 
 func (v *View) extractSetting(next echo.HandlerFunc) echo.HandlerFunc {
@@ -155,7 +159,7 @@ func (v *View) extractSetting(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.Settings); err != nil {
 			return err
 		}
-		setting, err := getSettingByParam(v.core.Settings, key)
+		setting, err := getSettingByParam(c, v.core.Settings, key)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

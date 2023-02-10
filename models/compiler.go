@@ -74,7 +74,7 @@ func (e *CompilerEvent) SetObject(o Compiler) {
 
 // CompilerStore represents store for compilers.
 type CompilerStore struct {
-	baseStore[Compiler, CompilerEvent, *Compiler, *CompilerEvent]
+	cachedStore[Compiler, CompilerEvent, *Compiler, *CompilerEvent]
 	byName *index[string, Compiler, *Compiler]
 }
 
@@ -83,21 +83,19 @@ func (s *CompilerStore) GetByName(name string) (Compiler, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byName.Get(name) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			return object.Clone(), nil
 		}
 	}
 	return Compiler{}, sql.ErrNoRows
 }
 
-var _ baseStoreImpl[Compiler] = (*CompilerStore)(nil)
-
 // NewCompilerStore creates a new instance of CompilerStore.
 func NewCompilerStore(db *gosql.DB, table, eventTable string) *CompilerStore {
 	impl := &CompilerStore{
 		byName: newIndex(func(o Compiler) string { return o.Name }),
 	}
-	impl.baseStore = makeBaseStore[Compiler, CompilerEvent](
+	impl.cachedStore = makeCachedStore[Compiler, CompilerEvent](
 		db, table, eventTable, impl, impl.byName,
 	)
 	return impl

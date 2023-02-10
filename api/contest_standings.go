@@ -76,7 +76,7 @@ func (v *View) observeContestStandings(c echo.Context) error {
 			}
 		}
 		rowResp := ContestStandingsRow{
-			Participant: makeContestParticipant(row.Participant, v.core),
+			Participant: makeContestParticipant(c, row.Participant, v.core),
 			Score:       row.Score,
 		}
 		if row.Participant.Kind == models.RegularParticipant {

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
@@ -71,7 +72,7 @@ func (e *SessionEvent) SetObject(o Session) {
 
 // SessionStore represents store for sessions.
 type SessionStore struct {
-	baseStore[Session, SessionEvent, *Session, *SessionEvent]
+	cachedStore[Session, SessionEvent, *Session, *SessionEvent]
 	byAccount *index[int64, Session, *Session]
 }
 
@@ -81,7 +82,7 @@ func (s *SessionStore) FindByAccount(id int64) ([]Session, error) {
 	defer s.mutex.RUnlock()
 	var objects []Session
 	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}
@@ -98,7 +99,7 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	session, err := s.Get(id)
+	session, err := s.Get(context.Background(), id)
 	if err != nil {
 		return Session{}, err
 	}
@@ -108,8 +109,6 @@ func (s *SessionStore) GetByCookie(cookie string) (Session, error) {
 	return session, nil
 }
 
-var _ baseStoreImpl[Session] = (*SessionStore)(nil)
-
 // NewSessionStore creates a new instance of SessionStore.
 func NewSessionStore(
 	db *gosql.DB, table, eventTable string,
@@ -117,7 +116,7 @@ func NewSessionStore(
 	impl := &SessionStore{
 		byAccount: newIndex(func(o Session) int64 { return o.AccountID }),
 	}
-	impl.baseStore = makeBaseStore[Session, SessionEvent](
+	impl.cachedStore = makeCachedStore[Session, SessionEvent](
 		db, table, eventTable, impl, impl.byAccount,
 	)
 	return impl

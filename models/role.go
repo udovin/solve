@@ -183,16 +183,15 @@ const (
 	// ObserveFileContentRole represents role for observing file content.
 	ObserveFileContentRole = "observe_file_content"
 	//
-	ObserveScopesRole            = "observe_scopes"
-	ObserveScopeRole             = "observe_scope"
-	CreateScopeRole              = "create_scope"
-	UpdateScopeRole              = "update_scope"
-	DeleteScopeRole              = "delete_scope"
-	ObserveScopeUserRole         = "observe_scope_user"
-	ObserveScopeUserPasswordRole = "observe_scope_user_password"
-	CreateScopeUserRole          = "create_scope_user"
-	UpdateScopeUserRole          = "update_scope_user"
-	DeleteScopeUserRole          = "delete_scope_user"
+	ObserveScopesRole    = "observe_scopes"
+	ObserveScopeRole     = "observe_scope"
+	CreateScopeRole      = "create_scope"
+	UpdateScopeRole      = "update_scope"
+	DeleteScopeRole      = "delete_scope"
+	ObserveScopeUserRole = "observe_scope_user"
+	CreateScopeUserRole  = "create_scope_user"
+	UpdateScopeUserRole  = "update_scope_user"
+	DeleteScopeUserRole  = "delete_scope_user"
 )
 
 var builtInRoles = map[string]struct{}{
@@ -273,7 +272,6 @@ var builtInRoles = map[string]struct{}{
 	UpdateScopeRole:                  {},
 	DeleteScopeRole:                  {},
 	ObserveScopeUserRole:             {},
-	ObserveScopeUserPasswordRole:     {},
 	CreateScopeUserRole:              {},
 	UpdateScopeUserRole:              {},
 	DeleteScopeUserRole:              {},
@@ -318,7 +316,7 @@ func (e *RoleEvent) SetObject(o Role) {
 
 // RoleStore represents a role store.
 type RoleStore struct {
-	baseStore[Role, RoleEvent, *Role, *RoleEvent]
+	cachedStore[Role, RoleEvent, *Role, *RoleEvent]
 	byName *index[string, Role, *Role]
 }
 
@@ -330,14 +328,12 @@ func (s *RoleStore) GetByName(name string) (Role, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byName.Get(name) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			return object.Clone(), nil
 		}
 	}
 	return Role{}, sql.ErrNoRows
 }
-
-var _ baseStoreImpl[Role] = (*RoleStore)(nil)
 
 // NewRoleStore creates a new instance of RoleStore.
 func NewRoleStore(
@@ -346,7 +342,7 @@ func NewRoleStore(
 	impl := &RoleStore{
 		byName: newIndex(func(o Role) string { return o.Name }),
 	}
-	impl.baseStore = makeBaseStore[Role, RoleEvent](
+	impl.cachedStore = makeCachedStore[Role, RoleEvent](
 		db, table, eventTable, impl, impl.byName,
 	)
 	return impl

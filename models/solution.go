@@ -179,7 +179,7 @@ func (e *SolutionEvent) SetObject(o Solution) {
 
 // SolutionStore represents store for solutions.
 type SolutionStore struct {
-	baseStore[Solution, SolutionEvent, *Solution, *SolutionEvent]
+	cachedStore[Solution, SolutionEvent, *Solution, *SolutionEvent]
 	byProblem *index[int64, Solution, *Solution]
 }
 
@@ -188,14 +188,12 @@ func (s *SolutionStore) FindByProblem(id int64) ([]Solution, error) {
 	defer s.mutex.RUnlock()
 	var objects []Solution
 	for id := range s.byProblem.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}
 	return objects, nil
 }
-
-var _ baseStoreImpl[Solution] = (*SolutionStore)(nil)
 
 // NewSolutionStore creates a new instance of SolutionStore.
 func NewSolutionStore(
@@ -204,7 +202,7 @@ func NewSolutionStore(
 	impl := &SolutionStore{
 		byProblem: newIndex(func(o Solution) int64 { return o.ProblemID }),
 	}
-	impl.baseStore = makeBaseStore[Solution, SolutionEvent](
+	impl.cachedStore = makeCachedStore[Solution, SolutionEvent](
 		db, table, eventTable, impl, impl.byProblem,
 	)
 	return impl

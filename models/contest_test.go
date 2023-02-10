@@ -34,7 +34,7 @@ func (t *contestStoreTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *contestStoreTest) newStore() Store {
+func (t *contestStoreTest) newStore() CachedStore {
 	return NewContestStore(testDB, "contest", "contest_event")
 }
 
@@ -43,7 +43,7 @@ func (t *contestStoreTest) newObject() object {
 }
 
 func (t *contestStoreTest) createObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	contest := o.(Contest)
 	err := s.(*ContestStore).Create(wrapContext(tx), &contest)
@@ -51,13 +51,13 @@ func (t *contestStoreTest) createObject(
 }
 
 func (t *contestStoreTest) updateObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	return o, s.(*ContestStore).Update(wrapContext(tx), o.(Contest))
 }
 
 func (t *contestStoreTest) deleteObject(
-	s Store, tx *sql.Tx, id int64,
+	s CachedStore, tx *sql.Tx, id int64,
 ) error {
 	return s.(*ContestStore).Delete(wrapContext(tx), id)
 }
@@ -65,7 +65,7 @@ func (t *contestStoreTest) deleteObject(
 func TestContestStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := StoreTester{&contestStoreTest{}}
+	tester := CachedStoreTester{&contestStoreTest{}}
 	tester.Test(t)
 }
 

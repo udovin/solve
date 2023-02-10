@@ -2,197 +2,192 @@
   {
     "roles": [
       {
-        "id": 87,
+        "id": 86,
         "name": "admin_group"
       },
       {
-        "id": 86,
+        "id": 85,
         "name": "scope_user_group"
       },
       {
-        "id": 85,
+        "id": 84,
         "name": "blocked_user_group"
       },
       {
-        "id": 84,
+        "id": 83,
         "name": "active_user_group"
       },
       {
-        "id": 83,
+        "id": 82,
         "name": "pending_user_group"
       },
       {
-        "id": 82,
+        "id": 81,
         "name": "guest_group"
       },
       {
-        "id": 81,
+        "id": 80,
         "name": "update_user_password",
         "built_in": true
       },
       {
-        "id": 80,
+        "id": 79,
         "name": "update_user_middle_name",
         "built_in": true
       },
       {
-        "id": 79,
+        "id": 78,
         "name": "update_user_last_name",
         "built_in": true
       },
       {
-        "id": 78,
+        "id": 77,
         "name": "update_user_first_name",
         "built_in": true
       },
       {
-        "id": 77,
+        "id": 76,
         "name": "update_user_email",
         "built_in": true
       },
       {
-        "id": 76,
+        "id": 75,
         "name": "update_user",
         "built_in": true
       },
       {
-        "id": 75,
+        "id": 74,
         "name": "update_setting",
         "built_in": true
       },
       {
-        "id": 74,
+        "id": 73,
         "name": "update_scope_user",
         "built_in": true
       },
       {
-        "id": 73,
+        "id": 72,
         "name": "update_scope",
         "built_in": true
       },
       {
-        "id": 72,
+        "id": 71,
         "name": "update_problem",
         "built_in": true
       },
       {
-        "id": 71,
+        "id": 70,
         "name": "update_contest_solution",
         "built_in": true
       },
       {
-        "id": 70,
+        "id": 69,
         "name": "update_contest_problem",
         "built_in": true
       },
       {
-        "id": 69,
+        "id": 68,
         "name": "update_contest",
         "built_in": true
       },
       {
-        "id": 68,
+        "id": 67,
         "name": "update_compiler",
         "built_in": true
       },
       {
-        "id": 67,
+        "id": 66,
         "name": "submit_contest_solution",
         "built_in": true
       },
       {
-        "id": 66,
+        "id": 65,
         "name": "status",
         "built_in": true
       },
       {
-        "id": 65,
+        "id": 64,
         "name": "register_contests",
         "built_in": true
       },
       {
-        "id": 64,
+        "id": 63,
         "name": "register_contest",
         "built_in": true
       },
       {
-        "id": 63,
+        "id": 62,
         "name": "register",
         "built_in": true
       },
       {
-        "id": 62,
+        "id": 61,
         "name": "observe_user_sessions",
         "built_in": true
       },
       {
-        "id": 61,
+        "id": 60,
         "name": "observe_user_roles",
         "built_in": true
       },
       {
-        "id": 60,
+        "id": 59,
         "name": "observe_user_middle_name",
         "built_in": true
       },
       {
-        "id": 59,
+        "id": 58,
         "name": "observe_user_last_name",
         "built_in": true
       },
       {
-        "id": 58,
+        "id": 57,
         "name": "observe_user_first_name",
         "built_in": true
       },
       {
-        "id": 57,
+        "id": 56,
         "name": "observe_user_email",
         "built_in": true
       },
       {
-        "id": 56,
+        "id": 55,
         "name": "observe_user",
         "built_in": true
       },
       {
-        "id": 55,
+        "id": 54,
         "name": "observe_solutions",
         "built_in": true
       },
       {
-        "id": 54,
+        "id": 53,
         "name": "observe_solution_report_test_number",
         "built_in": true
       },
       {
-        "id": 53,
+        "id": 52,
         "name": "observe_solution_report_checker_logs",
         "built_in": true
       },
       {
-        "id": 52,
+        "id": 51,
         "name": "observe_solution",
         "built_in": true
       },
       {
-        "id": 51,
+        "id": 50,
         "name": "observe_settings",
         "built_in": true
       },
       {
-        "id": 50,
+        "id": 49,
         "name": "observe_session",
         "built_in": true
       },
       {
-        "id": 49,
-        "name": "observe_scopes",
-        "built_in": true
-      },
-      {
         "id": 48,
-        "name": "observe_scope_user_password",
+        "name": "observe_scopes",
         "built_in": true
       },
       {

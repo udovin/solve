@@ -65,7 +65,7 @@ func (e *ContestProblemEvent) SetObject(o ContestProblem) {
 
 // ContestProblemStore represents a problem store.
 type ContestProblemStore struct {
-	baseStore[ContestProblem, ContestProblemEvent, *ContestProblem, *ContestProblemEvent]
+	cachedStore[ContestProblem, ContestProblemEvent, *ContestProblem, *ContestProblemEvent]
 	byContest *index[int64, ContestProblem, *ContestProblem]
 }
 
@@ -75,14 +75,12 @@ func (s *ContestProblemStore) FindByContest(id int64) ([]ContestProblem, error) 
 	defer s.mutex.RUnlock()
 	var objects []ContestProblem
 	for id := range s.byContest.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}
 	return objects, nil
 }
-
-var _ baseStoreImpl[ContestProblem] = (*ContestProblemStore)(nil)
 
 // NewContestProblemStore creates a new instance of ContestProblemStore.
 func NewContestProblemStore(
@@ -91,7 +89,7 @@ func NewContestProblemStore(
 	impl := &ContestProblemStore{
 		byContest: newIndex(func(o ContestProblem) int64 { return o.ContestID }),
 	}
-	impl.baseStore = makeBaseStore[ContestProblem, ContestProblemEvent](
+	impl.cachedStore = makeCachedStore[ContestProblem, ContestProblemEvent](
 		db, table, eventTable, impl, impl.byContest,
 	)
 	return impl

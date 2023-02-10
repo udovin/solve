@@ -36,7 +36,7 @@ func (e *AccountRoleEvent) SetObject(o AccountRole) {
 
 // AccountRoleStore represents store for account roles.
 type AccountRoleStore struct {
-	baseStore[AccountRole, AccountRoleEvent, *AccountRole, *AccountRoleEvent]
+	cachedStore[AccountRole, AccountRoleEvent, *AccountRole, *AccountRoleEvent]
 	byAccount *index[int64, AccountRole, *AccountRole]
 }
 
@@ -46,14 +46,12 @@ func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
 	defer s.mutex.RUnlock()
 	var objects []AccountRole
 	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}
 	return objects, nil
 }
-
-var _ baseStoreImpl[AccountRole] = (*AccountRoleStore)(nil)
 
 // NewAccountRoleStore creates a new instance of AccountRoleStore.
 func NewAccountRoleStore(
@@ -62,7 +60,7 @@ func NewAccountRoleStore(
 	impl := &AccountRoleStore{
 		byAccount: newIndex(func(o AccountRole) int64 { return o.AccountID }),
 	}
-	impl.baseStore = makeBaseStore[AccountRole, AccountRoleEvent](
+	impl.cachedStore = makeCachedStore[AccountRole, AccountRoleEvent](
 		db, table, eventTable, impl, impl.byAccount,
 	)
 	return impl

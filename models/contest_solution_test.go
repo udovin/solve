@@ -33,7 +33,7 @@ func (t *contestSolutionStoreTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *contestSolutionStoreTest) newStore() Store {
+func (t *contestSolutionStoreTest) newStore() CachedStore {
 	return NewContestSolutionStore(
 		testDB, "contest_solution", "contest_solution_event",
 	)
@@ -44,7 +44,7 @@ func (t *contestSolutionStoreTest) newObject() object {
 }
 
 func (t *contestSolutionStoreTest) createObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	solution := o.(ContestSolution)
 	err := s.(*ContestSolutionStore).Create(wrapContext(tx), &solution)
@@ -52,13 +52,13 @@ func (t *contestSolutionStoreTest) createObject(
 }
 
 func (t *contestSolutionStoreTest) updateObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	return o, s.(*ContestSolutionStore).Update(wrapContext(tx), o.(ContestSolution))
 }
 
 func (t *contestSolutionStoreTest) deleteObject(
-	s Store, tx *sql.Tx, id int64,
+	s CachedStore, tx *sql.Tx, id int64,
 ) error {
 	return s.(*ContestSolutionStore).Delete(wrapContext(tx), id)
 }
@@ -66,6 +66,6 @@ func (t *contestSolutionStoreTest) deleteObject(
 func TestContestSolutionStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := StoreTester{&contestSolutionStoreTest{}}
+	tester := CachedStoreTester{&contestSolutionStoreTest{}}
 	tester.Test(t)
 }

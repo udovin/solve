@@ -104,7 +104,7 @@ func (e *ContestParticipantEvent) SetObject(o ContestParticipant) {
 
 // ContestParticipantStore represents a participant store.
 type ContestParticipantStore struct {
-	baseStore[ContestParticipant, ContestParticipantEvent, *ContestParticipant, *ContestParticipantEvent]
+	cachedStore[ContestParticipant, ContestParticipantEvent, *ContestParticipant, *ContestParticipantEvent]
 	byContest        *index[int64, ContestParticipant, *ContestParticipant]
 	byContestAccount *index[pair[int64, int64], ContestParticipant, *ContestParticipant]
 }
@@ -116,7 +116,7 @@ func (s *ContestParticipantStore) FindByContest(
 	defer s.mutex.RUnlock()
 	var objects []ContestParticipant
 	for id := range s.byContest.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}
@@ -131,14 +131,12 @@ func (s *ContestParticipantStore) FindByContestAccount(
 	defer s.mutex.RUnlock()
 	var objects []ContestParticipant
 	for id := range s.byContestAccount.Get(makePair(contestID, accountID)) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}
 	return objects, nil
 }
-
-var _ baseStoreImpl[ContestParticipant] = (*ContestParticipantStore)(nil)
 
 // NewContestParticipantStore creates a new instance of
 // ContestParticipantStore.
@@ -151,7 +149,7 @@ func NewContestParticipantStore(
 			return makePair(o.ContestID, o.AccountID)
 		}),
 	}
-	impl.baseStore = makeBaseStore[ContestParticipant, ContestParticipantEvent](
+	impl.cachedStore = makeCachedStore[ContestParticipant, ContestParticipantEvent](
 		db, table, eventTable, impl, impl.byContest, impl.byContestAccount,
 	)
 	return impl

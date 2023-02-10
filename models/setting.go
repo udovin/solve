@@ -36,7 +36,7 @@ func (e *SettingEvent) SetObject(o Setting) {
 
 // SettingStore represents store for settings.
 type SettingStore struct {
-	baseStore[Setting, SettingEvent, *Setting, *SettingEvent]
+	cachedStore[Setting, SettingEvent, *Setting, *SettingEvent]
 	byKey *index[string, Setting, *Setting]
 }
 
@@ -45,21 +45,19 @@ func (s *SettingStore) GetByKey(key string) (Setting, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for id := range s.byKey.Get(key) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			return object.Clone(), nil
 		}
 	}
 	return Setting{}, sql.ErrNoRows
 }
 
-var _ baseStoreImpl[Setting] = (*SettingStore)(nil)
-
 // NewSettingStore creates a new instance of SettingStore.
 func NewSettingStore(db *gosql.DB, table, eventTable string) *SettingStore {
 	impl := &SettingStore{
 		byKey: newIndex(func(o Setting) string { return o.Key }),
 	}
-	impl.baseStore = makeBaseStore[Setting, SettingEvent](
+	impl.cachedStore = makeCachedStore[Setting, SettingEvent](
 		db, table, eventTable, impl, impl.byKey,
 	)
 	return impl

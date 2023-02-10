@@ -29,7 +29,7 @@ func (t *roleEdgeStoreTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *roleEdgeStoreTest) newStore() Store {
+func (t *roleEdgeStoreTest) newStore() CachedStore {
 	return NewRoleEdgeStore(testDB, "role_edge", "role_edge_event")
 }
 
@@ -38,7 +38,7 @@ func (t *roleEdgeStoreTest) newObject() object {
 }
 
 func (t *roleEdgeStoreTest) createObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	object := o.(RoleEdge)
 	err := s.(*RoleEdgeStore).Create(wrapContext(tx), &object)
@@ -46,13 +46,13 @@ func (t *roleEdgeStoreTest) createObject(
 }
 
 func (t *roleEdgeStoreTest) updateObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	return o, s.(*RoleEdgeStore).Update(wrapContext(tx), o.(RoleEdge))
 }
 
 func (t *roleEdgeStoreTest) deleteObject(
-	s Store, tx *sql.Tx, id int64,
+	s CachedStore, tx *sql.Tx, id int64,
 ) error {
 	return s.(*RoleEdgeStore).Delete(wrapContext(tx), id)
 }
@@ -60,6 +60,6 @@ func (t *roleEdgeStoreTest) deleteObject(
 func TestRoleEdgeStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := StoreTester{&roleEdgeStoreTest{}}
+	tester := CachedStoreTester{&roleEdgeStoreTest{}}
 	tester.Test(t)
 }

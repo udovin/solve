@@ -395,7 +395,7 @@ func (v *View) sessionAuth(c echo.Context) (bool, error) {
 	if err := syncStore(c, v.core.Accounts); err != nil {
 		return false, err
 	}
-	account, err := v.core.Accounts.Get(session.AccountID)
+	account, err := v.core.Accounts.Get(getContext(c), session.AccountID)
 	if err != nil {
 		return false, err
 	}
@@ -446,7 +446,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 	if err := syncStore(c, v.core.Accounts); err != nil {
 		return false, err
 	}
-	account, err := v.core.Accounts.Get(user.AccountID)
+	account, err := v.core.Accounts.Get(getContext(c), user.AccountID)
 	if err != nil {
 		return false, err
 	}
@@ -504,7 +504,7 @@ func (v *View) scopeUserAuth(c echo.Context) (bool, error) {
 	if err := syncStore(c, v.core.Accounts); err != nil {
 		return false, err
 	}
-	account, err := v.core.Accounts.Get(user.AccountID)
+	account, err := v.core.Accounts.Get(getContext(c), user.AccountID)
 	if err != nil {
 		return false, err
 	}
@@ -719,9 +719,13 @@ func getNow(c echo.Context) time.Time {
 	return t
 }
 
-func syncStore(c echo.Context, s models.Store) error {
+func syncStore(c echo.Context, s any) error {
+	store, ok := s.(models.CachedStore)
+	if !ok {
+		return nil
+	}
 	if sync, ok := c.Get(syncKey).(bool); ok && sync {
-		return s.Sync(c.Request().Context())
+		return store.Sync(c.Request().Context())
 	}
 	return nil
 }

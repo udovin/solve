@@ -190,6 +190,7 @@ func makeContestStage(stage managers.ContestStage) string {
 }
 
 func makeContest(
+	c echo.Context,
 	contest models.Contest,
 	permissions managers.Permissions,
 	core *core.Core,
@@ -212,7 +213,7 @@ func makeContest(
 		}
 		participant := contextCtx.GetEffectiveParticipant()
 		if participant != nil {
-			participantResp := makeContestParticipant(*participant, core)
+			participantResp := makeContestParticipant(c, *participant, core)
 			participantResp.ContestID = 0
 			participantResp.User = nil
 			state.Participant = getPtr(participantResp)
@@ -230,7 +231,7 @@ func (v *View) makeContestProblem(
 		Code:      contestProblem.Code,
 	}
 	if problem, err := v.core.Problems.Get(
-		contestProblem.ProblemID,
+		getContext(c), contestProblem.ProblemID,
 	); err == nil {
 		resp.Problem = v.makeProblem(
 			c, problem, managers.PermissionSet{}, withStatement,
@@ -287,7 +288,7 @@ func (v *View) observeContests(c echo.Context) error {
 		if contestCtx.HasPermission(models.ObserveContestRole) {
 			resp.Contests = append(
 				resp.Contests,
-				makeContest(contest, contestCtx, v.core),
+				makeContest(c, contest, contestCtx, v.core),
 			)
 		}
 	}
@@ -301,7 +302,10 @@ func (v *View) observeContest(c echo.Context) error {
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
-	return c.JSON(http.StatusOK, makeContest(contest, contestCtx, v.core))
+	return c.JSON(
+		http.StatusOK,
+		makeContest(c, contest, contestCtx, v.core),
+	)
 }
 
 type updateContestForm struct {
@@ -403,7 +407,10 @@ func (v *View) createContest(c echo.Context) error {
 	if err := v.core.Contests.Create(getContext(c), &contest); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeContest(contest, accountCtx, nil))
+	return c.JSON(
+		http.StatusCreated,
+		makeContest(c, contest, accountCtx, nil),
+	)
 }
 
 func (v *View) updateContest(c echo.Context) error {
@@ -423,7 +430,10 @@ func (v *View) updateContest(c echo.Context) error {
 	if err := v.core.Contests.Update(getContext(c), contest); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, makeContest(contest, contestCtx, v.core))
+	return c.JSON(
+		http.StatusOK,
+		makeContest(c, contest, contestCtx, v.core),
+	)
 }
 
 func (v *View) deleteContest(c echo.Context) error {
@@ -435,7 +445,10 @@ func (v *View) deleteContest(c echo.Context) error {
 	if err := v.core.Contests.Delete(getContext(c), contest.ID); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, makeContest(contest, contestCtx, nil))
+	return c.JSON(
+		http.StatusOK,
+		makeContest(c, contest, contestCtx, nil),
+	)
 }
 
 func getSolvedProblems(ctx *managers.ContestContext, c *core.Core) map[int64]struct{} {
@@ -449,7 +462,7 @@ func getSolvedProblems(ctx *managers.ContestContext, c *core.Core) map[int64]str
 			continue
 		}
 		for _, contestSolution := range solutions {
-			solution, err := c.Solutions.Get(contestSolution.SolutionID)
+			solution, err := c.Solutions.Get(ctx, contestSolution.SolutionID)
 			if err != nil {
 				continue
 			}
@@ -532,7 +545,7 @@ func (f updateContestProblemForm) Update(
 		}
 	}
 	if f.ProblemID != nil {
-		if _, err := problems.Get(*f.ProblemID); err != nil {
+		if _, err := problems.Get(getContext(c), *f.ProblemID); err != nil {
 			return &errorResponse{
 				Code: http.StatusNotFound,
 				Message: localize(
@@ -700,7 +713,7 @@ func (v *View) observeContestParticipants(c echo.Context) error {
 	for _, participant := range participants {
 		resp.Participants = append(
 			resp.Participants,
-			makeContestParticipant(participant, v.core),
+			makeContestParticipant(c, participant, v.core),
 		)
 	}
 	return c.JSON(http.StatusOK, resp)
@@ -717,7 +730,7 @@ func (f createContestParticipantForm) Update(
 	c echo.Context, participant *models.ContestParticipant, core *core.Core,
 ) *errorResponse {
 	if f.UserID != nil {
-		user, err := core.Users.Get(*f.UserID)
+		user, err := core.Users.Get(getContext(c), *f.UserID)
 		if err != nil {
 			return &errorResponse{
 				Code: http.StatusBadRequest,
@@ -741,7 +754,7 @@ func (f createContestParticipantForm) Update(
 		}
 		participant.AccountID = user.AccountID
 	} else if f.ScopeUserID != nil {
-		user, err := core.ScopeUsers.Get(*f.ScopeUserID)
+		user, err := core.ScopeUsers.Get(getContext(c), *f.ScopeUserID)
 		if err != nil {
 			return &errorResponse{
 				Code: http.StatusBadRequest,
@@ -808,7 +821,7 @@ func (v *View) createContestParticipant(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusCreated,
-		makeContestParticipant(participant, v.core),
+		makeContestParticipant(c, participant, v.core),
 	)
 }
 
@@ -824,7 +837,7 @@ func (v *View) deleteContestParticipant(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusOK,
-		makeContestParticipant(participant, v.core),
+		makeContestParticipant(c, participant, v.core),
 	)
 }
 
@@ -861,7 +874,7 @@ func (v *View) registerContest(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusCreated,
-		makeContestParticipant(participant, v.core),
+		makeContestParticipant(c, participant, v.core),
 	)
 }
 
@@ -1041,7 +1054,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 			Message: localize(c, "File is too large."),
 		}
 	}
-	if _, err := v.core.Compilers.Get(form.CompilerID); err != nil {
+	if _, err := v.core.Compilers.Get(getContext(c), form.CompilerID); err != nil {
 		if err == sql.ErrNoRows {
 			return errorResponse{
 				Code:    http.StatusBadRequest,
@@ -1103,7 +1116,7 @@ func (v *View) makeContestSolution(
 		ContestID: solution.ContestID,
 	}
 	if baseSolution, err := v.core.Solutions.Get(
-		solution.SolutionID,
+		getContext(c), solution.SolutionID,
 	); err == nil {
 		resp.CreateTime = baseSolution.CreateTime
 		if withLogs {
@@ -1111,28 +1124,29 @@ func (v *View) makeContestSolution(
 		}
 		resp.Report = v.makeSolutionReport(c, baseSolution, withLogs)
 		if compiler, err := v.core.Compilers.Get(
-			baseSolution.CompilerID,
+			getContext(c), baseSolution.CompilerID,
 		); err == nil {
 			compilerResp := makeCompiler(compiler)
 			resp.Compiler = &compilerResp
 		}
 	}
 	if problem, err := v.core.ContestProblems.Get(
-		solution.ProblemID,
+		getContext(c), solution.ProblemID,
 	); err == nil {
 		problemResp := v.makeContestProblem(c, problem, false)
 		resp.Problem = &problemResp
 	}
 	if participant, err := v.core.ContestParticipants.Get(
-		solution.ParticipantID,
+		getContext(c), solution.ParticipantID,
 	); err == nil {
-		participantResp := makeContestParticipant(participant, v.core)
+		participantResp := makeContestParticipant(c, participant, v.core)
 		resp.Participant = &participantResp
 	}
 	return resp
 }
 
 func makeContestParticipant(
+	c echo.Context,
 	participant models.ContestParticipant,
 	core *core.Core,
 ) ContestParticipant {
@@ -1141,7 +1155,9 @@ func makeContestParticipant(
 		ContestID: participant.ContestID,
 		Kind:      participant.Kind,
 	}
-	if account, err := core.Accounts.Get(participant.AccountID); err == nil {
+	if account, err := core.Accounts.Get(
+		getContext(c), participant.AccountID,
+	); err == nil {
 		switch account.Kind {
 		case models.UserAccount:
 			if user, err := core.Users.GetByAccount(account.ID); err == nil {
@@ -1176,7 +1192,7 @@ func (v *View) extractContest(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.Contests); err != nil {
 			return err
 		}
-		contest, err := v.core.Contests.Get(id)
+		contest, err := v.core.Contests.Get(getContext(c), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{
@@ -1237,7 +1253,7 @@ func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 				),
 			}
 		}
-		problem, err := v.core.Problems.Get(problems[pos].ProblemID)
+		problem, err := v.core.Problems.Get(getContext(c), problems[pos].ProblemID)
 		if err != nil {
 			return err
 		}
@@ -1262,7 +1278,7 @@ func (v *View) extractContestParticipant(
 		if err := syncStore(c, v.core.ContestParticipants); err != nil {
 			return err
 		}
-		participant, err := v.core.ContestParticipants.Get(id)
+		participant, err := v.core.ContestParticipants.Get(getContext(c), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{
@@ -1303,7 +1319,7 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.ContestSolutions); err != nil {
 			return err
 		}
-		solution, err := v.core.ContestSolutions.Get(id)
+		solution, err := v.core.ContestSolutions.Get(getContext(c), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return errorResponse{

@@ -36,14 +36,11 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 	if err := t.invoker.core.Problems.Sync(ctx); err != nil {
 		return fmt.Errorf("unable to sync problems: %w", err)
 	}
-	problem, err := t.invoker.core.Problems.Get(t.config.ProblemID)
+	problem, err := t.invoker.core.Problems.Get(ctx, t.config.ProblemID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch problem: %w", err)
 	}
-	if err := t.invoker.core.Files.Sync(ctx); err != nil {
-		return fmt.Errorf("unable to sync files: %w", err)
-	}
-	file, err := t.invoker.core.Files.Get(t.config.FileID)
+	file, err := t.invoker.core.Files.Get(models.WithSync(ctx), t.config.FileID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch problem: %w", err)
 	}
@@ -211,7 +208,7 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 				event.ProblemID = t.problem.ID
 			} else {
 				if event.FileID != 0 {
-					prevFile, err := t.invoker.core.Files.Get(int64(event.FileID))
+					prevFile, err := t.invoker.core.Files.Get(ctx, int64(event.FileID))
 					if err != nil {
 						return err
 					}

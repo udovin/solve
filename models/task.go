@@ -164,7 +164,7 @@ func (e *TaskEvent) SetObject(o Task) {
 
 // TaskStore represents store for tasks.
 type TaskStore struct {
-	baseStore[Task, TaskEvent, *Task, *TaskEvent]
+	cachedStore[Task, TaskEvent, *Task, *TaskEvent]
 	bySolution *index[int64, Task, *Task]
 }
 
@@ -174,7 +174,7 @@ func (s *TaskStore) FindBySolution(id int64) ([]Task, error) {
 	defer s.mutex.RUnlock()
 	var objects []Task
 	for id := range s.bySolution.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}
@@ -201,7 +201,10 @@ func (s *TaskStore) PopQueued(
 	if err := s.lockStore(tx); err != nil {
 		return Task{}, err
 	}
-	reader, err := s.Find(ctx, gosql.Column("status").Equal(QueuedTask))
+	reader, err := s.Find(ctx, db.FindQuery{
+		Where: gosql.Column("status").Equal(QueuedTask),
+		Limit: 10,
+	})
 	if err != nil {
 		return Task{}, err
 	}
@@ -227,8 +230,6 @@ func (s *TaskStore) PopQueued(
 	return Task{}, sql.ErrNoRows
 }
 
-var _ baseStoreImpl[Task] = (*TaskStore)(nil)
-
 // NewTaskStore creates a new instance of TaskStore.
 func NewTaskStore(
 	db *gosql.DB, table, eventTable string,
@@ -245,7 +246,7 @@ func NewTaskStore(
 			return 0
 		}),
 	}
-	impl.baseStore = makeBaseStore[Task, TaskEvent](
+	impl.cachedStore = makeCachedStore[Task, TaskEvent](
 		db, table, eventTable, impl, impl.bySolution,
 	)
 	return impl

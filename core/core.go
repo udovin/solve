@@ -24,7 +24,7 @@ type Core struct {
 	// Tasks contains task store.
 	Tasks *models.TaskStore
 	// Files contains file store.
-	Files *models.FileStore
+	Files models.FileStore
 	// Roles contains role store.
 	Roles *models.RoleStore
 	// RoleEdges contains role edge store.

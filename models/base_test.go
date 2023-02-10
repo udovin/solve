@@ -88,7 +88,7 @@ func (e *testObjectEvent) SetObject(o testObject) {
 }
 
 type testStore struct {
-	baseStore[testObject, testObjectEvent, *testObject, *testObjectEvent]
+	cachedStore[testObject, testObjectEvent, *testObject, *testObjectEvent]
 	table, eventTable string
 	objects           map[int64]testObject
 }
@@ -170,19 +170,19 @@ func newTestStore() *testStore {
 		table:      "test_object",
 		eventTable: "test_object_event",
 	}
-	impl.baseStore = makeBaseStore[testObject, testObjectEvent](
+	impl.cachedStore = makeCachedStore[testObject, testObjectEvent](
 		testDB, impl.table, impl.eventTable, impl,
 	)
 	return impl
 }
 
-func testInitStore(t testing.TB, m Store) {
+func testInitStore(t testing.TB, m CachedStore) {
 	if err := m.Init(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func testSyncStore(t testing.TB, s Store) {
+func testSyncStore(t testing.TB, s CachedStore) {
 	if err := s.Sync(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +231,7 @@ func deleteTestObject(
 	}
 }
 
-func TestMakeBaseStore(t *testing.T) {
+func TestMakeCachedStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 	master := newTestStore()
@@ -303,7 +303,7 @@ func TestBaseStore_lockStore(t *testing.T) {
 }
 
 func TestBaseStore_consumeEvent(t *testing.T) {
-	store := baseStore[testObject, testObjectEvent, *testObject, *testObjectEvent]{}
+	store := cachedStore[testObject, testObjectEvent, *testObject, *testObjectEvent]{}
 	if err := store.consumeEvent(testObjectEvent{
 		baseEvent: makeBaseEvent(-1),
 	}); err == nil {
@@ -318,7 +318,7 @@ func TestBaseStore_InitTx(t *testing.T) {
 		table:      "invalid_object",
 		eventTable: "invalid_object_event",
 	}
-	store.baseStore = makeBaseStore[testObject, testObjectEvent](
+	store.cachedStore = makeCachedStore[testObject, testObjectEvent](
 		testDB, store.table, store.eventTable, store,
 	)
 	if err := store.Init(context.Background()); err == nil {
@@ -407,7 +407,7 @@ func TestJSON_Scan(t *testing.T) {
 	if err := a.Scan([]byte("{")); err == nil {
 		t.Fatal("Expected error")
 	}
-	if err := a.Scan(baseStore[testObject, testObjectEvent, *testObject, *testObjectEvent]{}); err == nil {
+	if err := a.Scan(cachedStore[testObject, testObjectEvent, *testObject, *testObjectEvent]{}); err == nil {
 		t.Fatal("Expected error")
 	}
 }
@@ -457,13 +457,13 @@ type object interface {
 	ObjectID() int64
 }
 
-type StoreTestHelper interface {
+type CachedStoreTestHelper interface {
 	prepareDB(tx *sql.Tx) error
-	newStore() Store
+	newStore() CachedStore
 	newObject() object
-	createObject(s Store, tx *sql.Tx, o object) (object, error)
-	updateObject(s Store, tx *sql.Tx, o object) (object, error)
-	deleteObject(s Store, tx *sql.Tx, id int64) error
+	createObject(s CachedStore, tx *sql.Tx, o object) (object, error)
+	updateObject(s CachedStore, tx *sql.Tx, o object) (object, error)
+	deleteObject(s CachedStore, tx *sql.Tx, id int64) error
 }
 
 func withTestTx(fn func(*sql.Tx) error) (err error) {
@@ -481,11 +481,11 @@ func withTestTx(fn func(*sql.Tx) error) (err error) {
 	return fn(tx)
 }
 
-type StoreTester struct {
-	helper StoreTestHelper
+type CachedStoreTester struct {
+	helper CachedStoreTestHelper
 }
 
-func (s *StoreTester) Test(t testing.TB) {
+func (s *CachedStoreTester) Test(t testing.TB) {
 	s.prepareDB(t)
 	master := s.helper.newStore()
 	if err := master.Init(context.Background()); err != nil {
@@ -532,7 +532,7 @@ func (s *StoreTester) Test(t testing.TB) {
 	s.testFailedTx(t, master)
 }
 
-func (s *StoreTester) createObjects(t testing.TB, mgr Store) []object {
+func (s *CachedStoreTester) createObjects(t testing.TB, mgr CachedStore) []object {
 	var objects []object
 	for i := 0; i < 100; i++ {
 		object := s.helper.newObject()
@@ -553,7 +553,7 @@ func (s *StoreTester) createObjects(t testing.TB, mgr Store) []object {
 	return objects
 }
 
-func (s *StoreTester) testFailedTx(t testing.TB, mgr Store) {
+func (s *CachedStoreTester) testFailedTx(t testing.TB, mgr CachedStore) {
 	if err := withTestTx(func(tx *sql.Tx) error {
 		_ = tx.Rollback()
 		_, err := s.helper.createObject(mgr, tx, s.helper.newObject())
@@ -563,7 +563,7 @@ func (s *StoreTester) testFailedTx(t testing.TB, mgr Store) {
 	}
 }
 
-func (s *StoreTester) prepareDB(t testing.TB) {
+func (s *CachedStoreTester) prepareDB(t testing.TB) {
 	tx, err := testDB.Begin()
 	if err != nil {
 		t.Fatal("Error:", err)

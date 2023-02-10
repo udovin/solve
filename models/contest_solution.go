@@ -40,7 +40,7 @@ func (e *ContestSolutionEvent) SetObject(o ContestSolution) {
 
 // ContestSolutionStore represents a solution store.
 type ContestSolutionStore struct {
-	baseStore[ContestSolution, ContestSolutionEvent, *ContestSolution, *ContestSolutionEvent]
+	cachedStore[ContestSolution, ContestSolutionEvent, *ContestSolution, *ContestSolutionEvent]
 	byContest     *index[int64, ContestSolution, *ContestSolution]
 	byParticipant *index[int64, ContestSolution, *ContestSolution]
 }
@@ -53,7 +53,7 @@ func (s *ContestSolutionStore) FindByContest(
 	defer s.mutex.RUnlock()
 	var objects []ContestSolution
 	for id := range s.byContest.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}
@@ -68,14 +68,12 @@ func (s *ContestSolutionStore) FindByParticipant(
 	defer s.mutex.RUnlock()
 	var objects []ContestSolution
 	for id := range s.byParticipant.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}
 	return objects, nil
 }
-
-var _ baseStoreImpl[ContestSolution] = (*ContestSolutionStore)(nil)
 
 // NewContestSolutionStore creates a new instance of ContestSolutionStore.
 func NewContestSolutionStore(
@@ -85,7 +83,7 @@ func NewContestSolutionStore(
 		byContest:     newIndex(func(o ContestSolution) int64 { return o.ContestID }),
 		byParticipant: newIndex(func(o ContestSolution) int64 { return o.ParticipantID }),
 	}
-	impl.baseStore = makeBaseStore[ContestSolution, ContestSolutionEvent](
+	impl.cachedStore = makeCachedStore[ContestSolution, ContestSolutionEvent](
 		db, table, eventTable, impl, impl.byContest, impl.byParticipant,
 	)
 	return impl

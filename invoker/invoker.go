@@ -141,14 +141,14 @@ func (s *Invoker) runDaemonTick(ctx context.Context) bool {
 }
 
 func (s *Invoker) getSolution(ctx context.Context, id int64) (models.Solution, error) {
-	solution, err := s.core.Solutions.Get(id)
+	solution, err := s.core.Solutions.Get(ctx, id)
 	if err == sql.ErrNoRows {
 		if err := s.core.Solutions.Sync(ctx); err != nil {
 			return models.Solution{}, fmt.Errorf(
 				"unable to sync solutions: %w", err,
 			)
 		}
-		solution, err = s.core.Solutions.Get(id)
+		solution, err = s.core.Solutions.Get(ctx, id)
 	}
 	return solution, err
 }

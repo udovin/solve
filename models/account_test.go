@@ -30,7 +30,7 @@ func (t *accountStoreTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *accountStoreTest) newStore() Store {
+func (t *accountStoreTest) newStore() CachedStore {
 	return NewAccountStore(testDB, "account", "account_event")
 }
 
@@ -39,7 +39,7 @@ func (t *accountStoreTest) newObject() object {
 }
 
 func (t *accountStoreTest) createObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	account := o.(Account)
 	if err := s.(*AccountStore).Create(wrapContext(tx), &account); err != nil {
@@ -49,13 +49,13 @@ func (t *accountStoreTest) createObject(
 }
 
 func (t *accountStoreTest) updateObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	return o, s.(*AccountStore).Update(wrapContext(tx), o.(Account))
 }
 
 func (t *accountStoreTest) deleteObject(
-	s Store, tx *sql.Tx, id int64,
+	s CachedStore, tx *sql.Tx, id int64,
 ) error {
 	return s.(*AccountStore).Delete(wrapContext(tx), id)
 }
@@ -63,6 +63,6 @@ func (t *accountStoreTest) deleteObject(
 func TestAccountStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := StoreTester{&accountStoreTest{}}
+	tester := CachedStoreTester{&accountStoreTest{}}
 	tester.Test(t)
 }

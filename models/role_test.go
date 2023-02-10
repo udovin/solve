@@ -27,7 +27,7 @@ func (t *roleStoreTest) prepareDB(tx *sql.Tx) error {
 	return err
 }
 
-func (t *roleStoreTest) newStore() Store {
+func (t *roleStoreTest) newStore() CachedStore {
 	return NewRoleStore(testDB, "role", "role_event")
 }
 
@@ -36,7 +36,7 @@ func (t *roleStoreTest) newObject() object {
 }
 
 func (t *roleStoreTest) createObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	object := o.(Role)
 	err := s.(*RoleStore).Create(wrapContext(tx), &object)
@@ -44,13 +44,13 @@ func (t *roleStoreTest) createObject(
 }
 
 func (t *roleStoreTest) updateObject(
-	s Store, tx *sql.Tx, o object,
+	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	return o, s.(*RoleStore).Update(wrapContext(tx), o.(Role))
 }
 
 func (t *roleStoreTest) deleteObject(
-	s Store, tx *sql.Tx, id int64,
+	s CachedStore, tx *sql.Tx, id int64,
 ) error {
 	return s.(*RoleStore).Delete(wrapContext(tx), id)
 }
@@ -58,7 +58,7 @@ func (t *roleStoreTest) deleteObject(
 func TestRoleStore(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
-	tester := StoreTester{&roleStoreTest{}}
+	tester := CachedStoreTester{&roleStoreTest{}}
 	tester.Test(t)
 }
 

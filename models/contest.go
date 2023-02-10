@@ -63,17 +63,15 @@ func (e *ContestEvent) SetObject(o Contest) {
 
 // ContestStore represents store for contests.
 type ContestStore struct {
-	baseStore[Contest, ContestEvent, *Contest, *ContestEvent]
+	cachedStore[Contest, ContestEvent, *Contest, *ContestEvent]
 }
-
-var _ baseStoreImpl[Contest] = (*ContestStore)(nil)
 
 // NewContestStore creates a new instance of ContestStore.
 func NewContestStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestStore {
 	impl := &ContestStore{}
-	impl.baseStore = makeBaseStore[Contest, ContestEvent](
+	impl.cachedStore = makeCachedStore[Contest, ContestEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

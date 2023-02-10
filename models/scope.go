@@ -34,17 +34,15 @@ func (e *ScopeEvent) SetObject(o Scope) {
 
 // ScopeStore represents store for scopes.
 type ScopeStore struct {
-	baseStore[Scope, ScopeEvent, *Scope, *ScopeEvent]
+	cachedStore[Scope, ScopeEvent, *Scope, *ScopeEvent]
 }
-
-var _ baseStoreImpl[Scope] = (*ScopeStore)(nil)
 
 // NewScopeStore creates a new instance of ScopeStore.
 func NewScopeStore(
 	db *gosql.DB, table, eventTable string,
 ) *ScopeStore {
 	impl := &ScopeStore{}
-	impl.baseStore = makeBaseStore[Scope, ScopeEvent](
+	impl.cachedStore = makeCachedStore[Scope, ScopeEvent](
 		db, table, eventTable, impl,
 	)
 	return impl

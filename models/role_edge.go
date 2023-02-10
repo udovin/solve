@@ -36,7 +36,7 @@ func (e *RoleEdgeEvent) SetObject(o RoleEdge) {
 
 // RoleEdgeStore represents a role edge store.
 type RoleEdgeStore struct {
-	baseStore[RoleEdge, RoleEdgeEvent, *RoleEdge, *RoleEdgeEvent]
+	cachedStore[RoleEdge, RoleEdgeEvent, *RoleEdge, *RoleEdgeEvent]
 	byRole *index[int64, RoleEdge, *RoleEdge]
 }
 
@@ -46,14 +46,12 @@ func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
 	defer s.mutex.RUnlock()
 	var objects []RoleEdge
 	for id := range s.byRole.Get(id) {
-		if object, ok := s.objects[id]; ok {
+		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
 	}
 	return objects, nil
 }
-
-var _ baseStoreImpl[RoleEdge] = (*RoleEdgeStore)(nil)
 
 // NewRoleEdgeStore creates a new instance of RoleEdgeStore.
 func NewRoleEdgeStore(
@@ -62,7 +60,7 @@ func NewRoleEdgeStore(
 	impl := &RoleEdgeStore{
 		byRole: newIndex(func(o RoleEdge) int64 { return o.RoleID }),
 	}
-	impl.baseStore = makeBaseStore[RoleEdge, RoleEdgeEvent](
+	impl.cachedStore = makeCachedStore[RoleEdge, RoleEdgeEvent](
 		db, table, eventTable, impl, impl.byRole,
 	)
 	return impl

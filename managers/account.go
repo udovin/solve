@@ -80,7 +80,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 		}
 		roleIDs = append(roleIDs, role.ID)
 	}
-	permissions, err := m.getRecursivePermissions(roleIDs...)
+	permissions, err := m.getRecursivePermissions(ctx, roleIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (m *AccountManager) getScopeUserRole() (models.Role, error) {
 	return m.roles.GetByName(roleName)
 }
 
-func (m *AccountManager) getRecursivePermissions(roleIDs ...int64) (PermissionSet, error) {
+func (m *AccountManager) getRecursivePermissions(ctx context.Context, roleIDs ...int64) (PermissionSet, error) {
 	roles := map[int64]struct{}{}
 	for _, id := range roleIDs {
 		roles[id] = struct{}{}
@@ -130,7 +130,7 @@ func (m *AccountManager) getRecursivePermissions(roleIDs ...int64) (PermissionSe
 	for len(stack) > 0 {
 		roleID := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		role, err := m.roles.Get(roleID)
+		role, err := m.roles.Get(ctx, roleID)
 		if err != nil {
 			return nil, err
 		}

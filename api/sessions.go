@@ -83,7 +83,7 @@ func (v *View) extractSession(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := syncStore(c, v.core.Sessions); err != nil {
 			return err
 		}
-		session, err := v.core.Sessions.Get(id)
+		session, err := v.core.Sessions.Get(getContext(c), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				resp := errorResponse{

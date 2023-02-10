@@ -208,10 +208,22 @@ func (v *View) observeScopeUsers(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	var form observeScopeUserForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
 	resp := ScopeUsers{}
 	for _, user := range users {
 		if permissions.HasPermission(models.ObserveScopeUserRole) {
-			resp.Users = append(resp.Users, makeScopeUser(user))
+			resp_single := makeScopeUser(user)
+			if form.Password &&
+				permissions.HasPermission(models.ObserveScopeUserPasswordRole) {
+				if password, err := v.core.ScopeUsers.GetPassword(user); err == nil {
+					resp_single.Password = password
+				}
+			}
+			resp.Users = append(resp.Users, resp_single)
 		}
 	}
 	sortFunc(resp.Users, scopeUserLess)

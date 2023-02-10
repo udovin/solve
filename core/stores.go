@@ -46,7 +46,7 @@ func (c *Core) SetupAllStores() {
 		)
 		c.ScopeUsers = models.NewScopeUserStore(
 			c.DB, "solve_scope_user", "solve_scope_user_event",
-			c.Config.Security.PasswordKey,
+			c.Config.Security.PasswordSalt,
 		)
 	}
 	c.Contests = models.NewContestStore(

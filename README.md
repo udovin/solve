@@ -35,8 +35,7 @@ Then create config file `config.json` with following contents:
     }
   },
   "security": {
-    "password_salt": "qwerty123",
-    "password_key": "qwerty123"
+    "password_salt": "qwerty123"
   },
   "storage": {
     "driver": "local",

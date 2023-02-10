@@ -56,6 +56,11 @@ func (v *View) registerScopeHandlers(g *echo.Group) {
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractScope, v.extractScopeUser,
 		v.requirePermission(models.ObserveScopeUserRole),
 	)
+	g.PATCH(
+		"/v0/scopes/:scope/users/:user", v.updateScopeUser,
+		v.extractAuth(v.sessionAuth), v.extractScope, v.extractScopeUser,
+		v.requirePermission(models.UpdateScopeUserRole),
+	)
 	g.DELETE(
 		"/v0/scopes/:scope/users/:user", v.deleteScopeUser,
 		v.extractAuth(v.sessionAuth), v.extractScope, v.extractScopeUser,
@@ -218,41 +223,23 @@ func (v *View) observeScopeUsers(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-type observeScopeUserForm struct {
-	Password bool `query:"password"`
-}
-
 func (v *View) observeScopeUser(c echo.Context) error {
 	user, ok := c.Get(scopeUserKey).(models.ScopeUser)
 	if !ok {
 		return fmt.Errorf("user not extracted")
 	}
-	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
-	if !ok {
-		return fmt.Errorf("permissions not extracted")
-	}
-	var form observeScopeUserForm
-	if err := c.Bind(&form); err != nil {
-		c.Logger().Warn(err)
-		return c.NoContent(http.StatusBadRequest)
-	}
-	resp := makeScopeUser(user)
-	if form.Password &&
-		permissions.HasPermission(models.ObserveScopeUserPasswordRole) {
-		if password, err := v.core.ScopeUsers.GetPassword(user); err == nil {
-			resp.Password = password
-		}
-	}
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, makeScopeUser(user))
 }
 
 type updateScopeUserForm struct {
-	Login *string `json:"login"`
-	Title *string `json:"title"`
+	Login            *string `json:"login"`
+	Title            *string `json:"title"`
+	Password         *string `json:"password"`
+	GeneratePassword *bool   `json:"generate_password"`
 }
 
 func (f *updateScopeUserForm) Update(
-	c echo.Context, o *models.ScopeUser,
+	c echo.Context, o *models.ScopeUser, users *models.ScopeUserStore,
 ) error {
 	errors := errorFields{}
 	if f.Login != nil {
@@ -271,6 +258,25 @@ func (f *updateScopeUserForm) Update(
 		}
 		o.Title = models.NString(*f.Title)
 	}
+	if f.GeneratePassword != nil && *f.GeneratePassword {
+		password, err := generatePassword()
+		if err != nil {
+			return err
+		}
+		f.Password = &password
+	}
+	if f.Password != nil {
+		if len(*f.Password) != 0 {
+			validatePassword(c, errors, *f.Password)
+			if err := users.SetPassword(o, *f.Password); err != nil {
+				return err
+			}
+		} else {
+			// Reset password.
+			o.PasswordHash = ""
+			o.PasswordSalt = ""
+		}
+	}
 	if len(errors) > 0 {
 		return errorResponse{
 			Code:          http.StatusBadRequest,
@@ -284,7 +290,7 @@ func (f *updateScopeUserForm) Update(
 type createScopeUserForm updateScopeUserForm
 
 func (f *createScopeUserForm) Update(
-	c echo.Context, o *models.ScopeUser,
+	c echo.Context, o *models.ScopeUser, users *models.ScopeUserStore,
 ) error {
 	if f.Login == nil {
 		return errorResponse{
@@ -304,7 +310,10 @@ func (f *createScopeUserForm) Update(
 			},
 		}
 	}
-	return (*updateScopeUserForm)(f).Update(c, o)
+	if f.GeneratePassword == nil && f.Password == nil {
+		f.GeneratePassword = getPtr(true)
+	}
+	return (*updateScopeUserForm)(f).Update(c, o, users)
 }
 
 func (v *View) createScopeUser(c echo.Context) error {
@@ -318,17 +327,10 @@ func (v *View) createScopeUser(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 	var user models.ScopeUser
-	if err := form.Update(c, &user); err != nil {
+	if err := form.Update(c, &user, v.core.ScopeUsers); err != nil {
 		return err
 	}
 	user.ScopeID = scope.ID
-	password, err := generatePassword()
-	if err != nil {
-		return err
-	}
-	if err := v.core.ScopeUsers.SetPassword(&user, password); err != nil {
-		return err
-	}
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
 		account := models.Account{Kind: user.AccountKind()}
 		if err := v.core.Accounts.Create(ctx, &account); err != nil {
@@ -341,7 +343,32 @@ func (v *View) createScopeUser(c echo.Context) error {
 		return err
 	}
 	resp := makeScopeUser(user)
-	resp.Password = password
+	if form.Password != nil {
+		resp.Password = *form.Password
+	}
+	return c.JSON(http.StatusCreated, resp)
+}
+
+func (v *View) updateScopeUser(c echo.Context) error {
+	user, ok := c.Get(scopeUserKey).(models.ScopeUser)
+	if !ok {
+		return fmt.Errorf("user not extracted")
+	}
+	var form updateScopeUserForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if err := form.Update(c, &user, v.core.ScopeUsers); err != nil {
+		return err
+	}
+	if err := v.core.ScopeUsers.Update(getContext(c), user); err != nil {
+		return err
+	}
+	resp := makeScopeUser(user)
+	if form.Password != nil {
+		resp.Password = *form.Password
+	}
 	return c.JSON(http.StatusCreated, resp)
 }
 
@@ -437,7 +464,6 @@ func (v *View) getScopePermissions(
 			models.UpdateScopeRole,
 			models.DeleteScopeRole,
 			models.ObserveScopeUserRole,
-			models.ObserveScopeUserPasswordRole,
 			models.CreateScopeUserRole,
 			models.UpdateScopeUserRole,
 			models.DeleteScopeUserRole,
@@ -482,7 +508,7 @@ func makeScopeUser(user models.ScopeUser) ScopeUser {
 }
 
 func generatePassword() (string, error) {
-	bytes := make([]byte, 6)
+	bytes := make([]byte, 8)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
 	}

@@ -1,16 +1,11 @@
 package models
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
 	"database/sql"
-	"fmt"
-	"io"
 	"strings"
 
 	"github.com/udovin/gosql"
-	"golang.org/x/crypto/scrypt"
 )
 
 // ScopeUser contains common information about scope user.
@@ -19,7 +14,8 @@ type ScopeUser struct {
 	AccountID    int64   `db:"account_id"`
 	ScopeID      int64   `db:"scope_id"`
 	Login        string  `db:"login"`
-	PasswordText string  `db:"password_text"`
+	PasswordHash string  `db:"password_hash"`
+	PasswordSalt string  `db:"password_salt"`
 	Title        NString `db:"title"`
 }
 
@@ -55,7 +51,7 @@ type ScopeUserStore struct {
 	byAccount    *index[int64, ScopeUser, *ScopeUser]
 	byScope      *index[int64, ScopeUser, *ScopeUser]
 	byScopeLogin *index[pair[int64, string], ScopeUser, *ScopeUser]
-	key          []byte
+	salt         string
 }
 
 // FindByScope returns scope users by scope.
@@ -101,62 +97,33 @@ func (s *ScopeUserStore) GetByAccount(id int64) (ScopeUser, error) {
 // and PasswordHash will be calculated using password, salt
 // and global salt.
 func (s *ScopeUserStore) SetPassword(user *ScopeUser, password string) error {
-	block, err := aes.NewCipher(s.key[:])
+	saltBytes := make([]byte, 16)
+	_, err := rand.Read(saltBytes)
 	if err != nil {
 		return err
 	}
-	ciphertext := make([]byte, aes.BlockSize+len(password))
-	iv := ciphertext[:aes.BlockSize]
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return err
-	}
-	cfb := cipher.NewCFBEncrypter(block, iv)
-	cfb.XORKeyStream(ciphertext[aes.BlockSize:], []byte(password))
-	user.PasswordText = encodeBase64(ciphertext[:])
+	user.PasswordSalt = encodeBase64(saltBytes)
+	user.PasswordHash = hashPassword(password, user.PasswordSalt, s.salt)
 	return nil
 }
 
 // CheckPassword checks that passwords are the same.
-func (s *ScopeUserStore) GetPassword(user ScopeUser) (string, error) {
-	block, err := aes.NewCipher(s.key[:])
-	if err != nil {
-		return "", err
-	}
-	ciphertext, err := decodeBase64(user.PasswordText)
-	if err != nil {
-		return "", err
-	}
-	if len(ciphertext) < aes.BlockSize {
-		return "", fmt.Errorf("password_text too short")
-	}
-	iv := ciphertext[:aes.BlockSize]
-	ciphertext = ciphertext[aes.BlockSize:]
-	cfb := cipher.NewCFBDecrypter(block, iv)
-	cfb.XORKeyStream(ciphertext, ciphertext)
-	return string(ciphertext), nil
-}
-
-// CheckPassword checks that passwords are the same.
 func (s *ScopeUserStore) CheckPassword(user ScopeUser, password string) bool {
-	userPassword, err := s.GetPassword(user)
-	return err == nil && userPassword == password
+	passwordHash := hashPassword(password, user.PasswordSalt, s.salt)
+	return passwordHash == user.PasswordHash
 }
 
 // NewScopeUserStore creates new instance of scope user store.
 func NewScopeUserStore(
-	db *gosql.DB, table, eventTable, password string,
+	db *gosql.DB, table, eventTable, salt string,
 ) *ScopeUserStore {
-	key, err := scrypt.Key([]byte(password), nil, 32768, 8, 1, 32)
-	if err != nil {
-		panic(err)
-	}
 	impl := &ScopeUserStore{
 		byAccount: newIndex(func(o ScopeUser) int64 { return o.AccountID }),
 		byScope:   newIndex(func(o ScopeUser) int64 { return o.ScopeID }),
 		byScopeLogin: newIndex(func(o ScopeUser) pair[int64, string] {
 			return makePair(o.ScopeID, strings.ToLower(o.Login))
 		}),
-		key: key,
+		salt: salt,
 	}
 	impl.cachedStore = makeCachedStore[ScopeUser, ScopeUserEvent](
 		db, table, eventTable, impl, impl.byAccount, impl.byScope, impl.byScopeLogin,

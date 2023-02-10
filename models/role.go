@@ -183,16 +183,15 @@ const (
 	// ObserveFileContentRole represents role for observing file content.
 	ObserveFileContentRole = "observe_file_content"
 	//
-	ObserveScopesRole            = "observe_scopes"
-	ObserveScopeRole             = "observe_scope"
-	CreateScopeRole              = "create_scope"
-	UpdateScopeRole              = "update_scope"
-	DeleteScopeRole              = "delete_scope"
-	ObserveScopeUserRole         = "observe_scope_user"
-	ObserveScopeUserPasswordRole = "observe_scope_user_password"
-	CreateScopeUserRole          = "create_scope_user"
-	UpdateScopeUserRole          = "update_scope_user"
-	DeleteScopeUserRole          = "delete_scope_user"
+	ObserveScopesRole    = "observe_scopes"
+	ObserveScopeRole     = "observe_scope"
+	CreateScopeRole      = "create_scope"
+	UpdateScopeRole      = "update_scope"
+	DeleteScopeRole      = "delete_scope"
+	ObserveScopeUserRole = "observe_scope_user"
+	CreateScopeUserRole  = "create_scope_user"
+	UpdateScopeUserRole  = "update_scope_user"
+	DeleteScopeUserRole  = "delete_scope_user"
 )
 
 var builtInRoles = map[string]struct{}{
@@ -273,7 +272,6 @@ var builtInRoles = map[string]struct{}{
 	UpdateScopeRole:                  {},
 	DeleteScopeRole:                  {},
 	ObserveScopeUserRole:             {},
-	ObserveScopeUserPasswordRole:     {},
 	CreateScopeUserRole:              {},
 	UpdateScopeUserRole:              {},
 	DeleteScopeUserRole:              {},

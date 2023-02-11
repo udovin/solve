@@ -4,10 +4,25 @@ import (
 	"github.com/udovin/gosql"
 )
 
+type ContestMessageKind int
+
+const (
+	RegularContestMessage  ContestMessageKind = 0
+	QuestionContestMessage ContestMessageKind = 1
+	AnswerContestMessage   ContestMessageKind = 2
+)
+
 type ContestMessage struct {
 	baseObject
-	ContestID int64  `json:"contest_id"`
-	ParentID  NInt64 `json:"parent_id"`
+	ContestID     int64              `json:"contest_id"`
+	ParticipantID NInt64             `json:"participant_id"`
+	AuthorID      int64              `json:"author_id"`
+	Kind          ContestMessageKind `json:"kind"`
+	ParentID      NInt64             `json:"parent_id"`
+	Title         string             `json:"title"`
+	Description   string             `json:"description"`
+	CreateTime    int64              `json:"create_time"`
+	ProblemID     NInt64             `json:"problem_id"`
 }
 
 // Clone create copy of contest message.

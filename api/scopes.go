@@ -247,11 +247,12 @@ func (f *updateScopeUserForm) Update(
 		o.Login = *f.Login
 	}
 	if f.Title != nil {
-		if len(*f.Title) != 0 && len(*f.Title) < 4 {
+		title := []rune(*f.Title)
+		if len(title) != 0 && len(title) < 4 {
 			errors["title"] = errorField{
 				Message: localize(c, "Title is too short."),
 			}
-		} else if len(*f.Title) > 64 {
+		} else if len(title) > 64 {
 			errors["title"] = errorField{
 				Message: localize(c, "Title is too long."),
 			}

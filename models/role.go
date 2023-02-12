@@ -164,10 +164,30 @@ const (
 	// DeleteContestSolutionRole represents role for deleting
 	// contest solution.
 	DeleteContestSolutionRole = "delete_contest_solution"
-	//
+	// ObserveContestStandingsRole represents role for observing
+	// contest standings.
 	ObserveContestStandingsRole = "observe_contest_standings"
-	//
+	// ObserveContestFullStandingsRole represents role for observing
+	// full contest standings.
 	ObserveContestFullStandingsRole = "observe_contest_full_standings"
+	// ObserveContestMessagesRole represents role for observing
+	// contest messages.
+	ObserveContestMessagesRole = "observe_contest_messages"
+	// ObserveContestMessageRole represents role for observing
+	// contest message.
+	ObserveContestMessageRole = "observe_contest_message"
+	// CreateContestMessageRole represents role for creating
+	// contest message.
+	CreateContestMessageRole = "create_contest_message"
+	// UpdateContestMessageRole represents role for updating
+	// contest message.
+	UpdateContestMessageRole = "update_contest_message"
+	// DeleteContestMessageRole represents role for deleting
+	// contest message.
+	DeleteContestMessageRole = "delete_contest_message"
+	// SubmitContestQuestionRole represents role for submitting
+	// contest question.
+	SubmitContestQuestionRole = "submit_contest_question"
 	// CreateContestRole represents role for creating contest.
 	CreateContestRole = "create_contest"
 	// UpdateContestRole represents role for updating contest.
@@ -182,16 +202,24 @@ const (
 	DeregisterContestRole = "deregister_contest"
 	// ObserveFileContentRole represents role for observing file content.
 	ObserveFileContentRole = "observe_file_content"
-	//
-	ObserveScopesRole    = "observe_scopes"
-	ObserveScopeRole     = "observe_scope"
-	CreateScopeRole      = "create_scope"
-	UpdateScopeRole      = "update_scope"
-	DeleteScopeRole      = "delete_scope"
+	// ObserveScopesRole represents role for observing scopes.
+	ObserveScopesRole = "observe_scopes"
+	// ObserveScopeRole represents role for observing scope.
+	ObserveScopeRole = "observe_scope"
+	// CreateScopeRole represents role for creating scope.
+	CreateScopeRole = "create_scope"
+	// UpdateScopeRole represents role for updating scope.
+	UpdateScopeRole = "update_scope"
+	// DeleteScopeRole represents role for deleting scope.
+	DeleteScopeRole = "delete_scope"
+	// ObserveScopeUserRole represents role for observing scope user.
 	ObserveScopeUserRole = "observe_scope_user"
-	CreateScopeUserRole  = "create_scope_user"
-	UpdateScopeUserRole  = "update_scope_user"
-	DeleteScopeUserRole  = "delete_scope_user"
+	// CreateScopeUserRole represents role for creating scope user.
+	CreateScopeUserRole = "create_scope_user"
+	// UpdateScopeUserRole represents role for updating scope user.
+	UpdateScopeUserRole = "update_scope_user"
+	// DeleteScopeUserRole represents role for deleting scope user.
+	DeleteScopeUserRole = "delete_scope_user"
 )
 
 var builtInRoles = map[string]struct{}{
@@ -257,6 +285,12 @@ var builtInRoles = map[string]struct{}{
 	DeleteContestSolutionRole:        {},
 	ObserveContestStandingsRole:      {},
 	ObserveContestFullStandingsRole:  {},
+	ObserveContestMessagesRole:       {},
+	ObserveContestMessageRole:        {},
+	CreateContestMessageRole:         {},
+	UpdateContestMessageRole:         {},
+	DeleteContestMessageRole:         {},
+	SubmitContestQuestionRole:        {},
 	ObserveContestsRole:              {},
 	CreateContestRole:                {},
 	UpdateContestRole:                {},

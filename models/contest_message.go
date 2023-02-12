@@ -45,14 +45,18 @@ func (e *ContestMessageEvent) SetObject(o ContestMessage) {
 	e.ContestMessage = o
 }
 
-type ContestMessageStore struct {
+type ContestMessageStore interface {
+	Store[ContestMessage]
+}
+
+type cachedContestMessageStore struct {
 	cachedStore[ContestMessage, ContestMessageEvent, *ContestMessage, *ContestMessageEvent]
 }
 
-func NewContestMessageStore(
+func NewCachedContestMessageStore(
 	db *gosql.DB, table, eventTable string,
-) *ContestMessageStore {
-	impl := &ContestMessageStore{}
+) ContestMessageStore {
+	impl := &cachedContestMessageStore{}
 	impl.cachedStore = makeCachedStore[ContestMessage, ContestMessageEvent](
 		db, table, eventTable, impl,
 	)

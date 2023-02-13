@@ -18,7 +18,7 @@ func (v *View) registerContestMessageHandlers(g *echo.Group) {
 	)
 	g.POST(
 		"/v0/contests/:contest/question", v.submitContestQuestion,
-		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
+		v.extractAuth(v.sessionAuth), v.extractContest,
 		v.requirePermission(models.SubmitContestQuestionRole),
 	)
 }

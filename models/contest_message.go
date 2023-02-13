@@ -31,15 +31,15 @@ func (k ContestMessageKind) String() string {
 
 type ContestMessage struct {
 	baseObject
-	ContestID     int64              `json:"contest_id"`
-	ParticipantID NInt64             `json:"participant_id"`
-	AuthorID      int64              `json:"author_id"`
-	Kind          ContestMessageKind `json:"kind"`
-	ParentID      NInt64             `json:"parent_id"`
-	Title         string             `json:"title"`
-	Description   string             `json:"description"`
-	CreateTime    int64              `json:"create_time"`
-	ProblemID     NInt64             `json:"problem_id"`
+	ContestID     int64              `db:"contest_id"`
+	ParticipantID NInt64             `db:"participant_id"`
+	AuthorID      int64              `db:"author_id"`
+	Kind          ContestMessageKind `db:"kind"`
+	ParentID      NInt64             `db:"parent_id"`
+	Title         string             `db:"title"`
+	Description   string             `db:"description"`
+	CreateTime    int64              `db:"create_time"`
+	ProblemID     NInt64             `db:"problem_id"`
 }
 
 // Clone create copy of contest message.

@@ -23,6 +23,8 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		{"compiler_not_found", "Компилятор не найден."},
 		{"config_is_required", "Конфигурация является обязательной."},
 		{"contest_not_found", "Соревнование не найдено."},
+		{"description_is_too_long", "Описание слишком длинное."},
+		{"description_is_too_short", "Описание слишком короткое."},
 		{"duration_cannot_be_negative", "Продолжительность не может быть отрицательной."},
 		{"email_has_invalid_format", "E-mail не соотвествует формату."},
 		{"email_too_long", "E-mail слишком длинный."},

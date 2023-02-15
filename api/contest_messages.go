@@ -28,6 +28,9 @@ func (v *View) observeContestMessages(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("contest not extracted")
 	}
+	if err := syncStore(c, v.core.ContestMessages); err != nil {
+		return err
+	}
 	messages, err := v.core.ContestMessages.FindByContest(
 		getContext(c), contestCtx.Contest.ID,
 	)
@@ -49,6 +52,7 @@ func (v *View) observeContestMessages(c echo.Context) error {
 	if err := messages.Err(); err != nil {
 		return err
 	}
+	sortFunc(resp.Messages, contestMessageGreater)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -180,4 +184,8 @@ func (v *View) getContestMessagePermissions(
 		permissions.AddPermission(models.ObserveContestMessageRole)
 	}
 	return permissions
+}
+
+func contestMessageGreater(l, r ContestMessage) bool {
+	return l.ID > r.ID
 }

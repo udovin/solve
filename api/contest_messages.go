@@ -73,14 +73,18 @@ func (f *CreateContestMessageForm) Update(
 	messages models.ContestMessageStore,
 ) error {
 	errors := errorFields{}
-	if len(f.Title) < 4 {
-		errors["title"] = errorField{
-			Message: localize(c, "Title is too short."),
+	if f.ParentID == nil {
+		if len(f.Title) < 4 {
+			errors["title"] = errorField{
+				Message: localize(c, "Title is too short."),
+			}
+		} else if len(f.Title) > 64 {
+			errors["title"] = errorField{
+				Message: localize(c, "Title is too long."),
+			}
 		}
-	} else if len(f.Title) > 64 {
-		errors["title"] = errorField{
-			Message: localize(c, "Title is too long."),
-		}
+	} else {
+		f.Title = ""
 	}
 	if len(f.Description) < 4 {
 		errors["description"] = errorField{

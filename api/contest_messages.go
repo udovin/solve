@@ -23,7 +23,7 @@ func (v *View) registerContestMessageHandlers(g *echo.Group) {
 		v.requirePermission(models.CreateContestMessageRole),
 	)
 	g.POST(
-		"/v0/contests/:contest/question", v.submitContestQuestion,
+		"/v0/contests/:contest/submit-question", v.submitContestQuestion,
 		v.extractAuth(v.sessionAuth), v.extractContest,
 		v.requirePermission(models.SubmitContestQuestionRole),
 	)

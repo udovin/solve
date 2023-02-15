@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 
@@ -15,6 +16,11 @@ func (v *View) registerContestMessageHandlers(g *echo.Group) {
 		"/v0/contests/:contest/messages", v.observeContestMessages,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
 		v.requirePermission(models.ObserveContestMessagesRole),
+	)
+	g.POST(
+		"/v0/contests/:contest/messages", v.createContestMessage,
+		v.extractAuth(v.sessionAuth), v.extractContest,
+		v.requirePermission(models.CreateContestMessageRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/question", v.submitContestQuestion,
@@ -54,6 +60,93 @@ func (v *View) observeContestMessages(c echo.Context) error {
 	}
 	sortFunc(resp.Messages, contestMessageGreater)
 	return c.JSON(http.StatusOK, resp)
+}
+
+type CreateContestMessageForm struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	ParentID    *int64 `json:"parent_id"`
+}
+
+func (f *CreateContestMessageForm) Update(
+	c echo.Context, o *models.ContestMessage,
+	messages models.ContestMessageStore,
+) error {
+	errors := errorFields{}
+	if len(f.Title) < 4 {
+		errors["title"] = errorField{
+			Message: localize(c, "Title is too short."),
+		}
+	} else if len(f.Title) > 64 {
+		errors["title"] = errorField{
+			Message: localize(c, "Title is too long."),
+		}
+	}
+	if len(f.Description) < 4 {
+		errors["description"] = errorField{
+			Message: localize(c, "Description is too short."),
+		}
+	} else if len(f.Description) > 1024 {
+		errors["description"] = errorField{
+			Message: localize(c, "Description is too long."),
+		}
+	}
+	if len(errors) > 0 {
+		return errorResponse{
+			Code:          http.StatusBadRequest,
+			Message:       localize(c, "Form has invalid fields."),
+			InvalidFields: errors,
+		}
+	}
+	if f.ParentID != nil {
+		message, err := messages.Get(getContext(c), *f.ParentID)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return err
+			}
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: localize(c, "Message not found."),
+			}
+		}
+		if message.Kind != models.QuestionContestMessage {
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: localize(c, "Message should be a question."),
+			}
+		}
+		o.Kind = models.AnswerContestMessage
+		o.ParentID = models.NInt64(*f.ParentID)
+	} else {
+		o.Kind = models.RegularContestMessage
+	}
+	o.Title = f.Title
+	o.Description = f.Description
+	return nil
+}
+
+func (v *View) createContestMessage(c echo.Context) error {
+	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
+	if !ok {
+		return fmt.Errorf("contest not extracted")
+	}
+	var form CreateContestMessageForm
+	if err := c.Bind(&form); err != nil {
+		return err
+	}
+	now := getNow(c)
+	message := models.ContestMessage{
+		ContestID:  contestCtx.Contest.ID,
+		AuthorID:   contestCtx.Account.ID,
+		CreateTime: now.Unix(),
+	}
+	if err := form.Update(c, &message, v.core.ContestMessages); err != nil {
+		return err
+	}
+	if err := v.core.ContestMessages.Create(getContext(c), &message); err != nil {
+		return err
+	}
+	return c.JSON(http.StatusCreated, makeContestMessage(message))
 }
 
 type SubmitContestQuestionForm struct {

@@ -54,6 +54,8 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		{"login_too_long", "Логин слишком длинный"},
 		{"login_too_short", "Логин слишком короткий"},
 		{"mail_server_host_not_responding", "Почтовый сервер \"{host}\" не отвечает."},
+		{"message_not_found", "Сообщение не найдено."},
+		{"message_should_be_a_question", "Сообщение должно быть вопросом"},
 		{"middle_name_too_long", "Отчество слишком длинное."},
 		{"middle_name_too_short", "Отчество слишком короткое."},
 		{"name_has_invalid_format", "Название не соотвествует формату."},

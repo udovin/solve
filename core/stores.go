@@ -70,6 +70,9 @@ func (c *Core) SetupAllStores() {
 	c.ContestSolutions = models.NewContestSolutionStore(
 		c.DB, "solve_contest_solution", "solve_contest_solution_event",
 	)
+	c.ContestMessages = models.NewCachedContestMessageStore(
+		c.DB, "solve_contest_message", "solve_contest_message_event",
+	)
 	c.Compilers = models.NewCompilerStore(
 		c.DB, "solve_compiler", "solve_compiler_event",
 	)
@@ -95,6 +98,7 @@ func (c *Core) startStores(start func(any, string, time.Duration)) {
 	start(c.ContestProblems, "contest_problems", time.Second)
 	start(c.ContestParticipants, "contest_participants", time.Second)
 	start(c.ContestSolutions, "contest_solutions", time.Second)
+	start(c.ContestMessages, "contest_messages", time.Second)
 	start(c.Compilers, "compilers", time.Second*5)
 }
 

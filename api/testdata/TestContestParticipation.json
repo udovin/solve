@@ -19,7 +19,8 @@
       "observe_contest_problems",
       "observe_contest_solutions",
       "submit_contest_solution",
-      "observe_contest_standings"
+      "observe_contest_standings",
+      "observe_contest_messages"
     ],
     "enable_registration": true,
     "enable_upsolving": true,

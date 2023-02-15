@@ -44,6 +44,12 @@ func addContestManagerPermissions(permissions PermissionSet) {
 		models.ObserveContestFullStandingsRole,
 		models.ObserveSolutionReportTestNumber,
 		models.ObserveSolutionReportCheckerLogs,
+		models.ObserveContestMessagesRole,
+		models.ObserveContestMessageRole,
+		models.CreateContestMessageRole,
+		models.UpdateContestMessageRole,
+		models.DeleteContestMessageRole,
+		models.SubmitContestQuestionRole,
 	)
 }
 
@@ -62,6 +68,8 @@ func addContestRegularPermissions(
 			models.SubmitContestSolutionRole,
 			models.ObserveContestStandingsRole,
 			models.ObserveSolutionReportTestNumber,
+			models.ObserveContestMessagesRole,
+			models.SubmitContestQuestionRole,
 		)
 	case ContestFinished:
 		permissions.AddPermission(
@@ -70,6 +78,7 @@ func addContestRegularPermissions(
 			models.ObserveContestSolutionsRole,
 			models.ObserveContestStandingsRole,
 			models.ObserveSolutionReportTestNumber,
+			models.ObserveContestMessagesRole,
 		)
 	}
 }
@@ -86,6 +95,7 @@ func addContestUpsolvingPermissions(
 			models.SubmitContestSolutionRole,
 			models.ObserveContestStandingsRole,
 			models.ObserveSolutionReportTestNumber,
+			models.ObserveContestMessagesRole,
 		)
 	}
 }

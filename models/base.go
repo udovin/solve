@@ -208,6 +208,7 @@ func makeBaseEvent(t EventKind) baseEvent {
 }
 
 type Store[T any] interface {
+	Get(context.Context, int64) (T, error)
 	Create(context.Context, *T) error
 	Update(context.Context, T) error
 	Delete(context.Context, int64) error

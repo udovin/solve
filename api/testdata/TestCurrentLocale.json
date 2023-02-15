@@ -35,6 +35,14 @@
         "text": "Соревнование не найдено."
       },
       {
+        "key": "description_is_too_long",
+        "text": "Описание слишком длинное."
+      },
+      {
+        "key": "description_is_too_short",
+        "text": "Описание слишком короткое."
+      },
+      {
         "key": "duration_cannot_be_negative",
         "text": "Продолжительность не может быть отрицательной."
       },
@@ -79,7 +87,7 @@
         "text": "Имя слишком короткое."
       },
       {
-        "key": "form_has_invalid_field",
+        "key": "form_has_invalid_fields",
         "text": "Форма содержит неправильные значения."
       },
       {
@@ -149,6 +157,14 @@
       {
         "key": "mail_server_host_not_responding",
         "text": "Почтовый сервер \"{host}\" не отвечает."
+      },
+      {
+        "key": "message_not_found",
+        "text": "Сообщение не найдено."
+      },
+      {
+        "key": "message_should_be_a_question",
+        "text": "Сообщение должно быть вопросом"
       },
       {
         "key": "middle_name_too_long",

@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
@@ -51,7 +52,7 @@ func (v *View) observeContestMessages(c echo.Context) error {
 		if permissions.HasPermission(models.ObserveContestMessageRole) {
 			resp.Messages = append(
 				resp.Messages,
-				makeContestMessage(message),
+				makeContestMessage(c, message, v.core),
 			)
 		}
 	}
@@ -150,7 +151,7 @@ func (v *View) createContestMessage(c echo.Context) error {
 	if err := v.core.ContestMessages.Create(getContext(c), &message); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeContestMessage(message))
+	return c.JSON(http.StatusCreated, makeContestMessage(c, message, v.core))
 }
 
 type SubmitContestQuestionForm struct {
@@ -241,28 +242,39 @@ func (v *View) submitContestQuestion(c echo.Context) error {
 	); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeContestMessage(message))
+	return c.JSON(http.StatusCreated, makeContestMessage(c, message, v.core))
 }
 
 type ContestMessage struct {
-	ID          int64  `json:"id"`
-	ParentID    int64  `json:"parent_id,omitempty"`
-	Kind        string `json:"kind"`
-	Title       string `json:"title,omitempty"`
-	Description string `json:"description,omitempty"`
+	ID          int64               `json:"id"`
+	ParentID    int64               `json:"parent_id,omitempty"`
+	Kind        string              `json:"kind"`
+	Title       string              `json:"title,omitempty"`
+	Description string              `json:"description,omitempty"`
+	Participant *ContestParticipant `json:"participant,omitempty"`
 }
 
 type ContestMessages struct {
 	Messages []ContestMessage `json:"messages"`
 }
 
-func makeContestMessage(message models.ContestMessage) ContestMessage {
+func makeContestMessage(
+	c echo.Context, message models.ContestMessage, core *core.Core,
+) ContestMessage {
 	resp := ContestMessage{
 		ID:          message.ID,
 		ParentID:    int64(message.ParentID),
 		Kind:        message.Kind.String(),
 		Title:       message.Title,
 		Description: message.Description,
+	}
+	if message.ParticipantID != 0 {
+		if participant, err := core.ContestParticipants.Get(
+			getContext(c), int64(message.ParticipantID),
+		); err == nil {
+			participant := makeContestParticipant(c, participant, core)
+			resp.Participant = &participant
+		}
 	}
 	return resp
 }

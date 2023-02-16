@@ -1,4 +1,4 @@
-FROM golang:1.19-alpine AS build
+FROM golang:1.20-alpine AS build
 RUN apk add --no-cache git gcc linux-headers libc-dev make
 WORKDIR /src/solve
 COPY go.mod go.sum /src/solve/

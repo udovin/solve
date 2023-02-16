@@ -147,12 +147,15 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 					continue
 				}
 				cell.Attempt++
-				cell.Verdict = report.Verdict
 				if beginTime != 0 {
 					cell.Time = solution.CreateTime - beginTime
 					if cell.Time < 0 {
 						cell.Time = 0
 					}
+				}
+				cell.Verdict = report.Verdict
+				if isVerdictFrozen(contestConfig, cell.Time, now) {
+					cell.Verdict = 0
 				}
 				if report.Verdict == models.Accepted {
 					break
@@ -183,6 +186,21 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 		return lhs.Penalty < rhs.Penalty
 	})
 	return &standings, nil
+}
+
+func isVerdictFrozen(
+	config models.ContestConfig, time int64, now time.Time,
+) bool {
+	if config.FreezeBeginDuration == nil {
+		return false
+	}
+	if time < int64(*config.FreezeBeginDuration) {
+		return false
+	}
+	if config.FreezeEndTime == nil {
+		return true
+	}
+	return now.Unix() < *config.FreezeEndTime
 }
 
 func getParticipantOrder(kind models.ParticipantKind) int {

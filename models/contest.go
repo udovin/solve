@@ -7,10 +7,12 @@ import (
 )
 
 type ContestConfig struct {
-	BeginTime          NInt64 `json:"begin_time"`
-	Duration           int    `json:"duration"`
-	EnableRegistration bool   `json:"enable_registration"`
-	EnableUpsolving    bool   `json:"enable_upsolving"`
+	BeginTime           NInt64 `json:"begin_time"`
+	Duration            int    `json:"duration"`
+	EnableRegistration  bool   `json:"enable_registration"`
+	EnableUpsolving     bool   `json:"enable_upsolving"`
+	FreezeBeginDuration *int   `json:"freeze_begin_duration,omitempty"`
+	FreezeEndTime       *int64 `json:"freeze_end_time,omitempty"`
 }
 
 // Contest represents a contest.

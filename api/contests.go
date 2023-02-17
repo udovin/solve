@@ -129,14 +129,16 @@ type ContestState struct {
 }
 
 type Contest struct {
-	ID                 int64         `json:"id"`
-	Title              string        `json:"title"`
-	BeginTime          NInt64        `json:"begin_time,omitempty"`
-	Duration           int           `json:"duration,omitempty"`
-	Permissions        []string      `json:"permissions,omitempty"`
-	EnableRegistration bool          `json:"enable_registration"`
-	EnableUpsolving    bool          `json:"enable_upsolving"`
-	State              *ContestState `json:"state,omitempty"`
+	ID                  int64         `json:"id"`
+	Title               string        `json:"title"`
+	BeginTime           NInt64        `json:"begin_time,omitempty"`
+	Duration            int           `json:"duration,omitempty"`
+	Permissions         []string      `json:"permissions,omitempty"`
+	EnableRegistration  bool          `json:"enable_registration"`
+	EnableUpsolving     bool          `json:"enable_upsolving"`
+	FreezeBeginDuration *int          `json:"freeze_begin_duration,omitempty"`
+	FreezeEndTime       *int64        `json:"freeze_end_time,omitempty"`
+	State               *ContestState `json:"state,omitempty"`
 }
 
 type Contests struct {
@@ -206,6 +208,8 @@ func makeContest(
 		resp.Duration = config.Duration
 		resp.EnableRegistration = config.EnableRegistration
 		resp.EnableUpsolving = config.EnableUpsolving
+		resp.FreezeBeginDuration = config.FreezeBeginDuration
+		resp.FreezeEndTime = config.FreezeEndTime
 	}
 	for _, permission := range contestPermissions {
 		if permissions.HasPermission(permission) {
@@ -314,11 +318,13 @@ func (v *View) observeContest(c echo.Context) error {
 }
 
 type updateContestForm struct {
-	Title              *string `json:"title" form:"title"`
-	BeginTime          *NInt64 `json:"begin_time" form:"begin_time"`
-	Duration           *int    `json:"duration" form:"duration"`
-	EnableRegistration *bool   `json:"enable_registration" form:"enable_registration"`
-	EnableUpsolving    *bool   `json:"enable_upsolving" form:"enable_upsolving"`
+	Title               *string `json:"title" form:"title"`
+	BeginTime           *NInt64 `json:"begin_time" form:"begin_time"`
+	Duration            *int    `json:"duration" form:"duration"`
+	EnableRegistration  *bool   `json:"enable_registration" form:"enable_registration"`
+	EnableUpsolving     *bool   `json:"enable_upsolving" form:"enable_upsolving"`
+	FreezeBeginDuration **int   `json:"freeze_begin_duration" form:"freeze_begin_duration"`
+	FreezeEndTime       **int64 `json:"freeze_end_time" form:"freeze_end_time"`
 }
 
 func (f *updateContestForm) Update(
@@ -357,6 +363,12 @@ func (f *updateContestForm) Update(
 	}
 	if f.EnableUpsolving != nil {
 		config.EnableUpsolving = *f.EnableUpsolving
+	}
+	if f.FreezeBeginDuration != nil {
+		config.FreezeBeginDuration = *f.FreezeBeginDuration
+	}
+	if f.FreezeEndTime != nil {
+		config.FreezeEndTime = *f.FreezeEndTime
 	}
 	if err := contest.SetConfig(config); err != nil {
 		errors["config"] = errorField{

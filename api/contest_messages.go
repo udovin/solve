@@ -121,7 +121,9 @@ func (f *CreateContestMessageForm) Update(
 			}
 		}
 		o.Kind = models.AnswerContestMessage
-		o.ParentID = models.NInt64(*f.ParentID)
+		o.ParentID = models.NInt64(message.ID)
+		// Mark message available only for specified participant.
+		o.ParticipantID = message.ParticipantID
 	} else {
 		o.Kind = models.RegularContestMessage
 	}

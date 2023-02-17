@@ -136,8 +136,8 @@ type Contest struct {
 	Permissions         []string      `json:"permissions,omitempty"`
 	EnableRegistration  bool          `json:"enable_registration"`
 	EnableUpsolving     bool          `json:"enable_upsolving"`
-	FreezeBeginDuration *int          `json:"freeze_begin_duration,omitempty"`
-	FreezeEndTime       *int64        `json:"freeze_end_time,omitempty"`
+	FreezeBeginDuration int           `json:"freeze_begin_duration,omitempty"`
+	FreezeEndTime       NInt64        `json:"freeze_end_time,omitempty"`
 	State               *ContestState `json:"state,omitempty"`
 }
 
@@ -323,8 +323,8 @@ type updateContestForm struct {
 	Duration            *int    `json:"duration" form:"duration"`
 	EnableRegistration  *bool   `json:"enable_registration" form:"enable_registration"`
 	EnableUpsolving     *bool   `json:"enable_upsolving" form:"enable_upsolving"`
-	FreezeBeginDuration **int   `json:"freeze_begin_duration" form:"freeze_begin_duration"`
-	FreezeEndTime       **int64 `json:"freeze_end_time" form:"freeze_end_time"`
+	FreezeBeginDuration *int    `json:"freeze_begin_duration" form:"freeze_begin_duration"`
+	FreezeEndTime       *NInt64 `json:"freeze_end_time" form:"freeze_end_time"`
 }
 
 func (f *updateContestForm) Update(

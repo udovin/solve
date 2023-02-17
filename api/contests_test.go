@@ -20,8 +20,8 @@ var testSimpleConfiguredContest = createContestForm{
 	Duration:            getPtr(7200),
 	EnableRegistration:  getPtr(true),
 	EnableUpsolving:     getPtr(true),
-	FreezeBeginDuration: getPtr(getPtr(3600)),
-	FreezeEndTime:       getPtr(getPtr(time.Date(2020, 1, 2, 1, 0, 0, 0, time.UTC).Unix())),
+	FreezeBeginDuration: getPtr(3600),
+	FreezeEndTime:       getPtr(NInt64(time.Date(2020, 1, 2, 1, 0, 0, 0, time.UTC).Unix())),
 }
 
 func TestContestSimpleScenario(t *testing.T) {

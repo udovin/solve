@@ -191,16 +191,16 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 func isVerdictFrozen(
 	config models.ContestConfig, time int64, now time.Time,
 ) bool {
-	if config.FreezeBeginDuration == nil {
+	if config.FreezeBeginDuration == 0 {
 		return false
 	}
-	if time < int64(*config.FreezeBeginDuration) {
+	if time < int64(config.FreezeBeginDuration) {
 		return false
 	}
-	if config.FreezeEndTime == nil {
+	if config.FreezeEndTime == 0 {
 		return true
 	}
-	return now.Unix() < *config.FreezeEndTime
+	return now.Unix() < int64(config.FreezeEndTime)
 }
 
 func getParticipantOrder(kind models.ParticipantKind) int {

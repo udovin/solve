@@ -270,7 +270,7 @@ func makeContestMessage(
 		Title:       message.Title,
 		Description: message.Description,
 	}
-	if message.ParticipantID != 0 {
+	if message.Kind != models.AnswerContestMessage && message.ParticipantID != 0 {
 		if participant, err := core.ContestParticipants.Get(
 			getContext(c), int64(message.ParticipantID),
 		); err == nil {

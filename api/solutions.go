@@ -248,7 +248,9 @@ func (v *View) observeSolutions(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	for _, solution := range solutions {
+	defer func() { _ = solutions.Close() }()
+	for solutions.Next() {
+		solution := solutions.Row()
 		if !filter.Filter(solution) {
 			continue
 		}
@@ -256,6 +258,9 @@ func (v *View) observeSolutions(c echo.Context) error {
 		if permissions.HasPermission(models.ObserveSolutionRole) {
 			resp.Solutions = append(resp.Solutions, v.makeSolution(c, accountCtx, solution, false))
 		}
+	}
+	if err := solutions.Err(); err != nil {
+		return err
 	}
 	sortFunc(resp.Solutions, solutionGreater)
 	applyLimit(&resp.Solutions, filter.Limit)

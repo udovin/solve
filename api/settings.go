@@ -61,8 +61,13 @@ func (v *View) observeSettings(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, setting := range settings {
+	defer func() { _ = settings.Close() }()
+	for settings.Next() {
+		setting := settings.Row()
 		resp.Settings = append(resp.Settings, makeSetting(setting))
+	}
+	if err := settings.Err(); err != nil {
+		return err
 	}
 	sortFunc(resp.Settings, settingLess)
 	return c.JSON(http.StatusOK, resp)

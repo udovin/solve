@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/udovin/algo/maps"
+	"github.com/tidwall/btree"
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
@@ -35,7 +35,7 @@ type cachedStore[
 	consumer db.EventConsumer[E, EPtr]
 	impl     cachedStoreImpl[T]
 	mutex    sync.RWMutex
-	objects  *maps.Map[int64, T]
+	objects  *btree.Map[int64, T]
 	indexes  []storeIndex[T]
 }
 
@@ -175,16 +175,32 @@ func (s *cachedStore[T, E, TPtr, EPtr]) Get(ctx context.Context, id int64) (T, e
 	return empty, sql.ErrNoRows
 }
 
+type btreeRows[T any, TPtr ObjectPtr[T]] struct {
+	iter btree.MapIter[int64, T]
+}
+
+func (r *btreeRows[T, TPtr]) Next() bool {
+	return r.iter.Next()
+}
+
+func (r *btreeRows[T, TPtr]) Row() T {
+	value := r.iter.Value()
+	return TPtr(&value).Clone()
+}
+
+func (r *btreeRows[T, TPtr]) Err() error {
+	return nil
+}
+
+func (r *btreeRows[T, TPtr]) Close() error {
+	return nil
+}
+
 // All returns all objects contained by this store.
-func (s *cachedStore[T, E, TPtr, EPtr]) All() ([]T, error) {
+func (s *cachedStore[T, E, TPtr, EPtr]) All() (db.Rows[T], error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	var objects []T
-	for it := s.objects.Front(); it != nil; it = it.Next() {
-		object := it.Value()
-		objects = append(objects, TPtr(&object).Clone())
-	}
-	return objects, nil
+	return &btreeRows[T, TPtr]{iter: s.objects.Iter()}, nil
 }
 
 var (
@@ -235,11 +251,7 @@ func (s *cachedStore[T, E, TPtr, EPtr]) reset() {
 	for _, index := range s.indexes {
 		index.Reset()
 	}
-	s.objects = maps.NewMap[int64, T](lessInt64)
-}
-
-func lessInt64(lhs, rhs int64) bool {
-	return lhs < rhs
+	s.objects = btree.NewMap[int64, T](32)
 }
 
 //lint:ignore U1000 Used in generic interface.
@@ -253,11 +265,11 @@ func (s *cachedStore[T, E, TPtr, EPtr]) onCreateObject(object T) {
 
 //lint:ignore U1000 Used in generic interface.
 func (s *cachedStore[T, E, TPtr, EPtr]) onDeleteObject(id int64) {
-	if it := s.objects.Find(id); it != nil {
+	if object, ok := s.objects.Get(id); ok {
 		for _, index := range s.indexes {
-			index.Deregister(it.Value())
+			index.Deregister(object)
 		}
-		s.objects.Erase(it)
+		s.objects.Delete(id)
 	}
 }
 

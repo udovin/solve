@@ -162,8 +162,10 @@ func (v *View) observeProblems(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	defer func() { _ = problems.Close() }()
 	var resp Problems
-	for _, problem := range problems {
+	for problems.Next() {
+		problem := problems.Row()
 		if !filter.Filter(problem) {
 			continue
 		}
@@ -174,6 +176,9 @@ func (v *View) observeProblems(c echo.Context) error {
 				v.makeProblem(c, problem, permissions, false),
 			)
 		}
+	}
+	if err := problems.Err(); err != nil {
+		return err
 	}
 	sortFunc(resp.Problems, problemGreater)
 	return c.JSON(http.StatusOK, resp)

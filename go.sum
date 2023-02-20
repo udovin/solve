@@ -170,6 +170,8 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
+github.com/tidwall/btree v1.6.0 h1:LDZfKfQIBHGHWSwckhXI0RPSXzlo+KYdjK7FWSqOzzg=
+github.com/tidwall/btree v1.6.0/go.mod h1:twD9XRA5jj9VUQGELzDO4HPQTNJsoWWfYEL+EUQ2cKY=
 github.com/udovin/algo v0.0.2 h1:KqeXU7tF4M1qmcmMwCxq0zdBASX4AhjLts2tuouP7MY=
 github.com/udovin/algo v0.0.2/go.mod h1:h8RpXvizCZJbEfv/i9Tbtr82nCvefCfYqRMvYFO7CuQ=
 github.com/udovin/gosql v0.0.1 h1:NySdoTuYkx4xWjA7plzWAXDHuCaaBBimVfgna6+mPdM=

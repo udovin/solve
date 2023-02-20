@@ -666,9 +666,11 @@ func (l *settingLocale) GetLocalizations() ([]Localization, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() { _ = settings.Close() }()
 	prefix := "localization." + l.name + "."
 	var localizations []Localization
-	for _, setting := range settings {
+	for settings.Next() {
+		setting := settings.Row()
 		if strings.HasPrefix(setting.Key, prefix) {
 			localization := Localization{
 				Key:  setting.Key[len(prefix):],
@@ -676,6 +678,9 @@ func (l *settingLocale) GetLocalizations() ([]Localization, error) {
 			}
 			localizations = append(localizations, localization)
 		}
+	}
+	if err := settings.Err(); err != nil {
+		return nil, err
 	}
 	return localizations, nil
 }

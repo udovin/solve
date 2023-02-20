@@ -116,7 +116,9 @@ func (v *View) observeRoles(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, role := range roles {
+	defer func() { _ = roles.Close() }()
+	for roles.Next() {
+		role := roles.Row()
 		resp.Roles = append(resp.Roles, Role{
 			ID:      role.ID,
 			Name:    role.Name,

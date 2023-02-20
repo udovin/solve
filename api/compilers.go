@@ -58,12 +58,17 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	defer func() { _ = compilers.Close() }()
 	var resp Compilers
-	for _, compiler := range compilers {
+	for compilers.Next() {
+		compiler := compilers.Row()
 		permissions := v.getCompilerPermissions(accountCtx, compiler)
 		if permissions.HasPermission(models.ObserveCompilerRole) {
 			resp.Compilers = append(resp.Compilers, makeCompiler(compiler))
 		}
+	}
+	if err := compilers.Err(); err != nil {
+		return err
 	}
 	sortFunc(resp.Compilers, compilerGreater)
 	return c.JSON(http.StatusOK, resp)

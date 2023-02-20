@@ -81,7 +81,9 @@ func (v *View) observeScopes(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, scope := range scopes {
+	defer func() { _ = scopes.Close() }()
+	for scopes.Next() {
+		scope := scopes.Row()
 		permissions := v.getScopePermissions(accountCtx, scope)
 		if permissions.HasPermission(models.ObserveScopeRole) {
 			resp.Scopes = append(
@@ -89,6 +91,9 @@ func (v *View) observeScopes(c echo.Context) error {
 				makeScope(scope),
 			)
 		}
+	}
+	if err := scopes.Err(); err != nil {
+		return err
 	}
 	sortFunc(resp.Scopes, scopeGreater)
 	return c.JSON(http.StatusOK, resp)

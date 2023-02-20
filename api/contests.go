@@ -286,7 +286,9 @@ func (v *View) observeContests(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, contest := range contests {
+	defer func() { _ = contests.Close() }()
+	for contests.Next() {
+		contest := contests.Row()
 		if !filter.Filter(contest) {
 			continue
 		}
@@ -300,6 +302,9 @@ func (v *View) observeContests(c echo.Context) error {
 				makeContest(c, contest, contestCtx, v.core),
 			)
 		}
+	}
+	if err := contests.Err(); err != nil {
+		return err
 	}
 	sortFunc(resp.Contests, contestGreater)
 	return c.JSON(http.StatusOK, resp)

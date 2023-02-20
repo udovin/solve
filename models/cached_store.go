@@ -167,8 +167,6 @@ func (s *cachedStore[T, E, TPtr, EPtr]) Get(ctx context.Context, id int64) (T, e
 			return empty, err
 		}
 	}
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
 	if object, ok := s.objects.Get(id); ok {
 		return TPtr(&object).Clone(), nil
 	}
@@ -198,8 +196,6 @@ func (r *btreeRows[T, TPtr]) Close() error {
 
 // All returns all objects contained by this store.
 func (s *cachedStore[T, E, TPtr, EPtr]) All() (db.Rows[T], error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
 	return &btreeRows[T, TPtr]{iter: s.objects.Iter()}, nil
 }
 

@@ -24,7 +24,8 @@
     "enable_registration": true,
     "enable_upsolving": true,
     "freeze_begin_duration": 3600,
-    "freeze_end_time": 1577926800
+    "freeze_end_time": 1577926800,
+    "standings_kind": "icpc"
   },
   {
     "contests": [
@@ -59,6 +60,7 @@
         "enable_upsolving": true,
         "freeze_begin_duration": 3600,
         "freeze_end_time": 1577926800,
+        "standings_kind": "icpc",
         "state": {
           "stage": "finished",
           "participant": {

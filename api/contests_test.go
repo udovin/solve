@@ -22,6 +22,7 @@ var testSimpleConfiguredContest = createContestForm{
 	EnableUpsolving:     getPtr(true),
 	FreezeBeginDuration: getPtr(3600),
 	FreezeEndTime:       getPtr(NInt64(time.Date(2020, 1, 2, 1, 0, 0, 0, time.UTC).Unix())),
+	StandingsKind:       getPtr(models.ICPCStandings),
 }
 
 func TestContestSimpleScenario(t *testing.T) {
@@ -108,6 +109,7 @@ func TestContestParticipation(t *testing.T) {
 			Duration:           getPtr(7200),
 			EnableRegistration: getPtr(true),
 			EnableUpsolving:    getPtr(true),
+			StandingsKind:      getPtr(models.ICPCStandings),
 		}
 		var err error
 		if contest, err = e.Client.CreateContest(contestForm); err != nil {

@@ -2,17 +2,58 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/udovin/gosql"
 )
 
+type StandingsKind int
+
+const (
+	DisabledStandings StandingsKind = 0
+	ICPCStandings     StandingsKind = 1
+	IOIStandings      StandingsKind = 2
+)
+
+func (v StandingsKind) String() string {
+	switch v {
+	case DisabledStandings:
+		return "disabled"
+	case ICPCStandings:
+		return "icpc"
+	case IOIStandings:
+		return "ioi"
+	default:
+		return fmt.Sprintf("StandingsKind(%d)", v)
+	}
+}
+
+func (v StandingsKind) MarshalText() ([]byte, error) {
+	return []byte(v.String()), nil
+}
+
+func (v *StandingsKind) UnmarshalText(data []byte) error {
+	switch s := string(data); s {
+	case "disabled":
+		*v = DisabledStandings
+	case "icpc":
+		*v = ICPCStandings
+	case "ioi":
+		*v = IOIStandings
+	default:
+		return fmt.Errorf("unsupported kind: %q", s)
+	}
+	return nil
+}
+
 type ContestConfig struct {
-	BeginTime           NInt64 `json:"begin_time,omitempty"`
-	Duration            int    `json:"duration,omitempty"`
-	EnableRegistration  bool   `json:"enable_registration"`
-	EnableUpsolving     bool   `json:"enable_upsolving"`
-	FreezeBeginDuration int    `json:"freeze_begin_duration,omitempty"`
-	FreezeEndTime       NInt64 `json:"freeze_end_time,omitempty"`
+	BeginTime           NInt64        `json:"begin_time,omitempty"`
+	Duration            int           `json:"duration,omitempty"`
+	EnableRegistration  bool          `json:"enable_registration"`
+	EnableUpsolving     bool          `json:"enable_upsolving"`
+	FreezeBeginDuration int           `json:"freeze_begin_duration,omitempty"`
+	FreezeEndTime       NInt64        `json:"freeze_end_time,omitempty"`
+	StandingsKind       StandingsKind `json:"standings_kind,omitempty"`
 }
 
 // Contest represents a contest.

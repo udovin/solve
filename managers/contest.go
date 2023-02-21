@@ -54,7 +54,7 @@ func addContestManagerPermissions(permissions PermissionSet) {
 }
 
 func addContestRegularPermissions(
-	permissions PermissionSet, stage ContestStage,
+	permissions PermissionSet, stage ContestStage, config models.ContestConfig,
 ) {
 	permissions.AddPermission(models.ObserveContestRole)
 	switch stage {
@@ -66,25 +66,29 @@ func addContestRegularPermissions(
 			models.ObserveContestProblemRole,
 			models.ObserveContestSolutionsRole,
 			models.SubmitContestSolutionRole,
-			models.ObserveContestStandingsRole,
 			models.ObserveSolutionReportTestNumber,
 			models.ObserveContestMessagesRole,
 			models.SubmitContestQuestionRole,
 		)
+		if config.StandingsKind != models.DisabledStandings {
+			permissions.AddPermission(models.ObserveContestStandingsRole)
+		}
 	case ContestFinished:
 		permissions.AddPermission(
 			models.ObserveContestProblemsRole,
 			models.ObserveContestProblemRole,
 			models.ObserveContestSolutionsRole,
-			models.ObserveContestStandingsRole,
 			models.ObserveSolutionReportTestNumber,
 			models.ObserveContestMessagesRole,
 		)
+		if config.StandingsKind != models.DisabledStandings {
+			permissions.AddPermission(models.ObserveContestStandingsRole)
+		}
 	}
 }
 
 func addContestUpsolvingPermissions(
-	permissions PermissionSet, stage ContestStage,
+	permissions PermissionSet, stage ContestStage, config models.ContestConfig,
 ) {
 	permissions.AddPermission(models.ObserveContestRole)
 	if stage == ContestFinished {
@@ -93,23 +97,27 @@ func addContestUpsolvingPermissions(
 			models.ObserveContestProblemRole,
 			models.ObserveContestSolutionsRole,
 			models.SubmitContestSolutionRole,
-			models.ObserveContestStandingsRole,
 			models.ObserveSolutionReportTestNumber,
 			models.ObserveContestMessagesRole,
 		)
+		if config.StandingsKind != models.DisabledStandings {
+			permissions.AddPermission(models.ObserveContestStandingsRole)
+		}
 	}
 }
 
 func getParticipantPermissions(
-	contest models.Contest, stage ContestStage,
+	contest models.Contest,
+	stage ContestStage,
+	config models.ContestConfig,
 	participant models.ContestParticipant,
 ) PermissionSet {
 	permissions := PermissionSet{}
 	switch participant.Kind {
 	case models.RegularParticipant:
-		addContestRegularPermissions(permissions, stage)
+		addContestRegularPermissions(permissions, stage, config)
 	case models.UpsolvingParticipant:
-		addContestUpsolvingPermissions(permissions, stage)
+		addContestUpsolvingPermissions(permissions, stage, config)
 	case models.ManagerParticipant:
 		addContestManagerPermissions(permissions)
 	}
@@ -139,6 +147,7 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 	c := ContestContext{
 		AccountContext: ctx,
 		Contest:        contest,
+		ContestConfig:  config,
 		Permissions:    ctx.Permissions.Clone(),
 		Stage:          ContestNotPlanned,
 		Now:            models.GetNow(ctx),
@@ -166,7 +175,7 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 		hasManager := false
 		for _, participant := range participants {
 			for permission := range getParticipantPermissions(
-				contest, c.Stage, participant,
+				contest, c.Stage, config, participant,
 			) {
 				c.Permissions.AddPermission(permission)
 			}
@@ -202,7 +211,7 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 				ContestID: contest.ID,
 				AccountID: account.ID,
 			})
-			addContestUpsolvingPermissions(c.Permissions, c.Stage)
+			addContestUpsolvingPermissions(c.Permissions, c.Stage, config)
 		}
 	}
 	c.effectivePos = len(c.Participants)
@@ -226,12 +235,13 @@ const (
 
 type ContestContext struct {
 	*AccountContext
-	Contest      models.Contest
-	Participants []models.ContestParticipant
-	Permissions  PermissionSet
-	Stage        ContestStage
-	Now          time.Time
-	effectivePos int
+	Contest       models.Contest
+	ContestConfig models.ContestConfig
+	Participants  []models.ContestParticipant
+	Permissions   PermissionSet
+	Stage         ContestStage
+	Now           time.Time
+	effectivePos  int
 }
 
 func (c *ContestContext) HasPermission(name string) bool {
@@ -261,7 +271,7 @@ func (c *ContestContext) GetEffectivePermissions() PermissionSet {
 	if participant == nil {
 		return PermissionSet{}
 	}
-	return getParticipantPermissions(c.Contest, c.Stage, *participant)
+	return getParticipantPermissions(c.Contest, c.Stage, c.ContestConfig, *participant)
 }
 
 func (c *ContestContext) HasEffectivePermission(name string) bool {

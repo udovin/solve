@@ -470,6 +470,40 @@ func (c *Client) ObserveSettings(ctx context.Context) (Settings, error) {
 	return respData, err
 }
 
+func (c *Client) CreateSetting(ctx context.Context, form CreateSettingForm) (Setting, error) {
+	data, err := json.Marshal(form)
+	if err != nil {
+		return Setting{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPost,
+		c.getURL("/v0/settings"), bytes.NewReader(data),
+	)
+	if err != nil {
+		return Setting{}, err
+	}
+	var respData Setting
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
+func (c *Client) UpdateSetting(ctx context.Context, id int64, form UpdateSettingForm) (Setting, error) {
+	data, err := json.Marshal(form)
+	if err != nil {
+		return Setting{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPatch,
+		c.getURL("/v0/settings/%d", id), bytes.NewReader(data),
+	)
+	if err != nil {
+		return Setting{}, err
+	}
+	var respData Setting
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
 func (c *Client) getURL(path string, args ...any) string {
 	return c.endpoint + fmt.Sprintf(path, args...)
 }

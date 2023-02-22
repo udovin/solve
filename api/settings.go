@@ -73,12 +73,12 @@ func (v *View) observeSettings(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-type updateSettingForm struct {
+type UpdateSettingForm struct {
 	Key   *string `json:"key"`
 	Value *string `json:"value"`
 }
 
-func (f *updateSettingForm) Update(c echo.Context, o *models.Setting) error {
+func (f *UpdateSettingForm) Update(c echo.Context, o *models.Setting) error {
 	if f.Key != nil {
 		o.Key = *f.Key
 	}
@@ -88,20 +88,22 @@ func (f *updateSettingForm) Update(c echo.Context, o *models.Setting) error {
 	return nil
 }
 
-type createSettingForm updateSettingForm
+type CreateSettingForm struct {
+	UpdateSettingForm
+}
 
-func (f *createSettingForm) Update(c echo.Context, o *models.Setting) error {
+func (f *CreateSettingForm) Update(c echo.Context, o *models.Setting) error {
 	if f.Key == nil {
 		return errorResponse{
 			Code:    http.StatusBadRequest,
 			Message: localize(c, "Setting key cannot be empty."),
 		}
 	}
-	return (*updateSettingForm)(f).Update(c, o)
+	return f.UpdateSettingForm.Update(c, o)
 }
 
 func (v *View) createSetting(c echo.Context) error {
-	var form createSettingForm
+	var form CreateSettingForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
@@ -121,7 +123,7 @@ func (v *View) updateSetting(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("setting not extracted")
 	}
-	var form updateSettingForm
+	var form UpdateSettingForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)

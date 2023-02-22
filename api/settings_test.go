@@ -18,4 +18,22 @@ func TestObserveSettings(t *testing.T) {
 	} else {
 		e.Check(settings)
 	}
+	createForm := CreateSettingForm{}
+	createForm.Key = getPtr("test_key")
+	createForm.Value = getPtr("test_value")
+	setting, err := e.Client.CreateSetting(context.Background(), createForm)
+	if err != nil {
+		t.Fatal("Error:", err)
+	} else {
+		e.Check(setting)
+	}
+	updateForm := UpdateSettingForm{}
+	updateForm.Key = getPtr("test_key_2")
+	updateForm.Value = getPtr("test_value_2")
+	updated, err := e.Client.UpdateSetting(context.Background(), setting.ID, updateForm)
+	if err != nil {
+		t.Fatal("Error:", err)
+	} else {
+		e.Check(updated)
+	}
 }

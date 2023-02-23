@@ -54,12 +54,18 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 
 type ProblemStatement = models.ProblemStatementConfig
 
+type ProblemTask struct {
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+
 type Problem struct {
 	ID          int64                 `json:"id"`
 	Title       string                `json:"title"`
 	Statement   *ProblemStatement     `json:"statement,omitempty"`
 	Config      *models.ProblemConfig `json:"config,omitempty"`
 	Permissions []string              `json:"permissions,omitempty"`
+	LastTask    *ProblemTask          `json:"last_task,omitempty"`
 }
 
 type Problems struct {
@@ -76,6 +82,7 @@ func (v *View) makeProblem(
 	problem models.Problem,
 	permissions managers.Permissions,
 	withStatement bool,
+	withTask bool,
 ) Problem {
 	resp := Problem{
 		ID:    problem.ID,
@@ -119,6 +126,19 @@ func (v *View) makeProblem(
 			if config.Locale == locale.Name() {
 				break
 			}
+		}
+	}
+	if withTask && permissions.HasPermission(models.UpdateProblemRole) {
+		task, err := v.findProblemTask(c, problem.ID)
+		if err == nil {
+			taskResp := ProblemTask{
+				Status: task.Status.String(),
+			}
+			var state models.UpdateProblemPackageTaskState
+			if err := task.ScanState(&state); err == nil {
+				taskResp.Error = state.Error
+			}
+			resp.LastTask = &taskResp
 		}
 	}
 	for _, permission := range problemPermissions {
@@ -173,7 +193,7 @@ func (v *View) observeProblems(c echo.Context) error {
 		if permissions.HasPermission(models.ObserveProblemRole) {
 			resp.Problems = append(
 				resp.Problems,
-				v.makeProblem(c, problem, permissions, false),
+				v.makeProblem(c, problem, permissions, false, false),
 			)
 		}
 	}
@@ -196,7 +216,7 @@ func (v *View) observeProblem(c echo.Context) error {
 	permissions := v.getProblemPermissions(accountCtx, problem)
 	return c.JSON(
 		http.StatusOK,
-		v.makeProblem(c, problem, permissions, true),
+		v.makeProblem(c, problem, permissions, true, true),
 	)
 }
 
@@ -375,7 +395,7 @@ func (v *View) createProblem(c echo.Context) error {
 	permissions := v.getProblemPermissions(accountCtx, problem)
 	return c.JSON(
 		http.StatusCreated,
-		v.makeProblem(c, problem, permissions, false),
+		v.makeProblem(c, problem, permissions, false, false),
 	)
 }
 
@@ -405,6 +425,7 @@ func (v *View) updateProblem(c echo.Context) error {
 			if err := v.files.ConfirmUploadFile(ctx, formFile); err != nil {
 				return err
 			}
+			problem.PackageID = models.NInt64(formFile.ID)
 			task := models.Task{}
 			if err := task.SetConfig(models.UpdateProblemPackageTaskConfig{
 				ProblemID: problem.ID,
@@ -428,7 +449,7 @@ func (v *View) updateProblem(c echo.Context) error {
 	permissions := v.getProblemPermissions(accountCtx, problem)
 	return c.JSON(
 		http.StatusOK,
-		v.makeProblem(c, problem, permissions, false),
+		v.makeProblem(c, problem, permissions, false, false),
 	)
 }
 
@@ -454,7 +475,7 @@ func (v *View) rebuildProblem(c echo.Context) error {
 	if problem.PackageID == 0 {
 		return c.JSON(
 			http.StatusForbidden,
-			v.makeProblem(c, problem, permissions, false),
+			v.makeProblem(c, problem, permissions, false, false),
 		)
 	}
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
@@ -472,7 +493,7 @@ func (v *View) rebuildProblem(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusOK,
-		v.makeProblem(c, problem, permissions, false),
+		v.makeProblem(c, problem, permissions, false, false),
 	)
 }
 
@@ -508,8 +529,31 @@ func (v *View) deleteProblem(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusOK,
-		v.makeProblem(c, problem, managers.PermissionSet{}, false),
+		v.makeProblem(c, problem, managers.PermissionSet{}, false, false),
 	)
+}
+
+func (v *View) findProblemTask(c echo.Context, id int64) (models.Task, error) {
+	tasks, err := v.core.Tasks.FindByProblem(id)
+	if err != nil {
+		return models.Task{}, err
+	}
+	var lastTask models.Task
+	for _, task := range tasks {
+		if task.Kind == models.UpdateProblemPackageTask {
+			var config models.UpdateProblemPackageTaskConfig
+			if err := task.ScanConfig(&config); err != nil {
+				continue
+			}
+			if task.ID > lastTask.ID {
+				lastTask = task
+			}
+		}
+	}
+	if lastTask.ID == 0 {
+		return models.Task{}, sql.ErrNoRows
+	}
+	return lastTask, nil
 }
 
 func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {

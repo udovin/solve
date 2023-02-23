@@ -245,7 +245,7 @@ func (v *View) makeContestProblem(
 		getContext(c), contestProblem.ProblemID,
 	); err == nil {
 		resp.Problem = v.makeProblem(
-			c, problem, managers.PermissionSet{}, withStatement,
+			c, problem, managers.PermissionSet{}, withStatement, false,
 		)
 	}
 	return resp

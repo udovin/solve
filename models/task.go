@@ -97,6 +97,10 @@ func (c UpdateProblemPackageTaskConfig) TaskKind() TaskKind {
 	return UpdateProblemPackageTask
 }
 
+type UpdateProblemPackageTaskState struct {
+	Error string `json:"error,omitempty"`
+}
+
 type TaskConfig interface {
 	TaskKind() TaskKind
 }
@@ -166,6 +170,7 @@ func (e *TaskEvent) SetObject(o Task) {
 type TaskStore struct {
 	cachedStore[Task, TaskEvent, *Task, *TaskEvent]
 	bySolution *index[int64, Task, *Task]
+	byProblem  *index[int64, Task, *Task]
 }
 
 // FindBySolution returns a list of tasks by specified solution.
@@ -174,6 +179,18 @@ func (s *TaskStore) FindBySolution(id int64) ([]Task, error) {
 	defer s.mutex.RUnlock()
 	var objects []Task
 	for id := range s.bySolution.Get(id) {
+		if object, ok := s.objects.Get(id); ok {
+			objects = append(objects, object.Clone())
+		}
+	}
+	return objects, nil
+}
+
+func (s *TaskStore) FindByProblem(id int64) ([]Task, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	var objects []Task
+	for id := range s.byProblem.Get(id) {
 		if object, ok := s.objects.Get(id); ok {
 			objects = append(objects, object.Clone())
 		}
@@ -245,9 +262,19 @@ func NewTaskStore(
 			}
 			return 0
 		}),
+		byProblem: newIndex(func(o Task) int64 {
+			switch o.Kind {
+			case UpdateProblemPackageTask:
+				var config UpdateProblemPackageTaskConfig
+				if err := o.ScanConfig(&config); err == nil {
+					return config.ProblemID
+				}
+			}
+			return 0
+		}),
 	}
 	impl.cachedStore = makeCachedStore[Task, TaskEvent](
-		db, table, eventTable, impl, impl.bySolution,
+		db, table, eventTable, impl, impl.bySolution, impl.byProblem,
 	)
 	return impl
 }

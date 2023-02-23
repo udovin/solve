@@ -62,7 +62,16 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 	t.file = file
 	t.resources = resources
 	t.tempDir = tempDir
-	return t.executeImpl(ctx)
+	if err := t.executeImpl(ctx); err != nil {
+		state := models.UpdateProblemPackageTaskState{
+			Error: err.Error(),
+		}
+		if err := ctx.SetDeferredState(&state); err != nil {
+			ctx.Logger().Error("Cannot set deferred state", err)
+		}
+		return err
+	}
+	return nil
 }
 
 func (t *updateProblemPackageTask) prepareProblem(ctx TaskContext) error {

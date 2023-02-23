@@ -37,6 +37,7 @@ type TaskContext interface {
 	ScanState(any) error
 	SetStatus(context.Context, models.TaskStatus) error
 	SetState(context.Context, any) error
+	SetDeferredState(any) error
 	Ping(context.Context, time.Duration) error
 	Logger() *logs.Logger
 }
@@ -174,6 +175,15 @@ func (t *taskGuard) SetStatus(ctx context.Context, status models.TaskStatus) err
 	clone := t.task.Clone()
 	clone.Status = status
 	return t.update(ctx, clone)
+}
+
+func (t *taskGuard) SetDeferredState(state any) error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	if err := t.check(); err != nil {
+		return err
+	}
+	return t.task.SetState(state)
 }
 
 func (t *taskGuard) SetState(ctx context.Context, state any) error {

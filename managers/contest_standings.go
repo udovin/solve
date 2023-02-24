@@ -25,7 +25,8 @@ type ContestStandingsRow struct {
 	Participant models.ContestParticipant
 	Cells       []ContestStandingsCell
 	Score       int
-	Penalty     int64
+	Penalty     *int64
+	Place       int
 }
 
 type ContestStandings struct {
@@ -165,27 +166,38 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 				row.Cells = append(row.Cells, cell)
 			}
 		}
+		var penalty int64
 		for _, cell := range row.Cells {
 			if cell.Verdict == models.Accepted {
 				problem := standings.Columns[cell.Column].Problem
 				row.Score += getProblemScore(problem)
-				row.Penalty += int64(cell.Attempt-1)*20 + cell.Time/60
+				penalty += int64(cell.Attempt-1)*20 + cell.Time/60
 			}
+		}
+		if participant.Kind == models.RegularParticipant {
+			row.Penalty = &penalty
 		}
 		standings.Rows = append(standings.Rows, row)
 	}
-	sortFunc(standings.Rows, func(lhs, rhs ContestStandingsRow) bool {
-		lhsOrder := getParticipantOrder(lhs.Participant.Kind)
-		rhsOrder := getParticipantOrder(rhs.Participant.Kind)
-		if lhsOrder != rhsOrder {
-			return lhsOrder < rhsOrder
-		}
-		if lhs.Score != rhs.Score {
-			return lhs.Score > rhs.Score
-		}
-		return lhs.Penalty < rhs.Penalty
-	})
+	sortFunc(standings.Rows, participantLess)
+	calculatePlaces(standings.Rows)
 	return &standings, nil
+}
+
+func calculatePlaces(rows []ContestStandingsRow) {
+	it := -1
+	for i := range rows {
+		if rows[i].Participant.Kind == models.RegularParticipant {
+			rows[i].Place = 1
+			if it >= 0 {
+				rows[i].Place = rows[it].Place
+				if participantLess(rows[it], rows[i]) {
+					rows[i].Place++
+				}
+			}
+			it = i
+		}
+	}
 }
 
 func isVerdictFrozen(
@@ -212,6 +224,21 @@ func getParticipantOrder(kind models.ParticipantKind) int {
 	default:
 		return 2
 	}
+}
+
+func participantLess(lhs, rhs ContestStandingsRow) bool {
+	lhsOrder := getParticipantOrder(lhs.Participant.Kind)
+	rhsOrder := getParticipantOrder(rhs.Participant.Kind)
+	if lhsOrder != rhsOrder {
+		return lhsOrder < rhsOrder
+	}
+	if lhs.Score != rhs.Score {
+		return lhs.Score > rhs.Score
+	}
+	if lhs.Penalty != nil && rhs.Penalty != nil {
+		return *lhs.Penalty < *rhs.Penalty
+	}
+	return false
 }
 
 func getProblemScore(problem models.ContestProblem) int {

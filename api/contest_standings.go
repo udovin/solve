@@ -33,6 +33,7 @@ type ContestStandingsRow struct {
 	Participant ContestParticipant     `json:"participant,omitempty"`
 	Score       int                    `json:"score"`
 	Penalty     *int64                 `json:"penalty,omitempty"`
+	Place       int                    `json:"place,omitempty"`
 	Cells       []ContestStandingsCell `json:"cells,omitempty"`
 }
 
@@ -78,9 +79,8 @@ func (v *View) observeContestStandings(c echo.Context) error {
 		rowResp := ContestStandingsRow{
 			Participant: makeContestParticipant(c, row.Participant, v.core),
 			Score:       row.Score,
-		}
-		if row.Participant.Kind == models.RegularParticipant {
-			rowResp.Penalty = getPtr(row.Penalty)
+			Penalty:     row.Penalty,
+			Place:       row.Place,
 		}
 		for _, cell := range row.Cells {
 			cellResp := ContestStandingsCell{

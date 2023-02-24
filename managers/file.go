@@ -82,6 +82,9 @@ func (s *LocalStorage) WriteFile(ctx context.Context, filePath string, file io.R
 			reader.Size(), size,
 		)
 	}
+	if err := dst.Sync(); err != nil {
+		return models.FileMeta{}, err
+	}
 	return models.FileMeta{Size: reader.Size(), MD5: reader.MD5()}, err
 }
 

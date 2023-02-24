@@ -295,15 +295,15 @@ func (e problemExecutable) OpenBinary() (*os.File, error) {
 	return os.Open(e.binaryPath)
 }
 
-func (p *polygonProblem) GetTestGroups() ([]ProblemTestGroup, error) {
-	var groups []ProblemTestGroup
+func (p *polygonProblem) GetTestSets() ([]ProblemTestSet, error) {
+	var testSets []ProblemTestSet
 	for _, testSet := range p.config.TestSets {
-		groups = append(groups, &polygonProblemTestGroup{
+		testSets = append(testSets, &polygonProblemTestSet{
 			problem: p,
 			config:  testSet,
 		})
 	}
-	return groups, nil
+	return testSets, nil
 }
 
 func (p *polygonProblem) GetStatements() ([]ProblemStatement, error) {
@@ -323,24 +323,24 @@ func (p *polygonProblem) GetStatements() ([]ProblemStatement, error) {
 	return statements, nil
 }
 
-type polygonProblemTestGroup struct {
+type polygonProblemTestSet struct {
 	problem *polygonProblem
 	config  polygon.TestSet
 }
 
-func (g *polygonProblemTestGroup) Name() string {
+func (g *polygonProblemTestSet) Name() string {
 	return g.config.Name
 }
 
-func (g *polygonProblemTestGroup) TimeLimit() int64 {
+func (g *polygonProblemTestSet) TimeLimit() int64 {
 	return g.config.TimeLimit
 }
 
-func (g *polygonProblemTestGroup) MemoryLimit() int64 {
+func (g *polygonProblemTestSet) MemoryLimit() int64 {
 	return g.config.MemoryLimit
 }
 
-func (g *polygonProblemTestGroup) GetTests() ([]ProblemTest, error) {
+func (g *polygonProblemTestSet) GetTests() ([]ProblemTest, error) {
 	var tests []ProblemTest
 	for i := range g.config.Tests {
 		input := fmt.Sprintf(g.config.InputPathPattern, i+1)

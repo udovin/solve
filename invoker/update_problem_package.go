@@ -109,14 +109,14 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 			return fmt.Errorf("cannot build compiled problem: %w", err)
 		}
 	}
-	groups, err := t.problemImpl.GetTestGroups()
+	testSets, err := t.problemImpl.GetTestSets()
 	if err != nil {
 		return fmt.Errorf("cannot get test groups: %w", err)
 	}
 	config := models.ProblemConfig{}
-	for _, group := range groups {
-		config.TimeLimit = max(config.TimeLimit, group.TimeLimit())
-		config.MemoryLimit = max(config.MemoryLimit, group.MemoryLimit())
+	for _, testSet := range testSets {
+		config.TimeLimit = max(config.TimeLimit, testSet.TimeLimit())
+		config.MemoryLimit = max(config.MemoryLimit, testSet.MemoryLimit())
 	}
 	if err := t.problem.SetConfig(config); err != nil {
 		return err

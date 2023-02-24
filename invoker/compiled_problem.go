@@ -15,16 +15,23 @@ import (
 )
 
 type problemTestConfig struct {
-	Input  string `json:"input"`
-	Answer string `json:"answer"`
+	Input  string   `json:"input"`
+	Answer string   `json:"answer"`
+	Groups []string `json:"groups,omitempty"`
+	Points float64  `json:"points,omitempty"`
 }
 
 type problemTestGroupConfig struct {
-	Name        string              `json:"name"`
-	Dir         string              `json:"dir"`
-	Tests       []problemTestConfig `json:"tests"`
-	TimeLimit   int64               `json:"time_limit,omitempty"`
-	MemoryLimit int64               `json:"memory_limit,omitempty"`
+	Name string `json:"name"`
+}
+
+type problemTestSetConfig struct {
+	Name        string                   `json:"name"`
+	Dir         string                   `json:"dir"`
+	Tests       []problemTestConfig      `json:"tests"`
+	TimeLimit   int64                    `json:"time_limit,omitempty"`
+	MemoryLimit int64                    `json:"memory_limit,omitempty"`
+	Groups      []problemTestGroupConfig `json:"groups"`
 }
 
 type problemExecutableConfig struct {
@@ -37,7 +44,9 @@ type problemExecutableConfig struct {
 type problemConfig struct {
 	Version     string                    `json:"version"`
 	Executables []problemExecutableConfig `json:"executables,omitempty"`
-	TestGroups  []problemTestGroupConfig  `json:"test_groups,omitempty"`
+	TestSets    []problemTestSetConfig    `json:"test_sets,omitempty"`
+	// Deprecated.
+	DeprecatedTestGroups []problemTestSetConfig `json:"test_groups,omitempty"`
 }
 
 const problemConfigVersion = "0.1"
@@ -97,29 +106,29 @@ func buildCompiledProblem(problem Problem, target string) error {
 		}
 		config.Executables = append(config.Executables, executableConfig)
 	}
-	groups, err := problem.GetTestGroups()
+	testSets, err := problem.GetTestSets()
 	if err != nil {
 		return err
 	}
-	if err := writeZipDirectory(writer, "groups"); err != nil {
+	if err := writeZipDirectory(writer, "tests"); err != nil {
 		return err
 	}
-	for i, group := range groups {
-		tests, err := group.GetTests()
+	for i, testSet := range testSets {
+		tests, err := testSet.GetTests()
 		if err != nil {
 			return err
 		}
-		name := group.Name()
+		name := testSet.Name()
 		if name == "" {
-			name = fmt.Sprintf("group%d", i+1)
+			name = fmt.Sprintf("tests%d", i+1)
 		}
-		groupConfig := problemTestGroupConfig{
+		testSetConfig := problemTestSetConfig{
 			Name:        name,
-			Dir:         path.Join("groups", name),
-			TimeLimit:   group.TimeLimit(),
-			MemoryLimit: group.MemoryLimit(),
+			Dir:         path.Join("tests", name),
+			TimeLimit:   testSet.TimeLimit(),
+			MemoryLimit: testSet.MemoryLimit(),
 		}
-		if err := writeZipDirectory(writer, groupConfig.Dir); err != nil {
+		if err := writeZipDirectory(writer, testSetConfig.Dir); err != nil {
 			return err
 		}
 		testNameFmt := "%d"
@@ -141,7 +150,7 @@ func buildCompiledProblem(problem Problem, target string) error {
 				}
 				defer func() { _ = inputFile.Close() }()
 				header, err := writer.Create(
-					path.Join(groupConfig.Dir, testConfig.Input),
+					path.Join(testSetConfig.Dir, testConfig.Input),
 				)
 				if err != nil {
 					return err
@@ -158,7 +167,7 @@ func buildCompiledProblem(problem Problem, target string) error {
 				}
 				defer func() { _ = answerFile.Close() }()
 				header, err := writer.Create(
-					path.Join(groupConfig.Dir, testConfig.Answer),
+					path.Join(testSetConfig.Dir, testConfig.Answer),
 				)
 				if err != nil {
 					return err
@@ -168,15 +177,21 @@ func buildCompiledProblem(problem Problem, target string) error {
 			}(); err != nil {
 				return err
 			}
-			groupConfig.Tests = append(groupConfig.Tests, testConfig)
+			testSetConfig.Tests = append(testSetConfig.Tests, testConfig)
 		}
-		config.TestGroups = append(config.TestGroups, groupConfig)
+		config.TestSets = append(config.TestSets, testSetConfig)
 	}
 	header, err := writer.Create("problem.json")
 	if err != nil {
 		return err
 	}
-	return json.NewEncoder(header).Encode(config)
+	if err := json.NewEncoder(header).Encode(config); err != nil {
+		return err
+	}
+	if err := writer.Close(); err != nil {
+		return err
+	}
+	return file.Sync()
 }
 
 func extractCompiledProblem(
@@ -196,6 +211,11 @@ func extractCompiledProblem(
 	}(); err != nil {
 		_ = os.RemoveAll(target)
 		return nil, err
+	}
+	// Fix deprecated fields.
+	if config.DeprecatedTestGroups != nil {
+		config.TestSets = append(config.TestSets, config.DeprecatedTestGroups...)
+		config.DeprecatedTestGroups = nil
 	}
 	problem := compiledProblem{
 		path:      target,
@@ -228,10 +248,10 @@ func (p *compiledProblem) GetExecutables() ([]ProblemExecutable, error) {
 	return executables, nil
 }
 
-func (p *compiledProblem) GetTestGroups() ([]ProblemTestGroup, error) {
-	var groups []ProblemTestGroup
-	for _, group := range p.config.TestGroups {
-		groups = append(groups, &compiledProblemTestGroup{
+func (p *compiledProblem) GetTestSets() ([]ProblemTestSet, error) {
+	var groups []ProblemTestSet
+	for _, group := range p.config.TestSets {
+		groups = append(groups, &compiledProblemTestSet{
 			path:   filepath.Join(p.path, group.Dir),
 			config: group,
 		})
@@ -243,24 +263,24 @@ func (p *compiledProblem) GetStatements() ([]ProblemStatement, error) {
 	return nil, nil
 }
 
-type compiledProblemTestGroup struct {
+type compiledProblemTestSet struct {
 	path   string
-	config problemTestGroupConfig
+	config problemTestSetConfig
 }
 
-func (g *compiledProblemTestGroup) Name() string {
+func (g *compiledProblemTestSet) Name() string {
 	return g.config.Name
 }
 
-func (g *compiledProblemTestGroup) TimeLimit() int64 {
+func (g *compiledProblemTestSet) TimeLimit() int64 {
 	return g.config.TimeLimit
 }
 
-func (g *compiledProblemTestGroup) MemoryLimit() int64 {
+func (g *compiledProblemTestSet) MemoryLimit() int64 {
 	return g.config.MemoryLimit
 }
 
-func (g *compiledProblemTestGroup) GetTests() ([]ProblemTest, error) {
+func (g *compiledProblemTestSet) GetTests() ([]ProblemTest, error) {
 	var tests []ProblemTest
 	for _, test := range g.config.Tests {
 		tests = append(tests, problemTest{

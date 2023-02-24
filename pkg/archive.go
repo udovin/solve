@@ -56,8 +56,10 @@ func ExtractZip(source, target string) (errRes error) {
 			defer func() {
 				_ = output.Close()
 			}()
-			_, err = io.Copy(output, input)
-			return err
+			if _, err := io.Copy(output, input); err != nil {
+				return err
+			}
+			return output.Sync()
 		}(); err != nil {
 			return err
 		}
@@ -129,7 +131,7 @@ func ExtractTarGz(source, target string) (errRes error) {
 				if _, err := io.Copy(output, archive); err != nil {
 					return fmt.Errorf("cannot write file %q: %w", header.Name, err)
 				}
-				return nil
+				return output.Sync()
 			}(); err != nil {
 				return err
 			}

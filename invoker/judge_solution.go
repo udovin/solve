@@ -180,18 +180,20 @@ func (t *judgeSolutionTask) testSolution(
 			return err
 		}
 		defer func() { _ = file.Close() }()
-		_, err = io.Copy(file, testFile)
-		return err
+		if _, err := io.Copy(file, testFile); err != nil {
+			return err
+		}
+		return file.Sync()
 	}(); err != nil {
 		return err
 	}
-	groups, err := t.problemImpl.GetTestGroups()
+	testSets, err := t.problemImpl.GetTestSets()
 	if err != nil {
 		return err
 	}
 	testNumber := 0
-	for _, group := range groups {
-		tests, err := group.GetTests()
+	for _, testSet := range testSets {
+		tests, err := testSet.GetTests()
 		if err != nil {
 			return err
 		}
@@ -210,8 +212,10 @@ func (t *judgeSolutionTask) testSolution(
 					return err
 				}
 				defer func() { _ = file.Close() }()
-				_, err = io.Copy(file, testFile)
-				return err
+				if _, err := io.Copy(file, testFile); err != nil {
+					return err
+				}
+				return file.Sync()
 			}(); err != nil {
 				return err
 			}
@@ -225,8 +229,10 @@ func (t *judgeSolutionTask) testSolution(
 					return err
 				}
 				defer func() { _ = file.Close() }()
-				_, err = io.Copy(file, testFile)
-				return err
+				if _, err := io.Copy(file, testFile); err != nil {
+					return err
+				}
+				return file.Sync()
 			}(); err != nil {
 				return err
 			}
@@ -238,8 +244,8 @@ func (t *judgeSolutionTask) testSolution(
 				OutputFiles: []MountFile{
 					{Source: outputPath, Target: "stdout"},
 				},
-				TimeLimit:   time.Duration(group.TimeLimit()) * time.Millisecond,
-				MemoryLimit: group.MemoryLimit(),
+				TimeLimit:   time.Duration(testSet.TimeLimit()) * time.Millisecond,
+				MemoryLimit: testSet.MemoryLimit(),
 			})
 			if err != nil {
 				return fmt.Errorf("cannot execute solution: %w", err)
@@ -261,9 +267,9 @@ func (t *judgeSolutionTask) testSolution(
 					Memory: executeReport.UsedMemory,
 				},
 			}
-			if executeReport.UsedTime.Milliseconds() > group.TimeLimit() {
+			if executeReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
 				testReport.Verdict = models.TimeLimitExceeded
-			} else if executeReport.UsedMemory > group.MemoryLimit() {
+			} else if executeReport.UsedMemory > testSet.MemoryLimit() {
 				testReport.Verdict = models.MemoryLimitExceeded
 			} else if !executeReport.Success() {
 				testReport.Verdict = models.RuntimeError

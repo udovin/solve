@@ -31,7 +31,7 @@ type ProblemExecutable interface {
 	OpenBinary() (*os.File, error)
 }
 
-type ProblemTestGroup interface {
+type ProblemTestSet interface {
 	Name() string
 	TimeLimit() int64
 	MemoryLimit() int64
@@ -53,7 +53,7 @@ type ProblemStatement interface {
 type Problem interface {
 	Compile(context.Context) error
 	GetExecutables() ([]ProblemExecutable, error)
-	GetTestGroups() ([]ProblemTestGroup, error)
+	GetTestSets() ([]ProblemTestSet, error)
 	GetStatements() ([]ProblemStatement, error)
 }
 

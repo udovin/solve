@@ -15,10 +15,10 @@ import (
 )
 
 type problemTestConfig struct {
-	Input  string   `json:"input"`
-	Answer string   `json:"answer"`
-	Groups []string `json:"groups,omitempty"`
-	Points float64  `json:"points,omitempty"`
+	Input  string  `json:"input"`
+	Answer string  `json:"answer"`
+	Points float64 `json:"points,omitempty"`
+	Group  string  `json:"group,omitempty"`
 }
 
 type problemTestGroupConfig struct {

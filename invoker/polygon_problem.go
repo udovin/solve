@@ -344,10 +344,22 @@ func (g *polygonProblemTestSet) GetGroups() ([]ProblemTestGroup, error) {
 	var groups []ProblemTestGroup
 	for _, group := range g.config.Groups {
 		groups = append(groups, problemTestGroup{
-			name: group.Name,
+			name:         group.Name,
+			pointsPolicy: getPolygonPointsPolicy(group.PointsPolicy),
 		})
 	}
 	return groups, nil
+}
+
+func getPolygonPointsPolicy(policy string) ProblemPointsPolicy {
+	switch policy {
+	case "each-test":
+		return EachTestPointsPolicy
+	case "complete-group":
+		return CompleteGroupPointsPolicy
+	default:
+		return EachTestPointsPolicy
+	}
 }
 
 func (g *polygonProblemTestSet) GetTests() ([]ProblemTest, error) {
@@ -358,22 +370,31 @@ func (g *polygonProblemTestSet) GetTests() ([]ProblemTest, error) {
 		tests = append(tests, problemTest{
 			inputPath:  filepath.Join(g.problem.path, input),
 			answerPath: filepath.Join(g.problem.path, answer),
+			points:     g.config.Tests[i].Points,
+			group:      g.config.Tests[i].Group,
 		})
 	}
 	return tests, nil
 }
 
 type problemTestGroup struct {
-	name string
+	name         string
+	pointsPolicy ProblemPointsPolicy
 }
 
 func (g problemTestGroup) Name() string {
 	return g.name
 }
 
+func (g problemTestGroup) PointsPolicy() ProblemPointsPolicy {
+	return g.pointsPolicy
+}
+
 type problemTest struct {
 	inputPath  string
 	answerPath string
+	points     float64
+	group      string
 }
 
 func (t problemTest) OpenInput() (*os.File, error) {
@@ -382,6 +403,14 @@ func (t problemTest) OpenInput() (*os.File, error) {
 
 func (t problemTest) OpenAnswer() (*os.File, error) {
 	return os.Open(t.answerPath)
+}
+
+func (t problemTest) Points() float64 {
+	return t.points
+}
+
+func (t problemTest) Group() string {
+	return t.group
 }
 
 type polygonProblemStatement struct {

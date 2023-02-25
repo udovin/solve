@@ -22,7 +22,8 @@ type problemTestConfig struct {
 }
 
 type problemTestGroupConfig struct {
-	Name string `json:"name"`
+	Name         string `json:"name"`
+	PointsPolicy string `json:"points_policy"`
 }
 
 type problemTestSetConfig struct {
@@ -142,6 +143,8 @@ func buildCompiledProblem(problem Problem, target string) error {
 			testConfig := problemTestConfig{
 				Input:  testName + ".in",
 				Answer: testName + ".ans",
+				Points: test.Points(),
+				Group:  test.Group(),
 			}
 			if err := func() error {
 				inputFile, err := test.OpenInput()
@@ -185,7 +188,8 @@ func buildCompiledProblem(problem Problem, target string) error {
 		}
 		for _, group := range groups {
 			testSetConfig.Groups = append(testSetConfig.Groups, problemTestGroupConfig{
-				Name: group.Name(),
+				Name:         group.Name(),
+				PointsPolicy: string(group.PointsPolicy()),
 			})
 		}
 		config.TestSets = append(config.TestSets, testSetConfig)
@@ -293,7 +297,8 @@ func (g *compiledProblemTestSet) GetGroups() ([]ProblemTestGroup, error) {
 	var groups []ProblemTestGroup
 	for _, group := range g.config.Groups {
 		groups = append(groups, problemTestGroup{
-			name: group.Name,
+			name:         group.Name,
+			pointsPolicy: ProblemPointsPolicy(group.PointsPolicy),
 		})
 	}
 	return groups, nil
@@ -305,6 +310,8 @@ func (g *compiledProblemTestSet) GetTests() ([]ProblemTest, error) {
 		tests = append(tests, problemTest{
 			inputPath:  filepath.Join(g.path, test.Input),
 			answerPath: filepath.Join(g.path, test.Answer),
+			points:     test.Points,
+			group:      test.Group,
 		})
 	}
 	return tests, nil

@@ -16,6 +16,8 @@ import (
 type ProblemTest interface {
 	OpenInput() (*os.File, error)
 	OpenAnswer() (*os.File, error)
+	Points() float64
+	Group() string
 }
 
 type ProblemExecutableKind string
@@ -31,8 +33,16 @@ type ProblemExecutable interface {
 	OpenBinary() (*os.File, error)
 }
 
+type ProblemPointsPolicy string
+
+const (
+	EachTestPointsPolicy      ProblemPointsPolicy = "each_test"
+	CompleteGroupPointsPolicy ProblemPointsPolicy = "complete_group"
+)
+
 type ProblemTestGroup interface {
 	Name() string
+	PointsPolicy() ProblemPointsPolicy
 }
 
 type ProblemTestSet interface {

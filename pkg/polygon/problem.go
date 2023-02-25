@@ -23,20 +23,30 @@ type Statement struct {
 
 // Test represents test.
 type Test struct {
-	Method string `xml:"method,attr"`
-	Sample bool   `xml:"sample,attr"`
-	Cmd    string `xml:"cmd,attr"`
+	Method string  `xml:"method,attr"`
+	Sample bool    `xml:"sample,attr"`
+	Cmd    string  `xml:"cmd,attr"`
+	Points float64 `xml:"points,attr"`
+	Group  string  `xml:"group,attr"`
+}
+
+type Group struct {
+	Name           string  `xml:"name,attr"`
+	Points         float64 `xml:"points,attr"`
+	PointsPolicy   string  `xml:"points-policy,attr"`
+	FeedbackPolicy string  `xml:"feedback-policy,attr"`
 }
 
 // TestSet represents a group of tests.
 type TestSet struct {
-	Name              string `xml:"name,attr"`
-	TimeLimit         int64  `xml:"time-limit"`
-	MemoryLimit       int64  `xml:"memory-limit"`
-	TestCount         int    `xml:"test-count"`
-	InputPathPattern  string `xml:"input-path-pattern"`
-	AnswerPathPattern string `xml:"answer-path-pattern"`
-	Tests             []Test `xml:"tests>test"`
+	Name              string  `xml:"name,attr"`
+	TimeLimit         int64   `xml:"time-limit"`
+	MemoryLimit       int64   `xml:"memory-limit"`
+	TestCount         int     `xml:"test-count"`
+	InputPathPattern  string  `xml:"input-path-pattern"`
+	AnswerPathPattern string  `xml:"answer-path-pattern"`
+	Tests             []Test  `xml:"tests>test"`
+	Groups            []Group `xml:"groups>group"`
 }
 
 type Resource struct {

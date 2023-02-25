@@ -340,6 +340,16 @@ func (g *polygonProblemTestSet) MemoryLimit() int64 {
 	return g.config.MemoryLimit
 }
 
+func (g *polygonProblemTestSet) GetGroups() ([]ProblemTestGroup, error) {
+	var groups []ProblemTestGroup
+	for _, group := range g.config.Groups {
+		groups = append(groups, problemTestGroup{
+			name: group.Name,
+		})
+	}
+	return groups, nil
+}
+
 func (g *polygonProblemTestSet) GetTests() ([]ProblemTest, error) {
 	var tests []ProblemTest
 	for i := range g.config.Tests {
@@ -351,6 +361,14 @@ func (g *polygonProblemTestSet) GetTests() ([]ProblemTest, error) {
 		})
 	}
 	return tests, nil
+}
+
+type problemTestGroup struct {
+	name string
+}
+
+func (g problemTestGroup) Name() string {
+	return g.name
 }
 
 type problemTest struct {

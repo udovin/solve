@@ -31,11 +31,16 @@ type ProblemExecutable interface {
 	OpenBinary() (*os.File, error)
 }
 
+type ProblemTestGroup interface {
+	Name() string
+}
+
 type ProblemTestSet interface {
 	Name() string
 	TimeLimit() int64
 	MemoryLimit() int64
 	GetTests() ([]ProblemTest, error)
+	GetGroups() ([]ProblemTestGroup, error)
 }
 
 type ProblemResource interface {

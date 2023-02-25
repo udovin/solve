@@ -31,7 +31,7 @@ type problemTestSetConfig struct {
 	Tests       []problemTestConfig      `json:"tests"`
 	TimeLimit   int64                    `json:"time_limit,omitempty"`
 	MemoryLimit int64                    `json:"memory_limit,omitempty"`
-	Groups      []problemTestGroupConfig `json:"groups"`
+	Groups      []problemTestGroupConfig `json:"groups,omitempty"`
 }
 
 type problemExecutableConfig struct {
@@ -179,6 +179,15 @@ func buildCompiledProblem(problem Problem, target string) error {
 			}
 			testSetConfig.Tests = append(testSetConfig.Tests, testConfig)
 		}
+		groups, err := testSet.GetGroups()
+		if err != nil {
+			return err
+		}
+		for _, group := range groups {
+			testSetConfig.Groups = append(testSetConfig.Groups, problemTestGroupConfig{
+				Name: group.Name(),
+			})
+		}
 		config.TestSets = append(config.TestSets, testSetConfig)
 	}
 	header, err := writer.Create("problem.json")
@@ -278,6 +287,16 @@ func (g *compiledProblemTestSet) TimeLimit() int64 {
 
 func (g *compiledProblemTestSet) MemoryLimit() int64 {
 	return g.config.MemoryLimit
+}
+
+func (g *compiledProblemTestSet) GetGroups() ([]ProblemTestGroup, error) {
+	var groups []ProblemTestGroup
+	for _, group := range g.config.Groups {
+		groups = append(groups, problemTestGroup{
+			name: group.Name,
+		})
+	}
+	return groups, nil
 }
 
 func (g *compiledProblemTestSet) GetTests() ([]ProblemTest, error) {

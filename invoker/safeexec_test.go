@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/udovin/solve/pkg"
+	"github.com/udovin/solve/pkg/archives"
 )
 
 func TestSafeexecSimple(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
 	alpinePath := filepath.Join(t.TempDir(), "alpine")
-	if err := pkg.ExtractTarGz(
+	if err := archives.ExtractTarGz(
 		filepath.Join("../testdata", "alpine.tar.gz"),
 		alpinePath,
 	); err != nil {
@@ -60,7 +60,7 @@ func TestSafeexecSimple(t *testing.T) {
 func TestSafeexecMemoryLimit(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
 	alpinePath := filepath.Join(t.TempDir(), "alpine")
-	if err := pkg.ExtractTarGz(
+	if err := archives.ExtractTarGz(
 		filepath.Join("../testdata", "alpine.tar.gz"),
 		alpinePath,
 	); err != nil {
@@ -101,7 +101,7 @@ func TestSafeexecMemoryLimit(t *testing.T) {
 func TestSafeexecTimeLimit(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
 	alpinePath := filepath.Join(t.TempDir(), "alpine")
-	if err := pkg.ExtractTarGz(
+	if err := archives.ExtractTarGz(
 		filepath.Join("../testdata", "alpine.tar.gz"),
 		alpinePath,
 	); err != nil {

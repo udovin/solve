@@ -15,7 +15,7 @@ import (
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
-	"github.com/udovin/solve/pkg"
+	"github.com/udovin/solve/pkg/archives"
 	"github.com/udovin/solve/pkg/logs"
 )
 
@@ -394,7 +394,7 @@ func (m *compilerManager) runDownloadImage(ctx context.Context, imageID int64) (
 			return "", err
 		}
 	}
-	if err := pkg.ExtractTarGz(localImagePath, imagePath); err != nil {
+	if err := archives.ExtractTarGz(localImagePath, imagePath); err != nil {
 		return "", fmt.Errorf("cannot extract image: %w", err)
 	}
 	return imagePath, nil

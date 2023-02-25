@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/udovin/solve/models"
-	"github.com/udovin/solve/pkg"
+	"github.com/udovin/solve/pkg/archives"
 	"github.com/udovin/solve/pkg/logs"
 	"github.com/udovin/solve/pkg/polygon"
 )
@@ -20,7 +20,7 @@ import (
 func extractPolygonProblem(
 	source, target string, compilers *compilerManager,
 ) (Problem, error) {
-	if err := pkg.ExtractZip(source, target); err != nil {
+	if err := archives.ExtractZip(source, target); err != nil {
 		return nil, fmt.Errorf("cannot extract problem: %w", err)
 	}
 	config, err := polygon.ReadProblemConfig(

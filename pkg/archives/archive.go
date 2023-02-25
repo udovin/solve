@@ -1,4 +1,4 @@
-package pkg
+package archives
 
 import (
 	"archive/tar"

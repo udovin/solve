@@ -11,7 +11,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/udovin/solve/pkg"
+	"github.com/udovin/solve/pkg/archives"
 )
 
 type problemTestConfig struct {
@@ -197,7 +197,7 @@ func buildCompiledProblem(problem Problem, target string) error {
 func extractCompiledProblem(
 	source, target string, compilers *compilerManager,
 ) (Problem, error) {
-	if err := pkg.ExtractZip(source, target); err != nil {
+	if err := archives.ExtractZip(source, target); err != nil {
 		return nil, fmt.Errorf("cannot extract problem: %w", err)
 	}
 	var config problemConfig

@@ -45,8 +45,8 @@ type ContestStandings struct {
 }
 
 type ObserveContestStandingsForm struct {
-	IgnoreFreeze bool `query:"ignore-freeze"`
-	OnlyOfficial bool `query:"only-official"`
+	IgnoreFreeze bool `query:"ignore_freeze"`
+	OnlyOfficial bool `query:"only_official"`
 }
 
 func (v *View) observeContestStandings(c echo.Context) error {

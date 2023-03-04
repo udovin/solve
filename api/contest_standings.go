@@ -18,8 +18,10 @@ func (v *View) registerContestStandingsHandlers(g *echo.Group) {
 }
 
 type ContestStandingsColumn struct {
-	Code   string `json:"code"`
-	Points *int   `json:"points,omitempty"`
+	Code              string `json:"code"`
+	Points            *int   `json:"points,omitempty"`
+	TotalSolutions    int    `json:"total_solutions,omitempty"`
+	AcceptedSolutions int    `json:"accepted_solutions,omitempty"`
 }
 
 type ContestStandingsCell struct {
@@ -42,20 +44,38 @@ type ContestStandings struct {
 	Rows    []ContestStandingsRow    `json:"rows,omitempty"`
 }
 
+type ObserveContestStandingsForm struct {
+	IgnoreFreeze bool `query:"ignore-freeze"`
+	OnlyOfficial bool `query:"only-official"`
+}
+
 func (v *View) observeContestStandings(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
 		return fmt.Errorf("contest not extracted")
 	}
-	contest := contestCtx.Contest
-	standings, err := v.standings.BuildStandings(getContext(c), contest, contestCtx.Now)
+	form := ObserveContestStandingsForm{}
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Invalid form."),
+		}
+	}
+	options := managers.BuildStandingsOptions{
+		IgnoreFreeze: form.IgnoreFreeze,
+		OnlyOfficial: form.OnlyOfficial,
+	}
+	standings, err := v.standings.BuildStandings(contestCtx, options)
 	if err != nil {
 		return err
 	}
 	resp := ContestStandings{}
 	for _, column := range standings.Columns {
 		columnResp := ContestStandingsColumn{
-			Code: column.Problem.Code,
+			Code:              column.Problem.Code,
+			TotalSolutions:    column.TotalSolutions,
+			AcceptedSolutions: column.AcceptedSolutions,
 		}
 		config, err := column.Problem.GetConfig()
 		if err == nil && config.Points != nil {
@@ -63,19 +83,7 @@ func (v *View) observeContestStandings(c echo.Context) error {
 		}
 		resp.Columns = append(resp.Columns, columnResp)
 	}
-	observeFullStandings := contestCtx.HasPermission(models.ObserveContestFullStandingsRole)
 	for _, row := range standings.Rows {
-		if !observeFullStandings {
-			switch row.Participant.Kind {
-			case models.RegularParticipant:
-			case models.UpsolvingParticipant:
-				if contestCtx.Stage != managers.ContestFinished {
-					continue
-				}
-			default:
-				continue
-			}
-		}
 		rowResp := ContestStandingsRow{
 			Participant: makeContestParticipant(c, row.Participant, v.core),
 			Score:       row.Score,

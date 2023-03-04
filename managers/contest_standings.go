@@ -1,17 +1,17 @@
 package managers
 
 import (
-	"context"
 	"database/sql"
 	"sort"
-	"time"
 
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
 )
 
 type ContestStandingsColumn struct {
-	Problem models.ContestProblem
+	Problem           models.ContestProblem
+	TotalSolutions    int
+	AcceptedSolutions int
 }
 
 type ContestStandingsCell struct {
@@ -50,16 +50,19 @@ func NewContestStandingsManager(core *core.Core) *ContestStandingsManager {
 	}
 }
 
-func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest models.Contest, now time.Time) (*ContestStandings, error) {
-	contestConfig, err := contest.GetConfig()
+type BuildStandingsOptions struct {
+	OnlyOfficial bool
+	IgnoreFreeze bool
+}
+
+func (m *ContestStandingsManager) BuildStandings(
+	ctx *ContestContext, options BuildStandingsOptions,
+) (*ContestStandings, error) {
+	participants, err := m.contestParticipants.FindByContest(ctx.Contest.ID)
 	if err != nil {
 		return nil, err
 	}
-	participants, err := m.contestParticipants.FindByContest(contest.ID)
-	if err != nil {
-		return nil, err
-	}
-	contestProblems, err := m.contestProblems.FindByContest(contest.ID)
+	contestProblems, err := m.contestProblems.FindByContest(ctx.Contest.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +77,7 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 		})
 		columnByProblem[problem.ID] = i
 	}
-	contestSolutions, err := m.contestSolutions.FindByContest(contest.ID)
+	contestSolutions, err := m.contestSolutions.FindByContest(ctx.Contest.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -84,8 +87,24 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 			solutionsByParticipant[solution.ParticipantID], solution,
 		)
 	}
+	observeFullStandings := ctx.HasPermission(models.ObserveContestFullStandingsRole)
+	ignoreFreeze := options.IgnoreFreeze && observeFullStandings
 	for _, participant := range participants {
-		beginTime := int64(contestConfig.BeginTime)
+		if options.OnlyOfficial && participant.Kind != models.RegularParticipant {
+			continue
+		}
+		if !observeFullStandings {
+			switch participant.Kind {
+			case models.RegularParticipant:
+			case models.UpsolvingParticipant:
+				if ctx.Stage != ContestFinished {
+					continue
+				}
+			default:
+				continue
+			}
+		}
+		beginTime := int64(ctx.ContestConfig.BeginTime)
 		if participant.Kind == models.RegularParticipant {
 			var participantConfig models.RegularParticipantConfig
 			if err := participant.ScanConfig(&participantConfig); err != nil {
@@ -132,7 +151,7 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 				Column: i,
 			}
 			for _, solution := range solutions {
-				if solution.CreateTime >= now.Unix() {
+				if solution.CreateTime >= ctx.Now.Unix() {
 					continue
 				}
 				report, err := solution.GetReport()
@@ -155,7 +174,7 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 					}
 				}
 				cell.Verdict = report.Verdict
-				if isVerdictFrozen(contestConfig, cell.Time, now) {
+				if !ignoreFreeze && isVerdictFrozen(ctx, cell.Time) {
 					cell.Verdict = 0
 				}
 				if report.Verdict == models.Accepted {
@@ -168,10 +187,12 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 		}
 		var penalty int64
 		for _, cell := range row.Cells {
+			column := &standings.Columns[cell.Column]
+			column.TotalSolutions += cell.Attempt
 			if cell.Verdict == models.Accepted {
-				problem := standings.Columns[cell.Column].Problem
-				row.Score += getProblemScore(problem)
+				row.Score += getProblemScore(column.Problem)
 				penalty += int64(cell.Attempt-1)*20 + cell.Time/60
+				column.AcceptedSolutions++
 			}
 		}
 		if participant.Kind == models.RegularParticipant {
@@ -200,18 +221,18 @@ func calculatePlaces(rows []ContestStandingsRow) {
 }
 
 func isVerdictFrozen(
-	config models.ContestConfig, time int64, now time.Time,
+	ctx *ContestContext, time int64,
 ) bool {
-	if config.FreezeBeginDuration == 0 {
+	if ctx.ContestConfig.FreezeBeginDuration == 0 {
 		return false
 	}
-	if time < int64(config.FreezeBeginDuration) {
+	if time < int64(ctx.ContestConfig.FreezeBeginDuration) {
 		return false
 	}
-	if config.FreezeEndTime == 0 {
+	if ctx.ContestConfig.FreezeEndTime == 0 {
 		return true
 	}
-	return now.Unix() < int64(config.FreezeEndTime)
+	return ctx.Now.Unix() < int64(ctx.ContestConfig.FreezeEndTime)
 }
 
 func getParticipantOrder(kind models.ParticipantKind) int {

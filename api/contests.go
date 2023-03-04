@@ -175,6 +175,7 @@ var contestPermissions = []string{
 	models.UpdateContestSolutionRole,
 	models.DeleteContestSolutionRole,
 	models.ObserveContestStandingsRole,
+	models.ObserveContestFullStandingsRole,
 	models.ObserveContestMessagesRole,
 	models.CreateContestMessageRole,
 	models.UpdateContestMessageRole,

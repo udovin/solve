@@ -164,9 +164,13 @@ func readFile(name string, limit int) (string, error) {
 		return "", err
 	}
 	if read > limit {
-		return strings.ToValidUTF8(string(bytes[:limit]), "") + "...", nil
+		return fixUTF8String(string(bytes[:limit])) + "...", nil
 	}
-	return strings.ToValidUTF8(string(bytes[:read]), ""), nil
+	return fixUTF8String(string(bytes[:read])), nil
+}
+
+func fixUTF8String(s string) string {
+	return strings.ReplaceAll(strings.ToValidUTF8(s, ""), "\u0000", "")
 }
 
 var (

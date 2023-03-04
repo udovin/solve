@@ -747,14 +747,14 @@ func (v *View) observeContestParticipants(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-type createContestParticipantForm struct {
+type CreateContestParticipantForm struct {
 	UserID      *int64                 `json:"user_id"`
 	UserLogin   *string                `json:"user_login"`
 	ScopeUserID *int64                 `json:"scope_user_id"`
 	Kind        models.ParticipantKind `json:"kind"`
 }
 
-func (f createContestParticipantForm) Update(
+func (f CreateContestParticipantForm) Update(
 	c echo.Context, participant *models.ContestParticipant, core *core.Core,
 ) *errorResponse {
 	if f.UserID != nil {
@@ -813,7 +813,7 @@ func (v *View) createContestParticipant(c echo.Context) error {
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
-	var form createContestParticipantForm
+	var form CreateContestParticipantForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)

@@ -458,6 +458,28 @@ func (c *Client) ObserveContest(
 	return respData, err
 }
 
+func (c *Client) CreateContestParticipant(
+	ctx context.Context,
+	contest int64,
+	form CreateContestParticipantForm,
+) (ContestParticipant, error) {
+	data, err := json.Marshal(form)
+	if err != nil {
+		return ContestParticipant{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPost,
+		c.getURL("/v0/contests/%d/participants", contest),
+		bytes.NewReader(data),
+	)
+	if err != nil {
+		return ContestParticipant{}, err
+	}
+	var respData ContestParticipant
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
 func (c *Client) ObserveSettings(ctx context.Context) (Settings, error) {
 	req, err := http.NewRequestWithContext(
 		ctx, http.MethodGet, c.getURL("/v0/settings"), nil,
@@ -466,6 +488,18 @@ func (c *Client) ObserveSettings(ctx context.Context) (Settings, error) {
 		return Settings{}, err
 	}
 	var respData Settings
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) ObserveScopeUsers(ctx context.Context, scope int64) (ScopeUsers, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/scopes/%d/users", scope), nil,
+	)
+	if err != nil {
+		return ScopeUsers{}, err
+	}
+	var respData ScopeUsers
 	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
 }

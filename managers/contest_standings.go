@@ -186,14 +186,13 @@ func (m *ContestStandingsManager) BuildStandings(ctx context.Context, contest mo
 
 func calculatePlaces(rows []ContestStandingsRow) {
 	it := -1
+	place := 1
 	for i := range rows {
 		if rows[i].Participant.Kind == models.RegularParticipant {
-			rows[i].Place = 1
-			if it >= 0 {
+			rows[i].Place = place
+			place++
+			if it >= 0 && !participantLess(rows[it], rows[i]) {
 				rows[i].Place = rows[it].Place
-				if participantLess(rows[it], rows[i]) {
-					rows[i].Place++
-				}
 			}
 			it = i
 		}

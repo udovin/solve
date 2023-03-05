@@ -1,6 +1,7 @@
 package invoker
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -142,18 +143,69 @@ func (t *judgeSolutionTask) compileSolution(
 	return compileReport.Success(), nil
 }
 
-func (t *judgeSolutionTask) testSolution(
-	ctx TaskContext, report *models.SolutionReport,
-) error {
-	state := models.JudgeSolutionTaskState{
-		Stage: "testing",
+type testlibCheckerImpl struct {
+	compiler   Compiler
+	binaryPath string
+	tempDir    string
+}
+
+func (c *testlibCheckerImpl) Run(
+	ctx context.Context, inputPath, outputPath, answerPath string,
+) (models.TestReport, error) {
+	checkerLogPath := filepath.Join(c.tempDir, "checker.log")
+	checkerReport, err := c.compiler.Execute(ctx, ExecuteOptions{
+		Binary: c.binaryPath,
+		Args:   []string{"input.in", "output.out", "answer.ans"},
+		InputFiles: []MountFile{
+			{Source: inputPath, Target: "input.in"},
+			{Source: outputPath, Target: "output.out"},
+			{Source: answerPath, Target: "answer.ans"},
+		},
+		OutputFiles: []MountFile{
+			{Source: checkerLogPath, Target: "stderr"},
+		},
+		TimeLimit:   20 * time.Second,
+		MemoryLimit: 256 * 1024 * 1024,
+	})
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot check solution: %w", err)
 	}
-	if err := ctx.SetState(ctx, state); err != nil {
-		return err
+	report := models.TestReport{}
+	switch checkerReport.ExitCode {
+	case 0:
+		report.Verdict = models.Accepted
+	case 1:
+		report.Verdict = models.WrongAnswer
+	case 3:
+		report.Verdict = models.Failed
+	case 2, 4, 8:
+		report.Verdict = models.PresentationError
+	case 5:
+		report.Verdict = models.PartiallyAccepted
+	default:
+		if checkerReport.ExitCode < 16 {
+			return models.TestReport{}, fmt.Errorf("checker exited with code: %d", checkerReport.ExitCode)
+		}
+		report.Verdict = models.PartiallyAccepted
 	}
+	checkerLog, err := readFile(checkerLogPath, 256)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	report.Check = models.CheckReport{
+		Log: checkerLog,
+		Usage: models.UsageReport{
+			Time:   checkerReport.UsedTime.Milliseconds(),
+			Memory: checkerReport.UsedMemory,
+		},
+	}
+	return report, nil
+}
+
+func (t *judgeSolutionTask) getChecker(ctx TaskContext) (*testlibCheckerImpl, error) {
 	executables, err := t.problemImpl.GetExecutables()
 	if err != nil {
-		return fmt.Errorf("cannot get executables: %w", err)
+		return nil, fmt.Errorf("cannot get executables: %w", err)
 	}
 	var checker ProblemExecutable
 	for _, executable := range executables {
@@ -163,11 +215,11 @@ func (t *judgeSolutionTask) testSolution(
 		}
 	}
 	if checker == nil {
-		return fmt.Errorf("cannot find checker executable")
+		return nil, fmt.Errorf("cannot find checker executable")
 	}
 	checkerCompiler, err := t.invoker.compilers.GetCompiler(ctx, checker.Compiler())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	checkerPath := filepath.Join(t.tempDir, "checker")
 	if err := func() error {
@@ -185,6 +237,26 @@ func (t *judgeSolutionTask) testSolution(
 		}
 		return file.Sync()
 	}(); err != nil {
+		return nil, err
+	}
+	return &testlibCheckerImpl{
+		compiler:   checkerCompiler,
+		binaryPath: checkerPath,
+		tempDir:    t.tempDir,
+	}, nil
+}
+
+func (t *judgeSolutionTask) testSolution(
+	ctx TaskContext, report *models.SolutionReport,
+) error {
+	state := models.JudgeSolutionTaskState{
+		Stage: "testing",
+	}
+	if err := ctx.SetState(ctx, state); err != nil {
+		return err
+	}
+	checker, err := t.getChecker(ctx)
+	if err != nil {
 		return err
 	}
 	testSets, err := t.problemImpl.GetTestSets()
@@ -274,52 +346,12 @@ func (t *judgeSolutionTask) testSolution(
 			} else if !executeReport.Success() {
 				testReport.Verdict = models.RuntimeError
 			} else {
-				checkerLogPath := filepath.Join(t.tempDir, "checker.log")
-				checkerReport, err := checkerCompiler.Execute(ctx, ExecuteOptions{
-					Binary: checkerPath,
-					Args:   []string{"input.in", "output.out", "answer.ans"},
-					InputFiles: []MountFile{
-						{Source: inputPath, Target: "input.in"},
-						{Source: outputPath, Target: "output.out"},
-						{Source: answerPath, Target: "answer.ans"},
-					},
-					OutputFiles: []MountFile{
-						{Source: checkerLogPath, Target: "stderr"},
-					},
-					TimeLimit:   20 * time.Second,
-					MemoryLimit: 256 * 1024 * 1024,
-				})
-				if err != nil {
-					return fmt.Errorf("cannot check solution: %w", err)
-				}
-				switch checkerReport.ExitCode {
-				case 0:
-					testReport.Verdict = models.Accepted
-				case 1:
-					testReport.Verdict = models.WrongAnswer
-				case 3:
-					testReport.Verdict = models.Failed
-				case 2, 4, 8:
-					testReport.Verdict = models.PresentationError
-				case 5:
-					testReport.Verdict = models.PartiallyAccepted
-				default:
-					if checkerReport.ExitCode < 16 {
-						return fmt.Errorf("checker exited with code: %d", checkerReport.ExitCode)
-					}
-					testReport.Verdict = models.PartiallyAccepted
-				}
-				checkerLog, err := readFile(checkerLogPath, 256)
+				checkerReport, err := checker.Run(ctx, inputPath, outputPath, answerPath)
 				if err != nil {
 					return err
 				}
-				testReport.Check = models.CheckReport{
-					Log: checkerLog,
-					Usage: models.UsageReport{
-						Time:   checkerReport.UsedTime.Milliseconds(),
-						Memory: checkerReport.UsedMemory,
-					},
-				}
+				testReport.Verdict = checkerReport.Verdict
+				testReport.Check = checkerReport.Check
 			}
 			report.Tests = append(report.Tests, testReport)
 			if report.Usage.Time < testReport.Usage.Time {

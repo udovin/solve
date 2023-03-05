@@ -458,6 +458,34 @@ func (c *Client) ObserveContest(
 	return respData, err
 }
 
+func (c *Client) ObserveContestSolutions(
+	ctx context.Context, id int64,
+) (ContestSolutions, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/contests/%d/solutions", id), nil,
+	)
+	if err != nil {
+		return ContestSolutions{}, err
+	}
+	var respData ContestSolutions
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) ObserveContestSolution(
+	ctx context.Context, id int64, solutionID int64,
+) (ContestSolution, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/contests/%d/solutions/%d", id, solutionID), nil,
+	)
+	if err != nil {
+		return ContestSolution{}, err
+	}
+	var respData ContestSolution
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
 func (c *Client) CreateContestParticipant(
 	ctx context.Context,
 	contest int64,

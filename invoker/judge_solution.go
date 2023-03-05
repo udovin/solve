@@ -269,6 +269,11 @@ func (t *judgeSolutionTask) testSolution(
 		if err != nil {
 			return err
 		}
+		groups, err := testSet.GetGroups()
+		if err != nil {
+			return err
+		}
+		groupTests := map[string][]int{}
 		for _, test := range tests {
 			testNumber++
 			inputPath := filepath.Join(t.tempDir, "test.in")
@@ -353,6 +358,14 @@ func (t *judgeSolutionTask) testSolution(
 				testReport.Verdict = checkerReport.Verdict
 				testReport.Check = checkerReport.Check
 			}
+			if testReport.Verdict == models.Accepted {
+				if points := test.Points(); points > 0 {
+					testReport.Points = &points
+				}
+			}
+			groupTests[test.Group()] = append(
+				groupTests[test.Group()], len(report.Tests),
+			)
 			report.Tests = append(report.Tests, testReport)
 			if report.Usage.Time < testReport.Usage.Time {
 				report.Usage.Time = testReport.Usage.Time
@@ -368,6 +381,37 @@ func (t *judgeSolutionTask) testSolution(
 			if testReport.Verdict != models.Accepted {
 				report.Verdict = testReport.Verdict
 				return nil
+			}
+		}
+		for _, group := range groups {
+			groupPoints := float64(0)
+			groupVerdict := models.Accepted
+			for _, id := range groupTests[group.Name()] {
+				test := report.Tests[id]
+				if test.Points != nil {
+					groupPoints += *test.Points
+				}
+				if test.Verdict != models.Accepted {
+					groupVerdict = test.Verdict
+				}
+			}
+			if report.Points == nil {
+				var points float64
+				report.Points = &points
+			}
+			switch group.PointsPolicy() {
+			case EachTestPointsPolicy:
+				*report.Points += groupPoints
+			case CompleteGroupPointsPolicy:
+				if groupVerdict == models.Accepted {
+					*report.Points += groupPoints
+				} else {
+					for _, id := range groupTests[group.Name()] {
+						report.Tests[id].Points = nil
+					}
+				}
+			default:
+				return fmt.Errorf("unsupported policy: %v", group.PointsPolicy())
 			}
 		}
 	}

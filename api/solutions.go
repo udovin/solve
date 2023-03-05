@@ -108,6 +108,7 @@ type TestReport struct {
 
 type SolutionReport struct {
 	Verdict    string       `json:"verdict"`
+	Points     *float64     `json:"points,omitempty"`
 	UsedTime   int64        `json:"used_time,omitempty"`
 	UsedMemory int64        `json:"used_memory,omitempty"`
 	Tests      []TestReport `json:"tests,omitempty"`
@@ -144,6 +145,7 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 	}
 	resp := SolutionReport{
 		Verdict:    report.Verdict.String(),
+		Points:     report.Points,
 		UsedTime:   report.Usage.Time,
 		UsedMemory: report.Usage.Memory,
 	}

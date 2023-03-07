@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
@@ -984,7 +985,9 @@ type ContestSolution struct {
 }
 
 type SubmitSolutionForm struct {
-	CompilerID  int64       `form:"compiler_id" json:"compiler_id"`
+	CompilerID int64   `form:"compiler_id" json:"compiler_id"`
+	Content    *string `form:"content" json:"content,omitempty"`
+	// ContentFile will be initialized with the content if it is provided.
 	ContentFile *FileReader `json:"-"`
 }
 
@@ -993,15 +996,25 @@ func (f *SubmitSolutionForm) Parse(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	formFile, err := c.FormFile("file")
-	if err != nil {
-		return err
+	if f.Content != nil {
+		buffer := bytes.Buffer{}
+		buffer.WriteString(*f.Content)
+		file := FileReader{
+			Reader: &buffer,
+			Size:   int64(buffer.Len()),
+		}
+		f.ContentFile = &file
+	} else {
+		formFile, err := c.FormFile("file")
+		if err != nil {
+			return err
+		}
+		file, err := managers.NewMultipartFileReader(formFile)
+		if err != nil {
+			return err
+		}
+		f.ContentFile = file
 	}
-	file, err := managers.NewMultipartFileReader(formFile)
-	if err != nil {
-		return err
-	}
-	f.ContentFile = file
 	return nil
 }
 

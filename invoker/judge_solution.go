@@ -379,10 +379,14 @@ func (t *judgeSolutionTask) testSolution(
 				logs.Any("test", testNumber),
 				logs.Any("verdict", testReport.Verdict.String()),
 			)
-			// Stop judging immediately when points are disabled.
-			if testReport.Verdict != models.Accepted && !t.config.EnablePoints {
-				report.Verdict = testReport.Verdict
-				return nil
+			if testReport.Verdict != models.Accepted {
+				if t.config.EnablePoints {
+					report.Verdict = models.PartiallyAccepted
+				} else {
+					// Stop judging immediately.
+					report.Verdict = testReport.Verdict
+					return nil
+				}
 			}
 		}
 		if t.config.EnablePoints {
@@ -401,9 +405,6 @@ func (t *judgeSolutionTask) testSolution(
 					if test.Verdict != models.Accepted {
 						groupVerdict = test.Verdict
 					}
-				}
-				if groupVerdict != models.Accepted {
-					report.Verdict = models.PartiallyAccepted
 				}
 				switch group.PointsPolicy() {
 				case EachTestPointsPolicy:

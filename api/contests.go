@@ -953,13 +953,18 @@ func (v *View) observeContestSolution(c echo.Context) error {
 }
 
 func (v *View) rejudgeContestSolution(c echo.Context) error {
+	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
+	if !ok {
+		return fmt.Errorf("contest not extracted")
+	}
 	solution, ok := c.Get(contestSolutionKey).(models.ContestSolution)
 	if !ok {
 		return fmt.Errorf("solution not extracted")
 	}
 	task := models.Task{}
 	if err := task.SetConfig(models.JudgeSolutionTaskConfig{
-		SolutionID: solution.SolutionID,
+		SolutionID:   solution.SolutionID,
+		EnablePoints: getEnablePoints(contestCtx),
 	}); err != nil {
 		return err
 	}
@@ -1136,7 +1141,8 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		}
 		task := models.Task{}
 		if err := task.SetConfig(models.JudgeSolutionTaskConfig{
-			SolutionID: solution.ID,
+			SolutionID:   solution.ID,
+			EnablePoints: getEnablePoints(contestCtx),
 		}); err != nil {
 			return err
 		}
@@ -1148,6 +1154,10 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		http.StatusCreated,
 		v.makeContestSolution(c, contestSolution, true),
 	)
+}
+
+func getEnablePoints(ctx *managers.ContestContext) bool {
+	return ctx.ContestConfig.StandingsKind == models.IOIStandings
 }
 
 func (v *View) makeContestSolution(

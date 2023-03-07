@@ -75,7 +75,8 @@ func (t TaskKind) MarshalText() ([]byte, error) {
 
 // JudgeSolutionTaskConfig represets config for JudgeSolution.
 type JudgeSolutionTaskConfig struct {
-	SolutionID int64 `json:"solution_id"`
+	SolutionID   int64 `json:"solution_id"`
+	EnablePoints bool  `json:"enable_points,omitempty"`
 }
 
 func (c JudgeSolutionTaskConfig) TaskKind() TaskKind {

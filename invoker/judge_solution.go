@@ -263,13 +263,14 @@ func (t *judgeSolutionTask) testSolution(
 	if err != nil {
 		return err
 	}
+	report.Verdict = models.Accepted
+	if t.config.EnablePoints {
+		points := float64(0)
+		report.Points = &points
+	}
 	testNumber := 0
 	for _, testSet := range testSets {
 		tests, err := testSet.GetTests()
-		if err != nil {
-			return err
-		}
-		groups, err := testSet.GetGroups()
 		if err != nil {
 			return err
 		}
@@ -358,7 +359,7 @@ func (t *judgeSolutionTask) testSolution(
 				testReport.Verdict = checkerReport.Verdict
 				testReport.Check = checkerReport.Check
 			}
-			if testReport.Verdict == models.Accepted {
+			if testReport.Verdict == models.Accepted && t.config.EnablePoints {
 				if points := test.Points(); points > 0 {
 					testReport.Points = &points
 				}
@@ -378,44 +379,49 @@ func (t *judgeSolutionTask) testSolution(
 				logs.Any("test", testNumber),
 				logs.Any("verdict", testReport.Verdict.String()),
 			)
-			if testReport.Verdict != models.Accepted {
+			// Stop judging immediately when points are disabled.
+			if testReport.Verdict != models.Accepted && !t.config.EnablePoints {
 				report.Verdict = testReport.Verdict
 				return nil
 			}
 		}
-		for _, group := range groups {
-			groupPoints := float64(0)
-			groupVerdict := models.Accepted
-			for _, id := range groupTests[group.Name()] {
-				test := report.Tests[id]
-				if test.Points != nil {
-					groupPoints += *test.Points
-				}
-				if test.Verdict != models.Accepted {
-					groupVerdict = test.Verdict
-				}
+		if t.config.EnablePoints {
+			groups, err := testSet.GetGroups()
+			if err != nil {
+				return err
 			}
-			if report.Points == nil {
-				var points float64
-				report.Points = &points
-			}
-			switch group.PointsPolicy() {
-			case EachTestPointsPolicy:
-				*report.Points += groupPoints
-			case CompleteGroupPointsPolicy:
-				if groupVerdict == models.Accepted {
-					*report.Points += groupPoints
-				} else {
-					for _, id := range groupTests[group.Name()] {
-						report.Tests[id].Points = nil
+			for _, group := range groups {
+				groupPoints := float64(0)
+				groupVerdict := models.Accepted
+				for _, id := range groupTests[group.Name()] {
+					test := report.Tests[id]
+					if test.Points != nil {
+						groupPoints += *test.Points
+					}
+					if test.Verdict != models.Accepted {
+						groupVerdict = test.Verdict
 					}
 				}
-			default:
-				return fmt.Errorf("unsupported policy: %v", group.PointsPolicy())
+				if groupVerdict != models.Accepted {
+					report.Verdict = models.PartiallyAccepted
+				}
+				switch group.PointsPolicy() {
+				case EachTestPointsPolicy:
+					*report.Points += groupPoints
+				case CompleteGroupPointsPolicy:
+					if groupVerdict == models.Accepted {
+						*report.Points += groupPoints
+					} else {
+						for _, id := range groupTests[group.Name()] {
+							report.Tests[id].Points = nil
+						}
+					}
+				default:
+					return fmt.Errorf("unsupported policy: %v", group.PointsPolicy())
+				}
 			}
 		}
 	}
-	report.Verdict = models.Accepted
 	return nil
 }
 

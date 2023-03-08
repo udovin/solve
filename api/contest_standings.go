@@ -25,23 +25,26 @@ type ContestStandingsColumn struct {
 }
 
 type ContestStandingsCell struct {
-	Column  int    `json:"column"`
-	Verdict string `json:"verdict"`
-	Attempt int    `json:"attempt"`
-	Time    *int64 `json:"time,omitempty"`
+	Column  int     `json:"column"`
+	Verdict string  `json:"verdict"`
+	Points  float64 `json:"points,omitempty"`
+	Attempt int     `json:"attempt"`
+	Time    *int64  `json:"time,omitempty"`
 }
 
 type ContestStandingsRow struct {
 	Participant ContestParticipant     `json:"participant,omitempty"`
-	Score       int                    `json:"score"`
+	Score       float64                `json:"score"`
 	Penalty     *int64                 `json:"penalty,omitempty"`
 	Place       int                    `json:"place,omitempty"`
 	Cells       []ContestStandingsCell `json:"cells,omitempty"`
 }
 
 type ContestStandings struct {
+	Kind    string                   `json:"kind"`
 	Columns []ContestStandingsColumn `json:"columns,omitempty"`
 	Rows    []ContestStandingsRow    `json:"rows,omitempty"`
+	Frozen  bool                     `json:"frozen,omitempty"`
 }
 
 type ObserveContestStandingsForm struct {
@@ -70,7 +73,10 @@ func (v *View) observeContestStandings(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	resp := ContestStandings{}
+	resp := ContestStandings{
+		Kind:   contestCtx.ContestConfig.StandingsKind.String(),
+		Frozen: standings.Frozen,
+	}
 	for _, column := range standings.Columns {
 		columnResp := ContestStandingsColumn{
 			Code:              column.Problem.Code,
@@ -94,6 +100,7 @@ func (v *View) observeContestStandings(c echo.Context) error {
 			cellResp := ContestStandingsCell{
 				Column:  cell.Column,
 				Attempt: cell.Attempt,
+				Points:  cell.Points,
 			}
 			if row.Participant.Kind == models.RegularParticipant {
 				cellResp.Time = getPtr(cell.Time)

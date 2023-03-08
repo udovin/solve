@@ -254,7 +254,8 @@ func (m *ContestStandingsManager) buildIOIStandings(
 	}
 	observeFullStandings := ctx.HasPermission(models.ObserveContestFullStandingsRole)
 	ignoreFreeze := options.IgnoreFreeze && observeFullStandings
-	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, ctx.Now.Unix())
+	contestTime := ctx.Now.Unix() - int64(ctx.ContestConfig.BeginTime)
+	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, contestTime)
 	for _, participant := range participants {
 		if options.OnlyOfficial && participant.Kind != models.RegularParticipant {
 			continue

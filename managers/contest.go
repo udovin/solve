@@ -106,6 +106,21 @@ func addContestUpsolvingPermissions(
 	}
 }
 
+func addContestObserverPermissions(
+	permissions PermissionSet, stage ContestStage, config models.ContestConfig,
+) {
+	permissions.AddPermission(models.ObserveContestRole)
+	switch stage {
+	case ContestStarted, ContestFinished:
+		if config.StandingsKind != models.DisabledStandings {
+			permissions.AddPermission(models.ObserveContestStandingsRole)
+		}
+		if config.StandingsKind != models.DisabledStandings {
+			permissions.AddPermission(models.ObserveContestStandingsRole)
+		}
+	}
+}
+
 func getParticipantPermissions(
 	contest models.Contest,
 	stage ContestStage,
@@ -120,6 +135,8 @@ func getParticipantPermissions(
 		addContestUpsolvingPermissions(permissions, stage, config)
 	case models.ManagerParticipant:
 		addContestManagerPermissions(permissions)
+	case models.ObserverParticipant:
+		addContestObserverPermissions(permissions, stage, config)
 	}
 	return permissions
 }
@@ -213,6 +230,9 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 			})
 			addContestUpsolvingPermissions(c.Permissions, c.Stage, config)
 		}
+	}
+	if config.EnableObserving && len(c.Participants) == 0 {
+		addContestObserverPermissions(c.Permissions, c.Stage, config)
 	}
 	c.effectivePos = len(c.Participants)
 	for i := 0; i < len(c.Participants); i++ {

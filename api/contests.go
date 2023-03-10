@@ -137,6 +137,7 @@ type Contest struct {
 	Permissions         []string             `json:"permissions,omitempty"`
 	EnableRegistration  bool                 `json:"enable_registration"`
 	EnableUpsolving     bool                 `json:"enable_upsolving"`
+	EnableObserving     bool                 `json:"enable_observing,omitempty"`
 	FreezeBeginDuration int                  `json:"freeze_begin_duration,omitempty"`
 	FreezeEndTime       NInt64               `json:"freeze_end_time,omitempty"`
 	StandingsKind       models.StandingsKind `json:"standings_kind,omitempty"`
@@ -211,6 +212,7 @@ func makeContest(
 		resp.Duration = config.Duration
 		resp.EnableRegistration = config.EnableRegistration
 		resp.EnableUpsolving = config.EnableUpsolving
+		resp.EnableObserving = config.EnableObserving
 		resp.FreezeBeginDuration = config.FreezeBeginDuration
 		resp.FreezeEndTime = config.FreezeEndTime
 		resp.StandingsKind = config.StandingsKind
@@ -332,6 +334,7 @@ type updateContestForm struct {
 	Duration            *int                  `json:"duration" form:"duration"`
 	EnableRegistration  *bool                 `json:"enable_registration" form:"enable_registration"`
 	EnableUpsolving     *bool                 `json:"enable_upsolving" form:"enable_upsolving"`
+	EnableObserving     *bool                 `json:"enable_observing" form:"enable_observing"`
 	FreezeBeginDuration *int                  `json:"freeze_begin_duration" form:"freeze_begin_duration"`
 	FreezeEndTime       *NInt64               `json:"freeze_end_time" form:"freeze_end_time"`
 	StandingsKind       *models.StandingsKind `json:"standings_kind" form:"standings_kind"`
@@ -382,6 +385,9 @@ func (f *updateContestForm) Update(
 	}
 	if f.StandingsKind != nil {
 		config.StandingsKind = *f.StandingsKind
+	}
+	if f.EnableObserving != nil {
+		config.EnableObserving = *f.EnableObserving
 	}
 	if err := contest.SetConfig(config); err != nil {
 		errors["config"] = errorField{

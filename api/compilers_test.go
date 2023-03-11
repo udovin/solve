@@ -21,7 +21,7 @@ func TestCompilersSimpleScenario(t *testing.T) {
 		models.DeleteCompilerRole,
 	)
 	user.LoginClient()
-	file, err := os.Open(filepath.Join("../testdata", "alpine.tar.gz"))
+	file, err := os.Open(filepath.Join("../testdata", "alpine-cpp.tar.gz"))
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -49,7 +49,7 @@ func TestCompilersSimpleScenario(t *testing.T) {
 		e.Check(compilers)
 	}
 	{
-		file, err := os.Open(filepath.Join("../testdata", "alpine.tar.gz"))
+		file, err := os.Open(filepath.Join("../testdata", "alpine-cpp.tar.gz"))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}

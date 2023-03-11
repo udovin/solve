@@ -14,7 +14,7 @@ func TestSafeexecSimple(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
 	alpinePath := filepath.Join(t.TempDir(), "alpine")
 	if err := archives.ExtractTarGz(
-		filepath.Join("../testdata", "alpine.tar.gz"),
+		filepath.Join("../testdata", "alpine-cpp.tar.gz"),
 		alpinePath,
 	); err != nil {
 		t.Fatal("Error:", err)
@@ -61,7 +61,7 @@ func TestSafeexecMemoryLimit(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
 	alpinePath := filepath.Join(t.TempDir(), "alpine")
 	if err := archives.ExtractTarGz(
-		filepath.Join("../testdata", "alpine.tar.gz"),
+		filepath.Join("../testdata", "alpine-cpp.tar.gz"),
 		alpinePath,
 	); err != nil {
 		t.Fatal("Error:", err)
@@ -102,7 +102,7 @@ func TestSafeexecTimeLimit(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
 	alpinePath := filepath.Join(t.TempDir(), "alpine")
 	if err := archives.ExtractTarGz(
-		filepath.Join("../testdata", "alpine.tar.gz"),
+		filepath.Join("../testdata", "alpine-cpp.tar.gz"),
 		alpinePath,
 	); err != nil {
 		t.Fatal("Error:", err)

@@ -179,7 +179,7 @@ func (v *View) observeProblems(c echo.Context) error {
 			Message: localize(c, "Invalid filter."),
 		}
 	}
-	problems, err := v.core.Problems.All()
+	problems, err := v.core.Problems.ReverseAll(getContext(c))
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,6 @@ func (v *View) observeProblems(c echo.Context) error {
 	if err := problems.Err(); err != nil {
 		return err
 	}
-	sortFunc(resp.Problems, problemGreater)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -601,8 +600,4 @@ func (v *View) getProblemPermissions(
 		permissions[models.DeleteProblemRole] = struct{}{}
 	}
 	return permissions
-}
-
-func problemGreater(l, r Problem) bool {
-	return l.ID > r.ID
 }

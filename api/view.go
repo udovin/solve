@@ -662,7 +662,7 @@ func (l *settingLocale) Localize(text string, options ...func(*string)) string {
 }
 
 func (l *settingLocale) GetLocalizations() ([]Localization, error) {
-	settings, err := l.settings.All()
+	settings, err := l.settings.All(context.TODO())
 	if err != nil {
 		return nil, err
 	}

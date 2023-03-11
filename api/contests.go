@@ -288,7 +288,7 @@ func (v *View) observeContests(c echo.Context) error {
 		return err
 	}
 	var resp Contests
-	contests, err := v.core.Contests.All()
+	contests, err := v.core.Contests.All(getContext(c))
 	if err != nil {
 		return err
 	}

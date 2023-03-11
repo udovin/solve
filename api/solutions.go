@@ -40,7 +40,8 @@ type Solution struct {
 }
 
 type Solutions struct {
-	Solutions []Solution `json:"solutions"`
+	Solutions   []Solution `json:"solutions"`
+	NextBeginID int64      `json:"next_begin_id,omitempty"`
 }
 
 func (v *View) tryFindSolutionTask(id int64) (models.Task, error) {
@@ -215,9 +216,10 @@ func (v *View) makeSolution(
 }
 
 type solutionsFilter struct {
-	ProblemID int64 `query:"problem_id"`
-	BeginID   int64 `query:"begin_id"`
-	Limit     int   `query:"limit"`
+	ProblemID int64          `query:"problem_id"`
+	Verdict   models.Verdict `query:"verdict"`
+	BeginID   int64          `query:"begin_id"`
+	Limit     int            `query:"limit"`
 }
 
 func (f *solutionsFilter) Filter(solution models.Solution) bool {
@@ -226,6 +228,15 @@ func (f *solutionsFilter) Filter(solution models.Solution) bool {
 	}
 	if f.BeginID != 0 && solution.ID < f.BeginID {
 		return false
+	}
+	if f.Verdict != 0 {
+		report, err := solution.GetReport()
+		if err != nil {
+			return false
+		}
+		if report.Verdict != f.Verdict {
+			return false
+		}
 	}
 	return true
 }
@@ -245,7 +256,7 @@ func (v *View) observeSolutions(c echo.Context) error {
 		}
 	}
 	var resp Solutions
-	solutions, err := v.core.Solutions.All()
+	solutions, err := v.core.Solutions.ReverseAll(getContext(c))
 	if err != nil {
 		c.Logger().Error(err)
 		return err
@@ -258,14 +269,16 @@ func (v *View) observeSolutions(c echo.Context) error {
 		}
 		permissions := v.getSolutionPermissions(accountCtx, solution)
 		if permissions.HasPermission(models.ObserveSolutionRole) {
+			if len(resp.Solutions) > filter.Limit {
+				resp.NextBeginID = solution.ID
+				break
+			}
 			resp.Solutions = append(resp.Solutions, v.makeSolution(c, accountCtx, solution, false))
 		}
 	}
 	if err := solutions.Err(); err != nil {
 		return err
 	}
-	sortFunc(resp.Solutions, solutionGreater)
-	applyLimit(&resp.Solutions, filter.Limit)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -330,14 +343,4 @@ func (v *View) getSolutionPermissions(
 		permissions[models.ObserveSolutionRole] = struct{}{}
 	}
 	return permissions
-}
-
-func solutionGreater(l, r Solution) bool {
-	return l.ID > r.ID
-}
-
-func applyLimit[T any](a *[]T, limit int) {
-	if limit > 0 && len(*a) > limit {
-		*a = (*a)[0:limit]
-	}
 }

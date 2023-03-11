@@ -194,9 +194,41 @@ func (r *btreeRows[T, TPtr]) Close() error {
 	return nil
 }
 
+type btreeReverseRows[T any, TPtr ObjectPtr[T]] struct {
+	iter   btree.MapIter[int64, T]
+	seeked bool
+}
+
+func (r *btreeReverseRows[T, TPtr]) Next() bool {
+	if !r.seeked {
+		// Prev currently does not seek automatically.
+		r.seeked = true
+		return r.iter.Last()
+	}
+	return r.iter.Prev()
+}
+
+func (r *btreeReverseRows[T, TPtr]) Row() T {
+	value := r.iter.Value()
+	return TPtr(&value).Clone()
+}
+
+func (r *btreeReverseRows[T, TPtr]) Err() error {
+	return nil
+}
+
+func (r *btreeReverseRows[T, TPtr]) Close() error {
+	return nil
+}
+
 // All returns all objects contained by this store.
-func (s *cachedStore[T, E, TPtr, EPtr]) All() (db.Rows[T], error) {
+func (s *cachedStore[T, E, TPtr, EPtr]) All(ctx context.Context) (db.Rows[T], error) {
 	return &btreeRows[T, TPtr]{iter: s.objects.Iter()}, nil
+}
+
+// ReverseAll returns all objects contained by this store.
+func (s *cachedStore[T, E, TPtr, EPtr]) ReverseAll(ctx context.Context) (db.Rows[T], error) {
+	return &btreeReverseRows[T, TPtr]{iter: s.objects.Iter()}, nil
 }
 
 var (

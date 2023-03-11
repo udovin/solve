@@ -57,7 +57,7 @@ func (v *View) observeSettings(c echo.Context) error {
 		return err
 	}
 	var resp Settings
-	settings, err := v.core.Settings.All()
+	settings, err := v.core.Settings.All(getContext(c))
 	if err != nil {
 		return err
 	}

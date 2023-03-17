@@ -3,6 +3,8 @@ package managers
 import (
 	"database/sql"
 	"sort"
+	"sync"
+	"time"
 
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/models"
@@ -41,6 +43,9 @@ type ContestStandingsManager struct {
 	contestSolutions    *models.ContestSolutionStore
 	contestProblems     *models.ContestProblemStore
 	solutions           *models.SolutionStore
+	settings            *models.SettingStore
+	cache               map[standingsCacheKey]*standingsCache
+	mutex               sync.Mutex
 }
 
 func NewContestStandingsManager(core *core.Core) *ContestStandingsManager {
@@ -48,7 +53,9 @@ func NewContestStandingsManager(core *core.Core) *ContestStandingsManager {
 		contestParticipants: core.ContestParticipants,
 		contestSolutions:    core.ContestSolutions,
 		contestProblems:     core.ContestProblems,
+		settings:            core.Settings,
 		solutions:           core.Solutions,
+		cache:               map[standingsCacheKey]*standingsCache{},
 	}
 }
 
@@ -58,6 +65,60 @@ type BuildStandingsOptions struct {
 }
 
 func (m *ContestStandingsManager) BuildStandings(
+	ctx *ContestContext, options BuildStandingsOptions,
+) (*ContestStandings, error) {
+	setting, err := m.settings.GetByKey("standings.use_cache")
+	if err != nil {
+		return m.buildStandings(ctx, options)
+	}
+	if setting.Value != "1" && setting.Value != "t" && setting.Value != "true" {
+		return m.buildStandings(ctx, options)
+	}
+	key := standingsCacheKey{
+		ContestID:     ctx.Contest.ID,
+		OnlyOfficial:  options.OnlyOfficial,
+		IgnoreFreeze:  options.IgnoreFreeze,
+		FullStandings: ctx.HasPermission(models.ObserveContestFullStandingsRole),
+	}
+	m.mutex.Lock()
+	cache, ok := m.cache[key]
+	if ok {
+		select {
+		case <-cache.Done:
+			if cache.Error == nil && time.Since(cache.Time) < 15*time.Second {
+				m.mutex.Unlock()
+				return cache.Standings, nil
+			}
+		default:
+			m.mutex.Unlock()
+			<-cache.Done
+			return cache.Standings, cache.Error
+		}
+	}
+	done := make(chan struct{})
+	defer close(done)
+	cache = &standingsCache{Done: done, Time: ctx.Now}
+	m.cache[key] = cache
+	m.mutex.Unlock()
+	cache.Standings, cache.Error = m.buildStandings(ctx, options)
+	return cache.Standings, cache.Error
+}
+
+type standingsCache struct {
+	Done      <-chan struct{}
+	Time      time.Time
+	Standings *ContestStandings
+	Error     error
+}
+
+type standingsCacheKey struct {
+	ContestID     int64
+	OnlyOfficial  bool
+	IgnoreFreeze  bool
+	FullStandings bool
+}
+
+func (m *ContestStandingsManager) buildStandings(
 	ctx *ContestContext, options BuildStandingsOptions,
 ) (*ContestStandings, error) {
 	switch ctx.ContestConfig.StandingsKind {

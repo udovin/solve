@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tidwall/btree"
+	"github.com/udovin/algo/sync/btree"
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
@@ -35,7 +35,7 @@ type cachedStore[
 	consumer db.EventConsumer[E, EPtr]
 	impl     cachedStoreImpl[T]
 	mutex    sync.RWMutex
-	objects  *btree.Map[int64, T]
+	objects  btree.Map[int64, T]
 	indexes  []storeIndex[T]
 }
 
@@ -195,16 +195,10 @@ func (r *btreeRows[T, TPtr]) Close() error {
 }
 
 type btreeReverseRows[T any, TPtr ObjectPtr[T]] struct {
-	iter   btree.MapIter[int64, T]
-	seeked bool
+	iter btree.MapIter[int64, T]
 }
 
 func (r *btreeReverseRows[T, TPtr]) Next() bool {
-	if !r.seeked {
-		// Prev currently does not seek automatically.
-		r.seeked = true
-		return r.iter.Last()
-	}
 	return r.iter.Prev()
 }
 
@@ -279,7 +273,11 @@ func (s *cachedStore[T, E, TPtr, EPtr]) reset() {
 	for _, index := range s.indexes {
 		index.Reset()
 	}
-	s.objects = btree.NewMap[int64, T](32)
+	s.objects = btree.NewMap[int64, T](lessInt64)
+}
+
+func lessInt64(lhs, rhs int64) bool {
+	return lhs < rhs
 }
 
 //lint:ignore U1000 Used in generic interface.

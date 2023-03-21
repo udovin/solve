@@ -54,7 +54,7 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 	if err := syncStore(c, v.core.Compilers); err != nil {
 		return err
 	}
-	compilers, err := v.core.Compilers.ReverseAll(getContext(c))
+	compilers, err := v.core.Compilers.ReverseAll(getContext(c), 0)
 	if err != nil {
 		return err
 	}

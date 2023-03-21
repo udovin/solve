@@ -288,7 +288,7 @@ func (v *View) observeContests(c echo.Context) error {
 		return err
 	}
 	var resp Contests
-	contests, err := v.core.Contests.All(getContext(c))
+	contests, err := v.core.Contests.All(getContext(c), 0)
 	if err != nil {
 		return err
 	}
@@ -919,10 +919,44 @@ type ContestSolutions struct {
 	Solutions []ContestSolution `json:"solutions"`
 }
 
+type contestSolutionsFilter struct {
+	ProblemID int64          `query:"problem_id"`
+	Verdict   models.Verdict `query:"verdict"`
+	BeginID   int64          `query:"begin_id"`
+	Limit     int            `query:"limit"`
+}
+
+func (f *contestSolutionsFilter) Filter(solution models.Solution) bool {
+	if f.ProblemID != 0 && solution.ProblemID != f.ProblemID {
+		return false
+	}
+	if f.BeginID != 0 && solution.ID < f.BeginID {
+		return false
+	}
+	if f.Verdict != 0 {
+		report, err := solution.GetReport()
+		if err != nil {
+			return false
+		}
+		if report.Verdict != f.Verdict {
+			return false
+		}
+	}
+	return true
+}
+
 func (v *View) observeContestSolutions(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
 		return fmt.Errorf("contest not extracted")
+	}
+	filter := contestSolutionsFilter{Limit: 200}
+	if err := c.Bind(&filter); err != nil {
+		c.Logger().Warn(err)
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Invalid filter."),
+		}
 	}
 	contest := contestCtx.Contest
 	if err := syncStore(c, v.core.Solutions); err != nil {

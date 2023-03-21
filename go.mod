@@ -12,7 +12,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/nsf/jsondiff v0.0.0-20210926074059-1e845ec5d249
 	github.com/spf13/cobra v1.6.1
-	github.com/udovin/algo v0.0.3
+	github.com/udovin/algo v0.0.4
 	github.com/udovin/gosql v0.0.1
 	golang.org/x/crypto v0.7.0
 	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0

@@ -247,7 +247,7 @@ func (v *View) observeSolutions(c echo.Context) error {
 		c.Logger().Error("auth not extracted")
 		return fmt.Errorf("auth not extracted")
 	}
-	filter := solutionsFilter{Limit: 50}
+	filter := solutionsFilter{Limit: 200}
 	if err := c.Bind(&filter); err != nil {
 		c.Logger().Warn(err)
 		return errorResponse{
@@ -256,7 +256,7 @@ func (v *View) observeSolutions(c echo.Context) error {
 		}
 	}
 	var resp Solutions
-	solutions, err := v.core.Solutions.ReverseAll(getContext(c))
+	solutions, err := v.core.Solutions.ReverseAll(getContext(c), 0)
 	if err != nil {
 		c.Logger().Error(err)
 		return err

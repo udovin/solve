@@ -179,7 +179,7 @@ func (v *View) observeProblems(c echo.Context) error {
 			Message: localize(c, "Invalid filter."),
 		}
 	}
-	problems, err := v.core.Problems.ReverseAll(getContext(c))
+	problems, err := v.core.Problems.ReverseAll(getContext(c), 0)
 	if err != nil {
 		return err
 	}

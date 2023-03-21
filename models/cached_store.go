@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
-	"github.com/udovin/algo/sync/btree"
+	"github.com/udovin/algo/btree"
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/db"
 )
@@ -167,6 +168,8 @@ func (s *cachedStore[T, E, TPtr, EPtr]) Get(ctx context.Context, id int64) (T, e
 			return empty, err
 		}
 	}
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	if object, ok := s.objects.Get(id); ok {
 		return TPtr(&object).Clone(), nil
 	}
@@ -174,10 +177,17 @@ func (s *cachedStore[T, E, TPtr, EPtr]) Get(ctx context.Context, id int64) (T, e
 }
 
 type btreeRows[T any, TPtr ObjectPtr[T]] struct {
-	iter btree.MapIter[int64, T]
+	iter  btree.MapIter[int64, T]
+	limit int
+	mutex sync.Locker
 }
 
 func (r *btreeRows[T, TPtr]) Next() bool {
+	if r.limit <= 0 {
+		r.Close()
+		return false
+	}
+	r.limit--
 	return r.iter.Next()
 }
 
@@ -191,14 +201,26 @@ func (r *btreeRows[T, TPtr]) Err() error {
 }
 
 func (r *btreeRows[T, TPtr]) Close() error {
+	if r.mutex == nil {
+		return nil
+	}
+	r.mutex.Unlock()
+	r.mutex = nil
 	return nil
 }
 
 type btreeReverseRows[T any, TPtr ObjectPtr[T]] struct {
-	iter btree.MapIter[int64, T]
+	iter  btree.MapIter[int64, T]
+	mutex sync.Locker
+	limit int
 }
 
 func (r *btreeReverseRows[T, TPtr]) Next() bool {
+	if r.limit <= 0 {
+		r.Close()
+		return false
+	}
+	r.limit--
 	return r.iter.Prev()
 }
 
@@ -212,17 +234,38 @@ func (r *btreeReverseRows[T, TPtr]) Err() error {
 }
 
 func (r *btreeReverseRows[T, TPtr]) Close() error {
+	if r.mutex == nil {
+		return nil
+	}
+	r.mutex.Unlock()
+	r.mutex = nil
 	return nil
 }
 
 // All returns all objects contained by this store.
-func (s *cachedStore[T, E, TPtr, EPtr]) All(ctx context.Context) (db.Rows[T], error) {
-	return &btreeRows[T, TPtr]{iter: s.objects.Iter()}, nil
+func (s *cachedStore[T, E, TPtr, EPtr]) All(ctx context.Context, limit int) (db.Rows[T], error) {
+	if limit <= 0 {
+		limit = math.MaxInt
+	}
+	s.mutex.RLock()
+	return &btreeRows[T, TPtr]{
+		iter:  s.objects.Iter(),
+		mutex: s.mutex.RLocker(),
+		limit: limit,
+	}, nil
 }
 
 // ReverseAll returns all objects contained by this store.
-func (s *cachedStore[T, E, TPtr, EPtr]) ReverseAll(ctx context.Context) (db.Rows[T], error) {
-	return &btreeReverseRows[T, TPtr]{iter: s.objects.Iter()}, nil
+func (s *cachedStore[T, E, TPtr, EPtr]) ReverseAll(ctx context.Context, limit int) (db.Rows[T], error) {
+	if limit <= 0 {
+		limit = math.MaxInt
+	}
+	s.mutex.RLock()
+	return &btreeReverseRows[T, TPtr]{
+		iter:  s.objects.Iter(),
+		mutex: s.mutex.RLocker(),
+		limit: limit,
+	}, nil
 }
 
 var (

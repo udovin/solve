@@ -19,11 +19,19 @@ type storeIndex[T any] interface {
 }
 
 func newIndex[K comparable, T any, TPtr db.ObjectPtr[T]](key func(T) K) *index[K, T, TPtr] {
+	return &index[K, T, TPtr]{
+		key: func(v T) (K, bool) {
+			return key(v), true
+		},
+	}
+}
+
+func newOptionalIndex[K comparable, T any, TPtr db.ObjectPtr[T]](key func(T) (K, bool)) *index[K, T, TPtr] {
 	return &index[K, T, TPtr]{key: key}
 }
 
 type index[K comparable, T any, TPtr db.ObjectPtr[T]] struct {
-	key   func(T) K
+	key   func(T) (K, bool)
 	index map[K]map[int64]struct{}
 }
 
@@ -36,7 +44,10 @@ func (i *index[K, T, TPtr]) Get(key K) map[int64]struct{} {
 }
 
 func (i *index[K, T, TPtr]) Register(object T) {
-	key := i.key(object)
+	key, ok := i.key(object)
+	if !ok {
+		return
+	}
 	id := TPtr(&object).ObjectID()
 	if _, ok := i.index[key]; !ok {
 		i.index[key] = map[int64]struct{}{}
@@ -45,7 +56,10 @@ func (i *index[K, T, TPtr]) Register(object T) {
 }
 
 func (i *index[K, T, TPtr]) Deregister(object T) {
-	key := i.key(object)
+	key, ok := i.key(object)
+	if !ok {
+		return
+	}
 	id := TPtr(&object).ObjectID()
 	delete(i.index[key], id)
 	if len(i.index[key]) == 0 {

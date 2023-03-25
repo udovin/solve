@@ -253,25 +253,25 @@ func NewTaskStore(
 	db *gosql.DB, table, eventTable string,
 ) *TaskStore {
 	impl := &TaskStore{
-		bySolution: newIndex(func(o Task) int64 {
+		bySolution: newOptionalIndex(func(o Task) (int64, bool) {
 			switch o.Kind {
 			case JudgeSolutionTask:
 				var config JudgeSolutionTaskConfig
 				if err := o.ScanConfig(&config); err == nil {
-					return config.SolutionID
+					return config.SolutionID, true
 				}
 			}
-			return 0
+			return 0, false
 		}),
-		byProblem: newIndex(func(o Task) int64 {
+		byProblem: newOptionalIndex(func(o Task) (int64, bool) {
 			switch o.Kind {
 			case UpdateProblemPackageTask:
 				var config UpdateProblemPackageTaskConfig
 				if err := o.ScanConfig(&config); err == nil {
-					return config.ProblemID
+					return config.ProblemID, true
 				}
 			}
-			return 0
+			return 0, false
 		}),
 	}
 	impl.cachedStore = makeCachedStore[Task, TaskEvent](

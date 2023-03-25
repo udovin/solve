@@ -365,7 +365,7 @@ func (v *View) extractAuth(authMethods ...authMethod) echo.MiddlewareFunc {
 				}
 			}
 			return errorResponse{
-				Code:    http.StatusForbidden,
+				Code:    http.StatusUnauthorized,
 				Message: localize(c, "Unable to authorize."),
 			}
 		}
@@ -430,7 +430,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
-				Code:    http.StatusForbidden,
+				Code:    http.StatusUnauthorized,
 				Message: localize(c, "User not found."),
 			}
 			return false, resp
@@ -439,7 +439,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 	}
 	if !v.core.Users.CheckPassword(user, form.Password) {
 		resp := errorResponse{
-			Code:    http.StatusForbidden,
+			Code:    http.StatusUnauthorized,
 			Message: localize(c, "Invalid password."),
 		}
 		return false, resp
@@ -488,7 +488,7 @@ func (v *View) scopeUserAuth(c echo.Context) (bool, error) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
-				Code:    http.StatusForbidden,
+				Code:    http.StatusUnauthorized,
 				Message: localize(c, "User not found."),
 			}
 			return false, resp
@@ -497,7 +497,7 @@ func (v *View) scopeUserAuth(c echo.Context) (bool, error) {
 	}
 	if !v.core.ScopeUsers.CheckPassword(user, form.Password) {
 		resp := errorResponse{
-			Code:    http.StatusForbidden,
+			Code:    http.StatusUnauthorized,
 			Message: localize(c, "Invalid password."),
 		}
 		return false, resp

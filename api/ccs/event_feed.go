@@ -1,6 +1,7 @@
 package ccs
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -24,20 +25,49 @@ func (v *View) getEventFeed(c echo.Context) error {
 	contestStart := time.Unix(int64(config.BeginTime), 0)
 	contestFinish := contestStart.Add(time.Second * time.Duration(config.Duration))
 	events := []EventData{}
+	freezeDuration := 0
+	if config.FreezeBeginDuration > 0 {
+		freezeDuration = config.Duration - config.FreezeBeginDuration
+	}
 	events = append(events, Contest{
 		ID:                       ID(contestCtx.Contest.ID),
 		Name:                     contestCtx.Contest.Title,
 		StartTime:                Time(contestStart),
 		Duration:                 RelTime(config.Duration),
-		ScoreboardFreezeDuration: RelTime(config.Duration - config.FreezeBeginDuration),
+		ScoreboardFreezeDuration: RelTime(freezeDuration),
 		ScoreboardType:           "pass-fail",
 		PenaltyTime:              20,
 	})
-	if contestCtx.Stage != managers.ContestNotPlanned &&
-		contestCtx.Stage != managers.ContestNotStarted {
-		events = append(events, State{
-			Started: Time(contestStart),
-		})
+	events = append(events, JudgementType{ID: models.Accepted.String(), Name: "AC", Solved: true})
+	events = append(events, JudgementType{ID: models.Rejected.String(), Name: "RJ", Penalty: true})
+	events = append(events, JudgementType{ID: models.CompilationError.String(), Name: "CE"})
+	events = append(events, JudgementType{ID: models.Failed.String(), Name: "FL"})
+	events = append(events, JudgementType{ID: models.MemoryLimitExceeded.String(), Name: "MLE", Penalty: true})
+	events = append(events, JudgementType{ID: models.TimeLimitExceeded.String(), Name: "TLE", Penalty: true})
+	events = append(events, JudgementType{ID: models.RuntimeError.String(), Name: "RE", Penalty: true})
+	events = append(events, JudgementType{ID: models.WrongAnswer.String(), Name: "WA", Penalty: true})
+	events = append(events, JudgementType{ID: models.PresentationError.String(), Name: "PE", Penalty: true})
+	if err := func() error {
+		compilers, err := v.core.Compilers.All(c.Request().Context(), 0)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = compilers.Close() }()
+		for compilers.Next() {
+			compiler := compilers.Row()
+			config, err := compiler.GetConfig()
+			if err != nil {
+				return err
+			}
+			events = append(events, Language{
+				ID:         ID(compiler.ID),
+				Name:       compiler.Name,
+				Extensions: config.Extensions,
+			})
+		}
+		return compilers.Err()
+	}(); err != nil {
+		return err
 	}
 	contestProblems, err := v.core.ContestProblems.FindByContest(contestCtx.Contest.ID)
 	if err != nil {
@@ -60,6 +90,12 @@ func (v *View) getEventFeed(c echo.Context) error {
 			Ordinal: i + 1,
 		})
 	}
+	if contestCtx.Stage != managers.ContestNotPlanned &&
+		contestCtx.Stage != managers.ContestNotStarted {
+		events = append(events, State{
+			Started: Time(contestStart),
+		})
+	}
 	participants, err := v.core.ContestParticipants.FindByContest(contestCtx.Contest.ID)
 	if err != nil {
 		return err
@@ -79,10 +115,19 @@ func (v *View) getEventFeed(c echo.Context) error {
 		if participant.Kind != models.RegularParticipant {
 			continue
 		}
+		accountInfo, err := v.getAccountInfo(c.Request().Context(), participant.AccountID)
+		if err != nil {
+			return err
+		}
+		events = append(events, Organization{
+			ID:   ID(participant.ID),
+			Name: accountInfo.Title,
+		})
 		events = append(events, Team{
-			ID:          ID(participant.ID),
-			Name:        "Test participant",
-			DisplayName: "Test participant",
+			ID:             ID(participant.ID),
+			Name:           accountInfo.Title,
+			DisplayName:    accountInfo.Title,
+			OrganizationID: ID(participant.ID),
 		})
 		beginTime := int64(config.BeginTime)
 		if participant.Kind == models.RegularParticipant {
@@ -100,21 +145,24 @@ func (v *View) getEventFeed(c echo.Context) error {
 		}
 		for _, contestSolution := range participantSolutions {
 			solution, err := v.core.Solutions.Get(
-				c.Request().Context(), contestSolution.ContestID,
+				c.Request().Context(), contestSolution.SolutionID,
 			)
 			if err != nil {
 				closable = false
 				continue
 			}
+			realTime := time.Unix(solution.CreateTime, 0)
 			contestTime := solution.CreateTime - beginTime
 			if contestTime < 0 {
-				contestTime = 1
+				realTime = time.Unix(beginTime, 0)
+				contestTime = 0
 			}
 			events = append(events, Submission{
 				ID:          ID(solution.ID),
 				TeamID:      ID(contestSolution.ParticipantID),
 				ProblemID:   ID(contestSolution.ProblemID),
 				LanguageID:  ID(solution.CompilerID),
+				Time:        Time(realTime),
 				ContestTime: RelTime(contestTime),
 			})
 			report, err := solution.GetReport()
@@ -125,7 +173,11 @@ func (v *View) getEventFeed(c echo.Context) error {
 			events = append(events, Judgement{
 				ID:               ID(solution.ID),
 				SubmissionID:     ID(solution.ID),
+				JudgementTypeID:  report.Verdict.String(),
+				StartTime:        Time(realTime),
 				StartContestTime: RelTime(contestTime),
+				EndTime:          Time(realTime),
+				EndContestTime:   RelTime(contestTime),
 			})
 		}
 	}
@@ -147,8 +199,10 @@ func (v *View) getEventFeed(c echo.Context) error {
 	for _, eventData := range events {
 		event := Event{
 			Type: eventData.Kind(),
-			ID:   eventData.ObjectID(),
 			Data: eventData,
+		}
+		if id := eventData.ObjectID(); id != nil {
+			event.ID = fmt.Sprint(id)
 		}
 		bytes, err := json.Marshal(event)
 		if err != nil {
@@ -168,16 +222,47 @@ func (v *View) getEventFeed(c echo.Context) error {
 	return nil
 }
 
+type accountInfo struct {
+	Title string
+}
+
+func (v *View) getAccountInfo(
+	ctx context.Context, accountID int64,
+) (accountInfo, error) {
+	resp := accountInfo{}
+	account, err := v.core.Accounts.Get(ctx, accountID)
+	if err != nil {
+		return resp, err
+	}
+	switch account.Kind {
+	case models.UserAccount:
+		user, err := v.core.Users.GetByAccount(account.ID)
+		if err != nil {
+			return resp, err
+		}
+		resp.Title = user.Login
+	case models.ScopeUserAccount:
+		user, err := v.core.ScopeUsers.GetByAccount(account.ID)
+		if err != nil {
+			return resp, err
+		}
+		resp.Title = string(user.Title)
+	default:
+		return resp, fmt.Errorf("unknown account kind %q", account.Kind)
+	}
+	return resp, nil
+}
+
 type Event struct {
 	Type  string    `json:"type"`
-	ID    ID        `json:"id,omitempty"`
+	ID    string    `json:"id,omitempty"`
 	Data  EventData `json:"data"`
 	Token string    `json:"token"`
 }
 
 type EventData interface {
 	Kind() string
-	ObjectID() ID
+	ObjectID() any
 }
 
 type ID int64
@@ -215,7 +300,37 @@ func (e Contest) Kind() string {
 	return "contest"
 }
 
-func (e Contest) ObjectID() ID {
+func (e Contest) ObjectID() any {
+	return nil
+}
+
+type JudgementType struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Penalty bool   `json:"penalty"`
+	Solved  bool   `json:"solved"`
+}
+
+func (e JudgementType) Kind() string {
+	return "judgement-types"
+}
+
+func (e JudgementType) ObjectID() any {
+	return e.ID
+}
+
+type Language struct {
+	ID                 ID       `json:"id"`
+	Name               string   `json:"name"`
+	EntryPointRequired bool     `json:"entry_point_required"`
+	Extensions         []string `json:"extensions"`
+}
+
+func (e Language) Kind() string {
+	return "languages"
+}
+
+func (e Language) ObjectID() any {
 	return e.ID
 }
 
@@ -232,21 +347,35 @@ func (e Problem) Kind() string {
 	return "problems"
 }
 
-func (e Problem) ObjectID() ID {
+func (e Problem) ObjectID() any {
+	return e.ID
+}
+
+type Organization struct {
+	ID   ID     `json:"id"`
+	Name string `json:"name"`
+}
+
+func (e Organization) Kind() string {
+	return "organizations"
+}
+
+func (e Organization) ObjectID() any {
 	return e.ID
 }
 
 type Team struct {
-	ID          ID     `json:"id"`
-	Name        string `json:"name"`
-	DisplayName string `json:"display_name"`
+	ID             ID     `json:"id"`
+	Name           string `json:"name"`
+	DisplayName    string `json:"display_name"`
+	OrganizationID ID     `json:"organization_id"`
 }
 
 func (e Team) Kind() string {
 	return "teams"
 }
 
-func (e Team) ObjectID() ID {
+func (e Team) ObjectID() any {
 	return e.ID
 }
 
@@ -255,6 +384,7 @@ type Submission struct {
 	TeamID      ID      `json:"team_id"`
 	ProblemID   ID      `json:"problem_id"`
 	LanguageID  ID      `json:"language_id"`
+	Time        Time    `json:"time"`
 	ContestTime RelTime `json:"contest_time"`
 }
 
@@ -262,21 +392,25 @@ func (e Submission) Kind() string {
 	return "submissions"
 }
 
-func (e Submission) ObjectID() ID {
+func (e Submission) ObjectID() any {
 	return e.ID
 }
 
 type Judgement struct {
 	ID               ID      `json:"id"`
 	SubmissionID     ID      `json:"submission_id"`
+	JudgementTypeID  string  `json:"judgement_type_id,omitempty"`
+	StartTime        Time    `json:"start_time"`
 	StartContestTime RelTime `json:"start_contest_time"`
+	EndTime          Time    `json:"end_time"`
+	EndContestTime   RelTime `json:"end_contest_time"`
 }
 
 func (e Judgement) Kind() string {
 	return "judgements"
 }
 
-func (e Judgement) ObjectID() ID {
+func (e Judgement) ObjectID() any {
 	return e.ID
 }
 
@@ -292,8 +426,8 @@ func (e State) Kind() string {
 	return "state"
 }
 
-func (e State) ObjectID() ID {
-	return 0
+func (e State) ObjectID() any {
+	return nil
 }
 
 func sortFunc[T any](a []T, less func(T, T) bool) {

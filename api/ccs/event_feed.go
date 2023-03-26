@@ -24,7 +24,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 	if err := v.core.Solutions.Sync(c.Request().Context()); err != nil {
 		return err
 	}
-	solutionsConsumer := db.NewEventConsumer[models.SolutionEvent, *models.SolutionEvent](solutionEvents, lastSolutionEventID)
+	solutionsConsumer := db.NewEventConsumer[models.SolutionEvent](solutionEvents, lastSolutionEventID)
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
 		return fmt.Errorf("contest not extracted")
@@ -121,7 +121,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 			solutionsByParticipant[solution.ParticipantID], solution,
 		)
 	}
-	closable := contestCtx.Stage == managers.ContestFinished
+	runningSolutions := map[int64]struct{}{}
 	for _, participant := range participants {
 		if participant.Kind != models.RegularParticipant {
 			continue
@@ -159,8 +159,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 				c.Request().Context(), contestSolution.SolutionID,
 			)
 			if err != nil {
-				closable = false
-				continue
+				return err
 			}
 			realTime := time.Unix(solution.CreateTime, 0)
 			contestTime := solution.CreateTime - beginTime
@@ -176,13 +175,12 @@ func (v *View) getEventFeed(c echo.Context) error {
 				Time:        Time(realTime),
 				ContestTime: RelTime(contestTime),
 			})
+			runningSolutions[solution.ID] = struct{}{}
 			report, err := solution.GetReport()
 			if err != nil {
-				closable = false
 				continue
 			}
 			if report == nil || report.Verdict == models.Failed {
-				closable = false
 				continue
 			}
 			events = append(events, Judgement{
@@ -194,9 +192,10 @@ func (v *View) getEventFeed(c echo.Context) error {
 				EndTime:          Time(realTime),
 				EndContestTime:   RelTime(contestTime),
 			})
+			delete(runningSolutions, solution.ID)
 		}
 	}
-	if closable {
+	if contestCtx.Stage == managers.ContestFinished && len(runningSolutions) == 0 {
 		endedValue := Time(contestFinish)
 		state := State{
 			Started: Time(contestStart),
@@ -237,7 +236,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 	if err := flushEvents(); err != nil {
 		return err
 	}
-	if closable {
+	if contestCtx.Stage == managers.ContestFinished && len(runningSolutions) == 0 {
 		return nil
 	}
 	ticker := time.NewTicker(time.Second)
@@ -247,6 +246,10 @@ func (v *View) getEventFeed(c echo.Context) error {
 		case <-c.Request().Context().Done():
 			return nil
 		case <-ticker.C:
+		}
+		contestCtx, err = v.contests.BuildContext(contestCtx.AccountContext, contestCtx.Contest)
+		if err != nil {
+			return err
 		}
 		if err := solutionsConsumer.ConsumeEvents(c.Request().Context(), func(event models.SolutionEvent) error {
 			solution := event.Solution
@@ -259,6 +262,9 @@ func (v *View) getEventFeed(c echo.Context) error {
 			participant, err := v.core.ContestParticipants.Get(c.Request().Context(), contestSolution.ParticipantID)
 			if err != nil {
 				return err
+			}
+			if participant.Kind != models.RegularParticipant {
+				return nil
 			}
 			beginTime := int64(config.BeginTime)
 			if participant.Kind == models.RegularParticipant {
@@ -284,12 +290,13 @@ func (v *View) getEventFeed(c echo.Context) error {
 				Time:        Time(realTime),
 				ContestTime: RelTime(contestTime),
 			})
+			runningSolutions[solution.ID] = struct{}{}
 			report, err := solution.GetReport()
 			if err != nil {
 				return err
 			}
 			if report == nil || report.Verdict == models.Failed {
-				return nil
+				return flushEvents()
 			}
 			events = append(events, Judgement{
 				ID:               ID(solution.ID),
@@ -300,9 +307,25 @@ func (v *View) getEventFeed(c echo.Context) error {
 				EndTime:          Time(realTime),
 				EndContestTime:   RelTime(contestTime),
 			})
+			delete(runningSolutions, solution.ID)
 			return flushEvents()
 		}); err != nil {
 			c.Logger().Error(err)
+		}
+		if contestCtx.Stage == managers.ContestFinished && len(runningSolutions) == 0 {
+			endedValue := Time(contestFinish)
+			state := State{
+				Started: Time(contestStart),
+				Ended:   &endedValue,
+			}
+			if config.FreezeBeginDuration != 0 {
+				frozenValue := Time(contestStart.Add(time.Second * time.Duration(config.FreezeBeginDuration)))
+				state.Frozen = &frozenValue
+			}
+			state.Finalized = state.Ended
+			state.EndOfUpdates = state.Ended
+			events = append(events, state)
+			return flushEvents()
 		}
 	}
 }

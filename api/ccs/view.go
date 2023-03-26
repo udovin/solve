@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
@@ -19,6 +20,7 @@ type View struct {
 }
 
 func (v *View) Register(g *echo.Group) {
+	g.Use(middleware.Logger())
 	g.GET(
 		"/contests/:contest/event-feed", v.getEventFeed,
 		v.extractAuth(v.basicAuth), v.extractContest,

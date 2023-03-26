@@ -9,11 +9,22 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/udovin/gosql"
+	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
 
 func (v *View) getEventFeed(c echo.Context) error {
+	solutionEvents := v.core.Solutions.GetEventStore()
+	lastSolutionEventID, err := solutionEvents.LastEventID(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	if err := v.core.Solutions.Sync(c.Request().Context()); err != nil {
+		return err
+	}
+	solutionsConsumer := db.NewEventConsumer[models.SolutionEvent, *models.SolutionEvent](solutionEvents, lastSolutionEventID)
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
 		return fmt.Errorf("contest not extracted")
@@ -166,7 +177,11 @@ func (v *View) getEventFeed(c echo.Context) error {
 				ContestTime: RelTime(contestTime),
 			})
 			report, err := solution.GetReport()
-			if err != nil || report.Verdict == models.Failed {
+			if err != nil {
+				closable = false
+				continue
+			}
+			if report == nil || report.Verdict == models.Failed {
 				closable = false
 				continue
 			}
@@ -196,30 +211,100 @@ func (v *View) getEventFeed(c echo.Context) error {
 		events = append(events, state)
 	}
 	c.Response().WriteHeader(http.StatusOK)
-	for _, eventData := range events {
-		event := Event{
-			Type: eventData.Kind(),
-			Data: eventData,
+	flushEvents := func() error {
+		for _, eventData := range events {
+			event := Event{
+				Type: eventData.Kind(),
+				Data: eventData,
+			}
+			if id := eventData.ObjectID(); id != nil {
+				event.ID = fmt.Sprint(id)
+			}
+			event.Token = fmt.Sprintf("%d", time.Now().UnixNano())
+			bytes, err := json.Marshal(event)
+			if err != nil {
+				return err
+			}
+			bytes = append(bytes, '\n')
+			if _, err := c.Response().Write(bytes); err != nil {
+				return err
+			}
 		}
-		if id := eventData.ObjectID(); id != nil {
-			event.ID = fmt.Sprint(id)
-		}
-		bytes, err := json.Marshal(event)
-		if err != nil {
-			return err
-		}
-		bytes = append(bytes, '\n')
-		if _, err := c.Response().Write(bytes); err != nil {
-			return err
-		}
+		events = nil
+		c.Response().Flush()
+		return nil
 	}
-	c.Response().Flush()
-	events = nil
+	if err := flushEvents(); err != nil {
+		return err
+	}
 	if closable {
 		return nil
 	}
-	// TODO: Support of realtime updates.
-	return nil
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-c.Request().Context().Done():
+			return nil
+		case <-ticker.C:
+		}
+		if err := solutionsConsumer.ConsumeEvents(c.Request().Context(), func(event models.SolutionEvent) error {
+			solution := event.Solution
+			contestSolution, err := v.core.ContestSolutions.FindOne(c.Request().Context(), db.FindQuery{
+				Where: gosql.Column("solution_id").Equal(event.ID),
+			})
+			if err != nil {
+				return err
+			}
+			participant, err := v.core.ContestParticipants.Get(c.Request().Context(), contestSolution.ParticipantID)
+			if err != nil {
+				return err
+			}
+			beginTime := int64(config.BeginTime)
+			if participant.Kind == models.RegularParticipant {
+				var participantConfig models.RegularParticipantConfig
+				if err := participant.ScanConfig(&participantConfig); err != nil {
+					return err
+				}
+				if participantConfig.BeginTime != 0 {
+					beginTime = int64(participantConfig.BeginTime)
+				}
+			}
+			realTime := time.Unix(solution.CreateTime, 0)
+			contestTime := solution.CreateTime - beginTime
+			if contestTime < 0 {
+				realTime = time.Unix(beginTime, 0)
+				contestTime = 0
+			}
+			events = append(events, Submission{
+				ID:          ID(solution.ID),
+				TeamID:      ID(contestSolution.ParticipantID),
+				ProblemID:   ID(contestSolution.ProblemID),
+				LanguageID:  ID(solution.CompilerID),
+				Time:        Time(realTime),
+				ContestTime: RelTime(contestTime),
+			})
+			report, err := solution.GetReport()
+			if err != nil {
+				return err
+			}
+			if report == nil || report.Verdict == models.Failed {
+				return nil
+			}
+			events = append(events, Judgement{
+				ID:               ID(solution.ID),
+				SubmissionID:     ID(solution.ID),
+				JudgementTypeID:  report.Verdict.String(),
+				StartTime:        Time(realTime),
+				StartContestTime: RelTime(contestTime),
+				EndTime:          Time(realTime),
+				EndContestTime:   RelTime(contestTime),
+			})
+			return flushEvents()
+		}); err != nil {
+			c.Logger().Error(err)
+		}
+	}
 }
 
 type accountInfo struct {

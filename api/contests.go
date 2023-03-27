@@ -925,9 +925,21 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 	if err := syncStore(c, v.core.ContestSolutions); err != nil {
 		return err
 	}
-	solutions, err := v.core.ContestSolutions.FindByContest(contest.ID)
-	if err != nil {
-		return err
+	var solutions []models.ContestSolution
+	if contestCtx.HasPermission(models.ObserveContestSolutionRole) {
+		contestSolutions, err := v.core.ContestSolutions.FindByContest(contest.ID)
+		if err != nil {
+			return err
+		}
+		solutions = contestSolutions
+	} else {
+		for _, participant := range contestCtx.Participants {
+			participantSolutions, err := v.core.ContestSolutions.FindByParticipant(participant.ID)
+			if err != nil {
+				return err
+			}
+			solutions = append(solutions, participantSolutions...)
+		}
 	}
 	var resp ContestSolutions
 	for _, solution := range solutions {

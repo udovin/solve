@@ -51,6 +51,7 @@ type ContestConfig struct {
 	Duration            int           `json:"duration,omitempty"`
 	EnableRegistration  bool          `json:"enable_registration"`
 	EnableUpsolving     bool          `json:"enable_upsolving"`
+	EnableObserving     bool          `json:"enable_observing,omitempty"`
 	FreezeBeginDuration int           `json:"freeze_begin_duration,omitempty"`
 	FreezeEndTime       NInt64        `json:"freeze_end_time,omitempty"`
 	StandingsKind       StandingsKind `json:"standings_kind,omitempty"`

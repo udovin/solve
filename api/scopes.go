@@ -77,7 +77,7 @@ func (v *View) observeScopes(c echo.Context) error {
 		return err
 	}
 	var resp Scopes
-	scopes, err := v.core.Scopes.All()
+	scopes, err := v.core.Scopes.ReverseAll(getContext(c), 0)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,6 @@ func (v *View) observeScopes(c echo.Context) error {
 	if err := scopes.Err(); err != nil {
 		return err
 	}
-	sortFunc(resp.Scopes, scopeGreater)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -519,10 +518,6 @@ func generatePassword() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
-}
-
-func scopeGreater(l, r Scope) bool {
-	return l.ID > r.ID
 }
 
 func scopeUserLess(l, r ScopeUser) bool {

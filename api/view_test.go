@@ -23,6 +23,7 @@ import (
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
+	"github.com/udovin/solve/invoker"
 	"github.com/udovin/solve/migrations"
 )
 
@@ -66,6 +67,9 @@ func (e *TestEnv) SyncStores() {
 	if err := e.Core.Compilers.Sync(ctx); err != nil {
 		e.tb.Fatal("Error:", err)
 	}
+	if err := e.Core.Settings.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
 }
 
 func (e *TestEnv) CreateUserRoles(login string, roles ...string) error {
@@ -89,7 +93,27 @@ func (e *TestEnv) Close() {
 	e.checks.Close()
 }
 
-func NewTestEnv(tb testing.TB) *TestEnv {
+type TestEnvOption interface {
+	UpdateConfig(*config.Config)
+	Setup(*TestEnv) error
+}
+
+type WithInvoker struct{}
+
+func (o WithInvoker) UpdateConfig(cfg *config.Config) {
+	cfg.Invoker = &config.Invoker{
+		Workers: 1,
+		Safeexec: config.Safeexec{
+			Path: "../safeexec/safeexec",
+		},
+	}
+}
+
+func (o WithInvoker) Setup(env *TestEnv) error {
+	return invoker.New(env.Core).Start()
+}
+
+func NewTestEnv(tb testing.TB, options ...TestEnvOption) *TestEnv {
 	env := TestEnv{
 		tb:     tb,
 		checks: newTestCheckState(tb),
@@ -112,6 +136,9 @@ func NewTestEnv(tb testing.TB) *TestEnv {
 	if _, ok := tb.(*testing.B); ok || os.Getenv("TEST_ENABLE_LOGS") != "1" {
 		log.SetLevel(log.OFF)
 		cfg.LogLevel = config.LogLevel(log.OFF)
+	}
+	for _, option := range options {
+		option.UpdateConfig(&cfg)
 	}
 	if c, err := core.NewCore(cfg); err != nil {
 		tb.Fatal("Error:", err)
@@ -146,6 +173,9 @@ func NewTestEnv(tb testing.TB) *TestEnv {
 	env.Server = httptest.NewServer(e)
 	env.Client = newTestClient(env.Server.URL + "/api")
 	env.Socket = newTestClient(env.Server.URL + "/socket")
+	for _, option := range options {
+		option.Setup(&env)
+	}
 	return &env
 }
 

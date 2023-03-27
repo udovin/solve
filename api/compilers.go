@@ -54,7 +54,7 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 	if err := syncStore(c, v.core.Compilers); err != nil {
 		return err
 	}
-	compilers, err := v.core.Compilers.All()
+	compilers, err := v.core.Compilers.ReverseAll(getContext(c), 0)
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,6 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 	if err := compilers.Err(); err != nil {
 		return err
 	}
-	sortFunc(resp.Compilers, compilerGreater)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -293,8 +292,4 @@ func (v *View) getCompilerPermissions(
 	permissions := ctx.Permissions.Clone()
 	permissions[models.ObserveCompilerRole] = struct{}{}
 	return permissions
-}
-
-func compilerGreater(l, r Compiler) bool {
-	return l.ID > r.ID
 }

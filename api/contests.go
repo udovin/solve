@@ -137,6 +137,7 @@ type Contest struct {
 	Permissions         []string             `json:"permissions,omitempty"`
 	EnableRegistration  bool                 `json:"enable_registration"`
 	EnableUpsolving     bool                 `json:"enable_upsolving"`
+	EnableObserving     bool                 `json:"enable_observing,omitempty"`
 	FreezeBeginDuration int                  `json:"freeze_begin_duration,omitempty"`
 	FreezeEndTime       NInt64               `json:"freeze_end_time,omitempty"`
 	StandingsKind       models.StandingsKind `json:"standings_kind,omitempty"`
@@ -211,6 +212,7 @@ func makeContest(
 		resp.Duration = config.Duration
 		resp.EnableRegistration = config.EnableRegistration
 		resp.EnableUpsolving = config.EnableUpsolving
+		resp.EnableObserving = config.EnableObserving
 		resp.FreezeBeginDuration = config.FreezeBeginDuration
 		resp.FreezeEndTime = config.FreezeEndTime
 		resp.StandingsKind = config.StandingsKind
@@ -286,7 +288,7 @@ func (v *View) observeContests(c echo.Context) error {
 		return err
 	}
 	var resp Contests
-	contests, err := v.core.Contests.All()
+	contests, err := v.core.Contests.All(getContext(c), 0)
 	if err != nil {
 		return err
 	}
@@ -332,6 +334,7 @@ type updateContestForm struct {
 	Duration            *int                  `json:"duration" form:"duration"`
 	EnableRegistration  *bool                 `json:"enable_registration" form:"enable_registration"`
 	EnableUpsolving     *bool                 `json:"enable_upsolving" form:"enable_upsolving"`
+	EnableObserving     *bool                 `json:"enable_observing" form:"enable_observing"`
 	FreezeBeginDuration *int                  `json:"freeze_begin_duration" form:"freeze_begin_duration"`
 	FreezeEndTime       *NInt64               `json:"freeze_end_time" form:"freeze_end_time"`
 	StandingsKind       *models.StandingsKind `json:"standings_kind" form:"standings_kind"`
@@ -382,6 +385,9 @@ func (f *updateContestForm) Update(
 	}
 	if f.StandingsKind != nil {
 		config.StandingsKind = *f.StandingsKind
+	}
+	if f.EnableObserving != nil {
+		config.EnableObserving = *f.EnableObserving
 	}
 	if err := contest.SetConfig(config); err != nil {
 		errors["config"] = errorField{
@@ -913,10 +919,44 @@ type ContestSolutions struct {
 	Solutions []ContestSolution `json:"solutions"`
 }
 
+type contestSolutionsFilter struct {
+	ProblemID int64          `query:"problem_id"`
+	Verdict   models.Verdict `query:"verdict"`
+	BeginID   int64          `query:"begin_id"`
+	Limit     int            `query:"limit"`
+}
+
+func (f *contestSolutionsFilter) Filter(solution models.Solution) bool {
+	if f.ProblemID != 0 && solution.ProblemID != f.ProblemID {
+		return false
+	}
+	if f.BeginID != 0 && solution.ID < f.BeginID {
+		return false
+	}
+	if f.Verdict != 0 {
+		report, err := solution.GetReport()
+		if err != nil {
+			return false
+		}
+		if report.Verdict != f.Verdict {
+			return false
+		}
+	}
+	return true
+}
+
 func (v *View) observeContestSolutions(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
 		return fmt.Errorf("contest not extracted")
+	}
+	filter := contestSolutionsFilter{Limit: 200}
+	if err := c.Bind(&filter); err != nil {
+		c.Logger().Warn(err)
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Invalid filter."),
+		}
 	}
 	contest := contestCtx.Contest
 	if err := syncStore(c, v.core.Solutions); err != nil {
@@ -965,13 +1005,18 @@ func (v *View) observeContestSolution(c echo.Context) error {
 }
 
 func (v *View) rejudgeContestSolution(c echo.Context) error {
+	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
+	if !ok {
+		return fmt.Errorf("contest not extracted")
+	}
 	solution, ok := c.Get(contestSolutionKey).(models.ContestSolution)
 	if !ok {
 		return fmt.Errorf("solution not extracted")
 	}
 	task := models.Task{}
 	if err := task.SetConfig(models.JudgeSolutionTaskConfig{
-		SolutionID: solution.SolutionID,
+		SolutionID:   solution.SolutionID,
+		EnablePoints: getEnablePoints(contestCtx),
 	}); err != nil {
 		return err
 	}
@@ -1148,7 +1193,8 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		}
 		task := models.Task{}
 		if err := task.SetConfig(models.JudgeSolutionTaskConfig{
-			SolutionID: solution.ID,
+			SolutionID:   solution.ID,
+			EnablePoints: getEnablePoints(contestCtx),
 		}); err != nil {
 			return err
 		}
@@ -1160,6 +1206,10 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		http.StatusCreated,
 		v.makeContestSolution(c, contestSolution, true),
 	)
+}
+
+func getEnablePoints(ctx *managers.ContestContext) bool {
+	return ctx.ContestConfig.StandingsKind == models.IOIStandings
 }
 
 func (v *View) makeContestSolution(

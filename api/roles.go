@@ -112,7 +112,7 @@ func (v *View) registerSocketRoleHandlers(g *echo.Group) {
 
 func (v *View) observeRoles(c echo.Context) error {
 	var resp Roles
-	roles, err := v.core.Roles.All()
+	roles, err := v.core.Roles.ReverseAll(getContext(c), 0)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,6 @@ func (v *View) observeRoles(c echo.Context) error {
 			BuiltIn: role.IsBuiltIn(),
 		})
 	}
-	sortFunc(resp.Roles, roleGreater)
 	return c.JSON(http.StatusOK, resp)
 }
 

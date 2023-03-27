@@ -13,6 +13,7 @@ const (
 	RegularParticipant   ParticipantKind = 1
 	UpsolvingParticipant ParticipantKind = 2
 	ManagerParticipant   ParticipantKind = 3
+	ObserverParticipant  ParticipantKind = 4
 )
 
 // String returns string representation.
@@ -24,6 +25,8 @@ func (k ParticipantKind) String() string {
 		return "upsolving"
 	case ManagerParticipant:
 		return "manager"
+	case ObserverParticipant:
+		return "observer"
 	default:
 		return fmt.Sprintf("ParticipantKind(%d)", k)
 	}
@@ -41,6 +44,8 @@ func (k *ParticipantKind) UnmarshalText(data []byte) error {
 		*k = UpsolvingParticipant
 	case "manager":
 		*k = ManagerParticipant
+	case "observer":
+		*k = ObserverParticipant
 	default:
 		return fmt.Errorf("unsupported kind: %q", s)
 	}

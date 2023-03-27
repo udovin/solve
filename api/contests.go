@@ -974,6 +974,9 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 		solutions = contestSolutions
 	} else {
 		for _, participant := range contestCtx.Participants {
+			if participant.ID == 0 {
+				continue
+			}
 			participantSolutions, err := v.core.ContestSolutions.FindByParticipant(participant.ID)
 			if err != nil {
 				return err

@@ -147,6 +147,25 @@ func (s *cachedStore[T, E, TPtr, EPtr]) Find(
 	return s.store.FindObjects(ctx, options...)
 }
 
+// FindOne finds one object with specified query.
+func (s *cachedStore[T, E, TPtr, EPtr]) FindOne(
+	ctx context.Context, options ...db.FindObjectsOption,
+) (T, error) {
+	var empty T
+	rows, err := s.Find(ctx, append(options, db.WithLimit(1))...)
+	if err != nil {
+		return empty, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return empty, err
+		}
+		return empty, sql.ErrNoRows
+	}
+	return rows.Row(), nil
+}
+
 type syncKey struct{}
 
 func WithSync(ctx context.Context) context.Context {

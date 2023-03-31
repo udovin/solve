@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/udovin/solve/api"
+	"github.com/udovin/solve/api/ccs"
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
@@ -125,6 +126,7 @@ func serverMain(cmd *cobra.Command, _ []string) {
 		srv := newServer(c.Logger())
 		v.Register(srv.Group("/api"))
 		v.StartDaemons()
+		ccs.NewView(c).Register(srv.Group("/api/ccs"))
 		waiter.Add(1)
 		go func() {
 			defer waiter.Done()

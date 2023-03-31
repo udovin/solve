@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/db"
 )
 
 type Verdict int
@@ -181,6 +182,10 @@ func (e *SolutionEvent) SetObject(o Solution) {
 type SolutionStore struct {
 	cachedStore[Solution, SolutionEvent, *Solution, *SolutionEvent]
 	byProblem *index[int64, Solution, *Solution]
+}
+
+func (s *SolutionStore) GetEventStore() db.EventStore[SolutionEvent, *SolutionEvent] {
+	return s.events
 }
 
 func (s *SolutionStore) FindByProblem(id int64) ([]Solution, error) {

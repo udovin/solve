@@ -89,27 +89,3 @@ jobs:
         output-file-path: bench.txt
         external-data-json-path: ./cache/benchmark-data.json
         fail-on-alert: true
-  docker:
-    name: Build Docker image
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Login to DockerHub
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Setup metadata
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: udovin/solve
-      - name: Build and push
-        id: docker_build
-        uses: docker/build-push-action@v3
-        with:
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ steps.meta.outputs.version }}

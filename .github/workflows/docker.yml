@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - f-*
     tags:
       - v*
 jobs:

@@ -49,8 +49,8 @@ func TestSafeexecSimple(t *testing.T) {
 	if report.Memory <= 0 {
 		t.Fatal("Invalid memory:", report.Memory)
 	}
-	if report.Time < time.Second || report.Time > 6*time.Second {
-		t.Fatal("Invalid time:", report.Time.Milliseconds())
+	if report.RealTime < time.Second || report.RealTime > 6*time.Second {
+		t.Fatal("Invalid time:", report.RealTime.Milliseconds())
 	}
 	if s := stdout.String(); s != "solve_test" {
 		t.Fatal("Expected:", "solve_test", "got:", s)
@@ -114,7 +114,7 @@ func TestSafeexecTimeLimit(t *testing.T) {
 	stdout := strings.Builder{}
 	processConfig := safeexecProcessConfig{
 		Layers:      []string{alpinePath},
-		Command:     []string{"/bin/sh", "-c", "sleep 2 && echo -n 'solve_test'"},
+		Command:     []string{"/bin/sh", "-c", "sleep 3 && echo -n 'solve_test'"},
 		TimeLimit:   time.Second,
 		MemoryLimit: 1024 * 1024,
 		Stdout:      &stdout,
@@ -134,7 +134,7 @@ func TestSafeexecTimeLimit(t *testing.T) {
 	if report.ExitCode == 0 {
 		t.Fatal("Expected non-zero exit code")
 	}
-	if report.Time < time.Second {
-		t.Fatal("Invalid time:", report.Time.Milliseconds())
+	if report.RealTime < time.Second {
+		t.Fatal("Invalid time:", report.RealTime.Milliseconds())
 	}
 }

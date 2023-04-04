@@ -36,8 +36,9 @@ type safeexecProcess struct {
 }
 
 type safeexecReport struct {
-	Memory   int64
 	Time     time.Duration
+	RealTime time.Duration
+	Memory   int64
 	ExitCode int
 }
 
@@ -66,24 +67,30 @@ func (p *safeexecProcess) Wait() (safeexecReport, error) {
 			return safeexecReport{}, fmt.Errorf("cannot read report")
 		}
 		switch parts[0] {
-		case "memory":
-			value, err := strconv.ParseInt(parts[1], 10, 64)
-			if err != nil {
-				return safeexecReport{}, fmt.Errorf("cannot parse memory: %w", err)
-			}
-			report.Memory = value
-		case "time":
-			value, err := strconv.ParseInt(parts[1], 10, 64)
-			if err != nil {
-				return safeexecReport{}, fmt.Errorf("cannot parse time: %w", err)
-			}
-			report.Time = time.Duration(value) * time.Millisecond
 		case "exit_code":
 			value, err := strconv.ParseInt(parts[1], 10, 32)
 			if err != nil {
 				return safeexecReport{}, fmt.Errorf("cannot parse exit_code: %w", err)
 			}
 			report.ExitCode = int(value)
+		case "time":
+			value, err := strconv.ParseInt(parts[1], 10, 64)
+			if err != nil {
+				return safeexecReport{}, fmt.Errorf("cannot parse time: %w", err)
+			}
+			report.Time = time.Duration(value) * time.Millisecond
+		case "real_time":
+			value, err := strconv.ParseInt(parts[1], 10, 64)
+			if err != nil {
+				return safeexecReport{}, fmt.Errorf("cannot parse time: %w", err)
+			}
+			report.RealTime = time.Duration(value) * time.Millisecond
+		case "memory":
+			value, err := strconv.ParseInt(parts[1], 10, 64)
+			if err != nil {
+				return safeexecReport{}, fmt.Errorf("cannot parse memory: %w", err)
+			}
+			report.Memory = value
 		}
 	}
 	return report, nil

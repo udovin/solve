@@ -24,6 +24,7 @@
 #define CGROUP_MEMORY_SWAP_MAX_FILE "memory.swap.max"
 #define CGROUP_MEMORY_CURRENT_FILE "memory.current"
 #define CGROUP_MEMORY_EVENTS_FILE "memory.events"
+#define CGROUP_CPU_STAT_FILE "cpu.stat"
 
 typedef struct {
 	char* rootfs;
@@ -376,7 +377,7 @@ int entrypoint(void* arg) {
 static inline void readCgroupMemory(const char* path, long* value) {
 	char data[21];
 	int fd = open(path, O_RDONLY);
-	ensure(fd != -1, "cannot open cgroup file");
+	ensure(fd != -1, "cannot open memory.current file");
 	int bytes = read(fd, data, 20);
 	ensure(bytes != -1 && bytes != EOF, "cannot read cgroup file");
 	ensure(bytes > 0 && bytes <= 20, "invalid cgroup file size");
@@ -386,14 +387,31 @@ static inline void readCgroupMemory(const char* path, long* value) {
 	close(fd);
 }
 
+static inline void readCgroupCpuUsage(const char* path, long* value) {
+	FILE* file = fopen(path, "re");
+	ensure(file != NULL, "cannot open cpu.stat file");
+	char* data = NULL;
+	size_t len = 0;
+	ssize_t bytes = 0;
+	while ((bytes = getline(&data, &len, file)) != -1) {
+		if (bytes < 13 || memcmp(data, "usage_usec ", 11)) {
+			continue;
+		}
+		*value = strtol(&data[11], NULL, 10);
+		ensure(*value != LONG_MAX, "invalid cpu.stat usage_usec value");
+	}
+	fclose(file);
+	free(data);
+}
+
 static inline void readCgroupOomCount(const Context* ctx, long* value) {
 	char* filePath = malloc(strlen(ctx->cgroupPath) + strlen(CGROUP_MEMORY_EVENTS_FILE) + 2);
-	ensure(filePath != NULL, "cannot allocate memory.current path");
+	ensure(filePath != NULL, "cannot allocate memory.events path");
 	strcpy(filePath, ctx->cgroupPath);
 	strcat(filePath, "/");
 	strcat(filePath, CGROUP_MEMORY_EVENTS_FILE);
 	FILE* file = fopen(filePath, "re");
-	ensure(file != NULL, "cannot open cgroup.events file");
+	ensure(file != NULL, "cannot open memory.events file");
 	char* data = NULL;
 	size_t len = 0;
 	ssize_t bytes = 0;
@@ -402,7 +420,7 @@ static inline void readCgroupOomCount(const Context* ctx, long* value) {
 			continue;
 		}
 		*value = strtol(&data[4], NULL, 10);
-		ensure(*value != LONG_MAX, "invalid cgroup.events oom value");
+		ensure(*value != LONG_MAX, "invalid memory.events oom value");
 	}
 	fclose(file);
 	free(data);
@@ -443,6 +461,11 @@ int main(int argc, char* argv[]) {
 	strcpy(memoryCurrentPath, ctx->cgroupPath);
 	strcat(memoryCurrentPath, "/");
 	strcat(memoryCurrentPath, CGROUP_MEMORY_CURRENT_FILE);
+	char* cpuStatPath = malloc(strlen(ctx->cgroupPath) + strlen(CGROUP_CPU_STAT_FILE) + 2);
+	ensure(cpuStatPath != NULL, "cannot allocate cpu.stat path");
+	strcpy(cpuStatPath, ctx->cgroupPath);
+	strcat(cpuStatPath, "/");
+	strcat(cpuStatPath, CGROUP_CPU_STAT_FILE);
 	// Now we should unlock child process.
 	close(ctx->initializePipe[1]);
 	//
@@ -452,17 +475,19 @@ int main(int argc, char* argv[]) {
 	int status;
 	pid_t result;
 	long memory = 0;
+	long time = 0;
 	long currentMemory = 0;
 	struct timespec sleepSpec;
 	sleepSpec.tv_sec = 0;
 	sleepSpec.tv_nsec = 5000000;
+	int realTimeLimit = ctx->timeLimit * 2;
 	do {
 		result = waitpid(pid, &status, WUNTRACED | WNOHANG | __WALL);
 		if (result < 0) {
 			ensure(errno == EINTR, "cannot wait for child process");
 		}
 		ensure(clock_gettime(CLOCK_MONOTONIC, &currentTime) == 0, "cannot get current time");
-		if (result == 0 && getTimeDiff(currentTime, startTime) > ctx->timeLimit) {
+		if (result == 0 && getTimeDiff(currentTime, startTime) > realTimeLimit) {
 			if (kill(pid, SIGKILL) != 0) {
 				ensure(errno == ESRCH, "cannot kill process");
 			}
@@ -476,9 +501,19 @@ int main(int argc, char* argv[]) {
 				}
 			}
 		}
+		readCgroupCpuUsage(cpuStatPath, &time);
+		if (time > ctx->timeLimit * (long)1000) {
+			if (kill(pid, SIGKILL) != 0) {
+				ensure(errno == ESRCH, "cannot kill process");
+			}
+		}
 		nanosleep(&sleepSpec, NULL);
 	} while (result == 0);
 	readCgroupMemory(memoryCurrentPath, &currentMemory);
+	if (currentMemory > memory) {
+		memory = currentMemory;
+	}
+	readCgroupCpuUsage(cpuStatPath, &time);
 	int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 	if (exitCode != 0) {
 		long oomCount = 0;
@@ -487,18 +522,27 @@ int main(int argc, char* argv[]) {
 			memory = ctx->memoryLimit + 1024;
 		}
 	}
+	time /= 1000;
+	long realTime = getTimeDiff(currentTime, startTime);
+	if (time > ctx->timeLimit || realTime > realTimeLimit) {
+		time = ctx->timeLimit + 1;
+		realTime = realTimeLimit + 1;
+	}
 	if (strlen(ctx->report) != 0) {
 		char line[60];
 		int fd = open(ctx->report, O_WRONLY | O_TRUNC | O_CREAT, 0644);
 		ensure(fd != -1, "cannot open report file");
-		sprintf(line, "time %ld\n", getTimeDiff(currentTime, startTime));
+		sprintf(line, "exit_code %d\n", exitCode);
+		ensure(write(fd, line, strlen(line)) != -1, "cannot write report file");
+		sprintf(line, "time %ld\n", time);
+		ensure(write(fd, line, strlen(line)) != -1, "cannot write report file");
+		sprintf(line, "real_time %ld\n", realTime);
 		ensure(write(fd, line, strlen(line)) != -1, "cannot write report file");
 		sprintf(line, "memory %ld\n", memory);
 		ensure(write(fd, line, strlen(line)) != -1, "cannot write report file");
-		sprintf(line, "exit_code %d\n", exitCode);
-		ensure(write(fd, line, strlen(line)) != -1, "cannot write report file");
 		close(fd);
 	}
+	free(cpuStatPath);
 	free(memoryCurrentPath);
 	freeContext(ctx);
 	return EXIT_SUCCESS;

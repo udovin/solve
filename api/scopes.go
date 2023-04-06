@@ -61,6 +61,11 @@ func (v *View) registerScopeHandlers(g *echo.Group) {
 		v.extractAuth(v.sessionAuth), v.extractScope, v.extractScopeUser,
 		v.requirePermission(models.UpdateScopeUserRole),
 	)
+	g.POST(
+		"/v0/scopes/:scope/users/:user/logout", v.logoutScopeUser,
+		v.extractAuth(v.sessionAuth), v.extractScope, v.extractScopeUser,
+		v.requirePermission(models.UpdateScopeUserRole),
+	)
 	g.DELETE(
 		"/v0/scopes/:scope/users/:user", v.deleteScopeUser,
 		v.extractAuth(v.sessionAuth), v.extractScope, v.extractScopeUser,
@@ -375,6 +380,23 @@ func (v *View) updateScopeUser(c echo.Context) error {
 		resp.Password = *form.Password
 	}
 	return c.JSON(http.StatusCreated, resp)
+}
+
+func (v *View) logoutScopeUser(c echo.Context) error {
+	user, ok := c.Get(scopeUserKey).(models.ScopeUser)
+	if !ok {
+		return fmt.Errorf("user not extracted")
+	}
+	sessions, err := v.core.Sessions.FindByAccount(user.AccountID)
+	if err != nil {
+		return err
+	}
+	for _, session := range sessions {
+		if err := v.core.Sessions.Delete(getContext(c), session.ID); err != nil {
+			return err
+		}
+	}
+	return c.JSON(http.StatusOK, makeScopeUser(user))
 }
 
 func (v *View) deleteScopeUser(c echo.Context) error {

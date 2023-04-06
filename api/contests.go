@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -1078,6 +1079,47 @@ func (f *SubmitSolutionForm) Parse(c echo.Context) error {
 	return nil
 }
 
+func (v *View) hasSolutionsQuota(
+	contestCtx *managers.ContestContext,
+	participant models.ContestParticipant,
+	logger echo.Logger,
+) bool {
+	solutions, err := v.core.ContestSolutions.FindByParticipant(participant.ID)
+	if err != nil {
+		logger.Warn("Cannot get solutions for participant: %v", participant.ID)
+		return false
+	}
+	window := int64(60)
+	amount := int64(3)
+	if v := v.getInt64Setting("contests.solutions_quota.window", logger); v != nil {
+		window = *v
+	}
+	if v := v.getInt64Setting("contests.solutions_quota.amount", logger); v != nil {
+		amount = *v
+	}
+	toTime := contestCtx.Now
+	fromTime := toTime.Add(-time.Second * time.Duration(window))
+	for _, contestSolution := range solutions {
+		solution, err := v.core.Solutions.Get(contestCtx, contestSolution.SolutionID)
+		if err != nil {
+			logger.Warn("Cannot find solution: %v", contestSolution.SolutionID)
+			continue
+		}
+		createTime := time.Unix(solution.CreateTime, 0)
+		if createTime.Before(fromTime) {
+			continue
+		}
+		if createTime.After(toTime) {
+			continue
+		}
+		amount--
+		if amount <= 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func (v *View) submitContestProblemSolution(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
@@ -1138,6 +1180,12 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 	}
 	if participant.ID == 0 {
 		return fmt.Errorf("unable to register participant")
+	}
+	if !v.hasSolutionsQuota(contestCtx, *participant, c.Logger()) {
+		return errorResponse{
+			Code:    http.StatusTooManyRequests,
+			Message: localize(c, "Too many requests."),
+		}
 	}
 	var form SubmitSolutionForm
 	if err := form.Parse(c); err != nil {

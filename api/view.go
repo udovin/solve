@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -596,6 +597,18 @@ func (v *View) getBoolSetting(key string, logger echo.Logger) *bool {
 		)
 		return nil
 	}
+}
+
+func (v *View) getInt64Setting(key string, logger echo.Logger) *int64 {
+	setting := v.getStringSetting(key, logger)
+	if setting == nil {
+		return nil
+	}
+	value, err := strconv.ParseInt(*setting, 10, 64)
+	if err != nil {
+		return nil
+	}
+	return &value
 }
 
 type locale interface {

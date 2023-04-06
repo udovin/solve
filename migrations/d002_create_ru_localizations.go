@@ -86,6 +86,7 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		{"title_is_required", "Заголовок является обязательным."},
 		{"title_is_too_long", "Заголовок слишком длинный."},
 		{"title_is_too_short", "Заголовок слишком короткий."},
+		{"too_many_requests", "Слишком много запросов."},
 		{"unable_to_authorize", "Авторизация не пройдена."},
 		{"unable_to_delete_builtin_role", "Не удалось удалить встроенную роль."},
 		{"unknown_error", "Неизвестная ошибка."},

@@ -3,7 +3,7 @@ module github.com/udovin/solve
 go 1.18
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.17.7
+	github.com/aws/aws-sdk-go-v2 v1.17.8
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.18
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.31.1
 	github.com/jackc/pgx/v4 v4.18.1

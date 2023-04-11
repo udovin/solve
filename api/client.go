@@ -458,6 +458,20 @@ func (c *Client) ObserveContest(
 	return respData, err
 }
 
+func (c *Client) ObserveContestStandings(
+	ctx context.Context, id int64,
+) (ContestStandings, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/contests/%d/standings", id), nil,
+	)
+	if err != nil {
+		return ContestStandings{}, err
+	}
+	var respData ContestStandings
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
 func (c *Client) ObserveContestSolutions(
 	ctx context.Context, id int64,
 ) (ContestSolutions, error) {

@@ -29,7 +29,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("contest not extracted")
 	}
-	if !contestCtx.HasPermission(models.ObserveContestStandingsRole) {
+	if !contestCtx.HasPermission(models.ObserveContestFullStandingsRole) {
 		return c.NoContent(http.StatusForbidden)
 	}
 	config := contestCtx.ContestConfig

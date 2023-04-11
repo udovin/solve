@@ -353,58 +353,63 @@
       },
       {
         "id": 71,
+        "key": "localization.ru.too_many_requests",
+        "value": "Слишком много запросов."
+      },
+      {
+        "id": 72,
         "key": "localization.ru.unable_to_authorize",
         "value": "Авторизация не пройдена."
       },
       {
-        "id": 72,
+        "id": 73,
         "key": "localization.ru.unable_to_delete_builtin_role",
         "value": "Не удалось удалить встроенную роль."
       },
       {
-        "id": 73,
+        "id": 74,
         "key": "localization.ru.unknown_error",
         "value": "Неизвестная ошибка."
       },
       {
-        "id": 74,
+        "id": 75,
         "key": "localization.ru.user_id_does_not_exists",
         "value": "Пользователь {id} не существует."
       },
       {
-        "id": 75,
+        "id": 76,
         "key": "localization.ru.user_login_does_not_exists",
         "value": "Пользователь \"{login}\" не существует."
       },
       {
-        "id": 76,
+        "id": 77,
         "key": "localization.ru.user_not_found",
         "value": "Пользователь не найден."
       },
       {
-        "id": 77,
+        "id": 78,
         "key": "localization.ru.user_user_already_has_role_role",
         "value": "Пользователь \"{user}\" уже имеет роль \"{role}\"."
       },
       {
-        "id": 78,
+        "id": 79,
         "key": "localization.ru.user_user_does_not_have_role_role",
         "value": "Пользователь \"{user}\" не имеет роли \"{role}\"."
       },
       {
-        "id": 79,
+        "id": 80,
         "key": "localization.ru.user_with_login_login_already_exists",
         "value": "Пользователь с логином \"{login}\" уже существует."
       }
     ]
   },
   {
-    "id": 80,
+    "id": 81,
     "key": "test_key",
     "value": "test_value"
   },
   {
-    "id": 80,
+    "id": 81,
     "key": "test_key_2",
     "value": "test_value_2"
   }

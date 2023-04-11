@@ -131,14 +131,17 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 				Verdict: models.FailedTask.String(),
 			}
 		}
-		if task.Status == models.SucceededTask {
-			return &SolutionReport{
-				Verdict: models.RunningTask.String(),
-			}
-		}
-		return &SolutionReport{
+		resp := SolutionReport{
 			Verdict: task.Status.String(),
 		}
+		if task.Status == models.SucceededTask {
+			resp.Verdict = models.RunningTask.String()
+		}
+		var state models.JudgeSolutionTaskState
+		if err := task.ScanState(&state); err == nil {
+			resp.TestNumber = state.Test
+		}
+		return &resp
 	}
 	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
 	if !ok {

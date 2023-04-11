@@ -85,6 +85,7 @@ func (c JudgeSolutionTaskConfig) TaskKind() TaskKind {
 
 type JudgeSolutionTaskState struct {
 	Stage string `json:"stage,omitempty"`
+	Test  int    `json:"test,omitempty"`
 }
 
 // UpdateProblemPackageTaskConfig represets config for JudgeSolution.

@@ -121,7 +121,7 @@ func (t *judgeSolutionTask) compileSolution(
 	state := models.JudgeSolutionTaskState{
 		Stage: "compiling",
 	}
-	if err := ctx.SetState(ctx, state); err != nil {
+	if err := ctx.SetDeferredState(state); err != nil {
 		return false, err
 	}
 	compileReport, err := t.compilerImpl.Compile(ctx, CompileOptions{
@@ -252,9 +252,6 @@ func (t *judgeSolutionTask) testSolution(
 	state := models.JudgeSolutionTaskState{
 		Stage: "testing",
 	}
-	if err := ctx.SetState(ctx, state); err != nil {
-		return err
-	}
 	checker, err := t.getChecker(ctx)
 	if err != nil {
 		return err
@@ -277,6 +274,10 @@ func (t *judgeSolutionTask) testSolution(
 		groupTests := map[string][]int{}
 		for _, test := range tests {
 			testNumber++
+			state.Test = testNumber
+			if err := ctx.SetDeferredState(state); err != nil {
+				return err
+			}
 			inputPath := filepath.Join(t.tempDir, "test.in")
 			outputPath := filepath.Join(t.tempDir, "test.out")
 			answerPath := filepath.Join(t.tempDir, "test.ans")

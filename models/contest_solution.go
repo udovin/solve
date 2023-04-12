@@ -1,7 +1,11 @@
 package models
 
 import (
+	"container/heap"
+	"context"
+
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/db"
 )
 
 // ContestSolution represents connection for solutions.
@@ -41,23 +45,26 @@ func (e *ContestSolutionEvent) SetObject(o ContestSolution) {
 // ContestSolutionStore represents a solution store.
 type ContestSolutionStore struct {
 	cachedStore[ContestSolution, ContestSolutionEvent, *ContestSolution, *ContestSolutionEvent]
-	byContest     *index[int64, ContestSolution, *ContestSolution]
+	byContest     *btreeIndex[int64, ContestSolution, *ContestSolution]
 	byParticipant *index[int64, ContestSolution, *ContestSolution]
 }
 
 // FindByContest returns solutions by contest ID.
 func (s *ContestSolutionStore) FindByContest(
-	id int64,
-) ([]ContestSolution, error) {
+	ctx context.Context, id int64,
+) (db.Rows[ContestSolution], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []ContestSolution
-	for id := range s.byContest.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
+	var iters indexIterHeap
+	it := s.byContest.Find(id)
+	if it.Next() {
+		iters = append(iters, it)
 	}
-	return objects, nil
+	heap.Init(iters)
+	return &btreeIndexRows[ContestSolution, *ContestSolution]{
+		iter:  s.objects.Iter(),
+		iters: iters,
+		mutex: s.mutex.RLocker(),
+	}, nil
 }
 
 // FindByContest returns solutions by participant ID.
@@ -80,7 +87,7 @@ func NewContestSolutionStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestSolutionStore {
 	impl := &ContestSolutionStore{
-		byContest:     newIndex(func(o ContestSolution) int64 { return o.ContestID }),
+		byContest:     newBTreeIndex(func(o ContestSolution) (int64, bool) { return o.ContestID, true }, lessInt64),
 		byParticipant: newIndex(func(o ContestSolution) int64 { return o.ParticipantID }),
 	}
 	impl.cachedStore = makeCachedStore[ContestSolution, ContestSolutionEvent](

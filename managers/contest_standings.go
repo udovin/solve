@@ -151,7 +151,7 @@ func (m *ContestStandingsManager) buildICPCStandings(
 		})
 		columnByProblem[problem.ID] = i
 	}
-	contestSolutions, err := m.contestSolutions.FindByContest(ctx.Contest.ID)
+	contestSolutions, err := m.contestSolutions.FindByContest(ctx, ctx.Contest.ID)
 	if err != nil {
 		return nil, err
 	}

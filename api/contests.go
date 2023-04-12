@@ -494,11 +494,13 @@ func getSolvedProblems(ctx *managers.ContestContext, c *core.Core) map[int64]str
 		if participant.ID == 0 {
 			continue
 		}
-		solutions, err := c.ContestSolutions.FindByParticipant(participant.ID)
+		solutions, err := c.ContestSolutions.FindByParticipant(ctx, participant.ID)
 		if err != nil {
 			continue
 		}
-		for _, contestSolution := range solutions {
+		defer func() { _ = solutions.Close() }()
+		for solutions.Next() {
+			contestSolution := solutions.Row()
 			solution, err := c.Solutions.Get(ctx, contestSolution.SolutionID)
 			if err != nil {
 				continue

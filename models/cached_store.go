@@ -1,7 +1,6 @@
 package models
 
 import (
-	"container/heap"
 	"context"
 	"database/sql"
 	"fmt"
@@ -254,68 +253,6 @@ func (r *btreeReverseRows[T, TPtr]) Err() error {
 }
 
 func (r *btreeReverseRows[T, TPtr]) Close() error {
-	if r.mutex == nil {
-		return nil
-	}
-	r.mutex.Unlock()
-	r.mutex = nil
-	return nil
-}
-
-type btreeIndexRows[T any, TPtr ObjectPtr[T]] struct {
-	iter  btree.MapIter[int64, T]
-	iters indexIterHeap
-	mutex sync.Locker
-}
-
-type indexIterHeap []indexIter
-
-func (a indexIterHeap) Len() int {
-	return len(a)
-}
-
-func (a indexIterHeap) Less(i, j int) bool {
-	return a[i].ID() < a[j].ID()
-}
-
-func (a indexIterHeap) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a indexIterHeap) Push(x any) {
-	a = append(a, x.(indexIter))
-}
-
-func (a indexIterHeap) Pop() any {
-	it := a[len(a)-1]
-	a = a[:len(a)-1]
-	return it
-}
-
-func (r *btreeIndexRows[T, TPtr]) Next() bool {
-	for len(r.iters) > 0 {
-		it := heap.Pop(r.iters).(indexIter)
-		id := it.ID()
-		if it.Next() {
-			heap.Push(r.iters, it)
-		}
-		if r.iter.Seek(id) && r.iter.Key() == id {
-			return true
-		}
-	}
-	return false
-}
-
-func (r *btreeIndexRows[T, TPtr]) Row() T {
-	value := r.iter.Value()
-	return TPtr(&value).Clone()
-}
-
-func (r *btreeIndexRows[T, TPtr]) Err() error {
-	return nil
-}
-
-func (r *btreeIndexRows[T, TPtr]) Close() error {
 	if r.mutex == nil {
 		return nil
 	}

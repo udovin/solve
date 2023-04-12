@@ -1,7 +1,6 @@
 package models
 
 import (
-	"container/heap"
 	"context"
 
 	"github.com/udovin/gosql"
@@ -46,40 +45,33 @@ func (e *ContestSolutionEvent) SetObject(o ContestSolution) {
 type ContestSolutionStore struct {
 	cachedStore[ContestSolution, ContestSolutionEvent, *ContestSolution, *ContestSolutionEvent]
 	byContest     *btreeIndex[int64, ContestSolution, *ContestSolution]
-	byParticipant *index[int64, ContestSolution, *ContestSolution]
+	byParticipant *btreeIndex[int64, ContestSolution, *ContestSolution]
 }
 
 // FindByContest returns solutions by contest ID.
 func (s *ContestSolutionStore) FindByContest(
-	ctx context.Context, id int64,
+	ctx context.Context, contestID ...int64,
 ) (db.Rows[ContestSolution], error) {
 	s.mutex.RLock()
-	var iters indexIterHeap
-	it := s.byContest.Find(id)
-	if it.Next() {
-		iters = append(iters, it)
-	}
-	heap.Init(iters)
-	return &btreeIndexRows[ContestSolution, *ContestSolution]{
-		iter:  s.objects.Iter(),
-		iters: iters,
-		mutex: s.mutex.RLocker(),
-	}, nil
+	return btreeIndexFind(
+		s.byContest,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		contestID...,
+	), nil
 }
 
 // FindByContest returns solutions by participant ID.
 func (s *ContestSolutionStore) FindByParticipant(
-	id int64,
-) ([]ContestSolution, error) {
+	ctx context.Context, participantID ...int64,
+) (db.Rows[ContestSolution], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []ContestSolution
-	for id := range s.byParticipant.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
-	}
-	return objects, nil
+	return btreeIndexFind(
+		s.byParticipant,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		participantID...,
+	), nil
 }
 
 // NewContestSolutionStore creates a new instance of ContestSolutionStore.
@@ -88,7 +80,7 @@ func NewContestSolutionStore(
 ) *ContestSolutionStore {
 	impl := &ContestSolutionStore{
 		byContest:     newBTreeIndex(func(o ContestSolution) (int64, bool) { return o.ContestID, true }, lessInt64),
-		byParticipant: newIndex(func(o ContestSolution) int64 { return o.ParticipantID }),
+		byParticipant: newBTreeIndex(func(o ContestSolution) (int64, bool) { return o.ParticipantID, true }, lessInt64),
 	}
 	impl.cachedStore = makeCachedStore[ContestSolution, ContestSolutionEvent](
 		db, table, eventTable, impl, impl.byContest, impl.byParticipant,

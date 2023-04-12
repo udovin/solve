@@ -151,15 +151,22 @@ func (m *ContestStandingsManager) buildICPCStandings(
 		})
 		columnByProblem[problem.ID] = i
 	}
-	contestSolutions, err := m.contestSolutions.FindByContest(ctx, ctx.Contest.ID)
-	if err != nil {
-		return nil, err
-	}
 	solutionsByParticipant := map[int64][]models.ContestSolution{}
-	for _, solution := range contestSolutions {
-		solutionsByParticipant[solution.ParticipantID] = append(
-			solutionsByParticipant[solution.ParticipantID], solution,
-		)
+	if err := func() error {
+		contestSolutions, err := m.contestSolutions.FindByContest(ctx, ctx.Contest.ID)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = contestSolutions.Close() }()
+		for contestSolutions.Next() {
+			solution := contestSolutions.Row()
+			solutionsByParticipant[solution.ParticipantID] = append(
+				solutionsByParticipant[solution.ParticipantID], solution,
+			)
+		}
+		return contestSolutions.Err()
+	}(); err != nil {
+		return nil, err
 	}
 	observeFullStandings := ctx.HasPermission(models.ObserveContestFullStandingsRole)
 	ignoreFreeze := options.IgnoreFreeze && observeFullStandings
@@ -303,15 +310,22 @@ func (m *ContestStandingsManager) buildIOIStandings(
 		})
 		columnByProblem[problem.ID] = i
 	}
-	contestSolutions, err := m.contestSolutions.FindByContest(ctx.Contest.ID)
-	if err != nil {
-		return nil, err
-	}
 	solutionsByParticipant := map[int64][]models.ContestSolution{}
-	for _, solution := range contestSolutions {
-		solutionsByParticipant[solution.ParticipantID] = append(
-			solutionsByParticipant[solution.ParticipantID], solution,
-		)
+	if err := func() error {
+		contestSolutions, err := m.contestSolutions.FindByContest(ctx, ctx.Contest.ID)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = contestSolutions.Close() }()
+		for contestSolutions.Next() {
+			solution := contestSolutions.Row()
+			solutionsByParticipant[solution.ParticipantID] = append(
+				solutionsByParticipant[solution.ParticipantID], solution,
+			)
+		}
+		return contestSolutions.Err()
+	}(); err != nil {
+		return nil, err
 	}
 	observeFullStandings := ctx.HasPermission(models.ObserveContestFullStandingsRole)
 	ignoreFreeze := options.IgnoreFreeze && observeFullStandings

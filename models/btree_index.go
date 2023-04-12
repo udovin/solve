@@ -1,7 +1,9 @@
 package models
 
 import (
+	"container/heap"
 	"math"
+	"sync"
 
 	"github.com/udovin/algo/btree"
 	"github.com/udovin/solve/db"
@@ -22,16 +24,6 @@ func newBTreeIndex[K comparable, T any, TPtr ObjectPtr[T]](
 	key func(T) (K, bool), less func(K, K) bool,
 ) *btreeIndex[K, T, TPtr] {
 	return &btreeIndex[K, T, TPtr]{key: key, less: less}
-}
-
-func (i *btreeIndex[K, T, TPtr]) mapLess(lhs, rhs btreeIndexKey[K]) bool {
-	if i.less(lhs.Key, rhs.Key) {
-		return true
-	}
-	if i.less(rhs.Key, lhs.Key) {
-		return false
-	}
-	return lhs.ID < rhs.ID
 }
 
 func (i *btreeIndex[K, T, TPtr]) Reset() {
@@ -72,9 +64,14 @@ func (i *btreeIndex[K, T, TPtr]) ReverseFind(key K) *btreeIndexReverseIter[K] {
 	}
 }
 
-type indexIter interface {
-	Next() bool
-	ID() int64
+func (i *btreeIndex[K, T, TPtr]) mapLess(lhs, rhs btreeIndexKey[K]) bool {
+	if i.less(lhs.Key, rhs.Key) {
+		return true
+	}
+	if i.less(rhs.Key, lhs.Key) {
+		return false
+	}
+	return lhs.ID < rhs.ID
 }
 
 type btreeIndexIter[K any] struct {
@@ -131,4 +128,92 @@ func (i *btreeIndexReverseIter[K]) Next() bool {
 
 func (r *btreeIndexReverseIter[K]) ID() int64 {
 	return r.iter.Key().ID
+}
+
+type btreeIndexRows[T any, TPtr ObjectPtr[T]] struct {
+	iter  btree.MapIter[int64, T]
+	iters indexIterHeap
+	mutex sync.Locker
+}
+
+func btreeIndexFind[K any, T any, TPtr ObjectPtr[T]](
+	index *btreeIndex[K, T, TPtr],
+	objects btree.MapIter[int64, T],
+	locker sync.Locker,
+	keys ...K,
+) *btreeIndexRows[T, TPtr] {
+	var iters indexIterHeap
+	for _, key := range keys {
+		it := index.Find(key)
+		if it.Next() {
+			iters = append(iters, it)
+		}
+	}
+	heap.Init(iters)
+	return &btreeIndexRows[T, TPtr]{
+		iter:  objects,
+		iters: iters,
+		mutex: locker,
+	}
+}
+
+func (r *btreeIndexRows[T, TPtr]) Next() bool {
+	for len(r.iters) > 0 {
+		it := heap.Pop(r.iters).(indexIter)
+		id := it.ID()
+		if it.Next() {
+			heap.Push(r.iters, it)
+		}
+		if r.iter.Seek(id) && r.iter.Key() == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *btreeIndexRows[T, TPtr]) Row() T {
+	value := r.iter.Value()
+	return TPtr(&value).Clone()
+}
+
+func (r *btreeIndexRows[T, TPtr]) Err() error {
+	return nil
+}
+
+func (r *btreeIndexRows[T, TPtr]) Close() error {
+	if r.mutex == nil {
+		return nil
+	}
+	r.mutex.Unlock()
+	r.mutex = nil
+	return nil
+}
+
+type indexIter interface {
+	Next() bool
+	ID() int64
+}
+
+type indexIterHeap []indexIter
+
+func (a indexIterHeap) Len() int {
+	return len(a)
+}
+
+func (a indexIterHeap) Less(i, j int) bool {
+	return a[i].ID() < a[j].ID()
+}
+
+func (a indexIterHeap) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a indexIterHeap) Push(x any) {
+	a = append(a, x.(indexIter))
+}
+
+func (a indexIterHeap) Pop() any {
+	it := a[len(a)-1]
+	a = a[:len(a)-1]
+	return it
 }

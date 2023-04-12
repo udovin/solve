@@ -78,7 +78,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 		}
 		return compilers.Err()
 	}(); err != nil {
-		return err
+		return fmt.Errorf("cannot get compilers: %w", err)
 	}
 	contestProblems, err := v.core.ContestProblems.FindByContest(contestCtx.Contest.ID)
 	if err != nil {
@@ -92,7 +92,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 			c.Request().Context(), contestProblem.ProblemID,
 		)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot get problem %d: %w", contestProblem.ProblemID, err)
 		}
 		events = append(events, Problem{
 			ID:      ID(contestProblem.ID),
@@ -109,11 +109,11 @@ func (v *View) getEventFeed(c echo.Context) error {
 	}
 	participants, err := v.core.ContestParticipants.FindByContest(contestCtx.Contest.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot get participants: %w", err)
 	}
 	contestSolutions, err := v.core.ContestSolutions.FindByContest(contestCtx.Contest.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot get solutions: %w", err)
 	}
 	solutionsByParticipant := map[int64][]models.ContestSolution{}
 	for _, solution := range contestSolutions {
@@ -128,7 +128,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 		}
 		accountInfo, err := v.getAccountInfo(c.Request().Context(), participant.AccountID)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot get account %d: %w", participant.AccountID, err)
 		}
 		events = append(events, Organization{
 			ID:   ID(participant.ID),
@@ -159,7 +159,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 				c.Request().Context(), contestSolution.SolutionID,
 			)
 			if err != nil {
-				return err
+				return fmt.Errorf("cannot get solution %d: %w", contestSolution.SolutionID, err)
 			}
 			realTime := time.Unix(solution.CreateTime, 0)
 			contestTime := solution.CreateTime - beginTime
@@ -249,19 +249,19 @@ func (v *View) getEventFeed(c echo.Context) error {
 		}
 		contestCtx, err = v.contests.BuildContext(contestCtx.AccountContext, contestCtx.Contest)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot build contest context: %w", err)
 		}
 		if err := solutionsConsumer.ConsumeEvents(c.Request().Context(), func(event models.SolutionEvent) error {
 			solution := event.Solution
 			contestSolution, err := v.core.ContestSolutions.FindOne(c.Request().Context(), db.FindQuery{
-				Where: gosql.Column("solution_id").Equal(event.ID),
+				Where: gosql.Column("solution_id").Equal(solution.ID),
 			})
 			if err != nil {
-				return err
+				return fmt.Errorf("cannot find contest solution %d: %w", solution.ID, err)
 			}
 			participant, err := v.core.ContestParticipants.Get(c.Request().Context(), contestSolution.ParticipantID)
 			if err != nil {
-				return err
+				return fmt.Errorf("cannot get participant %d: %w", contestSolution.ParticipantID, err)
 			}
 			if participant.Kind != models.RegularParticipant {
 				return nil
@@ -346,13 +346,13 @@ func (v *View) getAccountInfo(
 	case models.UserAccount:
 		user, err := v.core.Users.GetByAccount(account.ID)
 		if err != nil {
-			return resp, err
+			return resp, fmt.Errorf("cannot get user: %w", err)
 		}
 		resp.Title = user.Login
 	case models.ScopeUserAccount:
 		user, err := v.core.ScopeUsers.GetByAccount(account.ID)
 		if err != nil {
-			return resp, err
+			return resp, fmt.Errorf("cannot get scope user: %w", err)
 		}
 		resp.Title = string(user.Title)
 	default:

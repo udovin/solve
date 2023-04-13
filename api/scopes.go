@@ -404,7 +404,12 @@ func (v *View) deleteScopeUser(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("user not extracted")
 	}
-	if err := v.core.ScopeUsers.Delete(getContext(c), user.ID); err != nil {
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+		if err := v.core.Accounts.Delete(ctx, user.AccountID); err != nil {
+			return err
+		}
+		return v.core.ScopeUsers.Delete(ctx, user.ID)
+	}); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeScopeUser(user))

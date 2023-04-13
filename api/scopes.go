@@ -409,7 +409,7 @@ func (v *View) deleteScopeUser(c echo.Context) error {
 			return err
 		}
 		return v.core.ScopeUsers.Delete(ctx, user.ID)
-	}); err != nil {
+	}, sqlRepeatableRead); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeScopeUser(user))

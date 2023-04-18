@@ -228,7 +228,7 @@ func makeContest(
 			Stage: makeContestStage(contextCtx.Stage),
 		}
 		participant := contextCtx.GetEffectiveParticipant()
-		if participant != nil {
+		if core != nil && participant != nil {
 			participantResp := makeContestParticipant(c, *participant, core)
 			participantResp.ContestID = 0
 			participantResp.User = nil

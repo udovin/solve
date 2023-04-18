@@ -34,7 +34,6 @@ func (v *View) getEventFeed(c echo.Context) error {
 	}
 	config := contestCtx.ContestConfig
 	contestStart := time.Unix(int64(config.BeginTime), 0)
-	contestFinish := contestStart.Add(time.Second * time.Duration(config.Duration))
 	events := []EventData{}
 	freezeDuration := 0
 	if config.FreezeBeginDuration > 0 {
@@ -49,15 +48,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 		ScoreboardType:           "pass-fail",
 		PenaltyTime:              20,
 	})
-	events = append(events, JudgementType{ID: models.Accepted.String(), Name: "AC", Solved: true})
-	events = append(events, JudgementType{ID: models.Rejected.String(), Name: "RJ", Penalty: true})
-	events = append(events, JudgementType{ID: models.CompilationError.String(), Name: "CE"})
-	events = append(events, JudgementType{ID: models.Failed.String(), Name: "FL"})
-	events = append(events, JudgementType{ID: models.MemoryLimitExceeded.String(), Name: "MLE", Penalty: true})
-	events = append(events, JudgementType{ID: models.TimeLimitExceeded.String(), Name: "TLE", Penalty: true})
-	events = append(events, JudgementType{ID: models.RuntimeError.String(), Name: "RE", Penalty: true})
-	events = append(events, JudgementType{ID: models.WrongAnswer.String(), Name: "WA", Penalty: true})
-	events = append(events, JudgementType{ID: models.PresentationError.String(), Name: "PE", Penalty: true})
+	events = append(events, getJudgementTypes()...)
 	if err := func() error {
 		compilers, err := v.core.Compilers.All(c.Request().Context(), 0)
 		if err != nil {
@@ -101,12 +92,6 @@ func (v *View) getEventFeed(c echo.Context) error {
 			Ordinal: i + 1,
 		})
 	}
-	if contestCtx.Stage != managers.ContestNotPlanned &&
-		contestCtx.Stage != managers.ContestNotStarted {
-		events = append(events, State{
-			Started: Time(contestStart),
-		})
-	}
 	participants, err := v.core.ContestParticipants.FindByContest(contestCtx.Contest.ID)
 	if err != nil {
 		return fmt.Errorf("cannot get participants: %w", err)
@@ -121,6 +106,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 			solutionsByParticipant[solution.ParticipantID], solution,
 		)
 	}
+	events = append(events, getContestState(contestCtx))
 	runningSolutions := map[int64]struct{}{}
 	for _, participant := range participants {
 		if participant.Kind != models.RegularParticipant {
@@ -195,20 +181,6 @@ func (v *View) getEventFeed(c echo.Context) error {
 			delete(runningSolutions, solution.ID)
 		}
 	}
-	if contestCtx.Stage == managers.ContestFinished && len(runningSolutions) == 0 {
-		endedValue := Time(contestFinish)
-		state := State{
-			Started: Time(contestStart),
-			Ended:   &endedValue,
-		}
-		if config.FreezeBeginDuration != 0 {
-			frozenValue := Time(contestStart.Add(time.Second * time.Duration(config.FreezeBeginDuration)))
-			state.Frozen = &frozenValue
-		}
-		state.Finalized = state.Ended
-		state.EndOfUpdates = state.Ended
-		events = append(events, state)
-	}
 	c.Response().WriteHeader(http.StatusOK)
 	flushEvents := func() error {
 		for _, eventData := range events {
@@ -233,13 +205,17 @@ func (v *View) getEventFeed(c echo.Context) error {
 		c.Response().Flush()
 		return nil
 	}
+	if contestCtx.Stage == managers.ContestFinished && len(runningSolutions) == 0 {
+		state := getContestState(contestCtx)
+		state.Finalized = state.Ended
+		state.EndOfUpdates = state.Ended
+		events = append(events, state)
+		return flushEvents()
+	}
 	if err := flushEvents(); err != nil {
 		return err
 	}
-	if contestCtx.Stage == managers.ContestFinished && len(runningSolutions) == 0 {
-		return nil
-	}
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -251,6 +227,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 		if err != nil {
 			return fmt.Errorf("cannot build contest context: %w", err)
 		}
+		events = append(events, getContestState(contestCtx))
 		if err := solutionsConsumer.ConsumeEvents(c.Request().Context(), func(event models.SolutionEvent) error {
 			solution := event.Solution
 			contestSolution, err := v.core.ContestSolutions.FindOne(c.Request().Context(), db.FindQuery{
@@ -258,6 +235,9 @@ func (v *View) getEventFeed(c echo.Context) error {
 			})
 			if err != nil {
 				return fmt.Errorf("cannot find contest solution %d: %w", solution.ID, err)
+			}
+			if contestSolution.ContestID != contestCtx.Contest.ID {
+				return nil
 			}
 			participant, err := v.core.ContestParticipants.Get(c.Request().Context(), contestSolution.ParticipantID)
 			if err != nil {
@@ -296,7 +276,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 				return err
 			}
 			if report == nil || report.Verdict == models.Failed {
-				return flushEvents()
+				return nil
 			}
 			events = append(events, Judgement{
 				ID:               ID(solution.ID),
@@ -308,26 +288,58 @@ func (v *View) getEventFeed(c echo.Context) error {
 				EndContestTime:   RelTime(contestTime),
 			})
 			delete(runningSolutions, solution.ID)
-			return flushEvents()
+			return nil
 		}); err != nil {
 			c.Logger().Error(err)
 		}
+		if err := flushEvents(); err != nil {
+			return err
+		}
 		if contestCtx.Stage == managers.ContestFinished && len(runningSolutions) == 0 {
-			endedValue := Time(contestFinish)
-			state := State{
-				Started: Time(contestStart),
-				Ended:   &endedValue,
-			}
-			if config.FreezeBeginDuration != 0 {
-				frozenValue := Time(contestStart.Add(time.Second * time.Duration(config.FreezeBeginDuration)))
-				state.Frozen = &frozenValue
-			}
+			state := getContestState(contestCtx)
 			state.Finalized = state.Ended
 			state.EndOfUpdates = state.Ended
 			events = append(events, state)
 			return flushEvents()
 		}
 	}
+}
+
+func getJudgementTypes() []EventData {
+	return []EventData{
+		JudgementType{ID: models.Accepted.String(), Name: "AC", Solved: true},
+		JudgementType{ID: models.Rejected.String(), Name: "RJ", Penalty: true},
+		JudgementType{ID: models.CompilationError.String(), Name: "CE"},
+		JudgementType{ID: models.Failed.String(), Name: "FL"},
+		JudgementType{ID: models.MemoryLimitExceeded.String(), Name: "MLE", Penalty: true},
+		JudgementType{ID: models.TimeLimitExceeded.String(), Name: "TLE", Penalty: true},
+		JudgementType{ID: models.RuntimeError.String(), Name: "RE", Penalty: true},
+		JudgementType{ID: models.WrongAnswer.String(), Name: "WA", Penalty: true},
+		JudgementType{ID: models.PresentationError.String(), Name: "PE", Penalty: true},
+	}
+}
+
+func getContestState(contestCtx *managers.ContestContext) State {
+	config := contestCtx.ContestConfig
+	contestStart := time.Unix(int64(config.BeginTime), 0)
+	contestFinish := contestStart.Add(time.Second * time.Duration(config.Duration))
+	state := State{}
+	if contestCtx.Stage >= managers.ContestStarted {
+		startedValue := Time(contestStart)
+		state.Started = &startedValue
+		if config.FreezeBeginDuration != 0 {
+			contestFreeze := contestStart.Add(time.Second * time.Duration(config.FreezeBeginDuration))
+			if !contestCtx.Now.Before(contestFreeze) {
+				frozenValue := Time(contestFreeze)
+				state.Frozen = &frozenValue
+			}
+		}
+	}
+	if contestCtx.Stage >= managers.ContestFinished {
+		endedValue := Time(contestFinish)
+		state.Ended = &endedValue
+	}
+	return state
 }
 
 type accountInfo struct {
@@ -523,7 +535,7 @@ func (e Judgement) ObjectID() any {
 }
 
 type State struct {
-	Started      Time  `json:"started"`
+	Started      *Time `json:"started,omitempty"`
 	Ended        *Time `json:"ended,omitempty"`
 	Frozen       *Time `json:"frozen,omitempty"`
 	Finalized    *Time `json:"finalized,omitempty"`

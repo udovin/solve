@@ -33,21 +33,8 @@ func (v *View) getEventFeed(c echo.Context) error {
 		return c.NoContent(http.StatusForbidden)
 	}
 	config := contestCtx.ContestConfig
-	contestStart := time.Unix(int64(config.BeginTime), 0)
 	events := []EventData{}
-	freezeDuration := 0
-	if config.FreezeBeginDuration > 0 {
-		freezeDuration = config.Duration - config.FreezeBeginDuration
-	}
-	events = append(events, Contest{
-		ID:                       ID(contestCtx.Contest.ID),
-		Name:                     contestCtx.Contest.Title,
-		StartTime:                Time(contestStart),
-		Duration:                 RelTime(config.Duration),
-		ScoreboardFreezeDuration: RelTime(freezeDuration),
-		ScoreboardType:           "pass-fail",
-		PenaltyTime:              20,
-	})
+	events = append(events, getContest(contestCtx))
 	events = append(events, getJudgementTypes()...)
 	if err := func() error {
 		compilers, err := v.core.Compilers.All(c.Request().Context(), 0)
@@ -227,7 +214,8 @@ func (v *View) getEventFeed(c echo.Context) error {
 		if err != nil {
 			return fmt.Errorf("cannot build contest context: %w", err)
 		}
-		events = append(events, getContestState(contestCtx))
+		config := contestCtx.ContestConfig
+		events = append(events, getContest(contestCtx), getContestState(contestCtx))
 		if err := solutionsConsumer.ConsumeEvents(c.Request().Context(), func(event models.SolutionEvent) error {
 			solution := event.Solution
 			contestSolution, err := v.core.ContestSolutions.FindOne(c.Request().Context(), db.FindQuery{
@@ -316,6 +304,24 @@ func getJudgementTypes() []EventData {
 		JudgementType{ID: models.RuntimeError.String(), Name: "RE", Penalty: true},
 		JudgementType{ID: models.WrongAnswer.String(), Name: "WA", Penalty: true},
 		JudgementType{ID: models.PresentationError.String(), Name: "PE", Penalty: true},
+	}
+}
+
+func getContest(contestCtx *managers.ContestContext) Contest {
+	config := contestCtx.ContestConfig
+	contestStart := time.Unix(int64(config.BeginTime), 0)
+	freezeDuration := 0
+	if config.FreezeBeginDuration > 0 {
+		freezeDuration = config.Duration - config.FreezeBeginDuration
+	}
+	return Contest{
+		ID:                       ID(contestCtx.Contest.ID),
+		Name:                     contestCtx.Contest.Title,
+		StartTime:                Time(contestStart),
+		Duration:                 RelTime(config.Duration),
+		ScoreboardFreezeDuration: RelTime(freezeDuration),
+		ScoreboardType:           "pass-fail",
+		PenaltyTime:              20,
 	}
 }
 

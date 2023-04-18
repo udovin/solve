@@ -169,7 +169,10 @@ func (v *View) getEventFeed(c echo.Context) error {
 		}
 	}
 	c.Response().WriteHeader(http.StatusOK)
-	flushEvents := func() error {
+	if _, err := c.Response().Write([]byte("{")); err != nil {
+		return err
+	}
+	flushEvents := func(last bool) error {
 		for _, eventData := range events {
 			event := Event{
 				Type: eventData.Kind(),
@@ -184,7 +187,10 @@ func (v *View) getEventFeed(c echo.Context) error {
 				return err
 			}
 			bytes = append(bytes, '\n')
-			if _, err := c.Response().Write(bytes); err != nil {
+			if !last {
+				bytes = append(bytes, '{')
+			}
+			if _, err := c.Response().Write(bytes[1:]); err != nil {
 				return err
 			}
 		}
@@ -197,9 +203,9 @@ func (v *View) getEventFeed(c echo.Context) error {
 		state.Finalized = state.Ended
 		state.EndOfUpdates = state.Ended
 		events = append(events, state)
-		return flushEvents()
+		return flushEvents(true)
 	}
-	if err := flushEvents(); err != nil {
+	if err := flushEvents(false); err != nil {
 		return err
 	}
 	ticker := time.NewTicker(3 * time.Second)
@@ -284,7 +290,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 		}); err != nil {
 			c.Logger().Error(err)
 		}
-		if err := flushEvents(); err != nil {
+		if err := flushEvents(false); err != nil {
 			return err
 		}
 		if contestCtx.Stage == managers.ContestFinished && len(runningSolutions) == 0 {
@@ -292,7 +298,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 			state.Finalized = state.Ended
 			state.EndOfUpdates = state.Ended
 			events = append(events, state)
-			return flushEvents()
+			return flushEvents(true)
 		}
 	}
 }

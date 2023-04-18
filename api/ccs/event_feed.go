@@ -210,7 +210,11 @@ func (v *View) getEventFeed(c echo.Context) error {
 			return nil
 		case <-ticker.C:
 		}
-		contestCtx, err = v.contests.BuildContext(contestCtx.AccountContext, contestCtx.Contest)
+		contest, err := v.core.Contests.Get(c.Request().Context(), contestCtx.Contest.ID)
+		if err != nil {
+			return fmt.Errorf("cannot update contest: %w", err)
+		}
+		contestCtx, err = v.contests.BuildContext(contestCtx.AccountContext, contest)
 		if err != nil {
 			return fmt.Errorf("cannot build contest context: %w", err)
 		}

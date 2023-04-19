@@ -103,15 +103,15 @@ func (v *View) getEventFeed(c echo.Context) error {
 		if err != nil {
 			return fmt.Errorf("cannot get account %d: %w", participant.AccountID, err)
 		}
-		events = append(events, Organization{
-			ID:   ID(participant.ID),
-			Name: accountInfo.Title,
-		})
+		// events = append(events, Organization{
+		// 	ID:   ID(participant.ID),
+		// 	Name: accountInfo.Title,
+		// })
 		events = append(events, Team{
-			ID:             ID(participant.ID),
-			Name:           accountInfo.Title,
-			DisplayName:    accountInfo.Title,
-			OrganizationID: ID(participant.ID),
+			ID:          ID(participant.ID),
+			Name:        accountInfo.Title,
+			DisplayName: accountInfo.Title,
+			// OrganizationID: ID(participant.ID),
 		})
 		beginTime := int64(config.BeginTime)
 		if participant.Kind == models.RegularParticipant {
@@ -159,7 +159,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 			events = append(events, Judgement{
 				ID:               ID(solution.ID),
 				SubmissionID:     ID(solution.ID),
-				JudgementTypeID:  report.Verdict.String(),
+				JudgementTypeID:  getJudgementID(report.Verdict),
 				StartTime:        Time(realTime),
 				StartContestTime: RelTime(contestTime),
 				EndTime:          Time(realTime),
@@ -273,7 +273,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 			events = append(events, Judgement{
 				ID:               ID(solution.ID),
 				SubmissionID:     ID(solution.ID),
-				JudgementTypeID:  report.Verdict.String(),
+				JudgementTypeID:  getJudgementID(report.Verdict),
 				StartTime:        Time(realTime),
 				StartContestTime: RelTime(contestTime),
 				EndTime:          Time(realTime),
@@ -297,17 +297,42 @@ func (v *View) getEventFeed(c echo.Context) error {
 	}
 }
 
+func getJudgementID(verdict models.Verdict) string {
+	switch verdict {
+	case models.Accepted:
+		return "AC"
+	case models.Rejected:
+		return "RJ"
+	case models.CompilationError:
+		return "CE"
+	case models.Failed:
+		return "FL"
+	case models.MemoryLimitExceeded:
+		return "MLE"
+	case models.TimeLimitExceeded:
+		return "TLE"
+	case models.RuntimeError:
+		return "RE"
+	case models.WrongAnswer:
+		return "WA"
+	case models.PresentationError:
+		return "PE"
+	default:
+		return ""
+	}
+}
+
 func getJudgementTypes() []EventData {
 	return []EventData{
-		JudgementType{ID: models.Accepted.String(), Name: "AC", Solved: true},
-		JudgementType{ID: models.Rejected.String(), Name: "RJ", Penalty: true},
-		JudgementType{ID: models.CompilationError.String(), Name: "CE"},
-		JudgementType{ID: models.Failed.String(), Name: "FL"},
-		JudgementType{ID: models.MemoryLimitExceeded.String(), Name: "MLE", Penalty: true},
-		JudgementType{ID: models.TimeLimitExceeded.String(), Name: "TLE", Penalty: true},
-		JudgementType{ID: models.RuntimeError.String(), Name: "RE", Penalty: true},
-		JudgementType{ID: models.WrongAnswer.String(), Name: "WA", Penalty: true},
-		JudgementType{ID: models.PresentationError.String(), Name: "PE", Penalty: true},
+		JudgementType{ID: getJudgementID(models.Accepted), Name: "Accepted", Solved: true},
+		JudgementType{ID: getJudgementID(models.Rejected), Name: "Rejected", Penalty: true},
+		JudgementType{ID: getJudgementID(models.CompilationError), Name: "Compilation error"},
+		JudgementType{ID: getJudgementID(models.Failed), Name: "Failed"},
+		JudgementType{ID: getJudgementID(models.MemoryLimitExceeded), Name: "Memory limit exceeded", Penalty: true},
+		JudgementType{ID: getJudgementID(models.TimeLimitExceeded), Name: "Time limit exceeded", Penalty: true},
+		JudgementType{ID: getJudgementID(models.RuntimeError), Name: "Runtime error", Penalty: true},
+		JudgementType{ID: getJudgementID(models.WrongAnswer), Name: "Wrong answer", Penalty: true},
+		JudgementType{ID: getJudgementID(models.PresentationError), Name: "Presentation error", Penalty: true},
 	}
 }
 

@@ -103,15 +103,10 @@ func (v *View) getEventFeed(c echo.Context) error {
 		if err != nil {
 			return fmt.Errorf("cannot get account %d: %w", participant.AccountID, err)
 		}
-		// events = append(events, Organization{
-		// 	ID:   ID(participant.ID),
-		// 	Name: accountInfo.Title,
-		// })
 		events = append(events, Team{
 			ID:          ID(participant.ID),
 			Name:        accountInfo.Title,
 			DisplayName: accountInfo.Title,
-			// OrganizationID: ID(participant.ID),
 		})
 		beginTime := int64(config.BeginTime)
 		if participant.Kind == models.RegularParticipant {
@@ -172,13 +167,13 @@ func (v *View) getEventFeed(c echo.Context) error {
 	flushEvents := func() error {
 		for _, eventData := range events {
 			event := Event{
-				Type: eventData.Kind(),
-				Data: eventData,
+				Type:  eventData.Kind(),
+				Data:  eventData,
+				Token: eventData.Token(),
 			}
 			if id := eventData.ObjectID(); id != nil {
 				event.ID = fmt.Sprint(id)
 			}
-			event.Token = fmt.Sprintf("%d", time.Now().UnixNano())
 			bytes, err := json.Marshal(event)
 			if err != nil {
 				return err
@@ -418,6 +413,7 @@ type Event struct {
 type EventData interface {
 	Kind() string
 	ObjectID() any
+	Token() string
 }
 
 type ID int64
@@ -459,6 +455,10 @@ func (e Contest) ObjectID() any {
 	return nil
 }
 
+func (e Contest) Token() string {
+	return fmt.Sprint(time.Now().UnixNano())
+}
+
 type JudgementType struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -474,6 +474,10 @@ func (e JudgementType) ObjectID() any {
 	return e.ID
 }
 
+func (e JudgementType) Token() string {
+	return fmt.Sprint(time.Now().UnixNano())
+}
+
 type Language struct {
 	ID                 ID       `json:"id"`
 	Name               string   `json:"name"`
@@ -487,6 +491,10 @@ func (e Language) Kind() string {
 
 func (e Language) ObjectID() any {
 	return e.ID
+}
+
+func (e Language) Token() string {
+	return fmt.Sprint(time.Now().UnixNano())
 }
 
 type Problem struct {
@@ -506,6 +514,10 @@ func (e Problem) ObjectID() any {
 	return e.ID
 }
 
+func (e Problem) Token() string {
+	return fmt.Sprint(time.Now().UnixNano())
+}
+
 type Organization struct {
 	ID   ID     `json:"id"`
 	Name string `json:"name"`
@@ -517,6 +529,10 @@ func (e Organization) Kind() string {
 
 func (e Organization) ObjectID() any {
 	return e.ID
+}
+
+func (e Organization) Token() string {
+	return fmt.Sprint(time.Now().UnixNano())
 }
 
 type Team struct {
@@ -534,6 +550,10 @@ func (e Team) ObjectID() any {
 	return e.ID
 }
 
+func (e Team) Token() string {
+	return fmt.Sprint(time.Now().UnixNano())
+}
+
 type Submission struct {
 	ID          ID      `json:"id"`
 	TeamID      ID      `json:"team_id"`
@@ -549,6 +569,10 @@ func (e Submission) Kind() string {
 
 func (e Submission) ObjectID() any {
 	return e.ID
+}
+
+func (e Submission) Token() string {
+	return fmt.Sprint(e.ID)
 }
 
 type Judgement struct {
@@ -569,6 +593,10 @@ func (e Judgement) ObjectID() any {
 	return e.ID
 }
 
+func (e Judgement) Token() string {
+	return fmt.Sprint(time.Now().UnixNano())
+}
+
 type State struct {
 	Started      *Time `json:"started,omitempty"`
 	Ended        *Time `json:"ended,omitempty"`
@@ -583,6 +611,10 @@ func (e State) Kind() string {
 
 func (e State) ObjectID() any {
 	return nil
+}
+
+func (e State) Token() string {
+	return fmt.Sprint(time.Now().UnixNano())
 }
 
 func sortFunc[T any](a []T, less func(T, T) bool) {

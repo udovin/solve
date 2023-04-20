@@ -83,6 +83,7 @@ func (v *View) makeProblem(
 	permissions managers.Permissions,
 	withStatement bool,
 	withTask bool,
+	locales map[string]struct{},
 ) Problem {
 	resp := Problem{
 		ID:    problem.ID,
@@ -108,6 +109,11 @@ func (v *View) makeProblem(
 			var config models.ProblemStatementConfig
 			if err := resource.ScanConfig(&config); err != nil {
 				continue
+			}
+			if len(locales) > 0 {
+				if _, ok := locales[config.Locale]; !ok {
+					continue
+				}
 			}
 			if resp.Statement == nil || config.Locale == locale.Name() {
 				statement := ProblemStatement{
@@ -194,7 +200,7 @@ func (v *View) observeProblems(c echo.Context) error {
 		if permissions.HasPermission(models.ObserveProblemRole) {
 			resp.Problems = append(
 				resp.Problems,
-				v.makeProblem(c, problem, permissions, false, false),
+				v.makeProblem(c, problem, permissions, false, false, nil),
 			)
 		}
 	}
@@ -216,7 +222,7 @@ func (v *View) observeProblem(c echo.Context) error {
 	permissions := v.getProblemPermissions(accountCtx, problem)
 	return c.JSON(
 		http.StatusOK,
-		v.makeProblem(c, problem, permissions, true, true),
+		v.makeProblem(c, problem, permissions, true, true, nil),
 	)
 }
 
@@ -395,7 +401,7 @@ func (v *View) createProblem(c echo.Context) error {
 	permissions := v.getProblemPermissions(accountCtx, problem)
 	return c.JSON(
 		http.StatusCreated,
-		v.makeProblem(c, problem, permissions, false, false),
+		v.makeProblem(c, problem, permissions, false, false, nil),
 	)
 }
 
@@ -449,7 +455,7 @@ func (v *View) updateProblem(c echo.Context) error {
 	permissions := v.getProblemPermissions(accountCtx, problem)
 	return c.JSON(
 		http.StatusOK,
-		v.makeProblem(c, problem, permissions, false, false),
+		v.makeProblem(c, problem, permissions, false, false, nil),
 	)
 }
 
@@ -475,7 +481,7 @@ func (v *View) rebuildProblem(c echo.Context) error {
 	if problem.PackageID == 0 {
 		return c.JSON(
 			http.StatusForbidden,
-			v.makeProblem(c, problem, permissions, false, false),
+			v.makeProblem(c, problem, permissions, false, false, nil),
 		)
 	}
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
@@ -493,7 +499,7 @@ func (v *View) rebuildProblem(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusOK,
-		v.makeProblem(c, problem, permissions, false, false),
+		v.makeProblem(c, problem, permissions, false, false, nil),
 	)
 }
 
@@ -529,7 +535,7 @@ func (v *View) deleteProblem(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusOK,
-		v.makeProblem(c, problem, managers.PermissionSet{}, false, false),
+		v.makeProblem(c, problem, managers.PermissionSet{}, false, false, nil),
 	)
 }
 

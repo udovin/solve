@@ -8,6 +8,8 @@ import (
 
 type ContestProblemConfig struct {
 	Points *int `json:"points,omitempty"`
+	// Locales contains list of allowed locales.
+	Locales []string `json:"locales,omitempty"`
 }
 
 // ContestProblem represents connection for problems.

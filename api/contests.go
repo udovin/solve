@@ -151,9 +151,11 @@ type Contests struct {
 
 type ContestProblem struct {
 	Problem
-	ContestID int64  `json:"contest_id"`
-	Code      string `json:"code"`
-	Solved    bool   `json:"solved,omitempty"`
+	ContestID int64    `json:"contest_id"`
+	Code      string   `json:"code"`
+	Points    *int     `json:"points,omitempty"`
+	Locales   []string `json:"locales,omitempty"`
+	Solved    bool     `json:"solved,omitempty"`
 }
 
 type ContestProblems struct {
@@ -246,11 +248,19 @@ func (v *View) makeContestProblem(
 		ContestID: contestProblem.ContestID,
 		Code:      contestProblem.Code,
 	}
+	locales := map[string]struct{}{}
+	if config, err := contestProblem.GetConfig(); err == nil {
+		resp.Points = config.Points
+		resp.Locales = config.Locales
+		for _, locale := range config.Locales {
+			locales[locale] = struct{}{}
+		}
+	}
 	if problem, err := v.core.Problems.Get(
 		getContext(c), contestProblem.ProblemID,
 	); err == nil {
 		resp.Problem = v.makeProblem(
-			c, problem, managers.PermissionSet{}, withStatement, false,
+			c, problem, managers.PermissionSet{}, withStatement, false, locales,
 		)
 	}
 	return resp
@@ -550,9 +560,10 @@ func (v *View) observeContestProblem(c echo.Context) error {
 }
 
 type updateContestProblemForm struct {
-	Code      *string `json:"code"`
-	ProblemID *int64  `json:"problem_id"`
-	Points    *int    `json:"points"`
+	Code      *string   `json:"code"`
+	ProblemID *int64    `json:"problem_id"`
+	Points    *int      `json:"points"`
+	Locales   *[]string `json:"locales"`
 }
 
 func (f updateContestProblemForm) Update(
@@ -593,12 +604,24 @@ func (f updateContestProblemForm) Update(
 		}
 		problem.ProblemID = *f.ProblemID
 	}
+	configUpdated := false
+	config, err := problem.GetConfig()
+	if err != nil {
+		return err
+	}
 	if f.Points != nil {
-		config, err := problem.GetConfig()
-		if err != nil {
-			return err
+		if *f.Points != 0 {
+			config.Points = f.Points
+		} else {
+			config.Points = nil
 		}
-		config.Points = f.Points
+		configUpdated = true
+	}
+	if f.Locales != nil {
+		config.Locales = *f.Locales
+		configUpdated = true
+	}
+	if configUpdated {
 		if err := problem.SetConfig(config); err != nil {
 			return err
 		}

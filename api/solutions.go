@@ -185,7 +185,7 @@ func (v *View) makeSolution(
 		CreateTime: solution.CreateTime,
 	}
 	if problem, err := v.core.Problems.Get(getContext(c), solution.ProblemID); err == nil {
-		problemResp := v.makeProblem(c, problem, managers.PermissionSet{}, false, false)
+		problemResp := v.makeProblem(c, problem, managers.PermissionSet{}, false, false, nil)
 		resp.Problem = &problemResp
 	}
 	if compiler, err := v.core.Compilers.Get(getContext(c), solution.CompilerID); err == nil {

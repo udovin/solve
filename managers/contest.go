@@ -12,12 +12,14 @@ import (
 type ContestManager struct {
 	contests     *models.ContestStore
 	participants *models.ContestParticipantStore
+	settings     *models.SettingStore
 }
 
 func NewContestManager(core *core.Core) *ContestManager {
 	return &ContestManager{
 		contests:     core.Contests,
 		participants: core.ContestParticipants,
+		settings:     core.Settings,
 	}
 }
 
@@ -234,8 +236,15 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 	if config.EnableObserving && len(c.Participants) == 0 {
 		addContestObserverPermissions(c.Permissions, c.Stage, config)
 	}
+	disableUpsolving := false
+	if setting, err := m.settings.GetByKey("contests.disable_upsolving"); err == nil {
+		disableUpsolving = setting.Value == "t" || setting.Value == "1" || setting.Value == "true"
+	}
 	c.effectivePos = len(c.Participants)
 	for i := 0; i < len(c.Participants); i++ {
+		if disableUpsolving && c.Participants[i].Kind == models.UpsolvingParticipant {
+			continue
+		}
 		if checkEffectiveParticipant(c.Stage, c.Participants[i]) {
 			c.effectivePos = i
 			break

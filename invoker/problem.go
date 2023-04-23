@@ -23,7 +23,8 @@ type ProblemTest interface {
 type ProblemExecutableKind string
 
 const (
-	TestlibChecker ProblemExecutableKind = "testlib_checker"
+	TestlibChecker    ProblemExecutableKind = "testlib_checker"
+	TestlibInteractor ProblemExecutableKind = "testlib_interactor"
 )
 
 type ProblemExecutable interface {

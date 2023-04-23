@@ -252,7 +252,10 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 
 func (p *polygonProblem) GetExecutables() ([]ProblemExecutable, error) {
 	var executables []ProblemExecutable
-	if p.config.Assets != nil && p.config.Assets.Checker != nil {
+	if p.config.Assets == nil {
+		return executables, nil
+	}
+	if p.config.Assets.Checker != nil {
 		checker := p.config.Assets.Checker
 		polygonName := "polygon." + checker.Source.Type
 		compilerName, err := p.compilers.GetCompilerName(polygonName)
@@ -265,6 +268,23 @@ func (p *polygonProblem) GetExecutables() ([]ProblemExecutable, error) {
 		executables = append(executables, problemExecutable{
 			name:       "checker",
 			kind:       TestlibChecker,
+			binaryPath: targetPath,
+			compiler:   compilerName,
+		})
+	}
+	if p.config.Assets.Interactor != nil {
+		interactor := p.config.Assets.Interactor
+		polygonName := "polygon." + interactor.Source.Type
+		compilerName, err := p.compilers.GetCompilerName(polygonName)
+		if err != nil {
+			return nil, err
+		}
+		source := interactor.Source.Path
+		target := strings.TrimSuffix(source, filepath.Ext(source))
+		targetPath := filepath.Join(p.path, target)
+		executables = append(executables, problemExecutable{
+			name:       "interactor",
+			kind:       TestlibInteractor,
 			binaryPath: targetPath,
 			compiler:   compilerName,
 		})

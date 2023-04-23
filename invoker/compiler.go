@@ -56,6 +56,8 @@ func (r ExecuteReport) Success() bool {
 type ExecuteOptions struct {
 	Binary      string
 	Args        []string
+	Stdin       io.Reader
+	Stdout      io.Writer
 	InputFiles  []MountFile
 	OutputFiles []MountFile
 	TimeLimit   time.Duration
@@ -82,9 +84,12 @@ func (c *compiler) Name() string {
 type truncateBuffer struct {
 	strings.Builder
 	limit int
+	mutex sync.Mutex
 }
 
 func (b *truncateBuffer) Write(p []byte) (int, error) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
 	l := len(p)
 	if b.Builder.Len()+l > b.limit {
 		p = p[:b.limit-b.Builder.Len()]
@@ -177,11 +182,146 @@ const (
 	stderrFile = "stderr"
 )
 
+type compilerProcess struct {
+	compiler *compiler
+	options  ExecuteOptions
+	closers  []io.Closer
+	process  *safeexecProcess
+}
+
+func (p *compilerProcess) Start() error {
+	return p.process.Start()
+}
+
+func (p *compilerProcess) Wait() (ExecuteReport, error) {
+	report, err := p.process.Wait()
+	if err != nil {
+		return ExecuteReport{}, err
+	}
+	if report.ExitCode == 0 {
+		for _, output := range p.options.OutputFiles {
+			if output.Target == stdoutFile || output.Target == stderrFile {
+				continue
+			}
+			containerPath := filepath.Join(
+				p.process.GetUpperDir(),
+				p.compiler.config.Execute.Workdir,
+				output.Target,
+			)
+			if err := copyFileRec(containerPath, output.Source); err != nil {
+				return ExecuteReport{}, fmt.Errorf("unable to copy output file: %w", err)
+			}
+		}
+	}
+	return ExecuteReport{
+		ExitCode:   report.ExitCode,
+		UsedTime:   report.Time,
+		UsedMemory: report.Memory,
+	}, nil
+}
+
+func (p *compilerProcess) Release() error {
+	for _, closer := range p.closers {
+		_ = closer.Close()
+	}
+	if p.process != nil {
+		return p.process.Release()
+	}
+	return nil
+}
+
+func (c *compiler) PrepareExecute(ctx context.Context, options ExecuteOptions) (*compilerProcess, error) {
+	if c.config.Execute == nil {
+		return nil, fmt.Errorf("execute config is not specified")
+	}
+	process := compilerProcess{
+		compiler: c,
+		options:  options,
+	}
+	stdin := options.Stdin
+	for _, input := range options.InputFiles {
+		if input.Target != stdinFile {
+			continue
+		}
+		file, err := os.Open(input.Source)
+		if err != nil {
+			_ = process.Release()
+			return nil, fmt.Errorf("cannot open input file: %w", err)
+		}
+		process.closers = append(process.closers, file)
+		stdin = file
+		break
+	}
+	stdout := options.Stdout
+	var stderr io.Writer
+	for _, output := range options.OutputFiles {
+		if output.Target != stdoutFile && output.Target != stderrFile {
+			continue
+		}
+		file, err := os.Create(output.Source)
+		if err != nil {
+			_ = process.Release()
+			return nil, fmt.Errorf("cannot create output file: %w", err)
+		}
+		process.closers = append(process.closers, file)
+		if output.Target == stdoutFile {
+			stdout = file
+		} else {
+			stderr = file
+		}
+		break
+	}
+	executeArgs := append(strings.Fields(c.config.Execute.Command), options.Args...)
+	config := safeexecProcessConfig{
+		Layers:      []string{c.path},
+		Command:     executeArgs,
+		Environ:     c.config.Execute.Environ,
+		Workdir:     c.config.Execute.Workdir,
+		Stdin:       stdin,
+		Stdout:      stdout,
+		Stderr:      stderr,
+		TimeLimit:   options.TimeLimit,
+		MemoryLimit: options.MemoryLimit,
+	}
+	processImpl, err := c.safeexec.Create(ctx, config)
+	if err != nil {
+		_ = process.Release()
+		return nil, fmt.Errorf("unable to create compiler: %w", err)
+	}
+	process.process = processImpl
+	if c.config.Execute.Binary != nil {
+		path := filepath.Join(
+			processImpl.GetUpperDir(),
+			c.config.Execute.Workdir,
+			*c.config.Execute.Binary,
+		)
+		if err := copyFileRec(options.Binary, path); err != nil {
+			_ = process.Release()
+			return nil, fmt.Errorf("unable to write binary: %w", err)
+		}
+	}
+	for _, file := range options.InputFiles {
+		if file.Target == stdinFile {
+			continue
+		}
+		path := filepath.Join(
+			processImpl.GetUpperDir(),
+			c.config.Execute.Workdir,
+			file.Target,
+		)
+		if err := copyFileRec(file.Source, path); err != nil {
+			_ = process.Release()
+			return nil, fmt.Errorf("unable to write file: %w", err)
+		}
+	}
+	return &process, nil
+}
+
 func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (ExecuteReport, error) {
 	if c.config.Execute == nil {
 		return ExecuteReport{}, nil
 	}
-	var stdin io.Reader
+	stdin := options.Stdin
 	for _, input := range options.InputFiles {
 		if input.Target != stdinFile {
 			continue
@@ -194,7 +334,7 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 		stdin = file
 		break
 	}
-	var stdout io.Writer
+	stdout := options.Stdout
 	var stderr io.Writer
 	for _, output := range options.OutputFiles {
 		if output.Target != stdoutFile && output.Target != stderrFile {
@@ -270,7 +410,7 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 				output.Target,
 			)
 			if err := copyFileRec(containerPath, output.Source); err != nil {
-				return ExecuteReport{}, fmt.Errorf("unable to copy binary: %w", err)
+				return ExecuteReport{}, fmt.Errorf("unable to copy output file: %w", err)
 			}
 		}
 	}

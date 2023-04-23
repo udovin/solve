@@ -28,6 +28,8 @@ type judgeSolutionTask struct {
 	compilerImpl Compiler
 	solutionPath string
 	compiledPath string
+	checker      *testlibCheckerImpl
+	interactor   *testlibCheckerImpl
 }
 
 func (judgeSolutionTask) New(invoker *Invoker) taskImpl {
@@ -291,7 +293,63 @@ func (t *judgeSolutionTask) getInteractor(
 	}, nil
 }
 
-func (t *judgeSolutionTask) testSolution(
+func (t *judgeSolutionTask) calculateTestSetPoints(
+	ctx TaskContext,
+	report *models.SolutionReport,
+	testSet ProblemTestSet,
+	groupTests map[string][]int,
+) error {
+	groups, err := testSet.GetGroups()
+	if err != nil {
+		return err
+	}
+	for _, group := range groups {
+		groupPoints := float64(0)
+		groupVerdict := models.Accepted
+		for _, id := range groupTests[group.Name()] {
+			test := report.Tests[id]
+			if test.Points != nil {
+				groupPoints += *test.Points
+			}
+			if test.Verdict != models.Accepted {
+				groupVerdict = test.Verdict
+			}
+		}
+		switch group.PointsPolicy() {
+		case EachTestPointsPolicy:
+			*report.Points += groupPoints
+		case CompleteGroupPointsPolicy:
+			if groupVerdict == models.Accepted {
+				*report.Points += groupPoints
+			} else {
+				for _, id := range groupTests[group.Name()] {
+					report.Tests[id].Points = nil
+				}
+			}
+		default:
+			return fmt.Errorf("unsupported policy: %v", group.PointsPolicy())
+		}
+	}
+	return nil
+}
+
+func (t *judgeSolutionTask) prepareExecutables(ctx TaskContext) error {
+	executables, err := t.problemImpl.GetExecutables()
+	if err != nil {
+		return fmt.Errorf("cannot get executables: %w", err)
+	}
+	t.checker, err = t.getChecker(ctx, executables)
+	if err != nil {
+		return err
+	}
+	t.interactor, err = t.getInteractor(ctx, executables)
+	if err != nil && err != errNoInteractor {
+		return err
+	}
+	return nil
+}
+
+func (t *judgeSolutionTask) runSolutionTests(
 	ctx TaskContext, report *models.SolutionReport,
 ) error {
 	state := models.JudgeSolutionTaskState{
@@ -300,22 +358,6 @@ func (t *judgeSolutionTask) testSolution(
 	if err := ctx.SetDeferredState(state); err != nil {
 		return err
 	}
-	executables, err := t.problemImpl.GetExecutables()
-	if err != nil {
-		return fmt.Errorf("cannot get executables: %w", err)
-	}
-	checker, err := t.getChecker(ctx, executables)
-	if err != nil {
-		return err
-	}
-	interactor, err := t.getInteractor(ctx, executables)
-	if err != nil {
-		if err != errNoInteractor {
-			return err
-		}
-		interactor = nil
-	}
-	_ = interactor
 	testSets, err := t.problemImpl.GetTestSets()
 	if err != nil {
 		return err
@@ -413,7 +455,7 @@ func (t *judgeSolutionTask) testSolution(
 			} else if !executeReport.Success() {
 				testReport.Verdict = models.RuntimeError
 			} else {
-				checkerReport, err := checker.Run(ctx, inputPath, outputPath, answerPath)
+				checkerReport, err := t.checker.Run(ctx, inputPath, outputPath, answerPath)
 				if err != nil {
 					return err
 				}
@@ -451,36 +493,10 @@ func (t *judgeSolutionTask) testSolution(
 			}
 		}
 		if t.config.EnablePoints {
-			groups, err := testSet.GetGroups()
-			if err != nil {
+			if err := t.calculateTestSetPoints(
+				ctx, report, testSet, groupTests,
+			); err != nil {
 				return err
-			}
-			for _, group := range groups {
-				groupPoints := float64(0)
-				groupVerdict := models.Accepted
-				for _, id := range groupTests[group.Name()] {
-					test := report.Tests[id]
-					if test.Points != nil {
-						groupPoints += *test.Points
-					}
-					if test.Verdict != models.Accepted {
-						groupVerdict = test.Verdict
-					}
-				}
-				switch group.PointsPolicy() {
-				case EachTestPointsPolicy:
-					*report.Points += groupPoints
-				case CompleteGroupPointsPolicy:
-					if groupVerdict == models.Accepted {
-						*report.Points += groupPoints
-					} else {
-						for _, id := range groupTests[group.Name()] {
-							report.Tests[id].Points = nil
-						}
-					}
-				default:
-					return fmt.Errorf("unsupported policy: %v", group.PointsPolicy())
-				}
 			}
 		}
 	}
@@ -505,7 +521,10 @@ func (t *judgeSolutionTask) executeImpl(ctx TaskContext) error {
 	} else if !ok {
 		report.Verdict = models.CompilationError
 	} else {
-		if err := t.testSolution(ctx, &report); err != nil {
+		if err := t.prepareExecutables(ctx); err != nil {
+			return err
+		}
+		if err := t.runSolutionTests(ctx, &report); err != nil {
 			return fmt.Errorf("cannot judge solution: %w", err)
 		}
 	}

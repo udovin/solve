@@ -202,11 +202,14 @@ func (c *testlibCheckerImpl) Run(
 	return report, nil
 }
 
-func (t *judgeSolutionTask) getChecker(ctx TaskContext) (*testlibCheckerImpl, error) {
-	executables, err := t.problemImpl.GetExecutables()
-	if err != nil {
-		return nil, fmt.Errorf("cannot get executables: %w", err)
-	}
+var (
+	errNoChecker    = fmt.Errorf("cannot find checker executable")
+	errNoInteractor = fmt.Errorf("cannot find interactor executable")
+)
+
+func (t *judgeSolutionTask) getChecker(
+	ctx TaskContext, executables []ProblemExecutable,
+) (*testlibCheckerImpl, error) {
 	var checker ProblemExecutable
 	for _, executable := range executables {
 		if executable.Kind() == TestlibChecker {
@@ -215,9 +218,9 @@ func (t *judgeSolutionTask) getChecker(ctx TaskContext) (*testlibCheckerImpl, er
 		}
 	}
 	if checker == nil {
-		return nil, fmt.Errorf("cannot find checker executable")
+		return nil, errNoChecker
 	}
-	checkerCompiler, err := t.invoker.compilers.GetCompiler(ctx, checker.Compiler())
+	compiler, err := t.invoker.compilers.GetCompiler(ctx, checker.Compiler())
 	if err != nil {
 		return nil, err
 	}
@@ -240,8 +243,50 @@ func (t *judgeSolutionTask) getChecker(ctx TaskContext) (*testlibCheckerImpl, er
 		return nil, err
 	}
 	return &testlibCheckerImpl{
-		compiler:   checkerCompiler,
+		compiler:   compiler,
 		binaryPath: checkerPath,
+		tempDir:    t.tempDir,
+	}, nil
+}
+
+func (t *judgeSolutionTask) getInteractor(
+	ctx TaskContext, executables []ProblemExecutable,
+) (*testlibCheckerImpl, error) {
+	var interactor ProblemExecutable
+	for _, executable := range executables {
+		if executable.Kind() == TestlibInteractor {
+			interactor = executable
+			break
+		}
+	}
+	if interactor == nil {
+		return nil, errNoInteractor
+	}
+	compiler, err := t.invoker.compilers.GetCompiler(ctx, interactor.Compiler())
+	if err != nil {
+		return nil, err
+	}
+	interactorPath := filepath.Join(t.tempDir, "interactor")
+	if err := func() error {
+		testFile, err := interactor.OpenBinary()
+		if err != nil {
+			return err
+		}
+		file, err := os.OpenFile(interactorPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = file.Close() }()
+		if _, err := io.Copy(file, testFile); err != nil {
+			return err
+		}
+		return file.Sync()
+	}(); err != nil {
+		return nil, err
+	}
+	return &testlibCheckerImpl{
+		compiler:   compiler,
+		binaryPath: interactorPath,
 		tempDir:    t.tempDir,
 	}, nil
 }
@@ -252,10 +297,25 @@ func (t *judgeSolutionTask) testSolution(
 	state := models.JudgeSolutionTaskState{
 		Stage: "testing",
 	}
-	checker, err := t.getChecker(ctx)
+	if err := ctx.SetDeferredState(state); err != nil {
+		return err
+	}
+	executables, err := t.problemImpl.GetExecutables()
+	if err != nil {
+		return fmt.Errorf("cannot get executables: %w", err)
+	}
+	checker, err := t.getChecker(ctx, executables)
 	if err != nil {
 		return err
 	}
+	interactor, err := t.getInteractor(ctx, executables)
+	if err != nil {
+		if err != errNoInteractor {
+			return err
+		}
+		interactor = nil
+	}
+	_ = interactor
 	testSets, err := t.problemImpl.GetTestSets()
 	if err != nil {
 		return err

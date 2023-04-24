@@ -49,33 +49,20 @@ type polygonProblem struct {
 	executables map[string]compiled
 }
 
-func (p *polygonProblem) Compile(ctx context.Context) error {
-	p.executables = map[string]compiled{}
-	resources := []MountFile{}
-	for _, resource := range p.config.Files.Resources {
-		if resource.Type != "h.g++" {
-			continue
-		}
-		resources = append(resources, MountFile{
-			Source: filepath.Join(p.path, resource.Path),
-			Target: filepath.Base(resource.Path),
-		})
+func (p *polygonProblem) compileExecutable(
+	ctx context.Context, polygonType string, source string, resources []MountFile,
+) (compiled, error) {
+	polygonName := "polygon." + polygonType
+	compilerName, err := p.compilers.GetCompilerName(polygonName)
+	if err != nil {
+		return compiled{}, err
 	}
-	for _, executable := range p.config.Files.Executables {
-		if executable.Source == nil {
-			continue
-		}
-		polygonName := "polygon." + executable.Source.Type
-		compilerName, err := p.compilers.GetCompilerName(polygonName)
-		if err != nil {
-			return err
-		}
-		compiler, err := p.compilers.GetCompiler(ctx, compilerName)
-		if err != nil {
-			return err
-		}
-		source := executable.Source.Path
-		target := strings.TrimSuffix(source, filepath.Ext(source))
+	compiler, err := p.compilers.GetCompiler(ctx, compilerName)
+	if err != nil {
+		return compiled{}, err
+	}
+	target := strings.TrimSuffix(source, filepath.Ext(source))
+	if _, ok := p.executables[target]; !ok {
 		sourcePath := filepath.Join(p.path, source)
 		targetPath := filepath.Join(p.path, target)
 		report, err := compiler.Compile(ctx, CompileOptions{
@@ -83,13 +70,13 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 			Target:      targetPath,
 			InputFiles:  resources,
 			TimeLimit:   20 * time.Second,
-			MemoryLimit: 256 * 1024 * 1024,
+			MemoryLimit: 512 * 1024 * 1024,
 		})
 		if err != nil {
-			return err
+			return compiled{}, err
 		}
 		if !report.Success() {
-			return fmt.Errorf(
+			return compiled{}, fmt.Errorf(
 				"cannot compile %q with compiler %q: %q",
 				source, compilerName, report.Log,
 			)
@@ -103,46 +90,73 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 			compiler: compiler,
 		}
 	}
+	return p.executables[target], nil
+}
+
+func (p *polygonProblem) generateTest(ctx context.Context, args []string, input string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("cannot find executable")
+	}
+	executable, ok := p.executables[fmt.Sprintf("files/%s", args[0])]
+	if !ok {
+		return fmt.Errorf("cannot find executable: %q", args[0])
+	}
+	report, err := executable.compiler.Execute(ctx, ExecuteOptions{
+		Binary: executable.path,
+		Args:   args[1:],
+		OutputFiles: []MountFile{
+			{Source: filepath.Join(p.path, input), Target: "stdout"},
+		},
+		TimeLimit:   20 * time.Second,
+		MemoryLimit: 256 * 1024 * 1024,
+	})
+	if err != nil {
+		return fmt.Errorf("cannot execute generator %q: %w", args[0], err)
+	}
+	if !report.Success() {
+		return fmt.Errorf("generator exited with code: %v", report.ExitCode)
+	}
+	return nil
+}
+
+func (p *polygonProblem) Compile(ctx context.Context) error {
+	p.executables = map[string]compiled{}
+	resources := []MountFile{}
+	for _, resource := range p.config.Files.Resources {
+		if resource.Type != "h.g++" {
+			continue
+		}
+		resources = append(resources, MountFile{
+			Source: filepath.Join(p.path, resource.Path),
+			Target: filepath.Base(resource.Path),
+		})
+	}
+	for _, e := range p.config.Files.Executables {
+		if e.Source == nil {
+			continue
+		}
+		if _, err := p.compileExecutable(
+			ctx, e.Source.Type, e.Source.Path, resources,
+		); err != nil {
+			return err
+		}
+	}
+	var interactor *compiled
 	if p.config.Assets != nil {
-		if checker := p.config.Assets.Checker; checker != nil {
-			polygonName := "polygon." + checker.Source.Type
-			compilerName, err := p.compilers.GetCompilerName(polygonName)
-			if err != nil {
+		if e := p.config.Assets.Checker; e != nil {
+			if _, err := p.compileExecutable(
+				ctx, e.Source.Type, e.Source.Path, resources,
+			); err != nil {
 				return err
 			}
-			compiler, err := p.compilers.GetCompiler(ctx, compilerName)
-			if err != nil {
+		}
+		if e := p.config.Assets.Interactor; e != nil {
+			if c, err := p.compileExecutable(
+				ctx, e.Source.Type, e.Source.Path, resources,
+			); err != nil {
 				return err
-			}
-			source := checker.Source.Path
-			target := strings.TrimSuffix(source, filepath.Ext(source))
-			if _, ok := p.executables[target]; !ok {
-				sourcePath := filepath.Join(p.path, source)
-				targetPath := filepath.Join(p.path, target)
-				report, err := compiler.Compile(ctx, CompileOptions{
-					Source:      sourcePath,
-					Target:      targetPath,
-					InputFiles:  resources,
-					TimeLimit:   20 * time.Second,
-					MemoryLimit: 256 * 1024 * 1024,
-				})
-				if err != nil {
-					return err
-				}
-				if !report.Success() {
-					return fmt.Errorf(
-						"cannot compile %q with compiler %q: %q",
-						source, compilerName, report.Log,
-					)
-				}
-				p.compilers.logger.Debug(
-					"Compiled executable",
-					logs.Any("path", source),
-				)
-				p.executables[target] = compiled{
-					path:     targetPath,
-					compiler: compiler,
-				}
+			} else {
+				interactor = &c
 			}
 		}
 	}
@@ -197,31 +211,88 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 			input := fmt.Sprintf(testSet.InputPathPattern, i+1)
 			answer := fmt.Sprintf(testSet.AnswerPathPattern, i+1)
 			if test.Cmd != "" {
-				args := strings.Fields(test.Cmd)
-				if len(args) == 0 {
-					return fmt.Errorf("cannot find executable")
-				}
-				executable, ok := p.executables[fmt.Sprintf("files/%s", args[0])]
-				if !ok {
-					return fmt.Errorf("cannot find executable: %q", args[0])
-				}
-				report, err := executable.compiler.Execute(ctx, ExecuteOptions{
-					Binary: executable.path,
-					Args:   args[1:],
-					OutputFiles: []MountFile{
-						{Source: filepath.Join(p.path, input), Target: "stdout"},
-					},
-					TimeLimit:   20 * time.Second,
-					MemoryLimit: 256 * 1024 * 1024,
-				})
-				if err != nil {
-					return fmt.Errorf("cannot execute generator %q: %w", args[0], err)
-				}
-				if !report.Success() {
-					return fmt.Errorf("generator exited with code: %v", report.ExitCode)
+				if err := p.generateTest(
+					ctx, strings.Fields(test.Cmd), input,
+				); err != nil {
+					return err
 				}
 			}
-			{
+			if interactor != nil {
+				if err := func() error {
+					interactorReader, interactorWriter, err := os.Pipe()
+					if err != nil {
+						return err
+					}
+					defer func() {
+						_ = interactorReader.Close()
+						_ = interactorWriter.Close()
+					}()
+					solutionReader, solutionWriter, err := os.Pipe()
+					if err != nil {
+						return err
+					}
+					defer func() {
+						_ = solutionReader.Close()
+						_ = solutionWriter.Close()
+					}()
+					interactorProcess, err := interactor.compiler.PrepareExecute(ctx, ExecuteOptions{
+						Binary: interactor.path,
+						Args:   []string{"input.in", "output.out"},
+						Stdin:  solutionReader,
+						Stdout: interactorWriter,
+						InputFiles: []MountFile{
+							{Source: filepath.Join(p.path, input), Target: "input.in"},
+						},
+						OutputFiles: []MountFile{
+							{Source: filepath.Join(p.path, answer), Target: "output.out"},
+						},
+						TimeLimit:   2 * time.Duration(testSet.TimeLimit) * time.Millisecond,
+						MemoryLimit: 256 * 1024 * 1024,
+					})
+					if err != nil {
+						return fmt.Errorf("cannot prepare interactor: %w", err)
+					}
+					defer func() { _ = interactorProcess.Release() }()
+					solutionProcess, err := solution.compiler.PrepareExecute(ctx, ExecuteOptions{
+						Binary:      solution.path,
+						Stdin:       interactorReader,
+						Stdout:      solutionWriter,
+						TimeLimit:   time.Duration(testSet.TimeLimit) * time.Millisecond,
+						MemoryLimit: testSet.MemoryLimit,
+					})
+					if err != nil {
+						return fmt.Errorf("cannot prepare solution: %w", err)
+					}
+					defer func() { _ = solutionProcess.Release() }()
+					if err := interactorProcess.Start(); err != nil {
+						return fmt.Errorf("cannot execute interactor: %w", err)
+					}
+					if err := solutionProcess.Start(); err != nil {
+						return fmt.Errorf("cannot execute solution: %w", err)
+					}
+					interactorReport, err := interactorProcess.Wait()
+					if err != nil {
+						return fmt.Errorf("cannot wait interactor: %w", err)
+					}
+					solutionReport, err := solutionProcess.Wait()
+					if err != nil {
+						return fmt.Errorf("cannot wait solution: %w", err)
+					}
+					if !solutionReport.Success() {
+						return fmt.Errorf("solution exited with code: %v", solutionReport.ExitCode)
+					}
+					verdict, err := getTestlibExitCodeVerdict(interactorReport.ExitCode)
+					if err != nil {
+						return err
+					}
+					if verdict != models.Accepted {
+						return fmt.Errorf("interactor exited with verdict: %s", verdict)
+					}
+					return nil
+				}(); err != nil {
+					return err
+				}
+			} else {
 				report, err := solution.compiler.Execute(ctx, ExecuteOptions{
 					Binary: solution.path,
 					InputFiles: []MountFile{
@@ -252,7 +323,10 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 
 func (p *polygonProblem) GetExecutables() ([]ProblemExecutable, error) {
 	var executables []ProblemExecutable
-	if p.config.Assets != nil && p.config.Assets.Checker != nil {
+	if p.config.Assets == nil {
+		return executables, nil
+	}
+	if p.config.Assets.Checker != nil {
 		checker := p.config.Assets.Checker
 		polygonName := "polygon." + checker.Source.Type
 		compilerName, err := p.compilers.GetCompilerName(polygonName)
@@ -265,6 +339,23 @@ func (p *polygonProblem) GetExecutables() ([]ProblemExecutable, error) {
 		executables = append(executables, problemExecutable{
 			name:       "checker",
 			kind:       TestlibChecker,
+			binaryPath: targetPath,
+			compiler:   compilerName,
+		})
+	}
+	if p.config.Assets.Interactor != nil {
+		interactor := p.config.Assets.Interactor
+		polygonName := "polygon." + interactor.Source.Type
+		compilerName, err := p.compilers.GetCompilerName(polygonName)
+		if err != nil {
+			return nil, err
+		}
+		source := interactor.Source.Path
+		target := strings.TrimSuffix(source, filepath.Ext(source))
+		targetPath := filepath.Join(p.path, target)
+		executables = append(executables, problemExecutable{
+			name:       "interactor",
+			kind:       TestlibInteractor,
 			binaryPath: targetPath,
 			compiler:   compilerName,
 		})

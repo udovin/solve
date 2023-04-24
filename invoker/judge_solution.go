@@ -28,6 +28,8 @@ type judgeSolutionTask struct {
 	compilerImpl Compiler
 	solutionPath string
 	compiledPath string
+	checker      *testlibCheckerImpl
+	interactor   *testlibCheckerImpl
 }
 
 func (judgeSolutionTask) New(invoker *Invoker) taskImpl {
@@ -143,6 +145,26 @@ func (t *judgeSolutionTask) compileSolution(
 	return compileReport.Success(), nil
 }
 
+func getTestlibExitCodeVerdict(exitCode int) (models.Verdict, error) {
+	switch exitCode {
+	case 0:
+		return models.Accepted, nil
+	case 1:
+		return models.WrongAnswer, nil
+	case 3:
+		return models.Failed, nil
+	case 2, 4, 8:
+		return models.PresentationError, nil
+	case 5:
+		return models.PartiallyAccepted, nil
+	default:
+		if exitCode < 16 {
+			return 0, fmt.Errorf("unknown exit code: %d", exitCode)
+		}
+		return models.PartiallyAccepted, nil
+	}
+}
+
 type testlibCheckerImpl struct {
 	compiler   Compiler
 	binaryPath string
@@ -170,23 +192,12 @@ func (c *testlibCheckerImpl) Run(
 	if err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot check solution: %w", err)
 	}
-	report := models.TestReport{}
-	switch checkerReport.ExitCode {
-	case 0:
-		report.Verdict = models.Accepted
-	case 1:
-		report.Verdict = models.WrongAnswer
-	case 3:
-		report.Verdict = models.Failed
-	case 2, 4, 8:
-		report.Verdict = models.PresentationError
-	case 5:
-		report.Verdict = models.PartiallyAccepted
-	default:
-		if checkerReport.ExitCode < 16 {
-			return models.TestReport{}, fmt.Errorf("checker exited with code: %d", checkerReport.ExitCode)
-		}
-		report.Verdict = models.PartiallyAccepted
+	verdict, err := getTestlibExitCodeVerdict(checkerReport.ExitCode)
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("checker returned error: %w", err)
+	}
+	report := models.TestReport{
+		Verdict: verdict,
 	}
 	checkerLog, err := readFile(checkerLogPath, 256)
 	if err != nil {
@@ -202,11 +213,14 @@ func (c *testlibCheckerImpl) Run(
 	return report, nil
 }
 
-func (t *judgeSolutionTask) getChecker(ctx TaskContext) (*testlibCheckerImpl, error) {
-	executables, err := t.problemImpl.GetExecutables()
-	if err != nil {
-		return nil, fmt.Errorf("cannot get executables: %w", err)
-	}
+var (
+	errNoChecker    = fmt.Errorf("cannot find checker executable")
+	errNoInteractor = fmt.Errorf("cannot find interactor executable")
+)
+
+func (t *judgeSolutionTask) getChecker(
+	ctx TaskContext, executables []ProblemExecutable,
+) (*testlibCheckerImpl, error) {
 	var checker ProblemExecutable
 	for _, executable := range executables {
 		if executable.Kind() == TestlibChecker {
@@ -215,9 +229,9 @@ func (t *judgeSolutionTask) getChecker(ctx TaskContext) (*testlibCheckerImpl, er
 		}
 	}
 	if checker == nil {
-		return nil, fmt.Errorf("cannot find checker executable")
+		return nil, errNoChecker
 	}
-	checkerCompiler, err := t.invoker.compilers.GetCompiler(ctx, checker.Compiler())
+	compiler, err := t.invoker.compilers.GetCompiler(ctx, checker.Compiler())
 	if err != nil {
 		return nil, err
 	}
@@ -240,20 +254,337 @@ func (t *judgeSolutionTask) getChecker(ctx TaskContext) (*testlibCheckerImpl, er
 		return nil, err
 	}
 	return &testlibCheckerImpl{
-		compiler:   checkerCompiler,
+		compiler:   compiler,
 		binaryPath: checkerPath,
 		tempDir:    t.tempDir,
 	}, nil
 }
 
-func (t *judgeSolutionTask) testSolution(
+func (t *judgeSolutionTask) getInteractor(
+	ctx TaskContext, executables []ProblemExecutable,
+) (*testlibCheckerImpl, error) {
+	var interactor ProblemExecutable
+	for _, executable := range executables {
+		if executable.Kind() == TestlibInteractor {
+			interactor = executable
+			break
+		}
+	}
+	if interactor == nil {
+		return nil, errNoInteractor
+	}
+	compiler, err := t.invoker.compilers.GetCompiler(ctx, interactor.Compiler())
+	if err != nil {
+		return nil, err
+	}
+	interactorPath := filepath.Join(t.tempDir, "interactor")
+	if err := func() error {
+		testFile, err := interactor.OpenBinary()
+		if err != nil {
+			return err
+		}
+		file, err := os.OpenFile(interactorPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = file.Close() }()
+		if _, err := io.Copy(file, testFile); err != nil {
+			return err
+		}
+		return file.Sync()
+	}(); err != nil {
+		return nil, err
+	}
+	return &testlibCheckerImpl{
+		compiler:   compiler,
+		binaryPath: interactorPath,
+		tempDir:    t.tempDir,
+	}, nil
+}
+
+func (t *judgeSolutionTask) calculateTestSetPoints(
+	ctx TaskContext,
+	report *models.SolutionReport,
+	testSet ProblemTestSet,
+	groupTests map[string][]int,
+) error {
+	groups, err := testSet.GetGroups()
+	if err != nil {
+		return err
+	}
+	for _, group := range groups {
+		groupPoints := float64(0)
+		groupVerdict := models.Accepted
+		for _, id := range groupTests[group.Name()] {
+			test := report.Tests[id]
+			if test.Points != nil {
+				groupPoints += *test.Points
+			}
+			if test.Verdict != models.Accepted {
+				groupVerdict = test.Verdict
+			}
+		}
+		switch group.PointsPolicy() {
+		case EachTestPointsPolicy:
+			*report.Points += groupPoints
+		case CompleteGroupPointsPolicy:
+			if groupVerdict == models.Accepted {
+				*report.Points += groupPoints
+			} else {
+				for _, id := range groupTests[group.Name()] {
+					report.Tests[id].Points = nil
+				}
+			}
+		default:
+			return fmt.Errorf("unsupported policy: %v", group.PointsPolicy())
+		}
+	}
+	return nil
+}
+
+func (t *judgeSolutionTask) prepareExecutables(ctx TaskContext) error {
+	executables, err := t.problemImpl.GetExecutables()
+	if err != nil {
+		return fmt.Errorf("cannot get executables: %w", err)
+	}
+	t.checker, err = t.getChecker(ctx, executables)
+	if err != nil {
+		return err
+	}
+	t.interactor, err = t.getInteractor(ctx, executables)
+	if err != nil && err != errNoInteractor {
+		return err
+	}
+	return nil
+}
+
+func (t *judgeSolutionTask) executeSolution(
+	ctx context.Context,
+	testSet ProblemTestSet,
+	inputPath, outputPath, answerPath string,
+) (models.TestReport, error) {
+	if t.interactor != nil {
+		return t.executeInteractiveSolution(ctx, testSet, inputPath, outputPath, answerPath)
+	}
+	executeReport, err := t.compilerImpl.Execute(ctx, ExecuteOptions{
+		Binary: t.compiledPath,
+		InputFiles: []MountFile{
+			{Source: inputPath, Target: "stdin"},
+		},
+		OutputFiles: []MountFile{
+			{Source: outputPath, Target: "stdout"},
+		},
+		TimeLimit:   time.Duration(testSet.TimeLimit()) * time.Millisecond,
+		MemoryLimit: testSet.MemoryLimit(),
+	})
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot execute solution: %w", err)
+	}
+	// Read solution input.
+	input, err := readFile(inputPath, 128)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	// Read solution output.
+	output, err := readFile(outputPath, 128)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	testReport := models.TestReport{
+		Verdict: models.Accepted,
+		Input:   input,
+		Output:  output,
+		Usage: models.UsageReport{
+			Time:   executeReport.UsedTime.Milliseconds(),
+			Memory: executeReport.UsedMemory,
+		},
+	}
+	if executeReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
+		testReport.Verdict = models.TimeLimitExceeded
+	} else if executeReport.UsedMemory > testSet.MemoryLimit() {
+		testReport.Verdict = models.MemoryLimitExceeded
+	} else if !executeReport.Success() {
+		testReport.Verdict = models.RuntimeError
+	}
+	return testReport, nil
+}
+
+func (t *judgeSolutionTask) executeInteractiveSolution(
+	ctx context.Context,
+	testSet ProblemTestSet,
+	inputPath, outputPath, answerPath string,
+) (models.TestReport, error) {
+	interactorReader, interactorWriter, err := os.Pipe()
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	defer func() {
+		_ = interactorReader.Close()
+		_ = interactorWriter.Close()
+	}()
+	solutionReader, solutionWriter, err := os.Pipe()
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	defer func() {
+		_ = solutionReader.Close()
+		_ = solutionWriter.Close()
+	}()
+	interactorProcess, err := t.interactor.compiler.PrepareExecute(ctx, ExecuteOptions{
+		Binary: t.interactor.binaryPath,
+		Args:   []string{"input.in", "output.out", "answer.ans"},
+		Stdin:  solutionReader,
+		Stdout: interactorWriter,
+		InputFiles: []MountFile{
+			{Source: inputPath, Target: "input.in"},
+			{Source: answerPath, Target: "answer.ans"},
+		},
+		OutputFiles: []MountFile{
+			{Source: outputPath, Target: "output.out"},
+		},
+		TimeLimit:   2 * time.Duration(testSet.TimeLimit()) * time.Millisecond,
+		MemoryLimit: 256 * 1024 * 1024,
+	})
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot prepare interactor: %w", err)
+	}
+	defer func() { _ = interactorProcess.Release() }()
+	solutionProcess, err := t.compilerImpl.PrepareExecute(ctx, ExecuteOptions{
+		Binary:      t.compiledPath,
+		Stdin:       interactorReader,
+		Stdout:      solutionWriter,
+		TimeLimit:   time.Duration(testSet.TimeLimit()) * time.Millisecond,
+		MemoryLimit: testSet.MemoryLimit(),
+	})
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot prepare solution: %w", err)
+	}
+	defer func() { _ = solutionProcess.Release() }()
+	if err := interactorProcess.Start(); err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot execute interactor: %w", err)
+	}
+	if err := solutionProcess.Start(); err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot execute solution: %w", err)
+	}
+	interactorReport, err := interactorProcess.Wait()
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot wait interactor: %w", err)
+	}
+	solutionReport, err := solutionProcess.Wait()
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot wait solution: %w", err)
+	}
+	// Read solution input.
+	input, err := readFile(inputPath, 128)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	// Read solution output.
+	output, err := readFile(outputPath, 128)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	testReport := models.TestReport{
+		Verdict: models.Accepted,
+		Input:   input,
+		Output:  output,
+		Usage: models.UsageReport{
+			Time:   solutionReport.UsedTime.Milliseconds(),
+			Memory: solutionReport.UsedMemory,
+		},
+	}
+	if solutionReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
+		testReport.Verdict = models.TimeLimitExceeded
+	} else if solutionReport.UsedMemory > testSet.MemoryLimit() {
+		testReport.Verdict = models.MemoryLimitExceeded
+	} else if !solutionReport.Success() {
+		testReport.Verdict = models.RuntimeError
+	} else {
+		verdict, err := getTestlibExitCodeVerdict(interactorReport.ExitCode)
+		if err != nil {
+			return models.TestReport{}, err
+		}
+		testReport.Verdict = verdict
+	}
+	return testReport, nil
+}
+
+func (t *judgeSolutionTask) runSolutionTest(
+	ctx TaskContext,
+	testSet ProblemTestSet,
+	test ProblemTest,
+) (models.TestReport, error) {
+	inputPath := filepath.Join(t.tempDir, "test.in")
+	outputPath := filepath.Join(t.tempDir, "test.out")
+	answerPath := filepath.Join(t.tempDir, "test.ans")
+	// Copy input.
+	if err := func() error {
+		testFile, err := test.OpenInput()
+		if err != nil {
+			return err
+		}
+		file, err := os.Create(inputPath)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = file.Close() }()
+		if _, err := io.Copy(file, testFile); err != nil {
+			return err
+		}
+		return file.Sync()
+	}(); err != nil {
+		return models.TestReport{}, err
+	}
+	// Copy output.
+	if err := func() error {
+		testFile, err := test.OpenAnswer()
+		if err != nil {
+			return err
+		}
+		file, err := os.Create(answerPath)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = file.Close() }()
+		if _, err := io.Copy(file, testFile); err != nil {
+			return err
+		}
+		return file.Sync()
+	}(); err != nil {
+		return models.TestReport{}, err
+	}
+	testReport, err := t.executeSolution(
+		ctx, testSet, inputPath, outputPath, answerPath,
+	)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	if testReport.Verdict != models.Accepted {
+		return testReport, nil
+	}
+	checkerReport, err := t.checker.Run(
+		ctx, inputPath, outputPath, answerPath,
+	)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	testReport.Verdict = checkerReport.Verdict
+	testReport.Check = checkerReport.Check
+	if testReport.Verdict == models.Accepted {
+		if points := test.Points(); points > 0 {
+			testReport.Points = &points
+		}
+	}
+	return testReport, nil
+}
+
+func (t *judgeSolutionTask) runSolutionTests(
 	ctx TaskContext, report *models.SolutionReport,
 ) error {
 	state := models.JudgeSolutionTaskState{
 		Stage: "testing",
 	}
-	checker, err := t.getChecker(ctx)
-	if err != nil {
+	if err := ctx.SetDeferredState(state); err != nil {
 		return err
 	}
 	testSets, err := t.problemImpl.GetTestSets()
@@ -278,92 +609,12 @@ func (t *judgeSolutionTask) testSolution(
 			if err := ctx.SetDeferredState(state); err != nil {
 				return err
 			}
-			inputPath := filepath.Join(t.tempDir, "test.in")
-			outputPath := filepath.Join(t.tempDir, "test.out")
-			answerPath := filepath.Join(t.tempDir, "test.ans")
-			if err := func() error {
-				testFile, err := test.OpenInput()
-				if err != nil {
-					return err
-				}
-				file, err := os.Create(inputPath)
-				if err != nil {
-					return err
-				}
-				defer func() { _ = file.Close() }()
-				if _, err := io.Copy(file, testFile); err != nil {
-					return err
-				}
-				return file.Sync()
-			}(); err != nil {
-				return err
-			}
-			if err := func() error {
-				testFile, err := test.OpenAnswer()
-				if err != nil {
-					return err
-				}
-				file, err := os.Create(answerPath)
-				if err != nil {
-					return err
-				}
-				defer func() { _ = file.Close() }()
-				if _, err := io.Copy(file, testFile); err != nil {
-					return err
-				}
-				return file.Sync()
-			}(); err != nil {
-				return err
-			}
-			executeReport, err := t.compilerImpl.Execute(ctx, ExecuteOptions{
-				Binary: t.compiledPath,
-				InputFiles: []MountFile{
-					{Source: inputPath, Target: "stdin"},
-				},
-				OutputFiles: []MountFile{
-					{Source: outputPath, Target: "stdout"},
-				},
-				TimeLimit:   time.Duration(testSet.TimeLimit()) * time.Millisecond,
-				MemoryLimit: testSet.MemoryLimit(),
-			})
-			if err != nil {
-				return fmt.Errorf("cannot execute solution: %w", err)
-			}
-			input, err := readFile(inputPath, 128)
+			testReport, err := t.runSolutionTest(ctx, testSet, test)
 			if err != nil {
 				return err
 			}
-			output, err := readFile(outputPath, 128)
-			if err != nil {
-				return err
-			}
-			testReport := models.TestReport{
-				Verdict: models.Rejected,
-				Input:   input,
-				Output:  output,
-				Usage: models.UsageReport{
-					Time:   executeReport.UsedTime.Milliseconds(),
-					Memory: executeReport.UsedMemory,
-				},
-			}
-			if executeReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
-				testReport.Verdict = models.TimeLimitExceeded
-			} else if executeReport.UsedMemory > testSet.MemoryLimit() {
-				testReport.Verdict = models.MemoryLimitExceeded
-			} else if !executeReport.Success() {
-				testReport.Verdict = models.RuntimeError
-			} else {
-				checkerReport, err := checker.Run(ctx, inputPath, outputPath, answerPath)
-				if err != nil {
-					return err
-				}
-				testReport.Verdict = checkerReport.Verdict
-				testReport.Check = checkerReport.Check
-			}
-			if testReport.Verdict == models.Accepted && t.config.EnablePoints {
-				if points := test.Points(); points > 0 {
-					testReport.Points = &points
-				}
+			if !t.config.EnablePoints {
+				testReport.Points = nil
 			}
 			groupTests[test.Group()] = append(
 				groupTests[test.Group()], len(report.Tests),
@@ -391,36 +642,10 @@ func (t *judgeSolutionTask) testSolution(
 			}
 		}
 		if t.config.EnablePoints {
-			groups, err := testSet.GetGroups()
-			if err != nil {
+			if err := t.calculateTestSetPoints(
+				ctx, report, testSet, groupTests,
+			); err != nil {
 				return err
-			}
-			for _, group := range groups {
-				groupPoints := float64(0)
-				groupVerdict := models.Accepted
-				for _, id := range groupTests[group.Name()] {
-					test := report.Tests[id]
-					if test.Points != nil {
-						groupPoints += *test.Points
-					}
-					if test.Verdict != models.Accepted {
-						groupVerdict = test.Verdict
-					}
-				}
-				switch group.PointsPolicy() {
-				case EachTestPointsPolicy:
-					*report.Points += groupPoints
-				case CompleteGroupPointsPolicy:
-					if groupVerdict == models.Accepted {
-						*report.Points += groupPoints
-					} else {
-						for _, id := range groupTests[group.Name()] {
-							report.Tests[id].Points = nil
-						}
-					}
-				default:
-					return fmt.Errorf("unsupported policy: %v", group.PointsPolicy())
-				}
 			}
 		}
 	}
@@ -445,7 +670,10 @@ func (t *judgeSolutionTask) executeImpl(ctx TaskContext) error {
 	} else if !ok {
 		report.Verdict = models.CompilationError
 	} else {
-		if err := t.testSolution(ctx, &report); err != nil {
+		if err := t.prepareExecutables(ctx); err != nil {
+			return err
+		}
+		if err := t.runSolutionTests(ctx, &report); err != nil {
 			return fmt.Errorf("cannot judge solution: %w", err)
 		}
 	}

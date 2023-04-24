@@ -61,6 +61,11 @@ type Checker struct {
 	Binary *Resource `xml:"binary"`
 }
 
+type Interactor struct {
+	Source *Resource `xml:"source"`
+	Binary *Resource `xml:"binary"`
+}
+
 type Solution struct {
 	Tag    string    `xml:"tag,attr"`
 	Source *Resource `xml:"source"`
@@ -68,8 +73,9 @@ type Solution struct {
 }
 
 type ProblemAssets struct {
-	Checker   *Checker   `xml:"checker"`
-	Solutions []Solution `xml:"solutions>solution"`
+	Checker    *Checker    `xml:"checker"`
+	Interactor *Interactor `xml:"interactor"`
+	Solutions  []Solution  `xml:"solutions>solution"`
 }
 
 type Executable struct {

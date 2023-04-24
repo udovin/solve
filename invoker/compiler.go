@@ -64,9 +64,16 @@ type ExecuteOptions struct {
 	MemoryLimit int64
 }
 
+type CompilerProcess interface {
+	Start() error
+	Wait() (ExecuteReport, error)
+	Release() error
+}
+
 type Compiler interface {
 	Name() string
 	Compile(ctx context.Context, options CompileOptions) (CompileReport, error)
+	PrepareExecute(ctx context.Context, options ExecuteOptions) (CompilerProcess, error)
 	Execute(ctx context.Context, options ExecuteOptions) (ExecuteReport, error)
 }
 
@@ -230,7 +237,7 @@ func (p *compilerProcess) Release() error {
 	return nil
 }
 
-func (c *compiler) PrepareExecute(ctx context.Context, options ExecuteOptions) (*compilerProcess, error) {
+func (c *compiler) PrepareExecute(ctx context.Context, options ExecuteOptions) (CompilerProcess, error) {
 	if c.config.Execute == nil {
 		return nil, fmt.Errorf("execute config is not specified")
 	}

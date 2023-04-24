@@ -145,6 +145,26 @@ func (t *judgeSolutionTask) compileSolution(
 	return compileReport.Success(), nil
 }
 
+func getTestlibExitCodeVerdict(exitCode int) (models.Verdict, error) {
+	switch exitCode {
+	case 0:
+		return models.Accepted, nil
+	case 1:
+		return models.WrongAnswer, nil
+	case 3:
+		return models.Failed, nil
+	case 2, 4, 8:
+		return models.PresentationError, nil
+	case 5:
+		return models.PartiallyAccepted, nil
+	default:
+		if exitCode < 16 {
+			return 0, fmt.Errorf("unknown exit code: %d", exitCode)
+		}
+		return models.PartiallyAccepted, nil
+	}
+}
+
 type testlibCheckerImpl struct {
 	compiler   Compiler
 	binaryPath string
@@ -172,23 +192,12 @@ func (c *testlibCheckerImpl) Run(
 	if err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot check solution: %w", err)
 	}
-	report := models.TestReport{}
-	switch checkerReport.ExitCode {
-	case 0:
-		report.Verdict = models.Accepted
-	case 1:
-		report.Verdict = models.WrongAnswer
-	case 3:
-		report.Verdict = models.Failed
-	case 2, 4, 8:
-		report.Verdict = models.PresentationError
-	case 5:
-		report.Verdict = models.PartiallyAccepted
-	default:
-		if checkerReport.ExitCode < 16 {
-			return models.TestReport{}, fmt.Errorf("checker exited with code: %d", checkerReport.ExitCode)
-		}
-		report.Verdict = models.PartiallyAccepted
+	verdict, err := getTestlibExitCodeVerdict(checkerReport.ExitCode)
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("checker returned error: %w", err)
+	}
+	report := models.TestReport{
+		Verdict: verdict,
 	}
 	checkerLog, err := readFile(checkerLogPath, 256)
 	if err != nil {
@@ -350,8 +359,13 @@ func (t *judgeSolutionTask) prepareExecutables(ctx TaskContext) error {
 }
 
 func (t *judgeSolutionTask) executeSolution(
-	ctx context.Context, testSet ProblemTestSet, inputPath, outputPath string,
+	ctx context.Context,
+	testSet ProblemTestSet,
+	inputPath, outputPath, answerPath string,
 ) (models.TestReport, error) {
+	if t.interactor != nil {
+		return t.executeInteractiveSolution(ctx, testSet, inputPath, outputPath, answerPath)
+	}
 	executeReport, err := t.compilerImpl.Execute(ctx, ExecuteOptions{
 		Binary: t.compiledPath,
 		InputFiles: []MountFile{
@@ -391,6 +405,106 @@ func (t *judgeSolutionTask) executeSolution(
 		testReport.Verdict = models.MemoryLimitExceeded
 	} else if !executeReport.Success() {
 		testReport.Verdict = models.RuntimeError
+	}
+	return testReport, nil
+}
+
+func (t *judgeSolutionTask) executeInteractiveSolution(
+	ctx context.Context,
+	testSet ProblemTestSet,
+	inputPath, outputPath, answerPath string,
+) (models.TestReport, error) {
+	interactorReader, interactorWriter, err := os.Pipe()
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	defer func() {
+		_ = interactorReader.Close()
+		_ = interactorWriter.Close()
+	}()
+	solutionReader, solutionWriter, err := os.Pipe()
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	defer func() {
+		_ = solutionReader.Close()
+		_ = solutionWriter.Close()
+	}()
+	interactorProcess, err := t.interactor.compiler.PrepareExecute(ctx, ExecuteOptions{
+		Binary: t.interactor.binaryPath,
+		Args:   []string{"input.in", "output.out", "answer.ans"},
+		Stdin:  solutionReader,
+		Stdout: interactorWriter,
+		InputFiles: []MountFile{
+			{Source: inputPath, Target: "input.in"},
+			{Source: answerPath, Target: "answer.ans"},
+		},
+		OutputFiles: []MountFile{
+			{Source: outputPath, Target: "output.out"},
+		},
+		TimeLimit:   2 * time.Duration(testSet.TimeLimit()) * time.Millisecond,
+		MemoryLimit: 256 * 1024 * 1024,
+	})
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot prepare interactor: %w", err)
+	}
+	defer func() { _ = interactorProcess.Release() }()
+	solutionProcess, err := t.compilerImpl.PrepareExecute(ctx, ExecuteOptions{
+		Binary:      t.compiledPath,
+		Stdin:       interactorReader,
+		Stdout:      solutionWriter,
+		TimeLimit:   time.Duration(testSet.TimeLimit()) * time.Millisecond,
+		MemoryLimit: testSet.MemoryLimit(),
+	})
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot prepare solution: %w", err)
+	}
+	defer func() { _ = solutionProcess.Release() }()
+	if err := interactorProcess.Start(); err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot execute interactor: %w", err)
+	}
+	if err := solutionProcess.Start(); err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot execute solution: %w", err)
+	}
+	interactorReport, err := interactorProcess.Wait()
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot wait interactor: %w", err)
+	}
+	solutionReport, err := solutionProcess.Wait()
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot wait solution: %w", err)
+	}
+	// Read solution input.
+	input, err := readFile(inputPath, 128)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	// Read solution output.
+	output, err := readFile(outputPath, 128)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	testReport := models.TestReport{
+		Verdict: models.Accepted,
+		Input:   input,
+		Output:  output,
+		Usage: models.UsageReport{
+			Time:   solutionReport.UsedTime.Milliseconds(),
+			Memory: solutionReport.UsedMemory,
+		},
+	}
+	if solutionReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
+		testReport.Verdict = models.TimeLimitExceeded
+	} else if solutionReport.UsedMemory > testSet.MemoryLimit() {
+		testReport.Verdict = models.MemoryLimitExceeded
+	} else if !solutionReport.Success() {
+		testReport.Verdict = models.RuntimeError
+	} else {
+		verdict, err := getTestlibExitCodeVerdict(interactorReport.ExitCode)
+		if err != nil {
+			return models.TestReport{}, err
+		}
+		testReport.Verdict = verdict
 	}
 	return testReport, nil
 }
@@ -439,14 +553,18 @@ func (t *judgeSolutionTask) runSolutionTest(
 	}(); err != nil {
 		return models.TestReport{}, err
 	}
-	testReport, err := t.executeSolution(ctx, testSet, inputPath, outputPath)
+	testReport, err := t.executeSolution(
+		ctx, testSet, inputPath, outputPath, answerPath,
+	)
 	if err != nil {
 		return models.TestReport{}, err
 	}
 	if testReport.Verdict != models.Accepted {
 		return testReport, nil
 	}
-	checkerReport, err := t.checker.Run(ctx, inputPath, outputPath, answerPath)
+	checkerReport, err := t.checker.Run(
+		ctx, inputPath, outputPath, answerPath,
+	)
 	if err != nil {
 		return models.TestReport{}, err
 	}

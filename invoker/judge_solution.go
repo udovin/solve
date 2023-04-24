@@ -349,6 +349,117 @@ func (t *judgeSolutionTask) prepareExecutables(ctx TaskContext) error {
 	return nil
 }
 
+func (t *judgeSolutionTask) executeSolution(
+	ctx context.Context, testSet ProblemTestSet, inputPath, outputPath string,
+) (models.TestReport, error) {
+	executeReport, err := t.compilerImpl.Execute(ctx, ExecuteOptions{
+		Binary: t.compiledPath,
+		InputFiles: []MountFile{
+			{Source: inputPath, Target: "stdin"},
+		},
+		OutputFiles: []MountFile{
+			{Source: outputPath, Target: "stdout"},
+		},
+		TimeLimit:   time.Duration(testSet.TimeLimit()) * time.Millisecond,
+		MemoryLimit: testSet.MemoryLimit(),
+	})
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot execute solution: %w", err)
+	}
+	// Read solution input.
+	input, err := readFile(inputPath, 128)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	// Read solution output.
+	output, err := readFile(outputPath, 128)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	testReport := models.TestReport{
+		Verdict: models.Accepted,
+		Input:   input,
+		Output:  output,
+		Usage: models.UsageReport{
+			Time:   executeReport.UsedTime.Milliseconds(),
+			Memory: executeReport.UsedMemory,
+		},
+	}
+	if executeReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
+		testReport.Verdict = models.TimeLimitExceeded
+	} else if executeReport.UsedMemory > testSet.MemoryLimit() {
+		testReport.Verdict = models.MemoryLimitExceeded
+	} else if !executeReport.Success() {
+		testReport.Verdict = models.RuntimeError
+	}
+	return testReport, nil
+}
+
+func (t *judgeSolutionTask) runSolutionTest(
+	ctx TaskContext,
+	testSet ProblemTestSet,
+	test ProblemTest,
+) (models.TestReport, error) {
+	inputPath := filepath.Join(t.tempDir, "test.in")
+	outputPath := filepath.Join(t.tempDir, "test.out")
+	answerPath := filepath.Join(t.tempDir, "test.ans")
+	// Copy input.
+	if err := func() error {
+		testFile, err := test.OpenInput()
+		if err != nil {
+			return err
+		}
+		file, err := os.Create(inputPath)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = file.Close() }()
+		if _, err := io.Copy(file, testFile); err != nil {
+			return err
+		}
+		return file.Sync()
+	}(); err != nil {
+		return models.TestReport{}, err
+	}
+	// Copy output.
+	if err := func() error {
+		testFile, err := test.OpenAnswer()
+		if err != nil {
+			return err
+		}
+		file, err := os.Create(answerPath)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = file.Close() }()
+		if _, err := io.Copy(file, testFile); err != nil {
+			return err
+		}
+		return file.Sync()
+	}(); err != nil {
+		return models.TestReport{}, err
+	}
+	testReport, err := t.executeSolution(ctx, testSet, inputPath, outputPath)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	if testReport.Verdict != models.Accepted {
+		return testReport, nil
+	}
+	checkerReport, err := t.checker.Run(ctx, inputPath, outputPath, answerPath)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	testReport.Verdict = checkerReport.Verdict
+	testReport.Check = checkerReport.Check
+	if testReport.Verdict == models.Accepted {
+		if points := test.Points(); points > 0 {
+			testReport.Points = &points
+		}
+	}
+	return testReport, nil
+}
+
 func (t *judgeSolutionTask) runSolutionTests(
 	ctx TaskContext, report *models.SolutionReport,
 ) error {
@@ -380,92 +491,12 @@ func (t *judgeSolutionTask) runSolutionTests(
 			if err := ctx.SetDeferredState(state); err != nil {
 				return err
 			}
-			inputPath := filepath.Join(t.tempDir, "test.in")
-			outputPath := filepath.Join(t.tempDir, "test.out")
-			answerPath := filepath.Join(t.tempDir, "test.ans")
-			if err := func() error {
-				testFile, err := test.OpenInput()
-				if err != nil {
-					return err
-				}
-				file, err := os.Create(inputPath)
-				if err != nil {
-					return err
-				}
-				defer func() { _ = file.Close() }()
-				if _, err := io.Copy(file, testFile); err != nil {
-					return err
-				}
-				return file.Sync()
-			}(); err != nil {
-				return err
-			}
-			if err := func() error {
-				testFile, err := test.OpenAnswer()
-				if err != nil {
-					return err
-				}
-				file, err := os.Create(answerPath)
-				if err != nil {
-					return err
-				}
-				defer func() { _ = file.Close() }()
-				if _, err := io.Copy(file, testFile); err != nil {
-					return err
-				}
-				return file.Sync()
-			}(); err != nil {
-				return err
-			}
-			executeReport, err := t.compilerImpl.Execute(ctx, ExecuteOptions{
-				Binary: t.compiledPath,
-				InputFiles: []MountFile{
-					{Source: inputPath, Target: "stdin"},
-				},
-				OutputFiles: []MountFile{
-					{Source: outputPath, Target: "stdout"},
-				},
-				TimeLimit:   time.Duration(testSet.TimeLimit()) * time.Millisecond,
-				MemoryLimit: testSet.MemoryLimit(),
-			})
-			if err != nil {
-				return fmt.Errorf("cannot execute solution: %w", err)
-			}
-			input, err := readFile(inputPath, 128)
+			testReport, err := t.runSolutionTest(ctx, testSet, test)
 			if err != nil {
 				return err
 			}
-			output, err := readFile(outputPath, 128)
-			if err != nil {
-				return err
-			}
-			testReport := models.TestReport{
-				Verdict: models.Rejected,
-				Input:   input,
-				Output:  output,
-				Usage: models.UsageReport{
-					Time:   executeReport.UsedTime.Milliseconds(),
-					Memory: executeReport.UsedMemory,
-				},
-			}
-			if executeReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
-				testReport.Verdict = models.TimeLimitExceeded
-			} else if executeReport.UsedMemory > testSet.MemoryLimit() {
-				testReport.Verdict = models.MemoryLimitExceeded
-			} else if !executeReport.Success() {
-				testReport.Verdict = models.RuntimeError
-			} else {
-				checkerReport, err := t.checker.Run(ctx, inputPath, outputPath, answerPath)
-				if err != nil {
-					return err
-				}
-				testReport.Verdict = checkerReport.Verdict
-				testReport.Check = checkerReport.Check
-			}
-			if testReport.Verdict == models.Accepted && t.config.EnablePoints {
-				if points := test.Points(); points > 0 {
-					testReport.Points = &points
-				}
+			if !t.config.EnablePoints {
+				testReport.Points = nil
 			}
 			groupTests[test.Group()] = append(
 				groupTests[test.Group()], len(report.Tests),

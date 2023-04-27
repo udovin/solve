@@ -499,7 +499,9 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 			return models.TestReport{}, err
 		}
 		testReport.Verdict = verdict
-		testReport.Usage.Time = interactorReport.UsedTime.Milliseconds()
+		if verdict != models.Accepted {
+			testReport.Usage.Time = interactorReport.UsedTime.Milliseconds()
+		}
 	} else if solutionReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
 		testReport.Verdict = models.TimeLimitExceeded
 	} else if solutionReport.UsedMemory > testSet.MemoryLimit() {

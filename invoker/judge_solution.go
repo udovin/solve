@@ -387,7 +387,7 @@ func (t *judgeSolutionTask) executeSolution(
 	}
 	// Read solution output.
 	output, err := readFile(outputPath, 128)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return models.TestReport{}, err
 	}
 	testReport := models.TestReport{
@@ -481,7 +481,7 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 	}
 	// Read solution output.
 	output, err := readFile(outputPath, 128)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return models.TestReport{}, err
 	}
 	testReport := models.TestReport{
@@ -493,18 +493,19 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 			Memory: solutionReport.UsedMemory,
 		},
 	}
-	if solutionReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
-		testReport.Verdict = models.TimeLimitExceeded
-	} else if solutionReport.UsedMemory > testSet.MemoryLimit() {
-		testReport.Verdict = models.MemoryLimitExceeded
-	} else if !solutionReport.Success() {
-		testReport.Verdict = models.RuntimeError
-	} else {
+	if interactorReport.UsedTime.Milliseconds() <= 2*testSet.TimeLimit() {
 		verdict, err := getTestlibExitCodeVerdict(interactorReport.ExitCode)
 		if err != nil {
 			return models.TestReport{}, err
 		}
 		testReport.Verdict = verdict
+		testReport.Usage.Time = interactorReport.UsedTime.Milliseconds()
+	} else if solutionReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
+		testReport.Verdict = models.TimeLimitExceeded
+	} else if solutionReport.UsedMemory > testSet.MemoryLimit() {
+		testReport.Verdict = models.MemoryLimitExceeded
+	} else if !solutionReport.Success() {
+		testReport.Verdict = models.RuntimeError
 	}
 	return testReport, nil
 }

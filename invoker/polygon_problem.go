@@ -521,13 +521,14 @@ func (s *polygonProblemStatement) GetConfig() (models.ProblemStatementConfig, er
 		return models.ProblemStatementConfig{}, err
 	}
 	config := models.ProblemStatementConfig{
-		Locale:  s.Locale(),
-		Title:   statement.Name,
-		Legend:  statement.Legend,
-		Input:   statement.Input,
-		Output:  statement.Output,
-		Notes:   statement.Notes,
-		Scoring: statement.Scoring,
+		Locale:      s.Locale(),
+		Title:       statement.Name,
+		Legend:      statement.Legend,
+		Input:       statement.Input,
+		Output:      statement.Output,
+		Notes:       statement.Notes,
+		Scoring:     statement.Scoring,
+		Interaction: statement.Interaction,
 	}
 	for _, sample := range statement.SampleTests {
 		config.Samples = append(

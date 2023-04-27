@@ -19,13 +19,14 @@ type ProblemStatementSample struct {
 }
 
 type ProblemStatementConfig struct {
-	Locale  string `json:"locale"`
-	Title   string `json:"title"`
-	Legend  string `json:"legend,omitempty"`
-	Input   string `json:"input,omitempty"`
-	Output  string `json:"output,omitempty"`
-	Notes   string `json:"notes,omitempty"`
-	Scoring string `json:"scoring,omitempty"`
+	Locale      string `json:"locale"`
+	Title       string `json:"title"`
+	Legend      string `json:"legend,omitempty"`
+	Input       string `json:"input,omitempty"`
+	Output      string `json:"output,omitempty"`
+	Notes       string `json:"notes,omitempty"`
+	Scoring     string `json:"scoring,omitempty"`
+	Interaction string `json:"interaction,omitempty"`
 	// Samples contains problem sample tests.
 	Samples []ProblemStatementSample `json:"samples,omitempty"`
 }

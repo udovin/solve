@@ -122,6 +122,7 @@ type ProblemStatementConfig struct {
 	Output      string       `json:"output"`
 	Notes       string       `json:"notes"`
 	Scoring     string       `json:"scoring"`
+	Interaction string       `json:"interaction"`
 	Tutorial    string       `json:"tutorial"`
 	TimeLimit   int          `json:"timeLimit"`
 	MemoryLimit int64        `json:"memoryLimit"`

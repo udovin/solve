@@ -127,6 +127,7 @@ func (v *View) makeProblem(
 					statement.Notes = config.Notes
 					statement.Samples = config.Samples
 					statement.Scoring = config.Scoring
+					statement.Interaction = config.Interaction
 				}
 				resp.Statement = &statement
 			}

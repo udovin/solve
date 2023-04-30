@@ -3,12 +3,12 @@ all: solve safeexec
 VERSION ?= development
 solve:
 	go build -o solve -ldflags "-X github.com/udovin/solve/config.Version=${VERSION}" .
-test:
+test: safeexec
 	go test ./...
-test-reset:
+test-reset: safeexec
 	TEST_RESET_DATA=1 go test ./...
 clean:
 	rm -f solve
-	$(MAKE) -C safeexec clean
+	@$(MAKE) --no-print-directory -C safeexec clean
 safeexec:
-	$(MAKE) -C $@
+	@$(MAKE) --no-print-directory -C $@

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func makeTempDir() (string, error) {
@@ -53,4 +54,24 @@ func copyFile(source, target string) error {
 		return err
 	}
 	return os.Chmod(w.Name(), stat.Mode())
+}
+
+func readFile(name string, limit int) (string, error) {
+	file, err := os.Open(name)
+	if err != nil {
+		return "", err
+	}
+	bytes := make([]byte, limit+1)
+	read, err := file.Read(bytes)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+	if read > limit {
+		return fixUTF8String(string(bytes[:limit])) + "...", nil
+	}
+	return fixUTF8String(string(bytes[:read])), nil
+}
+
+func fixUTF8String(s string) string {
+	return strings.ReplaceAll(strings.ToValidUTF8(s, ""), "\u0000", "")
 }

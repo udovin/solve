@@ -16,6 +16,7 @@ import (
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg/logs"
+	"github.com/udovin/solve/pkg/safeexec"
 )
 
 // Invoker represents manager for asynchronous actions (invocations).
@@ -46,7 +47,7 @@ func New(core *core.Core) *Invoker {
 // This function will spawn config.Invoker.Workers amount of goroutines.
 func (s *Invoker) Start() error {
 	safeexecConfig := s.core.Config.Invoker.Safeexec
-	safeexec, err := newSafeexecProcessor(
+	safeexec, err := safeexec.NewManager(
 		safeexecConfig.Path,
 		"/tmp/solve-safeexec",
 		"solve-safeexec",

@@ -1,4 +1,4 @@
-package invoker
+package safeexec
 
 import (
 	"bufio"
@@ -10,13 +10,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 )
 
-type safeexecProcessConfig struct {
+type Manager struct {
+	path          string
+	executionPath string
+	cgroupPath    string
+}
+
+type ProcessConfig struct {
 	TimeLimit   time.Duration
 	MemoryLimit int64
 	Stdin       io.Reader
@@ -28,93 +33,7 @@ type safeexecProcessConfig struct {
 	Command     []string
 }
 
-type safeexecProcess struct {
-	name       string
-	path       string
-	cgroupPath string
-	cmd        *exec.Cmd
-}
-
-type safeexecReport struct {
-	Time     time.Duration
-	RealTime time.Duration
-	Memory   int64
-	ExitCode int
-}
-
-func (p *safeexecProcess) Start() error {
-	return p.cmd.Start()
-}
-
-func (p *safeexecProcess) GetUpperDir() string {
-	return filepath.Join(p.path, "upper")
-}
-
-func (p *safeexecProcess) Wait() (safeexecReport, error) {
-	if err := p.cmd.Wait(); err != nil {
-		return safeexecReport{}, err
-	}
-	file, err := os.Open(filepath.Join(p.path, "report.txt"))
-	if err != nil {
-		return safeexecReport{}, err
-	}
-	report := safeexecReport{}
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.SplitN(line, " ", 2)
-		if len(parts) != 2 {
-			return safeexecReport{}, fmt.Errorf("cannot read report")
-		}
-		switch parts[0] {
-		case "exit_code":
-			value, err := strconv.ParseInt(parts[1], 10, 32)
-			if err != nil {
-				return safeexecReport{}, fmt.Errorf("cannot parse exit_code: %w", err)
-			}
-			report.ExitCode = int(value)
-		case "time":
-			value, err := strconv.ParseInt(parts[1], 10, 64)
-			if err != nil {
-				return safeexecReport{}, fmt.Errorf("cannot parse time: %w", err)
-			}
-			report.Time = time.Duration(value) * time.Millisecond
-		case "real_time":
-			value, err := strconv.ParseInt(parts[1], 10, 64)
-			if err != nil {
-				return safeexecReport{}, fmt.Errorf("cannot parse time: %w", err)
-			}
-			report.RealTime = time.Duration(value) * time.Millisecond
-		case "memory":
-			value, err := strconv.ParseInt(parts[1], 10, 64)
-			if err != nil {
-				return safeexecReport{}, fmt.Errorf("cannot parse memory: %w", err)
-			}
-			report.Memory = value
-		}
-	}
-	return report, nil
-}
-
-// Release releases all associatet resources with process.
-func (p *safeexecProcess) Release() error {
-	if p.cmd != nil {
-		if p.cmd.Process != nil {
-			_ = p.cmd.Process.Kill()
-		}
-		_ = p.cmd.Wait()
-	}
-	_ = syscall.Rmdir(p.cgroupPath)
-	return os.RemoveAll(p.path)
-}
-
-type safeexecProcessor struct {
-	path          string
-	executionPath string
-	cgroupPath    string
-}
-
-func (m *safeexecProcessor) Create(ctx context.Context, config safeexecProcessConfig) (*safeexecProcess, error) {
+func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, error) {
 	process, err := m.prepareProcess()
 	if err != nil {
 		return nil, err
@@ -139,11 +58,15 @@ func (m *safeexecProcessor) Create(ctx context.Context, config safeexecProcessCo
 	cmd.Stdin = config.Stdin
 	cmd.Stdout = config.Stdout
 	cmd.Stderr = config.Stderr
+	cmd.Cancel = func() error {
+		return cmd.Process.Signal(syscall.SIGTERM)
+	}
+	cmd.WaitDelay = time.Second
 	process.cmd = cmd
 	return process, nil
 }
 
-func (m *safeexecProcessor) createProcessName() (string, error) {
+func (m *Manager) createProcessName() (string, error) {
 	for i := 0; i < 100; i++ {
 		bytes := make([]byte, 16)
 		if _, err := rand.Read(bytes); err != nil {
@@ -162,7 +85,7 @@ func (m *safeexecProcessor) createProcessName() (string, error) {
 	return "", fmt.Errorf("cannot prepare process")
 }
 
-func (m *safeexecProcessor) prepareProcess() (*safeexecProcess, error) {
+func (m *Manager) prepareProcess() (*Process, error) {
 	name, err := m.createProcessName()
 	if err != nil {
 		return nil, err
@@ -189,14 +112,14 @@ func (m *safeexecProcessor) prepareProcess() (*safeexecProcess, error) {
 		_ = os.RemoveAll(path)
 		return nil, err
 	}
-	return &safeexecProcess{
+	return &Process{
 		name:       name,
 		path:       path,
 		cgroupPath: cgroupPath,
 	}, nil
 }
 
-func newSafeexecProcessor(path, executionPath, cgroupName string) (*safeexecProcessor, error) {
+func NewManager(path, executionPath, cgroupName string) (*Manager, error) {
 	cgroupPath, err := getCgroupParentPath()
 	if err != nil {
 		return nil, err
@@ -212,7 +135,7 @@ func newSafeexecProcessor(path, executionPath, cgroupName string) (*safeexecProc
 	if err := os.MkdirAll(executionPath, os.ModePerm); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-	return &safeexecProcessor{
+	return &Manager{
 		path:          path,
 		executionPath: executionPath,
 		cgroupPath:    cgroupPath,

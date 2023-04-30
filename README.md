@@ -22,7 +22,7 @@ Then create config file `config.json` with following contents:
   "db": {
     "driver": "sqlite",
     "options": {
-      "path": "database.sqlite"
+      "path": "data/db.sqlite"
     }
   },
   "server": {
@@ -40,7 +40,7 @@ Then create config file `config.json` with following contents:
   "storage": {
     "driver": "local",
     "options": {
-      "files_dir": ".data/files"
+      "files_dir": "data/files"
     }
   },
   "log_level": "debug"
@@ -50,7 +50,7 @@ Then create config file `config.json` with following contents:
 Then apply database migrations:
 
 ```bash
-./solve migrate --with-data
+mkdir -p data && ./solve migrate --with-data
 ```
 
 Then run server (API will be available on `http://localhost:4242`):

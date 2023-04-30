@@ -429,13 +429,13 @@ static inline void readCgroupOomCount(const Context* ctx, long* value) {
 
 static volatile int cancelled = 0;
 
-void cancell(int signal) {
-	ensure(signal == SIGINT, "received invalid signal");
+void cancel(int signal) {
+	ensure(signal == SIGTERM, "received invalid signal");
 	cancelled = 1;
 }
 
 int main(int argc, char* argv[]) {
-	signal(SIGINT, cancell);
+	signal(SIGTERM, cancel);
 	Context* ctx = newContext();
 	initContext(ctx, argc, argv);
 	ensure(ctx->argsLen, "empty execve arguments");

@@ -1,7 +1,9 @@
-package invoker
+package safeexec
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,21 +12,34 @@ import (
 	"github.com/udovin/solve/pkg/archives"
 )
 
+var alpinePath = ""
+
+func TestMain(m *testing.M) {
+	os.Exit(func() int {
+		tempPath, err := os.MkdirTemp("", "")
+		if err != nil {
+			panic(fmt.Errorf("cannot prepare alpine rootfs: %w", err))
+		}
+		defer func() { _ = os.RemoveAll(tempPath) }()
+		alpinePath = tempPath
+		if err := archives.ExtractTarGz(
+			filepath.Join("../../testdata", "alpine-cpp.tar.gz"),
+			alpinePath,
+		); err != nil {
+			panic(fmt.Errorf("cannot extract alpine rootfs: %w", err))
+		}
+		return m.Run()
+	}())
+}
+
 func TestSafeexecSimple(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
-	alpinePath := filepath.Join(t.TempDir(), "alpine")
-	if err := archives.ExtractTarGz(
-		filepath.Join("../testdata", "alpine-cpp.tar.gz"),
-		alpinePath,
-	); err != nil {
-		t.Fatal("Error:", err)
-	}
-	safeexec, err := newSafeexecProcessor("../safeexec/safeexec", safeexecPath, "solve-safeexec")
+	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, "solve-safeexec")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 	stdout := strings.Builder{}
-	processConfig := safeexecProcessConfig{
+	processConfig := ProcessConfig{
 		Layers:      []string{alpinePath},
 		Command:     []string{"/bin/sh", "-c", "sleep 1 && echo -n 'solve_test'"},
 		TimeLimit:   2 * time.Second,
@@ -59,19 +74,12 @@ func TestSafeexecSimple(t *testing.T) {
 
 func TestSafeexecMemoryLimit(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
-	alpinePath := filepath.Join(t.TempDir(), "alpine")
-	if err := archives.ExtractTarGz(
-		filepath.Join("../testdata", "alpine-cpp.tar.gz"),
-		alpinePath,
-	); err != nil {
-		t.Fatal("Error:", err)
-	}
-	safeexec, err := newSafeexecProcessor("../safeexec/safeexec", safeexecPath, "solve-safeexec")
+	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, "solve-safeexec")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 	stdout := strings.Builder{}
-	processConfig := safeexecProcessConfig{
+	processConfig := ProcessConfig{
 		Layers:      []string{alpinePath},
 		Command:     []string{"/bin/sh", "-c", "echo -n 'solve_test'"},
 		TimeLimit:   time.Second,
@@ -100,19 +108,12 @@ func TestSafeexecMemoryLimit(t *testing.T) {
 
 func TestSafeexecTimeLimit(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
-	alpinePath := filepath.Join(t.TempDir(), "alpine")
-	if err := archives.ExtractTarGz(
-		filepath.Join("../testdata", "alpine-cpp.tar.gz"),
-		alpinePath,
-	); err != nil {
-		t.Fatal("Error:", err)
-	}
-	safeexec, err := newSafeexecProcessor("../safeexec/safeexec", safeexecPath, "solve-safeexec")
+	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, "solve-safeexec")
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
 	stdout := strings.Builder{}
-	processConfig := safeexecProcessConfig{
+	processConfig := ProcessConfig{
 		Layers:      []string{alpinePath},
 		Command:     []string{"/bin/sh", "-c", "sleep 3 && echo -n 'solve_test'"},
 		TimeLimit:   time.Second,
@@ -136,5 +137,39 @@ func TestSafeexecTimeLimit(t *testing.T) {
 	}
 	if report.RealTime < time.Second {
 		t.Fatal("Invalid time:", report.RealTime.Milliseconds())
+	}
+}
+
+func TestSafeexecCancel(t *testing.T) {
+	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
+	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, "solve-safeexec")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	stdout := strings.Builder{}
+	processConfig := ProcessConfig{
+		Layers:      []string{alpinePath},
+		Command:     []string{"/bin/sh", "-c", "sleep 1 && echo -n 'solve_test'"},
+		TimeLimit:   2 * time.Second,
+		MemoryLimit: 1024 * 1024,
+		Stdout:      &stdout,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	process, err := safeexec.Create(ctx, processConfig)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	defer func() { _ = process.Release() }()
+	if err := process.Start(); err != nil {
+		t.Fatal("Error:", err)
+	}
+	cancel()
+	report, err := process.Wait()
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	if report.ExitCode == 0 {
+		t.Fatal("Expected non-zero exit code")
 	}
 }

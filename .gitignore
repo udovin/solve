@@ -1,6 +1,5 @@
 /.idea/
-
-/*.sqlite*
-/.data/
+/data/
 /config*.json
 /solve
+__debug_bin

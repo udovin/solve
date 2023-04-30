@@ -17,6 +17,7 @@ import (
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg/archives"
 	"github.com/udovin/solve/pkg/logs"
+	"github.com/udovin/solve/pkg/safeexec"
 )
 
 type MountFile struct {
@@ -78,7 +79,7 @@ type Compiler interface {
 }
 
 type compiler struct {
-	safeexec *safeexecProcessor
+	safeexec *safeexec.Manager
 	name     string
 	config   models.CompilerConfig
 	path     string
@@ -121,7 +122,7 @@ func (c *compiler) Compile(
 		return CompileReport{}, nil
 	}
 	log := truncateBuffer{limit: 2048}
-	config := safeexecProcessConfig{
+	config := safeexec.ProcessConfig{
 		Layers:      []string{c.path},
 		Command:     strings.Fields(c.config.Compile.Command),
 		Environ:     c.config.Compile.Environ,
@@ -193,7 +194,7 @@ type compilerProcess struct {
 	compiler *compiler
 	options  ExecuteOptions
 	closers  []io.Closer
-	process  *safeexecProcess
+	process  *safeexec.Process
 }
 
 func (p *compilerProcess) Start() error {
@@ -279,7 +280,7 @@ func (c *compiler) PrepareExecute(ctx context.Context, options ExecuteOptions) (
 		break
 	}
 	executeArgs := append(strings.Fields(c.config.Execute.Command), options.Args...)
-	config := safeexecProcessConfig{
+	config := safeexec.ProcessConfig{
 		Layers:      []string{c.path},
 		Command:     executeArgs,
 		Environ:     c.config.Execute.Environ,
@@ -360,7 +361,7 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 		break
 	}
 	executeArgs := append(strings.Fields(c.config.Execute.Command), options.Args...)
-	config := safeexecProcessConfig{
+	config := safeexec.ProcessConfig{
 		Layers:      []string{c.path},
 		Command:     executeArgs,
 		Environ:     c.config.Execute.Environ,
@@ -431,7 +432,7 @@ func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (Execute
 type compilerManager struct {
 	files     *managers.FileManager
 	cacheDir  string
-	safeexec  *safeexecProcessor
+	safeexec  *safeexec.Manager
 	compilers *models.CompilerStore
 	settings  *models.SettingStore
 	images    map[int64]futures.Future[string]
@@ -442,7 +443,7 @@ type compilerManager struct {
 func newCompilerManager(
 	files *managers.FileManager,
 	cacheDir string,
-	safeexec *safeexecProcessor,
+	safeexec *safeexec.Manager,
 	core *core.Core,
 ) (*compilerManager, error) {
 	if err := os.MkdirAll(cacheDir, os.ModePerm); err != nil {

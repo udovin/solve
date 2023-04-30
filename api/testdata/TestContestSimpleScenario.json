@@ -143,20 +143,29 @@
   },
   {
     "id": 1,
-    "title": "Test problem 1",
     "contest_id": 1,
-    "code": "A"
+    "code": "A",
+    "problem": {
+      "id": 1,
+      "title": "Test problem 1"
+    }
   },
   {
     "id": 2,
-    "title": "Test problem 2",
     "contest_id": 1,
-    "code": "B"
+    "code": "B",
+    "problem": {
+      "id": 2,
+      "title": "Test problem 2"
+    }
   },
   {
     "id": 3,
-    "title": "Test problem 3",
     "contest_id": 1,
-    "code": "C"
+    "code": "C",
+    "problem": {
+      "id": 3,
+      "title": "Test problem 3"
+    }
   }
 ]

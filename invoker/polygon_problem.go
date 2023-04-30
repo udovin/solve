@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/udovin/algo/futures"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg/archives"
 	"github.com/udovin/solve/pkg/logs"
@@ -270,11 +271,25 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					if err := solutionProcess.Start(); err != nil {
 						return fmt.Errorf("cannot execute solution: %w", err)
 					}
-					interactorReport, err := interactorProcess.Wait()
+					interactorReportFuture := futures.Call(func() (ExecuteReport, error) {
+						defer func() {
+							_ = solutionReader.Close()
+							_ = interactorWriter.Close()
+						}()
+						return interactorProcess.Wait()
+					})
+					solutionReportFuture := futures.Call(func() (ExecuteReport, error) {
+						defer func() {
+							_ = interactorReader.Close()
+							_ = solutionWriter.Close()
+						}()
+						return solutionProcess.Wait()
+					})
+					interactorReport, err := interactorReportFuture.Get(ctx)
 					if err != nil {
 						return fmt.Errorf("cannot wait interactor: %w", err)
 					}
-					solutionReport, err := solutionProcess.Wait()
+					solutionReport, err := solutionReportFuture.Get(ctx)
 					if err != nil {
 						return fmt.Errorf("cannot wait solution: %w", err)
 					}

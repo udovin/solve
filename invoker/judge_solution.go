@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/udovin/algo/futures"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg/logs"
 )
@@ -135,7 +136,7 @@ func (t *judgeSolutionTask) compileSolution(
 	if err != nil {
 		return false, err
 	}
-	report.Compile = models.CompileReport{
+	report.Compiler = &models.ExecuteReport{
 		Log: compileReport.Log,
 		Usage: models.UsageReport{
 			Time:   compileReport.UsedTime.Milliseconds(),
@@ -203,7 +204,7 @@ func (c *testlibCheckerImpl) Run(
 	if err != nil {
 		return models.TestReport{}, err
 	}
-	report.Check = models.CheckReport{
+	report.Checker = &models.ExecuteReport{
 		Log: checkerLog,
 		Usage: models.UsageReport{
 			Time:   checkerReport.UsedTime.Milliseconds(),
@@ -380,20 +381,8 @@ func (t *judgeSolutionTask) executeSolution(
 	if err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot execute solution: %w", err)
 	}
-	// Read solution input.
-	input, err := readFile(inputPath, 128)
-	if err != nil {
-		return models.TestReport{}, err
-	}
-	// Read solution output.
-	output, err := readFile(outputPath, 128)
-	if err != nil && !os.IsNotExist(err) {
-		return models.TestReport{}, err
-	}
 	testReport := models.TestReport{
 		Verdict: models.Accepted,
-		Input:   input,
-		Output:  output,
 		Usage: models.UsageReport{
 			Time:   executeReport.UsedTime.Milliseconds(),
 			Memory: executeReport.UsedMemory,
@@ -430,6 +419,7 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 		_ = solutionReader.Close()
 		_ = solutionWriter.Close()
 	}()
+	interactorLogPath := filepath.Join(t.tempDir, "interactor.log")
 	interactorProcess, err := t.interactor.compiler.PrepareExecute(ctx, ExecuteOptions{
 		Binary: t.interactor.binaryPath,
 		Args:   []string{"input.in", "output.out", "answer.ans"},
@@ -441,6 +431,7 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 		},
 		OutputFiles: []MountFile{
 			{Source: outputPath, Target: "output.out"},
+			{Source: interactorLogPath, Target: "stderr"},
 		},
 		TimeLimit:   2 * time.Duration(testSet.TimeLimit()) * time.Millisecond,
 		MemoryLimit: 256 * 1024 * 1024,
@@ -466,51 +457,58 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 	if err := solutionProcess.Start(); err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot execute solution: %w", err)
 	}
-	interactorReport, err := interactorProcess.Wait()
+	interactorReportFuture := futures.Call(func() (ExecuteReport, error) {
+		defer func() {
+			_ = solutionReader.Close()
+			_ = interactorWriter.Close()
+		}()
+		return interactorProcess.Wait()
+	})
+	solutionReportFuture := futures.Call(func() (ExecuteReport, error) {
+		defer func() {
+			_ = interactorReader.Close()
+			_ = solutionWriter.Close()
+		}()
+		return solutionProcess.Wait()
+	})
+	interactorReport, err := interactorReportFuture.Get(ctx)
 	if err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot wait interactor: %w", err)
 	}
-	solutionReport, err := solutionProcess.Wait()
+	solutionReport, err := solutionReportFuture.Get(ctx)
 	if err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot wait solution: %w", err)
 	}
-	// Read solution input.
-	input, err := readFile(inputPath, 128)
-	if err != nil {
-		return models.TestReport{}, err
-	}
-	// Read solution output.
-	output, err := readFile(outputPath, 128)
-	if err != nil && !os.IsNotExist(err) {
-		return models.TestReport{}, err
-	}
 	testReport := models.TestReport{
 		Verdict: models.Accepted,
-		Input:   input,
-		Output:  output,
 		Usage: models.UsageReport{
 			Time:   solutionReport.UsedTime.Milliseconds(),
 			Memory: solutionReport.UsedMemory,
 		},
 	}
-	if interactorReport.UsedTime.Milliseconds() <= 2*testSet.TimeLimit() {
-		verdict, err := getTestlibExitCodeVerdict(interactorReport.ExitCode)
-		if err != nil {
-			return models.TestReport{}, err
-		}
-		testReport.Verdict = verdict
-		if verdict != models.Accepted {
-			testReport.Usage.Time = interactorReport.UsedTime.Milliseconds()
-			if testReport.Usage.Time > testSet.TimeLimit() {
-				testReport.Usage.Time = testSet.TimeLimit()
-			}
-		}
-	} else if solutionReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
+	if solutionReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
 		testReport.Verdict = models.TimeLimitExceeded
 	} else if solutionReport.UsedMemory > testSet.MemoryLimit() {
 		testReport.Verdict = models.MemoryLimitExceeded
 	} else if !solutionReport.Success() {
 		testReport.Verdict = models.RuntimeError
+	} else {
+		verdict, err := getTestlibExitCodeVerdict(interactorReport.ExitCode)
+		if err != nil {
+			return models.TestReport{}, nil
+		}
+		testReport.Verdict = verdict
+		interactorLog, err := readFile(interactorLogPath, 256)
+		if err != nil {
+			return models.TestReport{}, err
+		}
+		testReport.Interactor = &models.ExecuteReport{
+			Usage: models.UsageReport{
+				Time:   interactorReport.UsedTime.Milliseconds(),
+				Memory: interactorReport.UsedMemory,
+			},
+			Log: interactorLog,
+		}
 	}
 	return testReport, nil
 }
@@ -575,7 +573,7 @@ func (t *judgeSolutionTask) runSolutionTest(
 		return models.TestReport{}, err
 	}
 	testReport.Verdict = checkerReport.Verdict
-	testReport.Check = checkerReport.Check
+	testReport.Checker = checkerReport.Checker
 	if testReport.Verdict == models.Accepted {
 		if points := test.Points(); points > 0 {
 			testReport.Points = &points

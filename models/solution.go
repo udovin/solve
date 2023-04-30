@@ -97,31 +97,25 @@ type UsageReport struct {
 	Memory int64 `json:"memory,omitempty"`
 }
 
-type CompileReport struct {
-	Usage UsageReport `json:"usage"`
-	Log   string      `json:"log"`
-}
-
-type CheckReport struct {
+type ExecuteReport struct {
 	Usage UsageReport `json:"usage"`
 	Log   string      `json:"log"`
 }
 
 type TestReport struct {
-	Verdict Verdict     `json:"verdict"`
-	Usage   UsageReport `json:"usage"`
-	Check   CheckReport `json:"check_log"`
-	Points  *float64    `json:"points,omitempty"`
-	Input   string      `json:"input,omitempty"`
-	Output  string      `json:"output,omitempty"`
+	Verdict    Verdict        `json:"verdict"`
+	Usage      UsageReport    `json:"usage"`
+	Checker    *ExecuteReport `json:"checker,omitempty"`
+	Interactor *ExecuteReport `json:"interactor,omitempty"`
+	Points     *float64       `json:"points,omitempty"`
 }
 
 type SolutionReport struct {
-	Verdict Verdict       `json:"verdict"`
-	Usage   UsageReport   `json:"usage"`
-	Compile CompileReport `json:"compile"`
-	Tests   []TestReport  `json:"tests,omitempty"`
-	Points  *float64      `json:"points,omitempty"`
+	Verdict  Verdict        `json:"verdict"`
+	Usage    UsageReport    `json:"usage"`
+	Compiler *ExecuteReport `json:"compiler,omitempty"`
+	Tests    []TestReport   `json:"tests,omitempty"`
+	Points   *float64       `json:"points,omitempty"`
 }
 
 // Solution represents a solution.

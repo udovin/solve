@@ -164,21 +164,29 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 	}
 	if withLogs &&
 		permissions.HasPermission(models.ObserveSolutionReportCheckerLogs) {
-		resp.CompileLog = report.Compile.Log
+		if report.Compiler != nil {
+			resp.CompileLog = report.Compiler.Log
+		}
 		for _, test := range report.Tests {
-			resp.Tests = append(resp.Tests, TestReport{
+			testResp := TestReport{
 				Verdict:    test.Verdict,
-				CheckLog:   test.Check.Log,
 				UsedTime:   test.Usage.Time,
 				UsedMemory: test.Usage.Memory,
-			})
+			}
+			if test.Interactor != nil {
+				testResp.CheckLog = test.Interactor.Log
+			}
+			if test.Checker != nil {
+				testResp.CheckLog = test.Checker.Log
+			}
+			resp.Tests = append(resp.Tests, testResp)
 		}
 	}
 	return &resp
 }
 
 func (v *View) makeSolution(
-	c echo.Context, ctx *managers.AccountContext, solution models.Solution, withLogs bool,
+	c echo.Context, solution models.Solution, withLogs bool,
 ) Solution {
 	resp := Solution{
 		ID:         solution.ID,
@@ -276,7 +284,7 @@ func (v *View) observeSolutions(c echo.Context) error {
 				resp.NextBeginID = solution.ID
 				break
 			}
-			resp.Solutions = append(resp.Solutions, v.makeSolution(c, accountCtx, solution, false))
+			resp.Solutions = append(resp.Solutions, v.makeSolution(c, solution, false))
 		}
 	}
 	if err := solutions.Err(); err != nil {
@@ -291,12 +299,7 @@ func (v *View) observeSolution(c echo.Context) error {
 		c.Logger().Error("solution not extracted")
 		return fmt.Errorf("solution not extracted")
 	}
-	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
-	if !ok {
-		c.Logger().Error("auth not extracted")
-		return fmt.Errorf("auth not extracted")
-	}
-	return c.JSON(http.StatusOK, v.makeSolution(c, accountCtx, solution, true))
+	return c.JSON(http.StatusOK, v.makeSolution(c, solution, true))
 }
 
 func (v *View) extractSolution(next echo.HandlerFunc) echo.HandlerFunc {

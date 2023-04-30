@@ -150,12 +150,13 @@ type Contests struct {
 }
 
 type ContestProblem struct {
-	Problem
+	ID        int64    `json:"id"`
 	ContestID int64    `json:"contest_id"`
 	Code      string   `json:"code"`
+	Problem   Problem  `json:"problem"`
 	Points    *int     `json:"points,omitempty"`
 	Locales   []string `json:"locales,omitempty"`
-	Solved    bool     `json:"solved,omitempty"`
+	Solved    *bool    `json:"solved,omitempty"`
 }
 
 type ContestProblems struct {
@@ -245,6 +246,7 @@ func (v *View) makeContestProblem(
 	c echo.Context, contestProblem models.ContestProblem, withStatement bool,
 ) ContestProblem {
 	resp := ContestProblem{
+		ID:        contestProblem.ID,
 		ContestID: contestProblem.ContestID,
 		Code:      contestProblem.Code,
 	}
@@ -262,6 +264,7 @@ func (v *View) makeContestProblem(
 		resp.Problem = v.makeProblem(
 			c, problem, managers.PermissionSet{}, withStatement, false, locales,
 		)
+		resp.Problem.Permissions = nil
 	}
 	return resp
 }
@@ -498,8 +501,8 @@ func (v *View) deleteContest(c echo.Context) error {
 	)
 }
 
-func getSolvedProblems(ctx *managers.ContestContext, c *core.Core) map[int64]struct{} {
-	solved := map[int64]struct{}{}
+func getSolvedProblems(ctx *managers.ContestContext, c *core.Core) map[int64]bool {
+	solved := map[int64]bool{}
 	for _, participant := range ctx.Participants {
 		if participant.ID == 0 {
 			continue
@@ -517,9 +520,8 @@ func getSolvedProblems(ctx *managers.ContestContext, c *core.Core) map[int64]str
 			if err != nil || report == nil {
 				continue
 			}
-			if report.Verdict == models.Accepted {
-				solved[contestSolution.ProblemID] = struct{}{}
-			}
+			solved[contestSolution.ProblemID] = solved[contestSolution.ProblemID] ||
+				report.Verdict == models.Accepted
 		}
 	}
 	return solved
@@ -539,8 +541,8 @@ func (v *View) observeContestProblems(c echo.Context) error {
 	resp := ContestProblems{}
 	for _, problem := range problems {
 		problemResp := v.makeContestProblem(c, problem, false)
-		if _, ok := solvedProblems[problem.ID]; ok {
-			problemResp.Solved = true
+		if v, ok := solvedProblems[problem.ID]; ok {
+			problemResp.Solved = &v
 		}
 		resp.Problems = append(
 			resp.Problems,
@@ -1051,7 +1053,7 @@ func (v *View) rejudgeContestSolution(c echo.Context) error {
 		return err
 	}
 	resp := v.makeContestSolution(c, solution, true)
-	resp.Report = &SolutionReport{
+	resp.Solution.Report = &SolutionReport{
 		Verdict: models.QueuedTask.String(),
 	}
 	return c.JSON(http.StatusOK, resp)
@@ -1060,12 +1062,9 @@ func (v *View) rejudgeContestSolution(c echo.Context) error {
 type ContestSolution struct {
 	ID          int64               `json:"id"`
 	ContestID   int64               `json:"contest_id"`
+	Solution    Solution            `json:"solution"`
 	Problem     *ContestProblem     `json:"problem,omitempty"`
-	Compiler    *Compiler           `json:"compiler,omitempty"`
 	Participant *ContestParticipant `json:"participant,omitempty"`
-	Content     string              `json:"content,omitempty"`
-	Report      *SolutionReport     `json:"report"`
-	CreateTime  int64               `json:"create_time"`
 }
 
 type SubmitSolutionForm struct {
@@ -1296,17 +1295,10 @@ func (v *View) makeContestSolution(
 	if baseSolution, err := v.core.Solutions.Get(
 		getContext(c), solution.SolutionID,
 	); err == nil {
-		resp.CreateTime = baseSolution.CreateTime
-		if withLogs {
-			resp.Content = v.makeSolutionContent(c, baseSolution)
-		}
-		resp.Report = v.makeSolutionReport(c, baseSolution, withLogs)
-		if compiler, err := v.core.Compilers.Get(
-			getContext(c), baseSolution.CompilerID,
-		); err == nil {
-			compilerResp := makeCompiler(compiler)
-			resp.Compiler = &compilerResp
-		}
+		resp.Solution = v.makeSolution(c, baseSolution, withLogs)
+		resp.Solution.Problem = nil
+		resp.Solution.User = nil
+		resp.Solution.ScopeUser = nil
 	}
 	if problem, err := v.core.ContestProblems.Get(
 		getContext(c), solution.ProblemID,
@@ -1410,6 +1402,21 @@ func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 		contest := contestCtx.Contest
 		if err := syncStore(c, v.core.ContestProblems); err != nil {
 			return err
+		}
+		if id, err := strconv.ParseInt(code, 10, 64); err == nil {
+			contestProblem, err := v.core.ContestProblems.Get(getContext(c), id)
+			if err != nil && err != sql.ErrNoRows {
+				return err
+			}
+			if err == nil && contestProblem.ContestID == contestProblem.ContestID {
+				problem, err := v.core.Problems.Get(getContext(c), contestProblem.ProblemID)
+				if err != nil {
+					return err
+				}
+				c.Set(contestProblemKey, contestProblem)
+				c.Set(problemKey, problem)
+				return next(c)
+			}
 		}
 		problems, err := v.core.ContestProblems.FindByContest(contest.ID)
 		if err != nil {

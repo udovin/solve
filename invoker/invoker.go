@@ -6,9 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/udovin/gosql"
@@ -16,6 +13,7 @@ import (
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg/logs"
+	"github.com/udovin/solve/pkg/safeexec"
 )
 
 // Invoker represents manager for asynchronous actions (invocations).
@@ -46,7 +44,7 @@ func New(core *core.Core) *Invoker {
 // This function will spawn config.Invoker.Workers amount of goroutines.
 func (s *Invoker) Start() error {
 	safeexecConfig := s.core.Config.Invoker.Safeexec
-	safeexec, err := newSafeexecProcessor(
+	safeexec, err := safeexec.NewManager(
 		safeexecConfig.Path,
 		"/tmp/solve-safeexec",
 		"solve-safeexec",
@@ -151,26 +149,6 @@ func (s *Invoker) getSolution(ctx context.Context, id int64) (models.Solution, e
 		solution, err = s.core.Solutions.Get(ctx, id)
 	}
 	return solution, err
-}
-
-func readFile(name string, limit int) (string, error) {
-	file, err := os.Open(name)
-	if err != nil {
-		return "", err
-	}
-	bytes := make([]byte, limit+1)
-	read, err := file.Read(bytes)
-	if err != nil && err != io.EOF {
-		return "", err
-	}
-	if read > limit {
-		return fixUTF8String(string(bytes[:limit])) + "...", nil
-	}
-	return fixUTF8String(string(bytes[:read])), nil
-}
-
-func fixUTF8String(s string) string {
-	return strings.ReplaceAll(strings.ToValidUTF8(s, ""), "\u0000", "")
 }
 
 var (

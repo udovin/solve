@@ -45,8 +45,7 @@ func (s *LocalStorage) GeneratePath(ctx context.Context) (string, error) {
 	}
 	filePath := path.Join(
 		hex.EncodeToString(bytes[0:2]),
-		hex.EncodeToString(bytes[2:4]),
-		hex.EncodeToString(bytes[4:]),
+		hex.EncodeToString(bytes[2:]),
 	)
 	systemPath := filepath.Join(s.Dir, filepath.FromSlash(filePath))
 	if _, err := os.Stat(systemPath); err == nil {

@@ -427,7 +427,15 @@ static inline void readCgroupOomCount(const Context* ctx, long* value) {
 	free(filePath);
 }
 
+static volatile int cancelled = 0;
+
+void cancel(int signal) {
+	ensure(signal == SIGTERM, "received invalid signal");
+	cancelled = 1;
+}
+
 int main(int argc, char* argv[]) {
+	signal(SIGTERM, cancel);
 	Context* ctx = newContext();
 	initContext(ctx, argc, argv);
 	ensure(ctx->argsLen, "empty execve arguments");
@@ -481,16 +489,25 @@ int main(int argc, char* argv[]) {
 	sleepSpec.tv_sec = 0;
 	sleepSpec.tv_nsec = 5000000;
 	int realTimeLimit = ctx->timeLimit * 2;
-	do {
+	for (;;) {
 		result = waitpid(pid, &status, WUNTRACED | WNOHANG | __WALL);
-		if (result < 0) {
-			ensure(errno == EINTR, "cannot wait for child process");
+		if (result != 0) {
+			break;
 		}
-		ensure(clock_gettime(CLOCK_MONOTONIC, &currentTime) == 0, "cannot get current time");
-		if (result == 0 && getTimeDiff(currentTime, startTime) > realTimeLimit) {
+		if (cancelled) {
 			if (kill(pid, SIGKILL) != 0) {
 				ensure(errno == ESRCH, "cannot kill process");
 			}
+			result = waitpid(pid, &status, WUNTRACED | __WALL);
+			break;
+		}
+		ensure(clock_gettime(CLOCK_MONOTONIC, &currentTime) == 0, "cannot get current time");
+		if (getTimeDiff(currentTime, startTime) > realTimeLimit) {
+			if (kill(pid, SIGKILL) != 0) {
+				ensure(errno == ESRCH, "cannot kill process");
+			}
+			result = waitpid(pid, &status, WUNTRACED | __WALL);
+			break;
 		}
 		readCgroupMemory(memoryCurrentPath, &currentMemory);
 		if (currentMemory > memory) {
@@ -499,6 +516,8 @@ int main(int argc, char* argv[]) {
 				if (kill(pid, SIGKILL) != 0) {
 					ensure(errno == ESRCH, "cannot kill process");
 				}
+				result = waitpid(pid, &status, WUNTRACED | __WALL);
+				break;
 			}
 		}
 		readCgroupCpuUsage(cpuStatPath, &time);
@@ -506,9 +525,13 @@ int main(int argc, char* argv[]) {
 			if (kill(pid, SIGKILL) != 0) {
 				ensure(errno == ESRCH, "cannot kill process");
 			}
+			result = waitpid(pid, &status, WUNTRACED | __WALL);
+			break;
 		}
 		nanosleep(&sleepSpec, NULL);
-	} while (result == 0);
+	}
+	ensure(result > 0, "cannot wait for child process");
+	ensure(clock_gettime(CLOCK_MONOTONIC, &currentTime) == 0, "cannot get current time");
 	readCgroupMemory(memoryCurrentPath, &currentMemory);
 	if (currentMemory > memory) {
 		memory = currentMemory;

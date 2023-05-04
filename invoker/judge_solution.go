@@ -42,15 +42,16 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 	if err := ctx.ScanConfig(&t.config); err != nil {
 		return fmt.Errorf("unable to scan task config: %w", err)
 	}
-	solution, err := t.invoker.getSolution(ctx, t.config.SolutionID)
+	syncCtx := models.WithSync(ctx)
+	solution, err := t.invoker.core.Solutions.Get(syncCtx, t.config.SolutionID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch solution: %w", err)
 	}
-	problem, err := t.invoker.core.Problems.Get(ctx, solution.ProblemID)
+	problem, err := t.invoker.core.Problems.Get(syncCtx, solution.ProblemID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch problem: %w", err)
 	}
-	compiler, err := t.invoker.core.Compilers.Get(ctx, solution.CompilerID)
+	compiler, err := t.invoker.core.Compilers.Get(syncCtx, solution.CompilerID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch compiler: %w", err)
 	}

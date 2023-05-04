@@ -100,7 +100,7 @@ func (v *View) makeProblem(
 	}
 	locale := getLocale(c)
 	if resources, err := v.core.ProblemResources.FindByProblem(
-		problem.ID,
+		getContext(c), problem.ID,
 	); err == nil {
 		for _, resource := range resources {
 			if resource.Kind != models.ProblemStatement {
@@ -234,7 +234,7 @@ func (v *View) observeProblemResource(c echo.Context) error {
 	}
 	resourceName := c.Param("resource")
 	locale := getLocale(c)
-	resources, err := v.core.ProblemResources.FindByProblem(problem.ID)
+	resources, err := v.core.ProblemResources.FindByProblem(getContext(c), problem.ID)
 	if err != nil {
 		return err
 	}
@@ -519,7 +519,7 @@ func (v *View) deleteProblem(c echo.Context) error {
 		}
 	}
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
-		resources, err := v.core.ProblemResources.FindByProblem(problem.ID)
+		resources, err := v.core.ProblemResources.FindByProblem(ctx, problem.ID)
 		if err != nil {
 			return err
 		}

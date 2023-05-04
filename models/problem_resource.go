@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/udovin/gosql"
@@ -100,7 +101,10 @@ type ProblemResourceStore struct {
 	byProblem *index[int64, ProblemResource, *ProblemResource]
 }
 
-func (s *ProblemResourceStore) FindByProblem(id int64) ([]ProblemResource, error) {
+func (s *ProblemResourceStore) FindByProblem(ctx context.Context, id int64) ([]ProblemResource, error) {
+	if err := s.TrySync(ctx); err != nil {
+		return nil, err
+	}
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	var objects []ProblemResource

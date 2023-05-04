@@ -38,6 +38,7 @@ type cachedStore[
 	mutex    sync.RWMutex
 	objects  btree.Map[int64, T]
 	indexes  []storeIndex[T]
+	syncTime time.Time
 }
 
 // DB returns store database.
@@ -48,7 +49,12 @@ func (s *cachedStore[T, E, TPtr, EPtr]) DB() *gosql.DB {
 func (s *cachedStore[T, E, TPtr, EPtr]) Init(ctx context.Context) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	return s.initUnlocked(ctx)
+	t := time.Now()
+	if err := s.initUnlocked(ctx); err != nil {
+		return err
+	}
+	s.syncTime = t
+	return nil
 }
 
 func (s *cachedStore[T, E, TPtr, EPtr]) initUnlocked(ctx context.Context) error {
@@ -103,7 +109,33 @@ func (s *cachedStore[T, E, TPtr, EPtr]) Sync(ctx context.Context) error {
 	if tx := db.GetTx(ctx); tx != nil {
 		return fmt.Errorf("sync cannot be run in transaction")
 	}
-	return s.consumer.ConsumeEvents(ctx, s.consumeEvent)
+	t := time.Now()
+	if err := s.consumer.ConsumeEvents(ctx, s.consumeEvent); err != nil {
+		return err
+	}
+	s.updateSync(t)
+	return nil
+}
+
+func (s *cachedStore[T, E, TPtr, EPtr]) updateSync(t time.Time) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.syncTime = t
+}
+
+func (s *cachedStore[T, E, TPtr, EPtr]) needSync(ctx context.Context) bool {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	t, ok := ctx.Value(syncKey{}).(time.Time)
+	return ok && !s.syncTime.After(t)
+}
+
+// TrySync updates store cache only when needed.
+func (s *cachedStore[T, E, TPtr, EPtr]) TrySync(ctx context.Context) error {
+	if !s.needSync(ctx) {
+		return nil
+	}
+	return s.Sync(ctx)
 }
 
 func (s *cachedStore[T, E, TPtr, EPtr]) newObjectEvent(ctx context.Context, kind EventKind) EPtr {
@@ -172,20 +204,13 @@ func WithSync(ctx context.Context) context.Context {
 	return context.WithValue(ctx, syncKey{}, time.Now())
 }
 
-func GetSync(ctx context.Context) bool {
-	_, ok := ctx.Value(syncKey{}).(time.Time)
-	return ok
-}
-
 // Get returns object by id.
 //
 // Returns sql.ErrNoRows if object does not exist.
 func (s *cachedStore[T, E, TPtr, EPtr]) Get(ctx context.Context, id int64) (T, error) {
 	var empty T
-	if GetSync(ctx) {
-		if err := s.Sync(ctx); err != nil {
-			return empty, err
-		}
+	if err := s.TrySync(ctx); err != nil {
+		return empty, err
 	}
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()

@@ -284,6 +284,11 @@ var s001 = []schema.Operation{
 		Expression: "LOWER(\"login\")",
 		Unique:     true,
 	},
+	schema.CreateIndex{
+		Table:      "solve_user",
+		Expression: "LOWER(\"email\")",
+		Unique:     true,
+	},
 	schema.CreateTable{
 		Name: "solve_user_event",
 		Columns: []schema.Column{

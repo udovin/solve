@@ -170,6 +170,7 @@ func NewTestEnv(tb testing.TB, options ...TestEnvOption) *TestEnv {
 	e.Use(nowFn)
 	view.Register(e.Group("/api"))
 	view.RegisterSocket(e.Group("/socket"))
+	view.StartDaemons()
 	env.Server = httptest.NewServer(e)
 	env.Client = newTestClient(env.Server.URL + "/api")
 	env.Socket = newTestClient(env.Server.URL + "/socket")

@@ -1,0 +1,167 @@
+openapi: 3.0.0
+info:
+  title: Solve API
+  description: |-
+    Solve API.
+  license:
+    name: Apache 2.0 and MIT
+    url: https://github.com/udovin/solve/blob/master/README.md
+  version: 0.1.11
+servers:
+  - url: https://testing.solve.by/api
+tags:
+  - name: users
+    description: Operations with users.
+paths:
+  /v0/status:
+    get:
+      description: Get status of current session.
+      tags:
+        - users
+      security:
+        - session: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+  /v0/login:
+    post:
+      tags:
+        - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAuthForm'
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+  /v0/logout:
+    post:
+      tags:
+        - users
+      security:
+        - session: []
+      responses:
+        '200':
+          description: ''
+  /v0/register:
+    post:
+      tags:
+        - users
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /v0/users/{user}/sessions:
+    get:
+      tags:
+        - users
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sessions'
+      parameters:
+        - name: user
+          in: path
+          description: ID or login of user.
+          required: true
+          schema:
+            type: string
+            example: user
+components:
+  schemas:
+    Status:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        scope_user:
+          $ref: '#/components/schemas/ScopeUser'
+        session:
+          $ref: '#/components/schemas/Session'
+        permissions:
+          $ref: '#/components/schemas/Permissions'
+        locale:
+          $ref: '#/components/schemas/Locale'
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        login:
+          type: string
+          example: user
+        email:
+          type: string
+          example: user@example.com
+        first_name:
+          type: string
+          example: First
+        last_name:
+          type: string
+          example: Last
+        middle_name:
+          type: string
+          example: Middle
+    ScopeUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+    Session:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        create_time:
+          type: integer
+        expire_time:
+          type: integer
+    Sessions:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+    Permissions:
+      type: array
+      items:
+        type: string
+      example: [status, logout]
+    Locale:
+      type: string
+      description: Locale code.
+      example: en
+    UserAuthForm:
+      type: object
+      properties:
+        login:
+          type: string
+          example: user
+        password:
+          type: string
+          example: qwerty123
+  requestBodies: {}
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: session

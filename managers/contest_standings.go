@@ -121,17 +121,6 @@ type standingsCacheKey struct {
 func (m *ContestStandingsManager) buildStandings(
 	ctx *ContestContext, options BuildStandingsOptions,
 ) (*ContestStandings, error) {
-	switch ctx.ContestConfig.StandingsKind {
-	case models.IOIStandings:
-		return m.buildIOIStandings(ctx, options)
-	default:
-		return m.buildICPCStandings(ctx, options)
-	}
-}
-
-func (m *ContestStandingsManager) buildICPCStandings(
-	ctx *ContestContext, options BuildStandingsOptions,
-) (*ContestStandings, error) {
 	participants, err := m.contestParticipants.FindByContest(ctx.Contest.ID)
 	if err != nil {
 		return nil, err
@@ -143,14 +132,6 @@ func (m *ContestStandingsManager) buildICPCStandings(
 	sortFunc(contestProblems, func(lhs, rhs models.ContestProblem) bool {
 		return lhs.Code < rhs.Code
 	})
-	standings := ContestStandings{}
-	columnByProblem := map[int64]int{}
-	for i, problem := range contestProblems {
-		standings.Columns = append(standings.Columns, ContestStandingsColumn{
-			Problem: problem,
-		})
-		columnByProblem[problem.ID] = i
-	}
 	contestSolutions, err := m.contestSolutions.FindByContest(ctx.Contest.ID)
 	if err != nil {
 		return nil, err
@@ -160,6 +141,33 @@ func (m *ContestStandingsManager) buildICPCStandings(
 		solutionsByParticipant[solution.ParticipantID] = append(
 			solutionsByParticipant[solution.ParticipantID], solution,
 		)
+	}
+	switch ctx.ContestConfig.StandingsKind {
+	case models.IOIStandings:
+		return m.buildIOIStandings(
+			ctx, options, participants, contestProblems, solutionsByParticipant,
+		)
+	default:
+		return m.buildICPCStandings(
+			ctx, options, participants, contestProblems, solutionsByParticipant,
+		)
+	}
+}
+
+func (m *ContestStandingsManager) buildICPCStandings(
+	ctx *ContestContext,
+	options BuildStandingsOptions,
+	participants []models.ContestParticipant,
+	contestProblems []models.ContestProblem,
+	solutionsByParticipant map[int64][]models.ContestSolution,
+) (*ContestStandings, error) {
+	standings := ContestStandings{}
+	columnByProblem := map[int64]int{}
+	for i, problem := range contestProblems {
+		standings.Columns = append(standings.Columns, ContestStandingsColumn{
+			Problem: problem,
+		})
+		columnByProblem[problem.ID] = i
 	}
 	observeFullStandings := ctx.HasPermission(models.ObserveContestFullStandingsRole)
 	ignoreFreeze := options.IgnoreFreeze && observeFullStandings
@@ -282,19 +290,12 @@ func (m *ContestStandingsManager) buildICPCStandings(
 }
 
 func (m *ContestStandingsManager) buildIOIStandings(
-	ctx *ContestContext, options BuildStandingsOptions,
+	ctx *ContestContext,
+	options BuildStandingsOptions,
+	participants []models.ContestParticipant,
+	contestProblems []models.ContestProblem,
+	solutionsByParticipant map[int64][]models.ContestSolution,
 ) (*ContestStandings, error) {
-	participants, err := m.contestParticipants.FindByContest(ctx.Contest.ID)
-	if err != nil {
-		return nil, err
-	}
-	contestProblems, err := m.contestProblems.FindByContest(ctx.Contest.ID)
-	if err != nil {
-		return nil, err
-	}
-	sortFunc(contestProblems, func(lhs, rhs models.ContestProblem) bool {
-		return lhs.Code < rhs.Code
-	})
 	standings := ContestStandings{}
 	columnByProblem := map[int64]int{}
 	for i, problem := range contestProblems {
@@ -302,16 +303,6 @@ func (m *ContestStandingsManager) buildIOIStandings(
 			Problem: problem,
 		})
 		columnByProblem[problem.ID] = i
-	}
-	contestSolutions, err := m.contestSolutions.FindByContest(ctx.Contest.ID)
-	if err != nil {
-		return nil, err
-	}
-	solutionsByParticipant := map[int64][]models.ContestSolution{}
-	for _, solution := range contestSolutions {
-		solutionsByParticipant[solution.ParticipantID] = append(
-			solutionsByParticipant[solution.ParticipantID], solution,
-		)
 	}
 	observeFullStandings := ctx.HasPermission(models.ObserveContestFullStandingsRole)
 	ignoreFreeze := options.IgnoreFreeze && observeFullStandings

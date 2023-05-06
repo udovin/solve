@@ -1111,14 +1111,8 @@ func (v *View) hasSolutionsQuota(
 		logger.Warn("Cannot get solutions for participant: %v", participant.ID)
 		return false
 	}
-	window := int64(60)
-	amount := int64(3)
-	if v := v.getInt64Setting("contests.solutions_quota.window", logger); v != nil {
-		window = *v
-	}
-	if v := v.getInt64Setting("contests.solutions_quota.amount", logger); v != nil {
-		amount = *v
-	}
+	window := v.getInt64Setting("contests.solutions_quota.window", logger).OrElse(60)
+	amount := v.getInt64Setting("contests.solutions_quota.amount", logger).OrElse(3)
 	toTime := contestCtx.Now
 	fromTime := toTime.Add(-time.Second * time.Duration(window))
 	for _, contestSolution := range solutions {

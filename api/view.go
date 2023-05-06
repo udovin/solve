@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -48,18 +47,12 @@ type visitContext struct {
 }
 
 func (v *visitContext) Create(view *View) {
-	if s := view.getBoolSetting(
-		"handlers."+v.Path+".log_visit", v.Logger,
-	); s == nil || *s {
-		func() {
-			ctx, cancel := context.WithTimeout(
-				context.Background(), 5*time.Second,
-			)
-			defer cancel()
-			if err := view.core.Visits.Create(ctx, &v.Visit); err != nil {
-				view.core.Logger().Error("Unable to create visit", err)
-			}
-		}()
+	if view.getBoolSetting("handlers."+v.Path+".log_visit", v.Logger).OrElse(true) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := view.core.Visits.Create(ctx, &v.Visit); err != nil {
+			view.core.Logger().Error("Unable to create visit", err)
+		}
 	}
 }
 
@@ -341,7 +334,7 @@ func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) wrapSyncStores(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		if s := v.getBoolSetting("handlers.allow_sync", c.Logger()); s == nil || *s {
+		if v.getBoolSetting("handlers.allow_sync", c.Logger()).OrElse(true) {
 			sync := strings.ToLower(c.Request().Header.Get("X-Solve-Sync"))
 			c.Set(syncKey, sync == "1" || sync == "t" || sync == "true")
 		} else {
@@ -562,53 +555,22 @@ func (v *View) requirePermission(names ...string) echo.MiddlewareFunc {
 	}
 }
 
-func (v *View) getStringSetting(key string, logger echo.Logger) *string {
-	setting, err := v.core.Settings.GetByKey(key)
+func (v *View) getBoolSetting(key string, logger echo.Logger) models.Option[bool] {
+	value, err := v.core.Settings.GetBool(key)
 	if err != nil {
-		if err != sql.ErrNoRows {
-			logger.Error(
-				"Unable to get setting",
-				logs.Any("key", key), err,
-			)
-		}
-		return nil
+		logger.Warn("Cannot get setting", logs.Any("key", key), err)
+		return models.Empty[bool]()
 	}
-	if setting.Key != key {
-		panic(fmt.Errorf("unexpected key %q != %q", setting.Key, key))
-	}
-	return &setting.Value
+	return value
 }
 
-func (v *View) getBoolSetting(key string, logger echo.Logger) *bool {
-	setting := v.getStringSetting(key, logger)
-	if setting == nil {
-		return nil
-	}
-	switch strings.ToLower(*setting) {
-	case "1", "t", "true":
-		return getPtr(true)
-	case "0", "f", "false":
-		return getPtr(false)
-	default:
-		logger.Warn(
-			"Setting has invalid value",
-			logs.Any("key", key),
-			logs.Any("value", *setting),
-		)
-		return nil
-	}
-}
-
-func (v *View) getInt64Setting(key string, logger echo.Logger) *int64 {
-	setting := v.getStringSetting(key, logger)
-	if setting == nil {
-		return nil
-	}
-	value, err := strconv.ParseInt(*setting, 10, 64)
+func (v *View) getInt64Setting(key string, logger echo.Logger) models.Option[int64] {
+	value, err := v.core.Settings.GetInt64(key)
 	if err != nil {
-		return nil
+		logger.Warn("Cannot get setting", logs.Any("key", key), err)
+		return models.Empty[int64]()
 	}
-	return &value
+	return value
 }
 
 type locale interface {

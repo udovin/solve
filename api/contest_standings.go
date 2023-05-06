@@ -57,6 +57,11 @@ func (v *View) observeContestStandings(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("contest not extracted")
 	}
+	if contestCtx.ContestConfig.StandingsKind == models.DisabledStandings {
+		return c.JSON(http.StatusOK, ContestStandings{
+			Kind: contestCtx.ContestConfig.StandingsKind.String(),
+		})
+	}
 	form := ObserveContestStandingsForm{}
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)

@@ -1402,7 +1402,7 @@ func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 			if err != nil && err != sql.ErrNoRows {
 				return err
 			}
-			if err == nil && contestProblem.ContestID == contestProblem.ContestID {
+			if err == nil && contestProblem.ContestID == contest.ID {
 				problem, err := v.core.Problems.Get(getContext(c), contestProblem.ProblemID)
 				if err != nil {
 					return err

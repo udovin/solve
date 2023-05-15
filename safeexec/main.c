@@ -394,7 +394,7 @@ static inline void readCgroupCpuUsage(const char* path, long* value) {
 	size_t len = 0;
 	ssize_t bytes = 0;
 	while ((bytes = getline(&data, &len, file)) != -1) {
-		if (bytes < 13 || memcmp(data, "usage_usec ", 11)) {
+		if (bytes <= 11 || memcmp(data, "usage_usec ", 11)) {
 			continue;
 		}
 		*value = strtol(&data[11], NULL, 10);

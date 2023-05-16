@@ -1038,21 +1038,33 @@ func (v *View) rejudgeContestSolution(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("contest not extracted")
 	}
-	solution, ok := c.Get(contestSolutionKey).(models.ContestSolution)
+	contestSolution, ok := c.Get(contestSolutionKey).(models.ContestSolution)
 	if !ok {
 		return fmt.Errorf("solution not extracted")
 	}
-	task := models.Task{}
-	if err := task.SetConfig(models.JudgeSolutionTaskConfig{
-		SolutionID:   solution.SolutionID,
-		EnablePoints: getEnablePoints(contestCtx),
-	}); err != nil {
+	solution, err := v.core.Solutions.Get(getContext(c), contestSolution.SolutionID)
+	if err != nil {
 		return err
 	}
-	if err := v.core.Tasks.Create(getContext(c), &task); err != nil {
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+		if err := solution.SetReport(nil); err != nil {
+			return err
+		}
+		if err := v.core.Solutions.Update(ctx, solution); err != nil {
+			return err
+		}
+		task := models.Task{}
+		if err := task.SetConfig(models.JudgeSolutionTaskConfig{
+			SolutionID:   solution.ID,
+			EnablePoints: getEnablePoints(contestCtx),
+		}); err != nil {
+			return err
+		}
+		return v.core.Tasks.Create(ctx, &task)
+	}, sqlRepeatableRead); err != nil {
 		return err
 	}
-	resp := v.makeContestSolution(c, solution, true)
+	resp := v.makeContestSolution(c, contestSolution, true)
 	resp.Solution.Report = &SolutionReport{
 		Verdict: models.QueuedTask.String(),
 	}
@@ -1492,10 +1504,10 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 				Message: localize(c, "Invalid solution ID."),
 			}
 		}
-		if err := syncStore(c, v.core.Solutions); err != nil {
+		if err := syncStore(c, v.core.ContestSolutions); err != nil {
 			return err
 		}
-		if err := syncStore(c, v.core.ContestSolutions); err != nil {
+		if err := syncStore(c, v.core.Solutions); err != nil {
 			return err
 		}
 		solution, err := v.core.ContestSolutions.Get(getContext(c), id)

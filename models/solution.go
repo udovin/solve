@@ -148,6 +148,10 @@ func (o Solution) GetReport() (*SolutionReport, error) {
 
 // SetReport sets serialized report to solution.
 func (o *Solution) SetReport(report *SolutionReport) error {
+	if report == nil {
+		o.Report = nil
+		return nil
+	}
 	raw, err := json.Marshal(report)
 	if err != nil {
 		return err

@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <linux/sched.h>
 #include <sched.h>
 #include <signal.h>
 #include <unistd.h>
@@ -131,10 +132,6 @@ static inline void setupUserNamespace(const Context* ctx) {
 	close(ctx->initializePipe[0]);
 }
 
-static inline void setupCgroupNamespace(const Context* ctx) {
-	ensure(unshare(CLONE_NEWCGROUP) == 0, "cannot unshare cgroup namespace");
-}
-
 static inline void setupMountNamespace(const Context* ctx) {
 	// First of all make all changes are private for current root.
 	ensure(mount(NULL, "/", NULL, MS_SLAVE | MS_REC, NULL) == 0, "cannot remount \"/\"");
@@ -186,7 +183,7 @@ static inline void prepareUserNamespace(int pid) {
 	close(fd);
 }
 
-static inline void prepareCgroupNamespace(const Context* ctx, int pid) {
+static inline void prepareCgroupNamespace(const Context* ctx) {
 	if (rmdir(ctx->cgroupPath) != 0) {
 		ensure(errno == ENOENT, "cannot remove cgroup");
 	}
@@ -195,17 +192,6 @@ static inline void prepareCgroupNamespace(const Context* ctx, int pid) {
 	}
 	char* cgroupPath = malloc((strlen(ctx->cgroupPath) + strlen(CGROUP_MEMORY_SWAP_MAX_FILE) + 2) * sizeof(char));
 	ensure(cgroupPath != 0, "cannot allocate cgroup path");
-	{
-		strcpy(cgroupPath, ctx->cgroupPath);
-		strcat(cgroupPath, "/");
-		strcat(cgroupPath, CGROUP_PROCS_FILE);
-		int fd = open(cgroupPath, O_WRONLY);
-		ensure(fd != -1, "cannot open cgroup.procs");
-		char pidStr[21];
-		sprintf(pidStr, "%d", pid);
-		ensure(write(fd, pidStr, strlen(pidStr)) != -1, "cannot write cgroup.procs");
-		close(fd);
-	}
 	{
 		strcpy(cgroupPath, ctx->cgroupPath);
 		strcat(cgroupPath, "/");
@@ -353,14 +339,11 @@ static inline void freeContext(Context* ctx) {
 	free(ctx);
 }
 
-int entrypoint(void* arg) {
-	ensure(arg != 0, "cannot get config");
-	Context* ctx = (Context*)arg;
+int entrypoint(const Context* ctx) {
 	close(ctx->initializePipe[1]);
 	close(ctx->finalizePipe[0]);
 	// Setup user namespace first of all.
 	setupUserNamespace(ctx);
-	setupCgroupNamespace(ctx);
 	setupMountNamespace(ctx);
 	setupUtsNamespace(ctx);
 	ensure(chdir(ctx->workdir) == 0, "cannot chdir to workdir");
@@ -448,21 +431,22 @@ int main(int argc, char* argv[]) {
 	ensure(ctx->memoryLimit, "--memory-limit is required");
 	ensure(pipe(ctx->initializePipe) == 0, "cannot create initialize pipe");
 	ensure(pipe(ctx->finalizePipe) == 0, "cannot create finalize pipe");
-	char* stack = malloc(STACK_SIZE);
-	ensure(stack != NULL, "cannot allocate stack");
-	int pid = clone(
-		entrypoint,
-		stack + STACK_SIZE,
-		CLONE_NEWUSER | CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET | CLONE_NEWIPC | CLONE_NEWUTS,
-		ctx);
-	free(stack);
+	prepareCgroupNamespace(ctx);
+	int cgroupFd = open(ctx->cgroupPath, O_PATH);
+	ensure(cgroupFd != -1, "cannot open cgroup");
+	struct clone_args cloneArgs = {};
+	cloneArgs.flags = CLONE_NEWUSER | CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET | CLONE_NEWIPC | CLONE_NEWUTS | CLONE_NEWCGROUP | CLONE_INTO_CGROUP;
+	cloneArgs.cgroup = cgroupFd;
+	pid_t pid = syscall(SYS_clone3, &cloneArgs, sizeof(cloneArgs));
 	ensure(pid != -1, "cannot clone()");
+	ensure(close(cgroupFd) == 0, "cannot close cgroup");
+	if (pid == 0) {
+		return entrypoint(ctx);
+	}
 	close(ctx->initializePipe[0]);
 	close(ctx->finalizePipe[1]);
 	// Setup user namespace.
 	prepareUserNamespace(pid);
-	// Setup cgroup namespace.
-	prepareCgroupNamespace(ctx, pid);
 	// Setup cgroup file paths.
 	char* memoryCurrentPath = malloc(strlen(ctx->cgroupPath) + strlen(CGROUP_MEMORY_CURRENT_FILE) + 2);
 	ensure(memoryCurrentPath != NULL, "cannot allocate memory.current path");

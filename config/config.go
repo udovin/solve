@@ -110,7 +110,8 @@ type Invoker struct {
 }
 
 type Safeexec struct {
-	Path string `json:"path"`
+	Path   string `json:"path"`
+	Cgroup string `json:"cgroup"`
 }
 
 var configFuncs = template.FuncMap{

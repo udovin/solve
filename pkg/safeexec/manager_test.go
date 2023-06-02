@@ -12,6 +12,8 @@ import (
 	"github.com/udovin/solve/pkg/archives"
 )
 
+const testCgroupName = "../solve-safeexec"
+
 var alpinePath = ""
 
 func TestMain(m *testing.M) {
@@ -34,7 +36,7 @@ func TestMain(m *testing.M) {
 
 func TestSafeexecSimple(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
-	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, "solve-safeexec")
+	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, testCgroupName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -74,7 +76,7 @@ func TestSafeexecSimple(t *testing.T) {
 
 func TestSafeexecMemoryLimit(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
-	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, "solve-safeexec")
+	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, testCgroupName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -108,7 +110,7 @@ func TestSafeexecMemoryLimit(t *testing.T) {
 
 func TestSafeexecTimeLimit(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
-	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, "solve-safeexec")
+	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, testCgroupName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -142,7 +144,7 @@ func TestSafeexecTimeLimit(t *testing.T) {
 
 func TestSafeexecCancel(t *testing.T) {
 	safeexecPath := filepath.Join(t.TempDir(), "safeexec")
-	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, "solve-safeexec")
+	safeexec, err := NewManager("../../safeexec/safeexec", safeexecPath, testCgroupName)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}

@@ -120,14 +120,19 @@ func (m *Manager) prepareProcess() (*Process, error) {
 }
 
 func NewManager(path, executionPath, cgroupName string) (*Manager, error) {
-	cgroupPath, err := getCgroupParentPath()
+	cgroupPath, err := getCurrentCgroupPath()
 	if err != nil {
 		return nil, err
 	}
-	if len(cgroupName) != 0 {
-		if dir := filepath.Dir(cgroupPath); strings.HasPrefix(dir, "/sys/fs/cgroup") {
-			cgroupPath = filepath.Join(dir, cgroupName)
-		}
+	if strings.HasPrefix(cgroupName, "/") {
+		cgroupPath = cgroupRootPath
+	}
+	cgroupPath = filepath.Join(cgroupPath, cgroupName)
+	if !strings.HasPrefix(cgroupPath, cgroupRootPath) {
+		return nil, fmt.Errorf("invalid cgroup path: %s", cgroupPath)
+	}
+	if cgroupPath == cgroupRootPath {
+		return nil, fmt.Errorf("cannot use root cgroup")
 	}
 	if err := setupCgroup(cgroupPath); err != nil {
 		return nil, err
@@ -170,7 +175,9 @@ func setupCgroup(path string) error {
 	return scanner.Err()
 }
 
-func getCgroupParentPath() (string, error) {
+const cgroupRootPath = "/sys/fs/cgroup"
+
+func getCurrentCgroupPath() (string, error) {
 	file, err := os.Open("/proc/self/cgroup")
 	if err != nil {
 		return "", err
@@ -184,7 +191,7 @@ func getCgroupParentPath() (string, error) {
 			return "", fmt.Errorf("invalid cgroup line: %q", text)
 		}
 		if parts[1] == "" {
-			return filepath.Join("/sys/fs/cgroup", parts[2]), nil
+			return filepath.Join(cgroupRootPath, parts[2]), nil
 		}
 	}
 	if err := scanner.Err(); err != nil {

@@ -44,10 +44,12 @@ func New(core *core.Core) *Invoker {
 // This function will spawn config.Invoker.Workers amount of goroutines.
 func (s *Invoker) Start() error {
 	safeexecConfig := s.core.Config.Invoker.Safeexec
+	cgroupPath := safeexecConfig.Cgroup
+	if len(cgroupPath) == 0 {
+		cgroupPath = "../solve-safeexec"
+	}
 	safeexec, err := safeexec.NewManager(
-		safeexecConfig.Path,
-		"/tmp/solve-safeexec",
-		"solve-safeexec",
+		safeexecConfig.Path, "/tmp/solve-safeexec", cgroupPath,
 	)
 	if err != nil {
 		return err

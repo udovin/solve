@@ -2,16 +2,23 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 )
 
+type testResult struct {
+	Value string
+	Err   error
+}
+
 type testStorageImpl struct {
-	values chan string
+	values chan testResult
 }
 
 func (s *testStorageImpl) Get(key int) (string, error) {
-	return <-s.values, nil
+	result := <-s.values
+	return result.Value, result.Err
 }
 
 func (s *testStorageImpl) Delete(key int, value string) error {
@@ -20,38 +27,73 @@ func (s *testStorageImpl) Delete(key int, value string) error {
 
 func TestCache(t *testing.T) {
 	storage := &testStorageImpl{
-		values: make(chan string),
+		values: make(chan testResult),
 	}
 	manager := NewManager[int, string](storage)
 	func() {
-		ref := manager.Load(42)
-		defer ref.Release()
+		ref1 := manager.Load(42)
+		defer ref1.Release()
+		ref2 := manager.Load(42)
+		defer ref2.Release()
 		select {
 		case <-time.After(time.Second):
 			t.Fatal("Storage blocked")
-		case storage.values <- "test":
+		case storage.values <- testResult{"test", nil}:
 		}
-		value, err := ref.Get(context.Background())
-		if err != nil {
+		if value, err := ref1.Get(context.Background()); err != nil {
 			t.Fatal("Error:", err)
+		} else {
+			expectEqual(t, value, "test")
 		}
-		if value != "test" {
-			t.Fatalf("Expected %q but got %q", "test", value)
+		if value, err := ref2.Get(context.Background()); err != nil {
+			t.Fatal("Error:", err)
+		} else {
+			expectEqual(t, value, "test")
 		}
-		if l := manager.Len(); l != 1 {
-			t.Fatalf("Expected %d but got %d", 1, l)
-		}
-		if ok := manager.Delete(42); !ok {
-			t.Fatalf("Cannot delete key %d", 42)
-		}
-		if l := manager.Len(); l != 0 {
-			t.Fatalf("Expected %d but got %d", 0, l)
-		}
-		if count := manager.Cleanup(); count != 0 {
-			t.Fatalf("Expected %d but got %d", 0, count)
-		}
+		expectEqual(t, manager.Len(), 1)
+		expectEqual(t, manager.Delete(42), true)
+		expectEqual(t, manager.Len(), 0)
+		expectEqual(t, manager.Cleanup(), 0)
+		ref1.Release()
+		expectEqual(t, manager.Cleanup(), 0)
+		// Check that double release is ignored.
+		ref1.Release()
+		expectEqual(t, manager.Cleanup(), 0)
+		ref2.Release()
+		expectEqual(t, manager.Cleanup(), 1)
 	}()
-	if count := manager.Cleanup(); count != 1 {
-		t.Fatalf("Expected %d but got %d", 1, count)
+	func() {
+		ref1 := manager.Load(42)
+		defer ref1.Release()
+		ref2 := manager.Load(42)
+		defer ref2.Release()
+		select {
+		case <-time.After(time.Second):
+			t.Fatal("Storage blocked")
+		case storage.values <- testResult{"", fmt.Errorf("test")}:
+		}
+		if _, err := ref1.Get(context.Background()); err == nil {
+			t.Fatalf("Expected error")
+		} else {
+			expectEqual(t, err.Error(), "test")
+		}
+		if _, err := ref2.Get(context.Background()); err == nil {
+			t.Fatalf("Expected error")
+		} else {
+			expectEqual(t, err.Error(), "test")
+		}
+		expectEqual(t, manager.Len(), 0)
+		expectEqual(t, manager.Delete(42), false)
+		expectEqual(t, manager.Cleanup(), 0)
+		ref1.Release()
+		expectEqual(t, manager.Cleanup(), 0)
+		ref2.Release()
+		expectEqual(t, manager.Cleanup(), 0)
+	}()
+}
+
+func expectEqual[T comparable](tb testing.TB, value, expected T) {
+	if value != expected {
+		tb.Fatalf("Expected %v, but got %v", expected, value)
 	}
 }

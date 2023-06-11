@@ -29,7 +29,7 @@ type Storage[K comparable, V any] interface {
 
 func NewManager[K comparable, V any](storage Storage[K, V]) Manager[K, V] {
 	return &manager[K, V]{
-		values:  map[K]*value[K, V]{},
+		values:  map[K]*value[V]{},
 		deleted: list.New(),
 		storage: storage,
 	}
@@ -37,7 +37,7 @@ func NewManager[K comparable, V any](storage Storage[K, V]) Manager[K, V] {
 
 type manager[K comparable, V any] struct {
 	mutex   sync.RWMutex
-	values  map[K]*value[K, V]
+	values  map[K]*value[V]
 	deleted *list.List
 	storage Storage[K, V]
 }
@@ -69,18 +69,18 @@ func (m *manager[K, V]) Delete(key K) bool {
 		return false
 	}
 	delete(m.values, key)
-	m.deleted.PushBack(v)
+	m.deleted.PushBack(keyValue[K, V]{key: key, value: v})
 	return true
 }
 
 func (m *manager[K, V]) Cleanup() int {
-	var free []*value[K, V]
+	var free []keyValue[K, V]
 	func() {
 		m.mutex.Lock()
 		defer m.mutex.Unlock()
 		it := m.deleted.Front()
 		for it != nil {
-			v := it.Value.(*value[K, V])
+			v := it.Value.(keyValue[K, V])
 			jt := it.Next()
 			if atomic.LoadInt64(&v.counter) == 0 {
 				free = append(free, v)
@@ -121,7 +121,7 @@ func (m *manager[K, V]) getSlow(key K) Ref[V] {
 		v.access = time.Now()
 		return m.acquire(v)
 	}
-	v := &value[K, V]{key: key, access: time.Now()}
+	v := &value[V]{access: time.Now()}
 	m.values[key] = v
 	v.value = futures.Call(func() (V, error) {
 		value, err := m.storage.Get(key)
@@ -139,32 +139,36 @@ func (m *manager[K, V]) getSlow(key K) Ref[V] {
 	return m.acquire(v)
 }
 
-func (m *manager[K, V]) acquire(v *value[K, V]) Ref[V] {
+func (m *manager[K, V]) acquire(v *value[V]) Ref[V] {
 	atomic.AddInt64(&v.counter, 1)
-	return &valueRef[K, V]{value: v}
+	return &valueRef[V]{value: v}
 }
 
-type value[K, V any] struct {
-	key     K
+type keyValue[K, V any] struct {
+	*value[V]
+	key K
+}
+
+type value[V any] struct {
 	value   futures.Future[V]
 	counter int64
 	access  time.Time
 }
 
-func (v *value[K, V]) Get(ctx context.Context) (V, error) {
+func (v *value[V]) Get(ctx context.Context) (V, error) {
 	return v.value.Get(ctx)
 }
 
-func (v *value[K, V]) Done() <-chan struct{} {
+func (v *value[V]) Done() <-chan struct{} {
 	return v.value.Done()
 }
 
-type valueRef[K, V any] struct {
-	*value[K, V]
+type valueRef[V any] struct {
+	*value[V]
 	released atomic.Bool
 }
 
-func (v *valueRef[K, V]) Release() {
+func (v *valueRef[V]) Release() {
 	if v.released.CompareAndSwap(false, true) {
 		atomic.AddInt64(&v.value.counter, -1)
 	}

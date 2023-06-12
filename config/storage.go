@@ -30,7 +30,8 @@ type S3StorageOptions struct {
 	SecretAccessKey string `json:"secret_access_key"`
 	Endpoint        string `json:"endpoint"`
 	Bucket          string `json:"bucket"`
-	PathPrefix      string `json:"path_prefix"`
+	PathPrefix      string `json:"path_prefix,omitempty"`
+	UsePathStyle    bool   `json:"use_path_style,omitempty"`
 }
 
 func (o S3StorageOptions) Driver() StorageDriver {

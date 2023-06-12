@@ -1092,11 +1092,10 @@ func (f *SubmitSolutionForm) Parse(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 	if f.Content != nil {
-		buffer := bytes.Buffer{}
-		buffer.WriteString(*f.Content)
+		content := bytes.NewReader([]byte(*f.Content))
 		file := FileReader{
-			Reader: &buffer,
-			Size:   int64(buffer.Len()),
+			Reader: content,
+			Size:   int64(content.Len()),
 		}
 		f.ContentFile = &file
 	} else {

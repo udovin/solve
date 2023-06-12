@@ -2,10 +2,7 @@ package invoker
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +11,7 @@ import (
 	"github.com/udovin/algo/futures"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg/archives"
+	"github.com/udovin/solve/pkg/hash"
 	"github.com/udovin/solve/pkg/logs"
 	"github.com/udovin/solve/pkg/polygon"
 )
@@ -604,12 +602,8 @@ func (p polygonProblemResource) GetMD5() (string, error) {
 		return "", err
 	}
 	defer func() { _ = file.Close() }()
-	hash := md5.New()
-	_, err = io.Copy(hash, file)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	md5, _, err := hash.CalculateMD5(file)
+	return md5, err
 }
 
 func (p polygonProblemResource) Open() (*os.File, error) {

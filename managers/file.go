@@ -2,26 +2,25 @@ package managers
 
 import (
 	"context"
-	"crypto/md5"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"hash"
 	"io"
 	"mime/multipart"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/core"
 	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/pkg/hash"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -31,7 +30,7 @@ import (
 type FileStorage interface {
 	GeneratePath(context.Context) (string, error)
 	ReadFile(context.Context, string) (io.ReadCloser, error)
-	WriteFile(context.Context, string, io.Reader) (models.FileMeta, error)
+	WriteFile(context.Context, string, io.ReadSeeker) (models.FileMeta, error)
 	DeleteFile(context.Context, string) error
 }
 
@@ -61,7 +60,11 @@ func (s *LocalStorage) ReadFile(ctx context.Context, filePath string) (io.ReadCl
 	return os.Open(filepath.Join(s.Dir, filepath.FromSlash(filePath)))
 }
 
-func (s *LocalStorage) WriteFile(ctx context.Context, filePath string, file io.Reader) (models.FileMeta, error) {
+func (s *LocalStorage) WriteFile(ctx context.Context, filePath string, file io.ReadSeeker) (models.FileMeta, error) {
+	meta, err := readFileMeta(file)
+	if err != nil {
+		return models.FileMeta{}, err
+	}
 	systemDir := filepath.Join(s.Dir, filepath.FromSlash(path.Dir(filePath)))
 	if err := os.MkdirAll(systemDir, 0777); err != nil {
 		return models.FileMeta{}, err
@@ -71,21 +74,20 @@ func (s *LocalStorage) WriteFile(ctx context.Context, filePath string, file io.R
 		return models.FileMeta{}, err
 	}
 	defer func() { _ = dst.Close() }()
-	reader := newStatsReader(file)
-	size, err := io.Copy(dst, reader)
+	size, err := io.Copy(dst, file)
 	if err != nil {
 		return models.FileMeta{}, err
 	}
-	if size != reader.Size() {
+	if size != meta.Size {
 		return models.FileMeta{}, fmt.Errorf(
 			"invalid copy size: %d != %d",
-			reader.Size(), size,
+			size, meta.Size,
 		)
 	}
 	if err := dst.Sync(); err != nil {
 		return models.FileMeta{}, err
 	}
-	return models.FileMeta{Size: reader.Size(), MD5: reader.MD5()}, err
+	return meta, err
 }
 
 func (s *LocalStorage) DeleteFile(ctx context.Context, filePath string) error {
@@ -122,50 +124,26 @@ func (s *S3Storage) ReadFile(ctx context.Context, filePath string) (io.ReadClose
 	return object.Body, nil
 }
 
-type statsReader struct {
-	reader io.Reader
-	size   int64
-	mutex  sync.Mutex
-	md5    hash.Hash
-}
-
-func newStatsReader(r io.Reader) *statsReader {
-	return &statsReader{
-		reader: r,
-		md5:    md5.New(),
+func (s *S3Storage) WriteFile(ctx context.Context, filePath string, file io.ReadSeeker) (models.FileMeta, error) {
+	meta, err := readFileMeta(file)
+	if err != nil {
+		return meta, err
 	}
-}
-
-func (r *statsReader) Read(buf []byte) (int, error) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	n, err := r.reader.Read(buf)
-	if n > 0 {
-		r.size += int64(n)
-		_, _ = r.md5.Write(buf[:n])
+	rawMD5, err := hex.DecodeString(meta.MD5)
+	if err != nil {
+		return meta, err
 	}
-	return n, err
-}
-
-func (r *statsReader) Size() int64 {
-	return r.size
-}
-
-func (r *statsReader) MD5() string {
-	return hex.EncodeToString(r.md5.Sum(nil))
-}
-
-func (s *S3Storage) WriteFile(ctx context.Context, filePath string, file io.Reader) (models.FileMeta, error) {
-	reader := newStatsReader(file)
+	baseMD5 := base64.StdEncoding.EncodeToString(rawMD5)
 	result, err := s.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(s.pathPrefix + filePath),
-		Body:   reader,
+		Bucket:        aws.String(s.bucket),
+		Key:           aws.String(s.pathPrefix + filePath),
+		Body:          file,
+		ContentMD5:    &baseMD5,
+		ContentLength: meta.Size,
 	})
 	if err != nil {
 		return models.FileMeta{}, err
 	}
-	meta := models.FileMeta{Size: reader.Size(), MD5: reader.MD5()}
 	if result.ETag == nil {
 		return models.FileMeta{}, fmt.Errorf("empty checksum")
 	}
@@ -217,8 +195,14 @@ func NewFileManager(c *core.Core) *FileManager {
 			),
 			EndpointResolverWithOptions: resolver,
 		}
+		var options []func(*s3.Options)
+		if t.UsePathStyle {
+			options = append(options, func(o *s3.Options) {
+				o.UsePathStyle = true
+			})
+		}
 		storage = &S3Storage{
-			client:     s3.NewFromConfig(config),
+			client:     s3.NewFromConfig(config, options...),
 			bucket:     t.Bucket,
 			pathPrefix: t.PathPrefix,
 		}
@@ -238,7 +222,7 @@ func NewFileManager(c *core.Core) *FileManager {
 type FileReader struct {
 	Name   string
 	Size   int64
-	Reader io.Reader
+	Reader io.ReadSeeker
 }
 
 func (f *FileReader) Close() error {
@@ -402,4 +386,19 @@ func generateRandomBytes() ([]byte, error) {
 	}
 	binary.LittleEndian.PutUint64(bytes[randomBytes-8:], uint64(time.Now().UnixMicro()))
 	return bytes, nil
+}
+
+func readFileMeta(file io.ReadSeeker) (models.FileMeta, error) {
+	startOffset, err := file.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return models.FileMeta{}, err
+	}
+	md5, size, err := hash.CalculateMD5(file)
+	if err != nil {
+		return models.FileMeta{}, err
+	}
+	if _, err := file.Seek(startOffset, io.SeekStart); err != nil {
+		return models.FileMeta{}, err
+	}
+	return models.FileMeta{MD5: md5, Size: size}, nil
 }

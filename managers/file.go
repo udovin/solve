@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/md5"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -39,8 +40,8 @@ type LocalStorage struct {
 }
 
 func (s *LocalStorage) GeneratePath(ctx context.Context) (string, error) {
-	bytes := make([]byte, 16)
-	if _, err := rand.Read(bytes); err != nil {
+	bytes, err := generateRandomBytes()
+	if err != nil {
 		return "", err
 	}
 	filePath := path.Join(
@@ -102,8 +103,8 @@ type S3Storage struct {
 }
 
 func (s *S3Storage) GeneratePath(ctx context.Context) (string, error) {
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
+	bytes, err := generateRandomBytes()
+	if err != nil {
 		return "", err
 	}
 	filePath := hex.EncodeToString(bytes)
@@ -390,4 +391,15 @@ func (m *FileManager) waitFileAvailable(
 		return fmt.Errorf("file has invalid status: %s", file.Status)
 	}
 	return nil
+}
+
+const randomBytes = 16
+
+func generateRandomBytes() ([]byte, error) {
+	bytes := make([]byte, randomBytes)
+	if _, err := rand.Read(bytes[:randomBytes-8]); err != nil {
+		return nil, err
+	}
+	binary.LittleEndian.PutUint64(bytes[randomBytes-8:], uint64(time.Now().UnixMicro()))
+	return bytes, nil
 }

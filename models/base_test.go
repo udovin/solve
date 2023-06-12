@@ -93,7 +93,7 @@ type testStore struct {
 	objects           map[int64]testObject
 }
 
-func (s *testStore) Get(id int64) (testObject, error) {
+func (s *testStore) Get(ctx context.Context, id int64) (testObject, error) {
 	if object, ok := s.objects[id]; ok {
 		return object, nil
 	}
@@ -253,14 +253,14 @@ func TestMakeCachedStore(t *testing.T) {
 	if object.ID == savedObject.ID {
 		t.Fatalf("IDs should be different: %v", object.ID)
 	}
-	if _, err := replica.Get(savedObject.ID); err != sql.ErrNoRows {
+	if _, err := replica.Get(context.Background(), savedObject.ID); err != sql.ErrNoRows {
 		t.Fatalf(
 			"Replica already contains object: %v", savedObject.ID,
 		)
 	}
 	checkReplicaObject := func(object testObject, expErr error) {
 		testSyncStore(t, replica)
-		loaded, err := replica.Get(object.ID)
+		loaded, err := replica.Get(context.Background(), object.ID)
 		if err != expErr {
 			t.Fatalf(
 				"Replica does not contain object: %v", object.ID,

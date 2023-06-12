@@ -16,7 +16,7 @@ import (
 )
 
 func (v *View) getEventFeed(c echo.Context) error {
-	solutionEvents := v.core.Solutions.GetEventStore()
+	solutionEvents := v.core.Solutions.Events()
 	lastSolutionEventID, err := solutionEvents.LastEventID(c.Request().Context())
 	if err != nil {
 		return err

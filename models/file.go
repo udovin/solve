@@ -1,7 +1,6 @@
 package models
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
@@ -83,17 +82,11 @@ func (e *FileEvent) SetObject(o File) {
 }
 
 type FileStore interface {
-	Store[File]
-	Base() FileStore
-	Get(ctx context.Context, id int64) (File, error)
+	Store[File, FileEvent]
 }
 
 type fileStore struct {
 	baseStore[File, FileEvent, *File, *FileEvent]
-}
-
-func (s *fileStore) Base() FileStore {
-	return s
 }
 
 type cachedFileStore struct {

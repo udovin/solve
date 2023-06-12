@@ -63,7 +63,7 @@ func (e *ContestMessageEvent) SetObject(o ContestMessage) {
 }
 
 type ContestMessageStore interface {
-	Store[ContestMessage]
+	Store[ContestMessage, ContestMessageEvent]
 	FindByContest(ctx context.Context, contestID int64) (db.Rows[ContestMessage], error)
 }
 

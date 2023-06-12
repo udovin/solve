@@ -46,6 +46,14 @@ func (s *cachedStore[T, E, TPtr, EPtr]) DB() *gosql.DB {
 	return s.db
 }
 
+func (s *cachedStore[T, E, TPtr, EPtr]) Objects() db.ObjectROStore[T] {
+	return s.store
+}
+
+func (s *cachedStore[T, E, TPtr, EPtr]) Events() db.EventROStore[E] {
+	return s.events
+}
+
 func (s *cachedStore[T, E, TPtr, EPtr]) Init(ctx context.Context) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

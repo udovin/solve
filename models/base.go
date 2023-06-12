@@ -221,10 +221,19 @@ func makeBaseEvent(t EventKind) baseEvent {
 	return baseEvent{BaseEventKind: t, BaseEventTime: time.Now().Unix()}
 }
 
-type Store[T any] interface {
+// Store represents store for objects.
+type Store[T any, E any] interface {
+	// DB should return database connection for specified store.
+	DB() *gosql.DB
+	Objects() db.ObjectROStore[T]
+	Events() db.EventROStore[E]
+	// Get should return object with speficied ID.
 	Get(context.Context, int64) (T, error)
+	// Create should create object and update `object.ID` on success.
 	Create(context.Context, *T) error
+	// Update should update object fields with specified `object.ID`.
 	Update(context.Context, T) error
+	// Delete should delete object with speficied ID.
 	Delete(context.Context, int64) error
 }
 
@@ -239,6 +248,14 @@ type baseStore[
 // DB returns store database.
 func (s *baseStore[T, E, TPtr, EPtr]) DB() *gosql.DB {
 	return s.db
+}
+
+func (s *baseStore[T, E, TPtr, EPtr]) Objects() db.ObjectROStore[T] {
+	return s.store
+}
+
+func (s *baseStore[T, E, TPtr, EPtr]) Events() db.EventROStore[E] {
+	return s.events
 }
 
 // Create creates object and returns copy with valid ID.

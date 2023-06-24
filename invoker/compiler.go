@@ -54,17 +54,6 @@ func (r ExecuteReport) Success() bool {
 	return r.ExitCode == 0
 }
 
-type ExecuteOptions struct {
-	Binary      string
-	Args        []string
-	Stdin       io.Reader
-	Stdout      io.Writer
-	InputFiles  []MountFile
-	OutputFiles []MountFile
-	TimeLimit   time.Duration
-	MemoryLimit int64
-}
-
 type CompilerProcess interface {
 	Start() error
 	Wait() (ExecuteReport, error)
@@ -74,7 +63,10 @@ type CompilerProcess interface {
 type Compiler interface {
 	Name() string
 	Compile(ctx context.Context, options CompileOptions) (CompileReport, error)
+	CreateExecutable(binaryPath string) (Executable, error)
+	// Deprecated.
 	PrepareExecute(ctx context.Context, options ExecuteOptions) (CompilerProcess, error)
+	// Deprecated.
 	Execute(ctx context.Context, options ExecuteOptions) (ExecuteReport, error)
 }
 
@@ -182,6 +174,32 @@ func (c *compiler) Compile(
 		UsedMemory: report.Memory,
 		Log:        log.String(),
 	}, nil
+}
+
+func (c *compiler) CreateExecutable(binaryPath string) (Executable, error) {
+	if c.config.Execute == nil {
+		return nil, fmt.Errorf("compiler has empty execute config")
+	}
+	e := executable{
+		safexec:      c.safeexec,
+		parentLayers: []string{c.path},
+		config:       *c.config.Execute,
+	}
+	if c.config.Execute.Binary == nil {
+		return &e, nil
+	}
+	layerPath, err := os.MkdirTemp("", "layer-*")
+	if err != nil {
+		return nil, err
+	}
+	layerBinaryPath := filepath.Join(
+		layerPath, c.config.Execute.Workdir, *c.config.Execute.Binary,
+	)
+	if err := copyFileRec(binaryPath, layerBinaryPath); err != nil {
+		return nil, fmt.Errorf("unable to copy binary: %w", err)
+	}
+	e.layer = layerPath
+	return &e, nil
 }
 
 const (

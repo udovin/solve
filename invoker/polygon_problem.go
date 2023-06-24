@@ -14,6 +14,7 @@ import (
 	"github.com/udovin/solve/pkg/hash"
 	"github.com/udovin/solve/pkg/logs"
 	"github.com/udovin/solve/pkg/polygon"
+	"github.com/udovin/solve/pkg/safeexec"
 )
 
 func extractPolygonProblem(
@@ -168,7 +169,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 	if mainSolution.Source == nil {
 		return fmt.Errorf("cannot find main solution")
 	}
-	var solution compiled
+	var solution Executable
 	{
 		polygonName := "polygon." + mainSolution.Source.Type
 		compilerName, err := p.compilers.GetCompilerName(polygonName)
@@ -200,10 +201,11 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 			"Compiled solution",
 			logs.Any("path", mainSolution.Source.Path),
 		)
-		solution = compiled{
-			path:     targetPath,
-			compiler: compiler,
+		solution, err = compiler.CreateExecutable(targetPath)
+		if err != nil {
+			return err
 		}
+		defer func() { _ = solution.Release() }()
 	}
 	for _, testSet := range p.config.TestSets {
 		for i, test := range testSet.Tests {
@@ -252,8 +254,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 						return fmt.Errorf("cannot prepare interactor: %w", err)
 					}
 					defer func() { _ = interactorProcess.Release() }()
-					solutionProcess, err := solution.compiler.PrepareExecute(ctx, ExecuteOptions{
-						Binary:      solution.path,
+					solutionProcess, err := solution.CreateProcess(ctx, ExecuteOptions{
 						Stdin:       interactorReader,
 						Stdout:      solutionWriter,
 						TimeLimit:   time.Duration(testSet.TimeLimit) * time.Millisecond,
@@ -276,7 +277,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 						}()
 						return interactorProcess.Wait()
 					})
-					solutionReportFuture := futures.Call(func() (ExecuteReport, error) {
+					solutionReportFuture := futures.Call(func() (safeexec.Report, error) {
 						defer func() {
 							_ = interactorReader.Close()
 							_ = solutionWriter.Close()
@@ -291,7 +292,7 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					if err != nil {
 						return fmt.Errorf("cannot wait solution: %w", err)
 					}
-					if !solutionReport.Success() {
+					if solutionReport.ExitCode != 0 {
 						return fmt.Errorf("solution exited with code: %v", solutionReport.ExitCode)
 					}
 					verdict, err := getTestlibExitCodeVerdict(interactorReport.ExitCode)
@@ -306,22 +307,38 @@ func (p *polygonProblem) Compile(ctx context.Context) error {
 					return err
 				}
 			} else {
-				report, err := solution.compiler.Execute(ctx, ExecuteOptions{
-					Binary: solution.path,
-					InputFiles: []MountFile{
-						{Source: filepath.Join(p.path, input), Target: "stdin"},
-					},
-					OutputFiles: []MountFile{
-						{Source: filepath.Join(p.path, answer), Target: "stdout"},
-					},
+				input, err := os.Open(filepath.Join(p.path, input))
+				if err != nil {
+					return fmt.Errorf("cannot open input file: %w", err)
+				}
+				defer func() { _ = input.Close() }()
+				output, err := os.Create(filepath.Join(p.path, answer))
+				if err != nil {
+					return fmt.Errorf("cannot create output file: %w", err)
+				}
+				defer func() { _ = output.Close() }()
+				process, err := solution.CreateProcess(ctx, ExecuteOptions{
+					Stdin:       input,
+					Stdout:      output,
 					TimeLimit:   time.Duration(testSet.TimeLimit) * time.Millisecond,
 					MemoryLimit: testSet.MemoryLimit,
 				})
 				if err != nil {
+					return fmt.Errorf("cannot prepare solution: %w", err)
+				}
+				defer func() { _ = process.Release() }()
+				if err := process.Start(); err != nil {
 					return fmt.Errorf("cannot execute solution: %w", err)
 				}
-				if !report.Success() {
+				report, err := process.Wait()
+				if err != nil {
+					return fmt.Errorf("cannot wait solution: %w", err)
+				}
+				if report.ExitCode != 0 {
 					return fmt.Errorf("solution exited with code: %v", report.ExitCode)
+				}
+				if err := output.Sync(); err != nil {
+					return fmt.Errorf("cannot sync output file: %w", err)
 				}
 			}
 			p.compilers.logger.Debug(

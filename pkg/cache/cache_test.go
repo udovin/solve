@@ -21,6 +21,10 @@ func (s *testStorageImpl) Get(key int) (string, error) {
 	return result.Value, result.Err
 }
 
+func (s *testStorageImpl) Actual(key int, value string) bool {
+	return true
+}
+
 func (s *testStorageImpl) Delete(key int, value string) error {
 	return nil
 }
@@ -89,6 +93,40 @@ func TestCache(t *testing.T) {
 		expectEqual(t, manager.Cleanup(), 0)
 		ref2.Release()
 		expectEqual(t, manager.Cleanup(), 0)
+	}()
+	func() {
+		ref1 := manager.Load(42)
+		defer ref1.Release()
+		select {
+		case <-time.After(time.Second):
+			t.Fatal("Storage blocked")
+		case storage.values <- testResult{"test", nil}:
+		}
+		if value, err := ref1.Get(context.Background()); err != nil {
+			t.Fatal("Error:", err)
+		} else {
+			expectEqual(t, value, "test")
+		}
+		ref2 := manager.Load(42)
+		defer ref2.Release()
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if value, err := ref2.Get(timeoutCtx); err != nil {
+			t.Fatal("Error:", err)
+		} else {
+			expectEqual(t, value, "test")
+		}
+		expectEqual(t, manager.Len(), 1)
+		expectEqual(t, manager.Delete(42), true)
+		expectEqual(t, manager.Len(), 0)
+		expectEqual(t, manager.Cleanup(), 0)
+		ref1.Release()
+		expectEqual(t, manager.Cleanup(), 0)
+		// Check that double release is ignored.
+		ref1.Release()
+		expectEqual(t, manager.Cleanup(), 0)
+		ref2.Release()
+		expectEqual(t, manager.Cleanup(), 1)
 	}()
 }
 

@@ -5,7 +5,6 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/udovin/algo/futures"
 )
@@ -24,6 +23,7 @@ type Manager[K comparable, V any] interface {
 
 type Storage[K comparable, V any] interface {
 	Get(key K) (V, error)
+	Actual(key K, value V) bool
 	Delete(key K, value V) error
 }
 
@@ -51,7 +51,12 @@ type manager[K comparable, V any] struct {
 // If the value is not required, Release() should be called.
 func (m *manager[K, V]) Load(key K) Ref[V] {
 	if v, ok := m.getFast(key); ok {
-		return v
+		value, err := v.Get(canceledContext)
+		if err != nil || m.storage.Actual(key, value) {
+			return v
+		}
+		m.delete(key, v.value)
+		v.Release()
 	}
 	return m.getSlow(key)
 }
@@ -104,42 +109,43 @@ func (m *manager[K, V]) Len() int {
 	return len(m.values)
 }
 
-func (m *manager[K, V]) getFast(key K) (Ref[V], bool) {
+func (m *manager[K, V]) getFast(key K) (*valueRef[V], bool) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	if v, ok := m.values[key]; ok {
-		v.access = time.Now()
 		return m.acquire(v), true
 	}
 	return nil, false
 }
 
-func (m *manager[K, V]) getSlow(key K) Ref[V] {
+func (m *manager[K, V]) getSlow(key K) *valueRef[V] {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	if v, ok := m.values[key]; ok {
-		v.access = time.Now()
 		return m.acquire(v)
 	}
-	v := &value[V]{access: time.Now()}
+	v := &value[V]{}
 	m.values[key] = v
+	ref := m.acquire(v)
 	v.value = futures.Call(func() (V, error) {
 		value, err := m.storage.Get(key)
 		if err != nil {
-			// Delete value on failure.
-			m.mutex.Lock()
-			defer m.mutex.Unlock()
-			// Ensure that value is not deleted yet.
-			if c, ok := m.values[key]; ok && c == v {
-				delete(m.values, key)
-			}
+			m.delete(key, v)
 		}
 		return value, err
 	})
-	return m.acquire(v)
+	return ref
 }
 
-func (m *manager[K, V]) acquire(v *value[V]) Ref[V] {
+func (m *manager[K, V]) delete(key K, value *value[V]) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	if c, ok := m.values[key]; ok && c == value {
+		delete(m.values, key)
+	}
+}
+
+func (m *manager[K, V]) acquire(v *value[V]) *valueRef[V] {
 	atomic.AddInt64(&v.counter, 1)
 	return &valueRef[V]{value: v}
 }
@@ -152,7 +158,6 @@ type keyValue[K, V any] struct {
 type value[V any] struct {
 	value   futures.Future[V]
 	counter int64
-	access  time.Time
 }
 
 func (v *value[V]) Get(ctx context.Context) (V, error) {
@@ -172,4 +177,12 @@ func (v *valueRef[V]) Release() {
 	if v.released.CompareAndSwap(false, true) {
 		atomic.AddInt64(&v.value.counter, -1)
 	}
+}
+
+var canceledContext context.Context
+
+func init() {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	canceledContext = ctx
 }

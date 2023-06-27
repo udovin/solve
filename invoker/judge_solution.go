@@ -1,7 +1,6 @@
 package invoker
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -378,8 +377,7 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 		_ = solutionReader.Close()
 		_ = solutionWriter.Close()
 	}()
-	interactorLogPath := filepath.Join(t.tempDir, "interactor.log")
-	interactorLog := bytes.Buffer{}
+	interactorLog := truncateBuffer{limit: 2048}
 	interactorProcess, err := t.interactorImpl.CreateProcess(ctx, ExecuteOptions{
 		Args:        []string{"input.in", "output.out", "answer.ans"},
 		Stdin:       solutionReader,
@@ -458,16 +456,12 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 			return models.TestReport{}, err
 		}
 		testReport.Verdict = verdict
-		interactorLog, err := readFile(interactorLogPath, 256)
-		if err != nil {
-			return models.TestReport{}, err
-		}
 		testReport.Interactor = &models.ExecuteReport{
 			Usage: models.UsageReport{
 				Time:   interactorReport.Time.Milliseconds(),
 				Memory: interactorReport.Memory,
 			},
-			Log: interactorLog,
+			Log: interactorLog.String(),
 		}
 	}
 	return testReport, nil

@@ -106,6 +106,7 @@ func (p *polygonProblem) generateTest(ctx context.Context, executables map[strin
 	if err != nil {
 		return fmt.Errorf("cannot create executable %q: %w", args[0], err)
 	}
+	defer func() { _ = process.Release() }()
 	if err := process.Start(); err != nil {
 		return fmt.Errorf("cannot start executable %q: %w", args[0], err)
 	}

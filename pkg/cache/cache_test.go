@@ -92,7 +92,7 @@ func TestCache(t *testing.T) {
 		ref1.Release()
 		expectEqual(t, manager.Cleanup(), 0)
 		ref2.Release()
-		expectEqual(t, manager.Cleanup(), 0)
+		expectEqual(t, manager.Cleanup(), 1)
 	}()
 	func() {
 		ref1 := manager.Load(42)

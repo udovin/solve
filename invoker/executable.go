@@ -20,8 +20,6 @@ type ExecuteOptions struct {
 	MemoryLimit int64
 	InputFiles  []MountFile
 	OutputFiles []MountFile
-	// deprecated.
-	Binary string
 }
 
 type Executable interface {
@@ -30,24 +28,16 @@ type Executable interface {
 }
 
 type executable struct {
-	safexec      *safeexec.Manager
-	layer        string
-	parentLayers []string
-	config       models.CompilerCommandConfig
-}
-
-func (e *executable) Release() error {
-	if e.layer != "" {
-		return os.RemoveAll(e.layer)
-	}
-	return nil
+	compiler *compiler
+	layer    string
+	config   models.CompilerCommandConfig
 }
 
 func (e *executable) CreateProcess(
 	ctx context.Context, options ExecuteOptions,
 ) (*safeexec.Process, error) {
 	config := safeexec.ProcessConfig{
-		Layers:      append([]string{e.layer}, e.parentLayers...),
+		Layers:      e.getLayers(),
 		Stdin:       options.Stdin,
 		Stdout:      options.Stdout,
 		Stderr:      options.Stderr,
@@ -57,9 +47,23 @@ func (e *executable) CreateProcess(
 		TimeLimit:   options.TimeLimit,
 		MemoryLimit: options.MemoryLimit,
 	}
-	process, err := e.safexec.Create(ctx, config)
+	process, err := e.compiler.safeexec.Create(ctx, config)
 	if err != nil {
 		return nil, err
 	}
 	return process, nil
+}
+
+func (e *executable) Release() error {
+	if e.layer == "" {
+		return nil
+	}
+	return os.RemoveAll(e.layer)
+}
+
+func (e *executable) getLayers() []string {
+	if e.layer == "" {
+		return []string{e.compiler.layer}
+	}
+	return []string{e.layer, e.compiler.layer}
 }

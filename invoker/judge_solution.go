@@ -1,6 +1,7 @@
 package invoker
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"github.com/udovin/algo/futures"
 	"github.com/udovin/solve/models"
 	"github.com/udovin/solve/pkg/logs"
+	"github.com/udovin/solve/pkg/safeexec"
 )
 
 func init() {
@@ -19,18 +21,19 @@ func init() {
 }
 
 type judgeSolutionTask struct {
-	invoker      *Invoker
-	config       models.JudgeSolutionTaskConfig
-	solution     models.Solution
-	problem      models.Problem
-	compiler     models.Compiler
-	tempDir      string
-	problemImpl  Problem
-	compilerImpl Compiler
-	solutionPath string
-	compiledPath string
-	checker      *testlibCheckerImpl
-	interactor   *testlibCheckerImpl
+	invoker        *Invoker
+	config         models.JudgeSolutionTaskConfig
+	solution       models.Solution
+	problem        models.Problem
+	compiler       models.Compiler
+	tempDir        string
+	problemImpl    Problem
+	compilerImpl   Compiler
+	solutionImpl   Executable
+	interactorImpl Executable
+	checkerImpl    Executable
+	solutionPath   string
+	compiledPath   string
 }
 
 func (judgeSolutionTask) New(invoker *Invoker) taskImpl {
@@ -59,6 +62,17 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if t.checkerImpl != nil {
+			t.checkerImpl.Release()
+		}
+		if t.solutionImpl != nil {
+			t.solutionImpl.Release()
+		}
+		if t.interactorImpl != nil {
+			t.interactorImpl.Release()
+		}
+	}()
 	defer func() { _ = os.RemoveAll(tempDir) }()
 	t.tempDir = tempDir
 	t.solution = solution
@@ -144,75 +158,15 @@ func (t *judgeSolutionTask) compileSolution(
 			Memory: compileReport.UsedMemory,
 		},
 	}
-	return compileReport.Success(), nil
-}
-
-func getTestlibExitCodeVerdict(exitCode int) (models.Verdict, error) {
-	switch exitCode {
-	case 0:
-		return models.Accepted, nil
-	case 1:
-		return models.WrongAnswer, nil
-	case 3:
-		return models.Failed, nil
-	case 2, 4, 8:
-		return models.PresentationError, nil
-	case 5:
-		return models.PartiallyAccepted, nil
-	default:
-		if exitCode < 16 {
-			return 0, fmt.Errorf("unknown exit code: %d", exitCode)
-		}
-		return models.PartiallyAccepted, nil
+	if !compileReport.Success() {
+		return false, nil
 	}
-}
-
-type testlibCheckerImpl struct {
-	compiler   Compiler
-	binaryPath string
-	tempDir    string
-}
-
-func (c *testlibCheckerImpl) Run(
-	ctx context.Context, inputPath, outputPath, answerPath string,
-) (models.TestReport, error) {
-	checkerLogPath := filepath.Join(c.tempDir, "checker.log")
-	checkerReport, err := c.compiler.Execute(ctx, ExecuteOptions{
-		Binary: c.binaryPath,
-		Args:   []string{"input.in", "output.out", "answer.ans"},
-		InputFiles: []MountFile{
-			{Source: inputPath, Target: "input.in"},
-			{Source: outputPath, Target: "output.out"},
-			{Source: answerPath, Target: "answer.ans"},
-		},
-		OutputFiles: []MountFile{
-			{Source: checkerLogPath, Target: "stderr"},
-		},
-		TimeLimit:   20 * time.Second,
-		MemoryLimit: 256 * 1024 * 1024,
-	})
+	exe, err := t.compilerImpl.CreateExecutable(t.compiledPath)
 	if err != nil {
-		return models.TestReport{}, fmt.Errorf("cannot check solution: %w", err)
+		return false, err
 	}
-	verdict, err := getTestlibExitCodeVerdict(checkerReport.ExitCode)
-	if err != nil {
-		return models.TestReport{}, fmt.Errorf("checker returned error: %w", err)
-	}
-	report := models.TestReport{
-		Verdict: verdict,
-	}
-	checkerLog, err := readFile(checkerLogPath, 256)
-	if err != nil {
-		return models.TestReport{}, err
-	}
-	report.Checker = &models.ExecuteReport{
-		Log: checkerLog,
-		Usage: models.UsageReport{
-			Time:   checkerReport.UsedTime.Milliseconds(),
-			Memory: checkerReport.UsedMemory,
-		},
-	}
-	return report, nil
+	t.solutionImpl = exe
+	return true, nil
 }
 
 var (
@@ -222,7 +176,7 @@ var (
 
 func (t *judgeSolutionTask) getChecker(
 	ctx TaskContext, executables []ProblemExecutable,
-) (*testlibCheckerImpl, error) {
+) (Executable, error) {
 	var checker ProblemExecutable
 	for _, executable := range executables {
 		if executable.Kind() == TestlibChecker {
@@ -233,7 +187,7 @@ func (t *judgeSolutionTask) getChecker(
 	if checker == nil {
 		return nil, errNoChecker
 	}
-	compiler, err := t.invoker.compilers.GetCompiler(ctx, checker.Compiler())
+	compiler, err := checker.GetCompiler(ctx, t.invoker.compilers)
 	if err != nil {
 		return nil, err
 	}
@@ -255,16 +209,12 @@ func (t *judgeSolutionTask) getChecker(
 	}(); err != nil {
 		return nil, err
 	}
-	return &testlibCheckerImpl{
-		compiler:   compiler,
-		binaryPath: checkerPath,
-		tempDir:    t.tempDir,
-	}, nil
+	return compiler.CreateExecutable(checkerPath)
 }
 
 func (t *judgeSolutionTask) getInteractor(
 	ctx TaskContext, executables []ProblemExecutable,
-) (*testlibCheckerImpl, error) {
+) (Executable, error) {
 	var interactor ProblemExecutable
 	for _, executable := range executables {
 		if executable.Kind() == TestlibInteractor {
@@ -275,7 +225,7 @@ func (t *judgeSolutionTask) getInteractor(
 	if interactor == nil {
 		return nil, errNoInteractor
 	}
-	compiler, err := t.invoker.compilers.GetCompiler(ctx, interactor.Compiler())
+	compiler, err := interactor.GetCompiler(ctx, t.invoker.compilers)
 	if err != nil {
 		return nil, err
 	}
@@ -297,11 +247,7 @@ func (t *judgeSolutionTask) getInteractor(
 	}(); err != nil {
 		return nil, err
 	}
-	return &testlibCheckerImpl{
-		compiler:   compiler,
-		binaryPath: interactorPath,
-		tempDir:    t.tempDir,
-	}, nil
+	return compiler.CreateExecutable(interactorPath)
 }
 
 func (t *judgeSolutionTask) calculateTestSetPoints(
@@ -349,11 +295,11 @@ func (t *judgeSolutionTask) prepareExecutables(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("cannot get executables: %w", err)
 	}
-	t.checker, err = t.getChecker(ctx, executables)
+	t.checkerImpl, err = t.getChecker(ctx, executables)
 	if err != nil {
 		return err
 	}
-	t.interactor, err = t.getInteractor(ctx, executables)
+	t.interactorImpl, err = t.getInteractor(ctx, executables)
 	if err != nil && err != errNoInteractor {
 		return err
 	}
@@ -365,35 +311,47 @@ func (t *judgeSolutionTask) executeSolution(
 	testSet ProblemTestSet,
 	inputPath, outputPath, answerPath string,
 ) (models.TestReport, error) {
-	if t.interactor != nil {
+	if t.interactorImpl != nil {
 		return t.executeInteractiveSolution(ctx, testSet, inputPath, outputPath, answerPath)
 	}
-	executeReport, err := t.compilerImpl.Execute(ctx, ExecuteOptions{
-		Binary: t.compiledPath,
-		InputFiles: []MountFile{
-			{Source: inputPath, Target: "stdin"},
-		},
-		OutputFiles: []MountFile{
-			{Source: outputPath, Target: "stdout"},
-		},
+	inputFile, err := os.Open(inputPath)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	defer func() { _ = inputFile.Close() }()
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		return models.TestReport{}, err
+	}
+	process, err := t.solutionImpl.CreateProcess(ctx, ExecuteOptions{
+		Stdin:       inputFile,
+		Stdout:      outputFile,
 		TimeLimit:   time.Duration(testSet.TimeLimit()) * time.Millisecond,
 		MemoryLimit: testSet.MemoryLimit(),
 	})
 	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot prepare solution: %w", err)
+	}
+	defer func() { _ = process.Release() }()
+	if err := process.Start(); err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot execute solution: %w", err)
+	}
+	report, err := process.Wait()
+	if err != nil {
+		return models.TestReport{}, fmt.Errorf("cannot wait solution: %w", err)
 	}
 	testReport := models.TestReport{
 		Verdict: models.Accepted,
 		Usage: models.UsageReport{
-			Time:   executeReport.UsedTime.Milliseconds(),
-			Memory: executeReport.UsedMemory,
+			Time:   report.Time.Milliseconds(),
+			Memory: report.Memory,
 		},
 	}
-	if executeReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
+	if report.Time.Milliseconds() > testSet.TimeLimit() {
 		testReport.Verdict = models.TimeLimitExceeded
-	} else if executeReport.UsedMemory > testSet.MemoryLimit() {
+	} else if report.Memory > testSet.MemoryLimit() {
 		testReport.Verdict = models.MemoryLimitExceeded
-	} else if !executeReport.Success() {
+	} else if report.ExitCode != 0 {
 		testReport.Verdict = models.RuntimeError
 	}
 	return testReport, nil
@@ -421,19 +379,12 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 		_ = solutionWriter.Close()
 	}()
 	interactorLogPath := filepath.Join(t.tempDir, "interactor.log")
-	interactorProcess, err := t.interactor.compiler.PrepareExecute(ctx, ExecuteOptions{
-		Binary: t.interactor.binaryPath,
-		Args:   []string{"input.in", "output.out", "answer.ans"},
-		Stdin:  solutionReader,
-		Stdout: interactorWriter,
-		InputFiles: []MountFile{
-			{Source: inputPath, Target: "input.in"},
-			{Source: answerPath, Target: "answer.ans"},
-		},
-		OutputFiles: []MountFile{
-			{Source: outputPath, Target: "output.out"},
-			{Source: interactorLogPath, Target: "stderr"},
-		},
+	interactorLog := bytes.Buffer{}
+	interactorProcess, err := t.interactorImpl.CreateProcess(ctx, ExecuteOptions{
+		Args:        []string{"input.in", "output.out", "answer.ans"},
+		Stdin:       solutionReader,
+		Stdout:      interactorWriter,
+		Stderr:      &interactorLog,
 		TimeLimit:   2 * time.Duration(testSet.TimeLimit()) * time.Millisecond,
 		MemoryLimit: 256 * 1024 * 1024,
 	})
@@ -441,8 +392,13 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 		return models.TestReport{}, fmt.Errorf("cannot prepare interactor: %w", err)
 	}
 	defer func() { _ = interactorProcess.Release() }()
-	solutionProcess, err := t.compilerImpl.PrepareExecute(ctx, ExecuteOptions{
-		Binary:      t.compiledPath,
+	if err := copyFileRec(inputPath, interactorProcess.UpperPath("input.in")); err != nil {
+		return models.TestReport{}, err
+	}
+	if err := copyFileRec(answerPath, interactorProcess.UpperPath("answer.ans")); err != nil {
+		return models.TestReport{}, err
+	}
+	solutionProcess, err := t.solutionImpl.CreateProcess(ctx, ExecuteOptions{
 		Stdin:       interactorReader,
 		Stdout:      solutionWriter,
 		TimeLimit:   time.Duration(testSet.TimeLimit()) * time.Millisecond,
@@ -458,14 +414,14 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 	if err := solutionProcess.Start(); err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot execute solution: %w", err)
 	}
-	interactorReportFuture := futures.Call(func() (ExecuteReport, error) {
+	interactorReportFuture := futures.Call(func() (safeexec.Report, error) {
 		defer func() {
 			_ = solutionReader.Close()
 			_ = interactorWriter.Close()
 		}()
 		return interactorProcess.Wait()
 	})
-	solutionReportFuture := futures.Call(func() (ExecuteReport, error) {
+	solutionReportFuture := futures.Call(func() (safeexec.Report, error) {
 		defer func() {
 			_ = interactorReader.Close()
 			_ = solutionWriter.Close()
@@ -480,23 +436,26 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 	if err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot wait solution: %w", err)
 	}
+	if err := copyFileRec(interactorProcess.UpperPath("output.out"), outputPath); err != nil {
+		return models.TestReport{}, err
+	}
 	testReport := models.TestReport{
 		Verdict: models.Accepted,
 		Usage: models.UsageReport{
-			Time:   solutionReport.UsedTime.Milliseconds(),
-			Memory: solutionReport.UsedMemory,
+			Time:   solutionReport.Time.Milliseconds(),
+			Memory: solutionReport.Memory,
 		},
 	}
-	if solutionReport.UsedTime.Milliseconds() > testSet.TimeLimit() {
+	if solutionReport.Time.Milliseconds() > testSet.TimeLimit() {
 		testReport.Verdict = models.TimeLimitExceeded
-	} else if solutionReport.UsedMemory > testSet.MemoryLimit() {
+	} else if solutionReport.Memory > testSet.MemoryLimit() {
 		testReport.Verdict = models.MemoryLimitExceeded
-	} else if !solutionReport.Success() {
+	} else if solutionReport.ExitCode != 0 {
 		testReport.Verdict = models.RuntimeError
 	} else {
 		verdict, err := getTestlibExitCodeVerdict(interactorReport.ExitCode)
 		if err != nil {
-			return models.TestReport{}, nil
+			return models.TestReport{}, err
 		}
 		testReport.Verdict = verdict
 		interactorLog, err := readFile(interactorLogPath, 256)
@@ -505,8 +464,8 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 		}
 		testReport.Interactor = &models.ExecuteReport{
 			Usage: models.UsageReport{
-				Time:   interactorReport.UsedTime.Milliseconds(),
-				Memory: interactorReport.UsedMemory,
+				Time:   interactorReport.Time.Milliseconds(),
+				Memory: interactorReport.Memory,
 			},
 			Log: interactorLog,
 		}
@@ -567,9 +526,7 @@ func (t *judgeSolutionTask) runSolutionTest(
 	if testReport.Verdict != models.Accepted {
 		return testReport, nil
 	}
-	checkerReport, err := t.checker.Run(
-		ctx, inputPath, outputPath, answerPath,
-	)
+	checkerReport, err := runTestlibChecker(ctx, t.checkerImpl, inputPath, outputPath, answerPath)
 	if err != nil {
 		return models.TestReport{}, err
 	}

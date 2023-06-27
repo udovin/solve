@@ -34,6 +34,11 @@ type ProcessConfig struct {
 }
 
 func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, error) {
+	workdir := filepath.Clean(string(filepath.Separator) + config.Workdir)
+	if !filepath.IsAbs(workdir) {
+		// This should never have happened.
+		panic(fmt.Errorf("path %q is not absolute", workdir))
+	}
 	process, err := m.prepareProcess()
 	if err != nil {
 		return nil, err
@@ -47,9 +52,7 @@ func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, e
 	args = append(args, "--rootfs", filepath.Join(process.path, "rootfs"))
 	args = append(args, "--cgroup-path", process.cgroupPath)
 	args = append(args, "--report", filepath.Join(process.path, "report.txt"))
-	if len(config.Workdir) > 0 {
-		args = append(args, "--workdir", config.Workdir)
-	}
+	args = append(args, "--workdir", workdir)
 	for _, env := range config.Environ {
 		args = append(args, "--env", env)
 	}
@@ -62,6 +65,7 @@ func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, e
 		return cmd.Process.Signal(syscall.SIGTERM)
 	}
 	cmd.WaitDelay = time.Second
+	process.workdir = workdir
 	process.cmd = cmd
 	return process, nil
 }

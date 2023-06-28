@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 func makeTempDir() (string, error) {
@@ -56,20 +57,31 @@ func copyFile(source, target string) error {
 	return os.Chmod(w.Name(), stat.Mode())
 }
 
-func readFile(name string, limit int) (string, error) {
-	file, err := os.Open(name)
+type truncateBuffer struct {
+	buffer strings.Builder
+	limit  int
+	mutex  sync.Mutex
+}
+
+func (b *truncateBuffer) String() string {
+	return fixUTF8String(b.buffer.String())
+}
+
+func (b *truncateBuffer) Write(p []byte) (int, error) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	l := len(p)
+	if b.buffer.Len()+l > b.limit {
+		p = p[:b.limit-b.buffer.Len()]
+	}
+	if len(p) == 0 {
+		return l, nil
+	}
+	n, err := b.buffer.Write(p)
 	if err != nil {
-		return "", err
+		return n, err
 	}
-	bytes := make([]byte, limit+1)
-	read, err := file.Read(bytes)
-	if err != nil && err != io.EOF {
-		return "", err
-	}
-	if read > limit {
-		return fixUTF8String(string(bytes[:limit])) + "...", nil
-	}
-	return fixUTF8String(string(bytes[:read])), nil
+	return l, nil
 }
 
 func fixUTF8String(s string) string {

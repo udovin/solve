@@ -83,29 +83,6 @@ func (c *compiler) Name() string {
 	return c.name
 }
 
-type truncateBuffer struct {
-	strings.Builder
-	limit int
-	mutex sync.Mutex
-}
-
-func (b *truncateBuffer) Write(p []byte) (int, error) {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-	l := len(p)
-	if b.Builder.Len()+l > b.limit {
-		p = p[:b.limit-b.Builder.Len()]
-	}
-	if len(p) == 0 {
-		return l, nil
-	}
-	n, err := b.Builder.Write(p)
-	if err != nil {
-		return n, err
-	}
-	return l, nil
-}
-
 func (c *compiler) Compile(
 	ctx context.Context, options CompileOptions,
 ) (CompileReport, error) {

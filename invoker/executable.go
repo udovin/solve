@@ -18,8 +18,6 @@ type ExecuteOptions struct {
 	Stderr      io.Writer
 	TimeLimit   time.Duration
 	MemoryLimit int64
-	InputFiles  []MountFile
-	OutputFiles []MountFile
 }
 
 type Executable interface {

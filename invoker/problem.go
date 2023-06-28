@@ -30,8 +30,8 @@ const (
 type ProblemExecutable interface {
 	Name() string
 	Kind() ProblemExecutableKind
-	Compiler() string
 	OpenBinary() (*os.File, error)
+	GetCompiler(context.Context, CompilerManager) (Compiler, error)
 }
 
 type ProblemPointsPolicy string
@@ -67,7 +67,7 @@ type ProblemStatement interface {
 }
 
 type Problem interface {
-	Compile(context.Context) error
+	Compile(context.Context, CompilerManager) error
 	GetExecutables() ([]ProblemExecutable, error)
 	GetTestSets() ([]ProblemTestSet, error)
 	GetStatements() ([]ProblemStatement, error)
@@ -169,13 +169,9 @@ func (m *problemManager) runDownloadProblem(
 	}
 	switch kind {
 	case PolygonProblem:
-		return extractPolygonProblem(
-			localProblemPath, problemPath, m.compilers,
-		)
+		return extractPolygonProblem(localProblemPath, problemPath)
 	case CompiledProblem:
-		return extractCompiledProblem(
-			localProblemPath, problemPath, m.compilers,
-		)
+		return extractCompiledProblem(localProblemPath, problemPath)
 	default:
 		return nil, fmt.Errorf("unsupported kind: %v", kind)
 	}

@@ -54,17 +54,6 @@ func (r ExecuteReport) Success() bool {
 	return r.ExitCode == 0
 }
 
-type ExecuteOptions struct {
-	Binary      string
-	Args        []string
-	Stdin       io.Reader
-	Stdout      io.Writer
-	InputFiles  []MountFile
-	OutputFiles []MountFile
-	TimeLimit   time.Duration
-	MemoryLimit int64
-}
-
 type CompilerProcess interface {
 	Start() error
 	Wait() (ExecuteReport, error)
@@ -74,15 +63,20 @@ type CompilerProcess interface {
 type Compiler interface {
 	Name() string
 	Compile(ctx context.Context, options CompileOptions) (CompileReport, error)
-	PrepareExecute(ctx context.Context, options ExecuteOptions) (CompilerProcess, error)
-	Execute(ctx context.Context, options ExecuteOptions) (ExecuteReport, error)
+	CreateExecutable(binaryPath string) (Executable, error)
+}
+
+type CompilerManager interface {
+	GetCompiler(ctx context.Context, name string) (Compiler, error)
+	GetCompilerName(name string) (string, error)
+	Logger() *logs.Logger
 }
 
 type compiler struct {
 	safeexec *safeexec.Manager
 	name     string
 	config   models.CompilerConfig
-	path     string
+	layer    string
 }
 
 func (c *compiler) Name() string {
@@ -123,7 +117,7 @@ func (c *compiler) Compile(
 	}
 	log := truncateBuffer{limit: 2048}
 	config := safeexec.ProcessConfig{
-		Layers:      []string{c.path},
+		Layers:      []string{c.layer},
 		Command:     strings.Fields(c.config.Compile.Command),
 		Environ:     c.config.Compile.Environ,
 		Workdir:     c.config.Compile.Workdir,
@@ -138,7 +132,7 @@ func (c *compiler) Compile(
 	}
 	if c.config.Compile.Source != nil {
 		path := filepath.Join(
-			process.GetUpperDir(),
+			process.UpperDir(),
 			c.config.Compile.Workdir,
 			*c.config.Compile.Source,
 		)
@@ -148,7 +142,7 @@ func (c *compiler) Compile(
 	}
 	for _, file := range options.InputFiles {
 		path := filepath.Join(
-			process.GetUpperDir(),
+			process.UpperDir(),
 			c.config.Compile.Workdir,
 			file.Target,
 		)
@@ -167,7 +161,7 @@ func (c *compiler) Compile(
 	if report.ExitCode == 0 {
 		if c.config.Compile.Binary != nil {
 			containerBinaryPath := filepath.Join(
-				process.GetUpperDir(),
+				process.UpperDir(),
 				c.config.Compile.Workdir,
 				*c.config.Compile.Binary,
 			)
@@ -184,249 +178,29 @@ func (c *compiler) Compile(
 	}, nil
 }
 
-const (
-	stdinFile  = "stdin"
-	stdoutFile = "stdout"
-	stderrFile = "stderr"
-)
-
-type compilerProcess struct {
-	compiler *compiler
-	options  ExecuteOptions
-	closers  []io.Closer
-	process  *safeexec.Process
-}
-
-func (p *compilerProcess) Start() error {
-	return p.process.Start()
-}
-
-func (p *compilerProcess) Wait() (ExecuteReport, error) {
-	report, err := p.process.Wait()
-	if err != nil {
-		return ExecuteReport{}, err
-	}
-	if report.ExitCode == 0 {
-		for _, output := range p.options.OutputFiles {
-			if output.Target == stdoutFile || output.Target == stderrFile {
-				continue
-			}
-			containerPath := filepath.Join(
-				p.process.GetUpperDir(),
-				p.compiler.config.Execute.Workdir,
-				output.Target,
-			)
-			if err := copyFileRec(containerPath, output.Source); err != nil {
-				return ExecuteReport{}, fmt.Errorf("unable to copy output file: %w", err)
-			}
-		}
-	}
-	return ExecuteReport{
-		ExitCode:   report.ExitCode,
-		UsedTime:   report.Time,
-		UsedMemory: report.Memory,
-	}, nil
-}
-
-func (p *compilerProcess) Release() error {
-	for _, closer := range p.closers {
-		_ = closer.Close()
-	}
-	if p.process != nil {
-		return p.process.Release()
-	}
-	return nil
-}
-
-func (c *compiler) PrepareExecute(ctx context.Context, options ExecuteOptions) (CompilerProcess, error) {
+func (c *compiler) CreateExecutable(binaryPath string) (Executable, error) {
 	if c.config.Execute == nil {
-		return nil, fmt.Errorf("execute config is not specified")
+		return nil, fmt.Errorf("compiler has empty execute config")
 	}
-	process := compilerProcess{
+	exe := executable{
 		compiler: c,
-		options:  options,
+		config:   *c.config.Execute,
 	}
-	stdin := options.Stdin
-	for _, input := range options.InputFiles {
-		if input.Target != stdinFile {
-			continue
-		}
-		file, err := os.Open(input.Source)
-		if err != nil {
-			_ = process.Release()
-			return nil, fmt.Errorf("cannot open input file: %w", err)
-		}
-		process.closers = append(process.closers, file)
-		stdin = file
-		break
+	if c.config.Execute.Binary == nil {
+		return &exe, nil
 	}
-	stdout := options.Stdout
-	var stderr io.Writer
-	for _, output := range options.OutputFiles {
-		if output.Target != stdoutFile && output.Target != stderrFile {
-			continue
-		}
-		file, err := os.Create(output.Source)
-		if err != nil {
-			_ = process.Release()
-			return nil, fmt.Errorf("cannot create output file: %w", err)
-		}
-		process.closers = append(process.closers, file)
-		if output.Target == stdoutFile {
-			stdout = file
-		} else {
-			stderr = file
-		}
-		break
-	}
-	executeArgs := append(strings.Fields(c.config.Execute.Command), options.Args...)
-	config := safeexec.ProcessConfig{
-		Layers:      []string{c.path},
-		Command:     executeArgs,
-		Environ:     c.config.Execute.Environ,
-		Workdir:     c.config.Execute.Workdir,
-		Stdin:       stdin,
-		Stdout:      stdout,
-		Stderr:      stderr,
-		TimeLimit:   options.TimeLimit,
-		MemoryLimit: options.MemoryLimit,
-	}
-	processImpl, err := c.safeexec.Create(ctx, config)
+	layerPath, err := os.MkdirTemp("", "layer-*")
 	if err != nil {
-		_ = process.Release()
-		return nil, fmt.Errorf("unable to create compiler: %w", err)
+		return nil, err
 	}
-	process.process = processImpl
-	if c.config.Execute.Binary != nil {
-		path := filepath.Join(
-			processImpl.GetUpperDir(),
-			c.config.Execute.Workdir,
-			*c.config.Execute.Binary,
-		)
-		if err := copyFileRec(options.Binary, path); err != nil {
-			_ = process.Release()
-			return nil, fmt.Errorf("unable to write binary: %w", err)
-		}
+	layerBinaryPath := filepath.Join(
+		layerPath, c.config.Execute.Workdir, *c.config.Execute.Binary,
+	)
+	if err := copyFileRec(binaryPath, layerBinaryPath); err != nil {
+		return nil, fmt.Errorf("unable to copy binary: %w", err)
 	}
-	for _, file := range options.InputFiles {
-		if file.Target == stdinFile {
-			continue
-		}
-		path := filepath.Join(
-			processImpl.GetUpperDir(),
-			c.config.Execute.Workdir,
-			file.Target,
-		)
-		if err := copyFileRec(file.Source, path); err != nil {
-			_ = process.Release()
-			return nil, fmt.Errorf("unable to write file: %w", err)
-		}
-	}
-	return &process, nil
-}
-
-func (c *compiler) Execute(ctx context.Context, options ExecuteOptions) (ExecuteReport, error) {
-	if c.config.Execute == nil {
-		return ExecuteReport{}, nil
-	}
-	stdin := options.Stdin
-	for _, input := range options.InputFiles {
-		if input.Target != stdinFile {
-			continue
-		}
-		file, err := os.Open(input.Source)
-		if err != nil {
-			return ExecuteReport{}, fmt.Errorf("cannot open input file: %w", err)
-		}
-		defer func() { _ = file.Close() }()
-		stdin = file
-		break
-	}
-	stdout := options.Stdout
-	var stderr io.Writer
-	for _, output := range options.OutputFiles {
-		if output.Target != stdoutFile && output.Target != stderrFile {
-			continue
-		}
-		file, err := os.Create(output.Source)
-		if err != nil {
-			return ExecuteReport{}, fmt.Errorf("cannot create output file: %w", err)
-		}
-		defer func() { _ = file.Close() }()
-		if output.Target == stdoutFile {
-			stdout = file
-		} else {
-			stderr = file
-		}
-		break
-	}
-	executeArgs := append(strings.Fields(c.config.Execute.Command), options.Args...)
-	config := safeexec.ProcessConfig{
-		Layers:      []string{c.path},
-		Command:     executeArgs,
-		Environ:     c.config.Execute.Environ,
-		Workdir:     c.config.Execute.Workdir,
-		Stdin:       stdin,
-		Stdout:      stdout,
-		Stderr:      stderr,
-		TimeLimit:   options.TimeLimit,
-		MemoryLimit: options.MemoryLimit,
-	}
-	process, err := c.safeexec.Create(ctx, config)
-	if err != nil {
-		return ExecuteReport{}, fmt.Errorf("unable to create compiler: %w", err)
-	}
-	if c.config.Execute.Binary != nil {
-		path := filepath.Join(
-			process.GetUpperDir(),
-			c.config.Execute.Workdir,
-			*c.config.Execute.Binary,
-		)
-		if err := copyFileRec(options.Binary, path); err != nil {
-			return ExecuteReport{}, fmt.Errorf("unable to write binary: %w", err)
-		}
-	}
-	for _, file := range options.InputFiles {
-		if file.Target == stdinFile {
-			continue
-		}
-		path := filepath.Join(
-			process.GetUpperDir(),
-			c.config.Execute.Workdir,
-			file.Target,
-		)
-		if err := copyFileRec(file.Source, path); err != nil {
-			return ExecuteReport{}, fmt.Errorf("unable to write file: %w", err)
-		}
-	}
-	defer func() { _ = process.Release() }()
-	if err := process.Start(); err != nil {
-		return ExecuteReport{}, fmt.Errorf("cannot start compiler: %w", err)
-	}
-	report, err := process.Wait()
-	if err != nil {
-		return ExecuteReport{}, err
-	}
-	if report.ExitCode == 0 {
-		for _, output := range options.OutputFiles {
-			if output.Target == stdoutFile || output.Target == stderrFile {
-				continue
-			}
-			containerPath := filepath.Join(
-				process.GetUpperDir(),
-				c.config.Execute.Workdir,
-				output.Target,
-			)
-			if err := copyFileRec(containerPath, output.Source); err != nil {
-				return ExecuteReport{}, fmt.Errorf("unable to copy output file: %w", err)
-			}
-		}
-	}
-	return ExecuteReport{
-		ExitCode:   report.ExitCode,
-		UsedTime:   report.Time,
-		UsedMemory: report.Memory,
-	}, nil
+	exe.layer = layerPath
+	return &exe, nil
 }
 
 type compilerManager struct {
@@ -479,6 +253,10 @@ func (m *compilerManager) GetCompiler(ctx context.Context, name string) (Compile
 	return m.DownloadCompiler(ctx, compiler)
 }
 
+func (m *compilerManager) Logger() *logs.Logger {
+	return m.logger
+}
+
 func (m *compilerManager) DownloadCompiler(ctx context.Context, c models.Compiler) (Compiler, error) {
 	config, err := c.GetConfig()
 	if err != nil {
@@ -490,7 +268,7 @@ func (m *compilerManager) DownloadCompiler(ctx context.Context, c models.Compile
 	}
 	return &compiler{
 		safeexec: m.safeexec,
-		path:     imagePath,
+		layer:    imagePath,
 		name:     c.Name,
 		config:   config,
 	}, nil

@@ -62,7 +62,7 @@ func writeZipDirectory(writer *zip.Writer, name string) error {
 	return err
 }
 
-func buildCompiledProblem(problem Problem, target string) error {
+func buildCompiledProblem(ctx context.Context, compilers CompilerManager, problem Problem, target string) error {
 	file, err := os.Create(target)
 	if err != nil {
 		return err
@@ -79,11 +79,15 @@ func buildCompiledProblem(problem Problem, target string) error {
 		return err
 	}
 	for _, executable := range executables {
+		compiler, err := executable.GetCompiler(ctx, compilers)
+		if err != nil {
+			return err
+		}
 		executableConfig := problemExecutableConfig{
 			Name:     executable.Name(),
 			Kind:     string(executable.Kind()),
 			Binary:   path.Join("executables", path.Base(executable.Name())),
-			Compiler: executable.Compiler(),
+			Compiler: compiler.Name(),
 		}
 		if err := func() error {
 			binaryFile, err := executable.OpenBinary()
@@ -208,7 +212,7 @@ func buildCompiledProblem(problem Problem, target string) error {
 }
 
 func extractCompiledProblem(
-	source, target string, compilers *compilerManager,
+	source, target string,
 ) (Problem, error) {
 	if err := archives.ExtractZip(source, target); err != nil {
 		return nil, fmt.Errorf("cannot extract problem: %w", err)
@@ -231,31 +235,27 @@ func extractCompiledProblem(
 		config.DeprecatedTestGroups = nil
 	}
 	problem := compiledProblem{
-		path:      target,
-		compilers: compilers,
-		config:    config,
+		path:   target,
+		config: config,
 	}
 	return &problem, nil
 }
 
 type compiledProblem struct {
-	path      string
-	compilers *compilerManager
-	config    problemConfig
+	path   string
+	config problemConfig
 }
 
-func (p *compiledProblem) Compile(ctx context.Context) error {
+func (p *compiledProblem) Compile(ctx context.Context, compilers CompilerManager) error {
 	return nil
 }
 
 func (p *compiledProblem) GetExecutables() ([]ProblemExecutable, error) {
 	var executables []ProblemExecutable
 	for _, executable := range p.config.Executables {
-		executables = append(executables, problemExecutable{
-			name:       executable.Name,
-			kind:       ProblemExecutableKind(executable.Kind),
-			binaryPath: filepath.Join(p.path, executable.Binary),
-			compiler:   executable.Compiler,
+		executables = append(executables, compiledProblemExecutable{
+			path:   p.path,
+			config: executable,
 		})
 	}
 	return executables, nil
@@ -274,6 +274,27 @@ func (p *compiledProblem) GetTestSets() ([]ProblemTestSet, error) {
 
 func (p *compiledProblem) GetStatements() ([]ProblemStatement, error) {
 	return nil, nil
+}
+
+type compiledProblemExecutable struct {
+	path   string
+	config problemExecutableConfig
+}
+
+func (e compiledProblemExecutable) Name() string {
+	return e.config.Name
+}
+
+func (e compiledProblemExecutable) Kind() ProblemExecutableKind {
+	return ProblemExecutableKind(e.config.Kind)
+}
+
+func (e compiledProblemExecutable) OpenBinary() (*os.File, error) {
+	return os.Open(filepath.Join(e.path, e.config.Binary))
+}
+
+func (e compiledProblemExecutable) GetCompiler(ctx context.Context, compilers CompilerManager) (Compiler, error) {
+	return compilers.GetCompiler(ctx, e.config.Compiler)
 }
 
 type compiledProblemTestSet struct {

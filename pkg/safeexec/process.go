@@ -18,6 +18,7 @@ type Process struct {
 	name       string
 	path       string
 	cgroupPath string
+	workdir    string
 	cmd        *exec.Cmd
 }
 
@@ -32,8 +33,20 @@ func (p *Process) Start() error {
 	return p.cmd.Start()
 }
 
-func (p *Process) GetUpperDir() string {
+func (p *Process) UpperDir() string {
 	return filepath.Join(p.path, "upper")
+}
+
+func (p *Process) UpperPath(path string) string {
+	path = filepath.Clean(path)
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(p.workdir, path)
+	}
+	if !filepath.IsAbs(path) {
+		// This should never have happened.
+		panic(fmt.Errorf("path %q is not absolute", path))
+	}
+	return filepath.Join(p.UpperDir(), path)
 }
 
 func (p *Process) Wait() (Report, error) {

@@ -95,10 +95,12 @@ func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	}
 	problemPath := filepath.Join(t.tempDir, "problem.zip")
 	if t.config.Compile {
-		if err := t.problemImpl.Compile(ctx); err != nil {
+		if err := t.problemImpl.Compile(ctx, t.invoker.compilers); err != nil {
 			return fmt.Errorf("cannot compile problem: %w", err)
 		}
-		if err := buildCompiledProblem(t.problemImpl, problemPath); err != nil {
+		if err := buildCompiledProblem(
+			ctx, t.invoker.compilers, t.problemImpl, problemPath,
+		); err != nil {
 			return fmt.Errorf("cannot build compiled problem: %w", err)
 		}
 	}

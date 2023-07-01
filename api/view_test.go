@@ -25,6 +25,7 @@ import (
 	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/invoker"
 	"github.com/udovin/solve/migrations"
+	"github.com/udovin/solve/models"
 )
 
 type TestEnv struct {
@@ -91,6 +92,28 @@ func (e *TestEnv) Close() {
 	_ = db.ApplyMigrations(context.Background(), e.Core.DB, "solve", migrations.Schema, db.WithZeroMigration)
 	_ = db.ApplyMigrations(context.Background(), e.Core.DB, "solve_data", migrations.Data, db.WithZeroMigration)
 	e.checks.Close()
+}
+
+func (e *TestEnv) WaitProblemUpdated(id int64) {
+	for {
+		if err := e.Core.Tasks.Sync(context.Background()); err != nil {
+			e.tb.Fatal("Error:", err)
+		}
+		tasks, err := e.Core.Tasks.FindByProblem(id)
+		if err != nil {
+			e.tb.Fatal("Error:", err)
+		}
+		if len(tasks) == 0 {
+			e.tb.Fatal("Empty problem tasks")
+		}
+		if tasks[0].Status == models.SucceededTask {
+			return
+		}
+		if tasks[0].Status == models.FailedTask {
+			e.tb.Fatalf("Task failed: %q", string(tasks[0].State))
+		}
+		time.Sleep(time.Second)
+	}
 }
 
 type TestEnvOption interface {

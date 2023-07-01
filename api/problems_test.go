@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
@@ -129,24 +128,6 @@ func TestProblemBuildScenario(t *testing.T) {
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		for {
-			if err := e.Core.Tasks.Sync(context.Background()); err != nil {
-				t.Fatal("Error:", err)
-			}
-			tasks, err := e.Core.Tasks.FindByProblem(problem.ID)
-			if err != nil {
-				t.Fatal("Error:", err)
-			}
-			if len(tasks) == 0 {
-				t.Fatal("Empty problem tasks")
-			}
-			if tasks[0].Status == models.SucceededTask {
-				break
-			}
-			if tasks[0].Status == models.FailedTask {
-				t.Fatalf("Task failed: %q", string(tasks[0].State))
-			}
-			time.Sleep(time.Second)
-		}
+		e.WaitProblemUpdated(problem.ID)
 	}
 }

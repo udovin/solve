@@ -115,7 +115,7 @@ func TestProblemBuildScenario(t *testing.T) {
 		}
 		e.SyncStores()
 	}
-	// Create problem
+	// Create problem.
 	{
 		file, err := os.Open(filepath.Join("../testdata", "a-plus-b.zip"))
 		if err != nil {
@@ -123,6 +123,21 @@ func TestProblemBuildScenario(t *testing.T) {
 		}
 		form := CreateProblemForm{}
 		form.Title = getPtr("a-plus-b")
+		form.PackageFile = managers.NewFileReader(file)
+		problem, err := e.Client.CreateProblem(context.Background(), form)
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		e.WaitProblemUpdated(problem.ID)
+	}
+	// Create interactive problem.
+	{
+		file, err := os.Open(filepath.Join("../testdata", "a-plus-b-interactive.zip"))
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		form := CreateProblemForm{}
+		form.Title = getPtr("a-plus-b-interactive")
 		form.PackageFile = managers.NewFileReader(file)
 		problem, err := e.Client.CreateProblem(context.Background(), form)
 		if err != nil {

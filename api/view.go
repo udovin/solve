@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -277,13 +278,22 @@ type statusCodeResponse interface {
 	StatusCode() int
 }
 
-var rnd = rand.NewSource(time.Now().UnixNano())
+var (
+	rnd      = rand.NewSource(time.Now().UnixNano())
+	rndMutex = sync.Mutex{}
+)
+
+func randUint32() uint32 {
+	rndMutex.Lock()
+	defer rndMutex.Unlock()
+	return uint32(rnd.Int63() >> 32)
+}
 
 func wrapResponse(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		reqID := c.Request().Header.Get(echo.HeaderXRequestID)
 		if reqID == "" {
-			reqID = fmt.Sprintf("%d-%d", rnd.Int63(), time.Now().UnixMilli())
+			reqID = fmt.Sprintf("%d-%d", time.Now().UnixMilli(), randUint32())
 		}
 		logger := c.Logger().(*logs.Logger).With(logs.Any("req_id", reqID))
 		c.SetLogger(logger)

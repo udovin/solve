@@ -561,22 +561,44 @@ func (v *View) registerUser(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	var user models.User
+	now := getNow(c)
+	user := models.User{}
 	if err := form.Update(c, &user, v.core.Users); err != nil {
 		return err
 	}
 	user.Status = models.PendingUser
+	expires := now.AddDate(0, 0, 1)
+	token := models.Token{
+		CreateTime: now.Unix(),
+		ExpireTime: expires.Unix(),
+	}
+	if err := token.SetConfig(models.ConfirmEmailTokenConfig{
+		Email: string(user.Email),
+	}); err != nil {
+		return err
+	}
+	if err := token.GenerateSecret(); err != nil {
+		return err
+	}
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
 		account := models.Account{Kind: user.AccountKind()}
 		if err := v.core.Accounts.Create(ctx, &account); err != nil {
 			return err
 		}
 		user.AccountID = account.ID
-		return v.core.Users.Create(ctx, &user)
+		if err := v.core.Users.Create(ctx, &user); err != nil {
+			return err
+		}
+		token.AccountID = account.ID
+		if err := v.core.Tokens.Create(ctx, &token); err != nil {
+			return err
+		}
+		return nil
 	}, sqlRepeatableRead); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
+	// TODO: Send confirmation token to email.
 	return c.JSON(http.StatusCreated, User{
 		ID:         user.ID,
 		Login:      user.Login,

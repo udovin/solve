@@ -36,6 +36,9 @@ func (c *Core) SetupAllStores() {
 	c.Sessions = models.NewSessionStore(
 		c.DB, "solve_session", "solve_session_event",
 	)
+	c.Tokens = models.NewTokenStore(
+		c.DB, "solve_token", "solve_token_event",
+	)
 	if c.Config.Security != nil {
 		c.Users = models.NewUserStore(
 			c.DB, "solve_user", "solve_user_event",

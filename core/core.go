@@ -35,6 +35,8 @@ type Core struct {
 	AccountRoles *models.AccountRoleStore
 	// Sessions contains session store.
 	Sessions *models.SessionStore
+	// Tokens contains token store.
+	Tokens *models.TokenStore
 	// Users contains user store.
 	Users *models.UserStore
 	// Scopes contains scope store.

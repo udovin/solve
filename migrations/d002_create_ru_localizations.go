@@ -47,6 +47,7 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		{"invalid_problem_id", "Неправильный ID задачи."},
 		{"invalid_scope_id", "Неправильный ID скоупа."},
 		{"invalid_solution_id", "Неправильный ID решения."},
+		{"invalid_token_id", "Неверный ID токена."},
 		{"invalid_user_id", "Неправильный ID пользователя."},
 		{"last_name_too_long", "Фамилия слишком длинная."},
 		{"last_name_too_short", "Фамилия слишком короткая."},

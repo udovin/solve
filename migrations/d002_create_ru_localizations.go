@@ -64,7 +64,6 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		{"name_is_too_long", "Название слишком длинное."},
 		{"name_is_too_short", "Название слишком короткое."},
 		{"old_and_new_passwords_are_the_same", "Старый и новый пароли совпадают."},
-		{"old_password_should_not_be_empty", "Старый пароль не может быть пустым."},
 		{"participant_account_is_not_specified", "Аккаунт участника не указан."},
 		{"participant_not_found", "Участник не найден."},
 		{"participant_with_kind_kind_already_exists", "Участник с типом {kind} уже существует."},

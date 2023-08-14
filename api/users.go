@@ -19,7 +19,6 @@ import (
 	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
-	"github.com/udovin/solve/pkg/logs"
 )
 
 // User represents user.
@@ -67,7 +66,12 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	g.POST(
 		"/v0/users/:user/password", v.updateUserPassword,
 		v.extractAuth(v.sessionAuth), v.extractUser,
-		v.requirePermission(models.UpdateUserPasswordRole),
+		v.requirePermission(models.UpdateUserRole, models.UpdateUserPasswordRole),
+	)
+	g.POST(
+		"/v0/users/:user/email", v.updateUserEmail,
+		v.extractAuth(v.sessionAuth), v.extractUser,
+		v.requirePermission(models.UpdateUserRole, models.UpdateUserEmailRole),
 	)
 	g.GET(
 		"/v0/status", v.status,
@@ -234,12 +238,6 @@ func (f updatePasswordForm) Update(
 			InvalidFields: errors,
 		}
 	}
-	if f.OldPassword == f.Password {
-		return errorResponse{
-			Code:    http.StatusBadRequest,
-			Message: localize(c, "Old and new passwords are the same."),
-		}
-	}
 	if err := users.SetPassword(user, f.Password); err != nil {
 		return errorResponse{
 			Code:    http.StatusInternalServerError,
@@ -270,18 +268,19 @@ func (v *View) updateUserPassword(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	if authUser := accountCtx.User; authUser != nil && user.ID == authUser.ID {
-		if len(form.OldPassword) == 0 {
-			return errorResponse{
-				Code:    http.StatusBadRequest,
-				Message: localize(c, "Old password should not be empty."),
-			}
+	authUser := accountCtx.User
+	if authUser == nil ||
+		len(form.OldPassword) == 0 ||
+		!v.core.Users.CheckPassword(*authUser, form.OldPassword) {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Invalid password."),
 		}
-		if !v.core.Users.CheckPassword(user, form.OldPassword) {
-			return errorResponse{
-				Code:    http.StatusBadRequest,
-				Message: localize(c, "Invalid password."),
-			}
+	}
+	if authUser.ID == user.ID && form.OldPassword == form.Password {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Old and new passwords are the same."),
 		}
 	}
 	if err := form.Update(c, &user, v.core.Users); err != nil {
@@ -290,6 +289,82 @@ func (v *View) updateUserPassword(c echo.Context) error {
 	if err := v.core.Users.Update(getContext(c), user); err != nil {
 		c.Logger().Error(err)
 		return err
+	}
+	return c.JSON(http.StatusOK, makeUser(user, permissions))
+}
+
+type updateEmailForm struct {
+	Email string `json:"email"`
+}
+
+func (f updateEmailForm) Update(c echo.Context, user *models.User) error {
+	var errors errorFields
+	validateEmail(c, errors, f.Email)
+	if len(errors) > 0 {
+		return errorResponse{
+			Code:          http.StatusBadRequest,
+			Message:       localize(c, "Form has invalid fields."),
+			InvalidFields: errors,
+		}
+	}
+	if f.Email == string(user.Email) {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Form has invalid fields."),
+		}
+	}
+	return nil
+}
+
+func (v *View) updateUserEmail(c echo.Context) error {
+	now := getNow(c)
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	if !ok {
+		c.Logger().Error("permissions not extracted")
+		return fmt.Errorf("permissions not extracted")
+	}
+	var form updateEmailForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if err := form.Update(c, &user); err != nil {
+		c.Logger().Warn(err)
+		return err
+	}
+	if cfg := v.core.Config.SMTP; cfg != nil {
+		expires := now.AddDate(0, 0, 1)
+		token := models.Token{
+			AccountID:  user.AccountID,
+			CreateTime: now.Unix(),
+			ExpireTime: expires.Unix(),
+		}
+		if err := token.SetConfig(models.ConfirmEmailTokenConfig{
+			Email: string(form.Email),
+		}); err != nil {
+			return err
+		}
+		if err := v.core.Tokens.Create(getContext(c), &token); err != nil {
+			return err
+		}
+		to := mail.Address{
+			Address: string(form.Email),
+		}
+		if err := sendMail(cfg, to, "", map[string]any{}); err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+	} else {
+		user.Email = models.NString(form.Email)
+		if err := v.core.Users.Update(getContext(c), user); err != nil {
+			c.Logger().Error(err)
+			return err
+		}
 	}
 	return c.JSON(http.StatusOK, makeUser(user, permissions))
 }
@@ -606,7 +681,6 @@ func (v *View) registerUser(c echo.Context) error {
 		return err
 	}
 	if cfg := v.core.Config.SMTP; cfg != nil {
-		c.Logger().Debug("Sending confirmation email", logs.Any("email", string(user.Email)))
 		to := mail.Address{
 			Address: string(user.Email),
 		}

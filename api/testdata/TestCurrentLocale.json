@@ -199,10 +199,6 @@
         "text": "Старый и новый пароли совпадают."
       },
       {
-        "key": "old_password_should_not_be_empty",
-        "text": "Старый пароль не может быть пустым."
-      },
-      {
         "key": "participant_account_is_not_specified",
         "text": "Аккаунт участника не указан."
       },

@@ -71,6 +71,8 @@ type Config struct {
 	Storage *Storage `json:"storage"`
 	// Security contains security config.
 	Security *Security `json:"security"`
+	// SMTP contains SMTP config.
+	SMTP *SMTP `json:"smtp"`
 	// LogLevel contains level of logging.
 	//
 	// You can use following values:
@@ -112,6 +114,13 @@ type Invoker struct {
 type Safeexec struct {
 	Path   string `json:"path"`
 	Cgroup string `json:"cgroup"`
+}
+
+type SMTP struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 var configFuncs = template.FuncMap{

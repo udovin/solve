@@ -2,10 +2,13 @@ package api
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"net"
 	"net/http"
+	"net/mail"
+	"net/smtp"
 	"regexp"
 	"sort"
 	"strconv"
@@ -13,8 +16,10 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/udovin/solve/config"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/pkg/logs"
 )
 
 // User represents user.
@@ -589,16 +594,27 @@ func (v *View) registerUser(c echo.Context) error {
 		if err := v.core.Users.Create(ctx, &user); err != nil {
 			return err
 		}
-		token.AccountID = account.ID
-		if err := v.core.Tokens.Create(ctx, &token); err != nil {
-			return err
+		if v.core.Config.SMTP != nil {
+			token.AccountID = account.ID
+			if err := v.core.Tokens.Create(ctx, &token); err != nil {
+				return err
+			}
 		}
 		return nil
 	}, sqlRepeatableRead); err != nil {
 		c.Logger().Error(err)
 		return err
 	}
-	// TODO: Send confirmation token to email.
+	if cfg := v.core.Config.SMTP; cfg != nil {
+		c.Logger().Debug("Sending confirmation email", logs.Any("email", string(user.Email)))
+		to := mail.Address{
+			Address: string(user.Email),
+		}
+		if err := sendMail(cfg, to, "", map[string]any{}); err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+	}
 	return c.JSON(http.StatusCreated, User{
 		ID:         user.ID,
 		Login:      user.Login,
@@ -607,6 +623,52 @@ func (v *View) registerUser(c echo.Context) error {
 		LastName:   form.LastName,
 		MiddleName: form.MiddleName,
 	})
+}
+
+func sendMail(cfg *config.SMTP, to mail.Address, template string, values map[string]any) error {
+	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", cfg.Host, cfg.Port), nil)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client, err := smtp.NewClient(conn, cfg.Host)
+	if err != nil {
+		return err
+	}
+	if err := client.Auth(smtp.PlainAuth("", cfg.Email, cfg.Password, cfg.Host)); err != nil {
+		return err
+	}
+	if err := client.Mail(cfg.Email); err != nil {
+		return err
+	}
+	if err := client.Rcpt(to.Address); err != nil {
+		return err
+	}
+	writer, err := client.Data()
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+	from := mail.Address{Name: "", Address: cfg.Email}
+	if _, err := writer.Write([]byte(fmt.Sprintf("From: %s\r\n", from.String()))); err != nil {
+		return err
+	}
+	if _, err := writer.Write([]byte(fmt.Sprintf("To: %s\r\n", to.String()))); err != nil {
+		return err
+	}
+	if _, err := writer.Write([]byte(fmt.Sprintf("Subject: %s\r\n", "Registration on solve.by"))); err != nil {
+		return err
+	}
+	if _, err := writer.Write([]byte("\r\n")); err != nil {
+		return err
+	}
+	if _, err := writer.Write([]byte("Hello, World!")); err != nil {
+		return err
+	}
+	if err := writer.Close(); err != nil {
+		return err
+	}
+	return client.Quit()
 }
 
 func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {

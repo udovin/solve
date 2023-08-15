@@ -36,7 +36,7 @@ func (r EventRange) contains(id int64) bool {
 	return id >= r.Begin && (r.End == 0 || id < r.End)
 }
 
-func (r EventRange) getWhere(name string) gosql.BoolExpression {
+func (r EventRange) getWhere(name string) gosql.BoolExpr {
 	column := gosql.Column(name)
 	if r.End == 0 {
 		return column.GreaterEqual(r.Begin)
@@ -87,7 +87,7 @@ func (s *eventStore[T, TPtr]) LastEventID(ctx context.Context) (int64, error) {
 	return *id, nil
 }
 
-func (s *eventStore[T, TPtr]) getEventsWhere(ranges []EventRange) gosql.BoolExpression {
+func (s *eventStore[T, TPtr]) getEventsWhere(ranges []EventRange) gosql.BoolExpr {
 	if len(ranges) == 0 {
 		return nil
 	}
@@ -105,7 +105,7 @@ func (s *eventStore[T, TPtr]) LoadEvents(
 	builder.SetNames(s.columns...)
 	builder.SetWhere(s.getEventsWhere(ranges))
 	builder.SetOrderBy(gosql.Ascending(s.id))
-	query, values := builder.Build()
+	query, values := s.db.Build(builder)
 	rows, err := GetRunner(ctx, s.db.RO).QueryContext(ctx, query, values...)
 	if err != nil {
 		return nil, err

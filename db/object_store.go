@@ -52,7 +52,7 @@ func (s *objectStore[T, TPtr]) LoadObjects(ctx context.Context) (Rows[T], error)
 	builder := s.db.Select(s.table)
 	builder.SetNames(s.columns...)
 	builder.SetOrderBy(gosql.Ascending(s.id))
-	rows, err := GetRunner(ctx, s.db.RO).QueryContext(ctx, builder.String())
+	rows, err := GetRunner(ctx, s.db.RO).QueryContext(ctx, s.db.BuildString(builder))
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (s *objectStore[T, TPtr]) FindObjects(
 	for _, option := range options {
 		option.UpdateSelect(builder)
 	}
-	query, values := builder.Build()
+	query, values := s.db.Build(builder)
 	rows, err := GetRunner(ctx, s.db.RO).QueryContext(ctx, query, values...)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func NewObjectStore[T any, TPtr ObjectPtr[T]](
 }
 
 type FindQuery struct {
-	Where   gosql.BoolExpression
+	Where   gosql.BoolExpr
 	Limit   int
 	OrderBy []any
 }

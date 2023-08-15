@@ -195,10 +195,10 @@ func insertRow[T any](
 	switch b := builder.(type) {
 	case *gosql.PostgresInsertQuery:
 		b.SetReturning(id)
-		res := GetRunner(ctx, db).QueryRowContext(ctx, builder.String(), vals...)
+		res := GetRunner(ctx, db).QueryRowContext(ctx, db.BuildString(builder), vals...)
 		return res.Scan(rowID)
 	default:
-		res, err := GetRunner(ctx, db).ExecContext(ctx, builder.String(), vals...)
+		res, err := GetRunner(ctx, db).ExecContext(ctx, db.BuildString(builder), vals...)
 		if err != nil {
 			return err
 		}
@@ -223,7 +223,7 @@ func updateRow[T any](
 	builder.SetNames(cols...)
 	builder.SetValues(vals...)
 	builder.SetWhere(gosql.Column(id).Equal(rowID))
-	query, values := builder.Build()
+	query, values := db.Build(builder)
 	res, err := GetRunner(ctx, db).ExecContext(ctx, query, values...)
 	if err != nil {
 		return err
@@ -246,7 +246,7 @@ func deleteRow(
 ) error {
 	builder := db.Delete(table)
 	builder.SetWhere(gosql.Column(id).Equal(rowID))
-	query, values := builder.Build()
+	query, values := db.Build(builder)
 	res, err := GetRunner(ctx, db).ExecContext(ctx, query, values...)
 	if err != nil {
 		return err

@@ -222,8 +222,8 @@ func (v *View) updateUser(c echo.Context) error {
 }
 
 type updatePasswordForm struct {
-	OldPassword string `json:"old_password"`
-	Password    string `json:"password"`
+	CurrentPassword string `json:"current_password"`
+	Password        string `json:"password"`
 }
 
 func (f updatePasswordForm) Update(
@@ -270,14 +270,14 @@ func (v *View) updateUserPassword(c echo.Context) error {
 	}
 	authUser := accountCtx.User
 	if authUser == nil ||
-		len(form.OldPassword) == 0 ||
-		!v.core.Users.CheckPassword(*authUser, form.OldPassword) {
+		len(form.CurrentPassword) == 0 ||
+		!v.core.Users.CheckPassword(*authUser, form.CurrentPassword) {
 		return errorResponse{
 			Code:    http.StatusBadRequest,
 			Message: localize(c, "Invalid password."),
 		}
 	}
-	if authUser.ID == user.ID && form.OldPassword == form.Password {
+	if authUser.ID == user.ID && form.CurrentPassword == form.Password {
 		return errorResponse{
 			Code:    http.StatusBadRequest,
 			Message: localize(c, "Old and new passwords are the same."),

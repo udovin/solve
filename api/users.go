@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
 	"net/mail"
@@ -344,8 +345,11 @@ func (v *View) updateUserEmail(c echo.Context) error {
 			CreateTime: now.Unix(),
 			ExpireTime: expires.Unix(),
 		}
+		if err := token.GenerateSecret(); err != nil {
+			return err
+		}
 		if err := token.SetConfig(models.ConfirmEmailTokenConfig{
-			Email: string(form.Email),
+			Email: form.Email,
 		}); err != nil {
 			return err
 		}
@@ -355,7 +359,8 @@ func (v *View) updateUserEmail(c echo.Context) error {
 		to := mail.Address{
 			Address: string(form.Email),
 		}
-		if err := sendMail(cfg, to, "", map[string]any{}); err != nil {
+		values := v.getConfirmEmailValues(c, user, token)
+		if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
 			c.Logger().Error(err)
 			return err
 		}
@@ -367,6 +372,15 @@ func (v *View) updateUserEmail(c echo.Context) error {
 		}
 	}
 	return c.JSON(http.StatusOK, makeUser(user, permissions))
+}
+
+func (v *View) getConfirmEmailValues(c echo.Context, user models.User, token models.Token) map[string]any {
+	return map[string]any{
+		"site_url": "https://solve.by",
+		"login":    user.Login,
+		"id":       token.ID,
+		"secret":   token.Secret,
+	}
 }
 
 func (v *View) observeUserSessions(c echo.Context) error {
@@ -684,7 +698,8 @@ func (v *View) registerUser(c echo.Context) error {
 		to := mail.Address{
 			Address: string(user.Email),
 		}
-		if err := sendMail(cfg, to, "", map[string]any{}); err != nil {
+		values := v.getConfirmEmailValues(c, user, token)
+		if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
 			c.Logger().Error(err)
 			return err
 		}
@@ -699,7 +714,7 @@ func (v *View) registerUser(c echo.Context) error {
 	})
 }
 
-func sendMail(cfg *config.SMTP, to mail.Address, template string, values map[string]any) error {
+func (v *View) sendMail(c echo.Context, cfg *config.SMTP, to mail.Address, key string, values map[string]any) error {
 	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", cfg.Host, cfg.Port), nil)
 	if err != nil {
 		return err
@@ -724,25 +739,46 @@ func sendMail(cfg *config.SMTP, to mail.Address, template string, values map[str
 	}
 	defer writer.Close()
 	from := mail.Address{Name: "", Address: cfg.Email}
+	locale := getLocale(c)
+	subject, err := renderTemplate(locale.LocalizeKey(key+".subject", "Email confirmation on Solve"), values)
+	if err != nil {
+		return err
+	}
+	body, err := renderTemplate(locale.LocalizeKey(key+".body", "Confirmation link: {{.site_url}}/confirm-email?id={{.id}}&secret={{.secret}}"), values)
+	if err != nil {
+		return err
+	}
 	if _, err := writer.Write([]byte(fmt.Sprintf("From: %s\r\n", from.String()))); err != nil {
 		return err
 	}
 	if _, err := writer.Write([]byte(fmt.Sprintf("To: %s\r\n", to.String()))); err != nil {
 		return err
 	}
-	if _, err := writer.Write([]byte(fmt.Sprintf("Subject: %s\r\n", "Registration on solve.by"))); err != nil {
+	if _, err := writer.Write([]byte(fmt.Sprintf("Subject: %s\r\n", subject))); err != nil {
 		return err
 	}
 	if _, err := writer.Write([]byte("\r\n")); err != nil {
 		return err
 	}
-	if _, err := writer.Write([]byte("Hello, World!")); err != nil {
+	if _, err := writer.Write([]byte(body)); err != nil {
 		return err
 	}
 	if err := writer.Close(); err != nil {
 		return err
 	}
 	return client.Quit()
+}
+
+func renderTemplate(text string, values map[string]any) (string, error) {
+	tmpl, err := template.New("").Parse(text)
+	if err != nil {
+		return "", err
+	}
+	b := strings.Builder{}
+	if err := tmpl.Execute(&b, values); err != nil {
+		return "", err
+	}
+	return b.String(), nil
 }
 
 func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {

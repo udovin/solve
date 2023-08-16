@@ -90,6 +90,8 @@ type Server struct {
 	Host string `json:"host"`
 	// Port contains server port.
 	Port int `json:"port"`
+	// SiteURL contains site index url.
+	SiteURL string `json:"site_url"`
 }
 
 // Address returns string representation of server address.

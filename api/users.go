@@ -376,7 +376,7 @@ func (v *View) updateUserEmail(c echo.Context) error {
 
 func (v *View) getConfirmEmailValues(c echo.Context, user models.User, token models.Token) map[string]any {
 	return map[string]any{
-		"site_url": "https://solve.by",
+		"site_url": v.core.Config.Server.SiteURL,
 		"login":    user.Login,
 		"id":       token.ID,
 		"secret":   token.Secret,

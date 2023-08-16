@@ -64,7 +64,9 @@ func (v *View) consumeToken(c echo.Context) error {
 				return err
 			}
 			user.Email = models.NString(config.Email)
-			user.Status = models.ActiveUser
+			if user.Status == models.PendingUser {
+				user.Status = models.ActiveUser
+			}
 			if err := v.core.Users.Update(ctx, user); err != nil {
 				return err
 			}

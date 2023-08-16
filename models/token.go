@@ -2,7 +2,7 @@ package models
 
 import (
 	"crypto/rand"
-	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/udovin/gosql"
@@ -60,11 +60,11 @@ func (o Token) Clone() Token {
 
 // GenerateSecret generates a new value for token secret.
 func (o *Token) GenerateSecret() error {
-	bytes := make([]byte, 40)
+	bytes := make([]byte, 16)
 	if _, err := rand.Read(bytes); err != nil {
 		return err
 	}
-	o.Secret = base64.StdEncoding.EncodeToString(bytes)
+	o.Secret = hex.EncodeToString(bytes)
 	return nil
 }
 

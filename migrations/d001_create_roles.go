@@ -99,7 +99,6 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 		models.ObserveUserRole,
 		models.ObserveContestsRole,
 		models.ObserveCompilersRole,
-		models.ConsumeTokenRole,
 	} {
 		if err := join(role, "blocked_user_group"); err != nil {
 			return err
@@ -112,7 +111,6 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 		models.ObserveUserRole,
 		models.ObserveContestsRole,
 		models.ObserveCompilersRole,
-		models.ConsumeTokenRole,
 	} {
 		if err := join(role, "scope_user_group"); err != nil {
 			return err

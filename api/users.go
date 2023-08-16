@@ -30,6 +30,8 @@ type User struct {
 	Login string `json:"login"`
 	// Email contains user email.
 	Email string `json:"email,omitempty"`
+	// Status contains user status.
+	Status string `json:"status,omitempty"`
 	// FirstName contains first name.
 	FirstName string `json:"first_name,omitempty"`
 	// LastName contains last name.
@@ -295,11 +297,12 @@ func (v *View) updateUserPassword(c echo.Context) error {
 }
 
 type updateEmailForm struct {
-	Email string `json:"email"`
+	CurrentPassword string `json:"current_password"`
+	Email           string `json:"email"`
 }
 
 func (f updateEmailForm) Update(c echo.Context, user *models.User) error {
-	var errors errorFields
+	errors := errorFields{}
 	validateEmail(c, errors, f.Email)
 	if len(errors) > 0 {
 		return errorResponse{
@@ -324,6 +327,11 @@ func (v *View) updateUserEmail(c echo.Context) error {
 		c.Logger().Error("user not extracted")
 		return fmt.Errorf("user not extracted")
 	}
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		c.Logger().Error("auth not extracted")
+		return fmt.Errorf("auth not extracted")
+	}
 	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
 	if !ok {
 		c.Logger().Error("permissions not extracted")
@@ -333,6 +341,15 @@ func (v *View) updateUserEmail(c echo.Context) error {
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
+	}
+	authUser := accountCtx.User
+	if authUser == nil ||
+		len(form.CurrentPassword) == 0 ||
+		!v.core.Users.CheckPassword(*authUser, form.CurrentPassword) {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Invalid password."),
+		}
 	}
 	if err := form.Update(c, &user); err != nil {
 		c.Logger().Warn(err)
@@ -421,7 +438,11 @@ func (v *View) status(c echo.Context) error {
 		}
 	}
 	if user := accountCtx.User; user != nil {
-		status.User = &User{ID: user.ID, Login: user.Login}
+		status.User = &User{
+			ID:     user.ID,
+			Login:  user.Login,
+			Status: user.Status.String(),
+		}
 	}
 	if user := accountCtx.ScopeUser; user != nil {
 		status.ScopeUser = &ScopeUser{ID: user.ID, Login: user.Login}

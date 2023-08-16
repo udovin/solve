@@ -92,6 +92,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerSettingHandlers(g)
 	v.registerLocaleHandlers(g)
 	v.registerFileHandlers(g)
+	v.registerTokenHandlers(g)
 }
 
 func (v *View) RegisterSocket(g *echo.Group) {

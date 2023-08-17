@@ -11,7 +11,8 @@
   {
     "user": {
       "id": 1,
-      "login": "login-801072305"
+      "login": "login-801072305",
+      "status": "pending"
     },
     "session": {
       "id": 1,

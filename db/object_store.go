@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/udovin/gosql"
@@ -24,10 +25,10 @@ type FindObjectsOption interface {
 type ObjectROStore[T any] interface {
 	// LoadObjects should load objects from store.
 	LoadObjects(ctx context.Context) (Rows[T], error)
-	// FindObjects should bind objects with specified expression.
-	FindObjects(
-		ctx context.Context, options ...FindObjectsOption,
-	) (Rows[T], error)
+	// FindObjects should find objects with specified expression.
+	FindObjects(ctx context.Context, options ...FindObjectsOption) (Rows[T], error)
+	// FindObject should bind one object with specified expression.
+	FindObject(ctx context.Context, options ...FindObjectsOption) (T, error)
 }
 
 // ObjectStore represents persistent store for objects.
@@ -80,6 +81,25 @@ func (s *objectStore[T, TPtr]) FindObjects(
 		return nil, fmt.Errorf("store %q: %w", s.table, err)
 	}
 	return newRowReader[T](rows), nil
+}
+
+// FindOne finds one object with specified query.
+func (s *objectStore[T, TPtr]) FindObject(
+	ctx context.Context, options ...FindObjectsOption,
+) (T, error) {
+	var empty T
+	rows, err := s.FindObjects(ctx, append(options, WithLimit(1))...)
+	if err != nil {
+		return empty, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return empty, err
+		}
+		return empty, sql.ErrNoRows
+	}
+	return rows.Row(), nil
 }
 
 func (s *objectStore[T, TPtr]) CreateObject(ctx context.Context, object TPtr) error {

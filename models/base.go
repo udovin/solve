@@ -294,19 +294,7 @@ func (s *baseStore[T, E, TPtr, EPtr]) Find(
 func (s *baseStore[T, E, TPtr, EPtr]) FindOne(
 	ctx context.Context, options ...db.FindObjectsOption,
 ) (T, error) {
-	var empty T
-	rows, err := s.Find(ctx, append(options, db.WithLimit(1))...)
-	if err != nil {
-		return empty, err
-	}
-	defer func() { _ = rows.Close() }()
-	if !rows.Next() {
-		if err := rows.Err(); err != nil {
-			return empty, err
-		}
-		return empty, sql.ErrNoRows
-	}
-	return rows.Row(), nil
+	return s.store.FindObject(ctx, options...)
 }
 
 // Get returns object by id.

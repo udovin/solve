@@ -18,7 +18,6 @@ type Lock struct {
 	Name       string `db:"name"`
 	Token      int64  `db:"token"`
 	ExpireTime int64  `db:"expire_time"`
-	acquired   bool
 }
 
 type LockStore struct {
@@ -61,43 +60,51 @@ func (s *LockStore) GetByName(ctx context.Context, name string) (Lock, error) {
 	return lock, row.Err()
 }
 
-func (s *LockStore) AcquireLockByName(ctx context.Context, name string) (Lock, error) {
+type LockGuard struct {
+	lock     Lock
+	acquired bool
+}
+
+func (s *LockStore) AcquireByName(ctx context.Context, name string) (*LockGuard, error) {
 	lock, err := s.GetByName(ctx, name)
 	if err != nil {
-		return lock, err
+		return nil, err
 	}
 	if lock.ExpireTime >= time.Now().Unix() {
-		return lock, ErrLockAcquired
+		return nil, ErrLockAcquired
 	}
 	token, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
-		return lock, err
+		return nil, err
 	}
 	expireTime := time.Now().Add(lockTimeout).Unix()
-	lock.acquired = true
-	if err := s.updateLock(ctx, &lock, token.Int64()+1, expireTime); err != nil {
-		if errors.Is(err, ErrLockReleased) {
-			return lock, ErrLockAcquired
-		}
-		return lock, err
+	guard := LockGuard{
+		lock:     lock,
+		acquired: true,
 	}
-	return lock, err
+	if err := s.updateLock(ctx, &guard, token.Int64()+1, expireTime); err != nil {
+		if errors.Is(err, ErrLockReleased) {
+			return nil, ErrLockAcquired
+		}
+		return nil, err
+	}
+	return nil, err
 }
 
-func (s *LockStore) ReleaseLock(ctx context.Context, lock *Lock) error {
-	if lock.ExpireTime < time.Now().Unix() {
+func (s *LockStore) Release(ctx context.Context, lock *LockGuard) error {
+	if lock.lock.ExpireTime < time.Now().Unix() {
 		lock.acquired = false
 		return ErrLockReleased
 	}
 	return s.updateLock(ctx, lock, 0, 0)
 }
 
-func (s *LockStore) PingLock(ctx context.Context, lock *Lock) error {
+func (s *LockStore) Ping(ctx context.Context, lock *LockGuard) error {
 	expireTime := time.Now().Add(lockTimeout).Unix()
-	return s.updateLock(ctx, lock, lock.Token, expireTime)
+	return s.updateLock(ctx, lock, lock.lock.Token, expireTime)
 }
 
-func (s *LockStore) updateLock(ctx context.Context, lock *Lock, token, expireTime int64) error {
+func (s *LockStore) updateLock(ctx context.Context, lock *LockGuard, token, expireTime int64) error {
 	if !lock.acquired {
 		return ErrLockReleased
 	}
@@ -107,9 +114,9 @@ func (s *LockStore) updateLock(ctx context.Context, lock *Lock, token, expireTim
 	query := s.db.Update(s.table)
 	query.SetNames("token", "expire_time")
 	query.SetValues(token, expireTime)
-	query.SetWhere(gosql.Column("id").Equal(lock.ID).
-		And(gosql.Column("token").Equal(lock.Token)).
-		And(gosql.Column("expire_time").Equal(lock.ExpireTime)),
+	query.SetWhere(gosql.Column("id").Equal(lock.lock.ID).
+		And(gosql.Column("token").Equal(lock.lock.Token)).
+		And(gosql.Column("expire_time").Equal(lock.lock.ExpireTime)),
 	)
 	rawQuery, values := s.db.Build(query)
 	res, err := s.db.ExecContext(ctx, rawQuery, values...)
@@ -123,8 +130,8 @@ func (s *LockStore) updateLock(ctx context.Context, lock *Lock, token, expireTim
 	if affected != 1 {
 		return ErrLockReleased
 	}
-	lock.Token = token
-	lock.ExpireTime = expireTime
+	lock.lock.Token = token
+	lock.lock.ExpireTime = expireTime
 	return nil
 }
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/udovin/gosql"
@@ -60,11 +61,6 @@ func (s *LockStore) GetByName(ctx context.Context, name string) (Lock, error) {
 	return lock, row.Err()
 }
 
-type LockGuard struct {
-	lock     Lock
-	acquired bool
-}
-
 func (s *LockStore) AcquireByName(ctx context.Context, name string) (*LockGuard, error) {
 	lock, err := s.GetByName(ctx, name)
 	if err != nil {
@@ -79,10 +75,10 @@ func (s *LockStore) AcquireByName(ctx context.Context, name string) (*LockGuard,
 	}
 	expireTime := time.Now().Add(lockTimeout).Unix()
 	guard := LockGuard{
-		lock:     lock,
-		acquired: true,
+		store: s,
+		lock:  lock,
 	}
-	if err := s.updateLock(ctx, &guard, token.Int64()+1, expireTime); err != nil {
+	if err := guard.update(ctx, token.Int64()+1, expireTime); err != nil {
 		if errors.Is(err, ErrLockReleased) {
 			return nil, ErrLockAcquired
 		}
@@ -91,35 +87,41 @@ func (s *LockStore) AcquireByName(ctx context.Context, name string) (*LockGuard,
 	return nil, err
 }
 
-func (s *LockStore) Release(ctx context.Context, lock *LockGuard) error {
-	if lock.lock.ExpireTime < time.Now().Unix() {
-		lock.acquired = false
-		return ErrLockReleased
-	}
-	return s.updateLock(ctx, lock, 0, 0)
+type LockGuard struct {
+	store *LockStore
+	lock  Lock
+	mutex sync.Mutex
 }
 
-func (s *LockStore) Ping(ctx context.Context, lock *LockGuard) error {
+func (l *LockGuard) Ping(ctx context.Context) error {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
 	expireTime := time.Now().Add(lockTimeout).Unix()
-	return s.updateLock(ctx, lock, lock.lock.Token, expireTime)
+	return l.update(ctx, l.lock.Token, expireTime)
 }
 
-func (s *LockStore) updateLock(ctx context.Context, lock *LockGuard, token, expireTime int64) error {
-	if !lock.acquired {
+func (l *LockGuard) Release(ctx context.Context) error {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	if l.lock.ExpireTime < time.Now().Unix() {
 		return ErrLockReleased
 	}
+	return l.update(ctx, 0, 0)
+}
+
+func (l *LockGuard) update(ctx context.Context, token, expireTime int64) error {
 	if tx := db.GetTx(ctx); tx != nil {
 		return fmt.Errorf("ping cannot be run in transaction")
 	}
-	query := s.db.Update(s.table)
+	query := l.store.db.Update(l.store.table)
 	query.SetNames("token", "expire_time")
 	query.SetValues(token, expireTime)
-	query.SetWhere(gosql.Column("id").Equal(lock.lock.ID).
-		And(gosql.Column("token").Equal(lock.lock.Token)).
-		And(gosql.Column("expire_time").Equal(lock.lock.ExpireTime)),
+	query.SetWhere(gosql.Column("id").Equal(l.lock.ID).
+		And(gosql.Column("token").Equal(l.lock.Token)).
+		And(gosql.Column("expire_time").Equal(l.lock.ExpireTime)),
 	)
-	rawQuery, values := s.db.Build(query)
-	res, err := s.db.ExecContext(ctx, rawQuery, values...)
+	rawQuery, values := l.store.db.Build(query)
+	res, err := l.store.db.ExecContext(ctx, rawQuery, values...)
 	if err != nil {
 		return err
 	}
@@ -130,8 +132,8 @@ func (s *LockStore) updateLock(ctx context.Context, lock *LockGuard, token, expi
 	if affected != 1 {
 		return ErrLockReleased
 	}
-	lock.lock.Token = token
-	lock.lock.ExpireTime = expireTime
+	l.lock.Token = token
+	l.lock.ExpireTime = expireTime
 	return nil
 }
 

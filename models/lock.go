@@ -14,9 +14,10 @@ import (
 )
 
 type Lock struct {
-	ID         int64 `db:"id"`
-	Token      int64 `db:"token"`
-	ExpireTime int64 `db:"expire_time"`
+	ID         int64  `db:"id"`
+	Name       string `db:"name"`
+	Token      int64  `db:"token"`
+	ExpireTime int64  `db:"expire_time"`
 	acquired   bool
 }
 
@@ -32,22 +33,36 @@ var (
 
 const lockTimeout = time.Second * 15
 
-func (s *LockStore) GetLock(ctx context.Context, id int64) (Lock, error) {
+func (s *LockStore) Get(ctx context.Context, id int64) (Lock, error) {
 	query := s.db.Select(s.table)
-	query.SetNames("id", "token", "expire_time")
+	query.SetNames("id", "name", "token", "expire_time")
 	query.SetWhere(gosql.Column("id").Equal(id))
 	query.SetLimit(1)
 	rawQuery, values := s.db.Build(query)
 	row := s.db.QueryRowContext(ctx, rawQuery, values...)
 	var lock Lock
-	if err := row.Scan(&lock.ID, &lock.Token, &lock.ExpireTime); err != nil {
+	if err := row.Scan(&lock.ID, &lock.Name, &lock.Token, &lock.ExpireTime); err != nil {
 		return lock, err
 	}
 	return lock, row.Err()
 }
 
-func (s *LockStore) AcquireLock(ctx context.Context, id int64) (Lock, error) {
-	lock, err := s.GetLock(ctx, id)
+func (s *LockStore) GetByName(ctx context.Context, name string) (Lock, error) {
+	query := s.db.Select(s.table)
+	query.SetNames("id", "name", "token", "expire_time")
+	query.SetWhere(gosql.Column("name").Equal(name))
+	query.SetLimit(1)
+	rawQuery, values := s.db.Build(query)
+	row := s.db.QueryRowContext(ctx, rawQuery, values...)
+	var lock Lock
+	if err := row.Scan(&lock.ID, &lock.Name, &lock.Token, &lock.ExpireTime); err != nil {
+		return lock, err
+	}
+	return lock, row.Err()
+}
+
+func (s *LockStore) AcquireLockByName(ctx context.Context, name string) (Lock, error) {
+	lock, err := s.GetByName(ctx, name)
 	if err != nil {
 		return lock, err
 	}

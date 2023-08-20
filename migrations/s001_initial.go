@@ -74,6 +74,20 @@ var s001 = []schema.Operation{
 		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
+		Name: "solve_lock",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", Type: schema.String},
+			{Name: "token", Type: schema.Int64},
+			{Name: "expire_time", Type: schema.Int64},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_lock",
+		Columns: []string{"name"},
+		Unique:  true,
+	},
+	schema.CreateTable{
 		Name: "solve_file",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},

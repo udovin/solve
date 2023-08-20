@@ -23,6 +23,8 @@ type Core struct {
 	Settings *models.SettingStore
 	// Tasks contains task store.
 	Tasks *models.TaskStore
+	// Locks contains lock store.
+	Locks *models.LockStore
 	// Files contains file store.
 	Files models.FileStore
 	// Roles contains role store.

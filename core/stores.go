@@ -18,6 +18,7 @@ func (c *Core) SetupAllStores() {
 	c.Tasks = models.NewTaskStore(
 		c.DB, "solve_task", "solve_task_event",
 	)
+	c.Locks = models.NewLockStore(c.DB, "solve_lock")
 	c.Files = models.NewCachedFileStore(
 		c.DB, "solve_file", "solve_file_event",
 	)

@@ -96,6 +96,9 @@ type LockGuard struct {
 func (l *LockGuard) Ping(ctx context.Context) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
+	if l.lock.ExpireTime < time.Now().Unix() {
+		return ErrLockReleased
+	}
 	expireTime := time.Now().Add(lockTimeout).Unix()
 	return l.update(ctx, l.lock.Token, expireTime)
 }
@@ -107,6 +110,12 @@ func (l *LockGuard) Release(ctx context.Context) error {
 		return ErrLockReleased
 	}
 	return l.update(ctx, 0, 0)
+}
+
+func (l *LockGuard) Expired() bool {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	return l.lock.ExpireTime < time.Now().Unix()
 }
 
 func (l *LockGuard) update(ctx context.Context, token, expireTime int64) error {

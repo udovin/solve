@@ -7,8 +7,14 @@ import (
 // Scope represents a scope for users.
 type Scope struct {
 	baseObject
-	OwnerID NInt64 `db:"owner_id"`
-	Title   string `db:"title"`
+	AccountID int64  `db:"account_id"`
+	OwnerID   NInt64 `db:"owner_id"`
+	Title     string `db:"title"`
+}
+
+// AccountKind returns ScopeAccount kind.
+func (o Scope) AccountKind() AccountKind {
+	return ScopeAccount
 }
 
 // Clone creates copy of scope.

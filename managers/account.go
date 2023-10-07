@@ -13,6 +13,7 @@ import (
 type AccountManager struct {
 	accounts     *models.AccountStore
 	users        *models.UserStore
+	scopes       *models.ScopeStore
 	scopeUsers   *models.ScopeUserStore
 	roles        *models.RoleStore
 	roleEdges    *models.RoleEdgeStore
@@ -24,6 +25,7 @@ func NewAccountManager(core *core.Core) *AccountManager {
 	return &AccountManager{
 		accounts:     core.Accounts,
 		users:        core.Users,
+		scopes:       core.Scopes,
 		scopeUsers:   core.ScopeUsers,
 		roles:        core.Roles,
 		roleEdges:    core.RoleEdges,
@@ -64,7 +66,16 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 			if err != nil {
 				return nil, err
 			}
+			scope, err := m.scopes.Get(ctx, user.ScopeID)
+			if err != nil {
+				return nil, err
+			}
+			scopeAccount, err := m.accounts.Get(ctx, scope.AccountID)
+			if err != nil {
+				return nil, err
+			}
 			c.ScopeUser = &user
+			c.GroupAccounts = append(c.GroupAccounts, scopeAccount)
 			role, err := m.getScopeUserRole()
 			if err != nil {
 				return nil, err
@@ -177,11 +188,12 @@ func (p PermissionSet) Clone() PermissionSet {
 }
 
 type AccountContext struct {
-	context     context.Context
-	Account     *models.Account
-	User        *models.User
-	ScopeUser   *models.ScopeUser
-	Permissions PermissionSet
+	context       context.Context
+	Account       *models.Account
+	User          *models.User
+	ScopeUser     *models.ScopeUser
+	Permissions   PermissionSet
+	GroupAccounts []models.Account
 }
 
 func (c *AccountContext) HasPermission(name string) bool {

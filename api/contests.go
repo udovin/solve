@@ -1189,34 +1189,36 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 			MissingPermissions: []string{models.SubmitContestSolutionRole},
 		}
 	}
+	needUpdate := false
+	if participant.Kind == models.RegularParticipant &&
+		contestCtx.Stage == managers.ContestStarted {
+		contestConfig, err := contestCtx.Contest.GetConfig()
+		if err != nil {
+			return err
+		}
+		var config models.RegularParticipantConfig
+		if err := participant.ScanConfig(&config); err != nil {
+			return err
+		}
+		if config.BeginTime != contestConfig.BeginTime {
+			config.BeginTime = contestConfig.BeginTime
+			if err := participant.SetConfig(config); err != nil {
+				return err
+			}
+			needUpdate = true
+		}
+	}
 	if participant.ID == 0 {
 		if err := v.core.ContestParticipants.Create(
 			getContext(c), participant,
 		); err != nil {
 			return err
 		}
-	} else {
-		if participant.Kind == models.RegularParticipant &&
-			contestCtx.Stage == managers.ContestStarted {
-			contestConfig, err := contestCtx.Contest.GetConfig()
-			if err != nil {
-				return err
-			}
-			var config models.RegularParticipantConfig
-			if err := participant.ScanConfig(&config); err != nil {
-				return err
-			}
-			if config.BeginTime != contestConfig.BeginTime {
-				config.BeginTime = contestConfig.BeginTime
-				if err := participant.SetConfig(config); err != nil {
-					return err
-				}
-				if err := v.core.ContestParticipants.Update(
-					getContext(c), *participant,
-				); err != nil {
-					return err
-				}
-			}
+	} else if needUpdate {
+		if err := v.core.ContestParticipants.Update(
+			getContext(c), *participant,
+		); err != nil {
+			return err
 		}
 	}
 	if participant.ID == 0 {

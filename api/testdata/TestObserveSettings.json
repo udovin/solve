@@ -313,103 +313,108 @@
       },
       {
         "id": 63,
+        "key": "localization.ru.scope_id_does_not_exists",
+        "value": "Скоуп {id} не существует."
+      },
+      {
+        "id": 64,
         "key": "localization.ru.scope_not_found",
         "value": "Скоуп не найден."
       },
       {
-        "id": 64,
+        "id": 65,
         "key": "localization.ru.session_not_found",
         "value": "Сессия не найдена."
       },
       {
-        "id": 65,
+        "id": 66,
         "key": "localization.ru.setting_key_cannot_be_empty",
         "value": "Ключ настройки не может быть пустым."
       },
       {
-        "id": 66,
+        "id": 67,
         "key": "localization.ru.setting_not_found",
         "value": "Настройка не найдена."
       },
       {
-        "id": 67,
+        "id": 68,
         "key": "localization.ru.solution_not_found",
         "value": "Решение не найдено."
       },
       {
-        "id": 68,
+        "id": 69,
         "key": "localization.ru.title_is_required",
         "value": "Заголовок является обязательным."
       },
       {
-        "id": 69,
+        "id": 70,
         "key": "localization.ru.title_is_too_long",
         "value": "Заголовок слишком длинный."
       },
       {
-        "id": 70,
+        "id": 71,
         "key": "localization.ru.title_is_too_short",
         "value": "Заголовок слишком короткий."
       },
       {
-        "id": 71,
+        "id": 72,
         "key": "localization.ru.too_many_requests",
         "value": "Слишком много запросов."
       },
       {
-        "id": 72,
+        "id": 73,
         "key": "localization.ru.unable_to_authorize",
         "value": "Авторизация не пройдена."
       },
       {
-        "id": 73,
+        "id": 74,
         "key": "localization.ru.unable_to_delete_builtin_role",
         "value": "Не удалось удалить встроенную роль."
       },
       {
-        "id": 74,
+        "id": 75,
         "key": "localization.ru.unknown_error",
         "value": "Неизвестная ошибка."
       },
       {
-        "id": 75,
+        "id": 76,
         "key": "localization.ru.user_id_does_not_exists",
         "value": "Пользователь {id} не существует."
       },
       {
-        "id": 76,
+        "id": 77,
         "key": "localization.ru.user_login_does_not_exists",
         "value": "Пользователь \"{login}\" не существует."
       },
       {
-        "id": 77,
+        "id": 78,
         "key": "localization.ru.user_not_found",
         "value": "Пользователь не найден."
       },
       {
-        "id": 78,
+        "id": 79,
         "key": "localization.ru.user_user_already_has_role_role",
         "value": "Пользователь \"{user}\" уже имеет роль \"{role}\"."
       },
       {
-        "id": 79,
+        "id": 80,
         "key": "localization.ru.user_user_does_not_have_role_role",
         "value": "Пользователь \"{user}\" не имеет роли \"{role}\"."
       },
       {
-        "id": 80,
+        "id": 81,
         "key": "localization.ru.user_with_login_login_already_exists",
         "value": "Пользователь с логином \"{login}\" уже существует."
       }
     ]
   },
   {
-    "id": 81,
+    "id": 82,
     "key": "test_key",
     "value": "test_value"
   },
   {
-    "id": 81,
+    "id": 82,
     "key": "test_key_2",
     "value": "test_value_2"
   }

@@ -255,6 +255,10 @@
         "text": "Роль \"{role}\" не найдена."
       },
       {
+        "key": "scope_id_does_not_exists",
+        "text": "Скоуп {id} не существует."
+      },
+      {
         "key": "scope_not_found",
         "text": "Скоуп не найден."
       },

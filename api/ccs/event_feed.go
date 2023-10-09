@@ -103,6 +103,9 @@ func (v *View) getEventFeed(c echo.Context) error {
 		if err != nil {
 			return fmt.Errorf("cannot get account %d: %w", participant.AccountID, err)
 		}
+		if accountInfo == nil {
+			continue
+		}
 		events = append(events, Team{
 			ID:          ID(participant.ID),
 			Name:        accountInfo.Title,
@@ -378,29 +381,29 @@ type accountInfo struct {
 
 func (v *View) getAccountInfo(
 	ctx context.Context, accountID int64,
-) (accountInfo, error) {
-	resp := accountInfo{}
+) (*accountInfo, error) {
+	info := accountInfo{}
 	account, err := v.core.Accounts.Get(ctx, accountID)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	switch account.Kind {
 	case models.UserAccount:
 		user, err := v.core.Users.GetByAccount(account.ID)
 		if err != nil {
-			return resp, fmt.Errorf("cannot get user: %w", err)
+			return nil, fmt.Errorf("cannot get user: %w", err)
 		}
-		resp.Title = user.Login
+		info.Title = user.Login
 	case models.ScopeUserAccount:
 		user, err := v.core.ScopeUsers.GetByAccount(account.ID)
 		if err != nil {
-			return resp, fmt.Errorf("cannot get scope user: %w", err)
+			return nil, fmt.Errorf("cannot get scope user: %w", err)
 		}
-		resp.Title = string(user.Title)
+		info.Title = string(user.Title)
 	default:
-		return resp, fmt.Errorf("unknown account kind %q", account.Kind)
+		return nil, nil
 	}
-	return resp, nil
+	return &info, nil
 }
 
 type Event struct {

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -91,15 +92,17 @@ func (f *UpdateCompilerForm) Parse(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	formFile, err := c.FormFile("file")
-	if err != nil {
-		return err
+	if formFile, err := c.FormFile("file"); err != nil {
+		if !errors.Is(err, http.ErrMissingFile) {
+			return err
+		}
+	} else {
+		file, err := managers.NewMultipartFileReader(formFile)
+		if err != nil {
+			return err
+		}
+		f.ImageFile = file
 	}
-	file, err := managers.NewMultipartFileReader(formFile)
-	if err != nil {
-		return err
-	}
-	f.ImageFile = file
 	return nil
 }
 

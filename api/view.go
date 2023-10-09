@@ -404,6 +404,10 @@ func (v *View) sessionAuth(c echo.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	// Do not allow scope to login.
+	if account.Kind == models.ScopeAccount {
+		return false, nil
+	}
 	accountCtx, err := v.accounts.MakeContext(getContext(c), &account)
 	if err != nil {
 		return false, err

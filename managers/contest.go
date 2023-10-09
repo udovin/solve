@@ -223,18 +223,19 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 				case models.RegularParticipant:
 					if !hasRegular && (c.Stage == ContestNotStarted || c.Stage == ContestStarted) {
 						c.Participants = append(c.Participants, models.ContestParticipant{
-							Kind:      models.RegularParticipant,
 							ContestID: contest.ID,
 							AccountID: account.ID,
+							Kind:      models.RegularParticipant,
+							Config:    groupParticipant.Config.Clone(),
 						})
 					}
 					hasRegular = true
 				case models.ManagerParticipant:
 					if !hasManager {
 						c.Participants = append(c.Participants, models.ContestParticipant{
-							Kind:      models.ManagerParticipant,
 							ContestID: contest.ID,
 							AccountID: account.ID,
+							Kind:      models.ManagerParticipant,
 						})
 					}
 					hasManager = true
@@ -243,9 +244,9 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 		}
 		if !hasManager && contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
 			c.Participants = append(c.Participants, models.ContestParticipant{
-				Kind:      models.ManagerParticipant,
 				ContestID: contest.ID,
 				AccountID: account.ID,
+				Kind:      models.ManagerParticipant,
 			})
 			addContestManagerPermissions(c.Permissions)
 		}
@@ -259,9 +260,9 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 			config.EnableUpsolving && (hasRegular || config.EnableRegistration) {
 			// Add virtual participant for upsolving.
 			c.Participants = append(c.Participants, models.ContestParticipant{
-				Kind:      models.UpsolvingParticipant,
 				ContestID: contest.ID,
 				AccountID: account.ID,
+				Kind:      models.UpsolvingParticipant,
 			})
 			addContestUpsolvingPermissions(c.Permissions, c.Stage, config)
 		}

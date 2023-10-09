@@ -752,6 +752,7 @@ type ContestParticipant struct {
 	ID        int64      `json:"id,omitempty"`
 	User      *User      `json:"user,omitempty"`
 	ScopeUser *ScopeUser `json:"scope_user,omitempty"`
+	Scope     *Scope     `json:"scope,omitempty"`
 	ContestID int64      `json:"contest_id,omitempty"`
 	// Kind contains kind.
 	Kind models.ParticipantKind `json:"kind"`
@@ -785,6 +786,7 @@ type CreateContestParticipantForm struct {
 	UserID      *int64                 `json:"user_id"`
 	UserLogin   *string                `json:"user_login"`
 	ScopeUserID *int64                 `json:"scope_user_id"`
+	ScopeID     *int64                 `json:"scope_id"`
 	Kind        models.ParticipantKind `json:"kind"`
 }
 
@@ -827,6 +829,18 @@ func (f CreateContestParticipantForm) Update(
 			}
 		}
 		participant.AccountID = user.AccountID
+	} else if f.ScopeID != nil {
+		scope, err := core.Scopes.Get(getContext(c), *f.ScopeID)
+		if err != nil {
+			return &errorResponse{
+				Code: http.StatusBadRequest,
+				Message: localize(
+					c, "Scope {id} does not exists.",
+					replaceField("id", *f.ScopeUserID),
+				),
+			}
+		}
+		participant.AccountID = scope.AccountID
 	}
 	participant.Kind = f.Kind
 	if participant.Kind == 0 {

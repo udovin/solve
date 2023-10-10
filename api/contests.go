@@ -1365,6 +1365,13 @@ func makeContestParticipant(
 					Title: string(user.Title),
 				}
 			}
+		case models.ScopeAccount:
+			if scope, err := core.Scopes.GetByAccount(account.ID); err == nil {
+				resp.Scope = &Scope{
+					ID:    scope.ID,
+					Title: scope.Title,
+				}
+			}
 		}
 	}
 	return resp

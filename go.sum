@@ -182,6 +182,8 @@ github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKs
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/udovin/algo v0.0.5 h1:gb0TrCMDOdCgRR05YdXzz+PHOCH5M5q1+riYAf0hDtE=
 github.com/udovin/algo v0.0.5/go.mod h1:h8RpXvizCZJbEfv/i9Tbtr82nCvefCfYqRMvYFO7CuQ=
+github.com/udovin/gosql v0.0.1 h1:NySdoTuYkx4xWjA7plzWAXDHuCaaBBimVfgna6+mPdM=
+github.com/udovin/gosql v0.0.1/go.mod h1:1obIRKJDUVJJ02txtlmizeB5kp35ARONO3AUDd8sW6s=
 github.com/udovin/gosql v0.0.2 h1:w5vIxbS7UVPvQ1dKRlby13b1EgvohHHCugECa0Yev4U=
 github.com/udovin/gosql v0.0.2/go.mod h1:YX3OzCIdAgJcxmJ1fcq9giXCNkGmjDCx0gdUMVHTEW4=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=

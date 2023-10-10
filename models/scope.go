@@ -1,6 +1,8 @@
 package models
 
 import (
+	"database/sql"
+
 	"github.com/udovin/gosql"
 )
 
@@ -41,15 +43,30 @@ func (e *ScopeEvent) SetObject(o Scope) {
 // ScopeStore represents store for scopes.
 type ScopeStore struct {
 	cachedStore[Scope, ScopeEvent, *Scope, *ScopeEvent]
+	byAccount *index[int64, Scope, *Scope]
+}
+
+// GetByAccount returns scope user by account id.
+func (s *ScopeStore) GetByAccount(id int64) (Scope, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	for id := range s.byAccount.Get(id) {
+		if object, ok := s.objects.Get(id); ok {
+			return object.Clone(), nil
+		}
+	}
+	return Scope{}, sql.ErrNoRows
 }
 
 // NewScopeStore creates a new instance of ScopeStore.
 func NewScopeStore(
 	db *gosql.DB, table, eventTable string,
 ) *ScopeStore {
-	impl := &ScopeStore{}
+	impl := &ScopeStore{
+		byAccount: newIndex(func(o Scope) int64 { return o.AccountID }),
+	}
 	impl.cachedStore = makeCachedStore[Scope, ScopeEvent](
-		db, table, eventTable, impl,
+		db, table, eventTable, impl, impl.byAccount,
 	)
 	return impl
 }

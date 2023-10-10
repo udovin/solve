@@ -78,6 +78,7 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		{"role_role_already_has_child_child", "Роль \"{role}\" уже содержит роль \"{child}\"."},
 		{"role_role_does_not_have_child_child", "Роль \"{role}\" не содержит роль \"{child}\"."},
 		{"role_role_not_found", "Роль \"{role}\" не найдена."},
+		{"scope_id_does_not_exists", "Скоуп {id} не существует."},
 		{"scope_not_found", "Скоуп не найден."},
 		{"session_not_found", "Сессия не найдена."},
 		{"setting_key_cannot_be_empty", "Ключ настройки не может быть пустым."},

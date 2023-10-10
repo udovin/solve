@@ -365,12 +365,19 @@ var s001 = []schema.Operation{
 		Name: "solve_scope",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "account_id", Type: schema.Int64},
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "title", Type: schema.String},
 		},
 		ForeignKeys: []schema.ForeignKey{
+			{Column: "account_id", ParentTable: "solve_account", ParentColumn: "id"},
 			{Column: "owner_id", ParentTable: "solve_account", ParentColumn: "id"},
 		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_scope",
+		Columns: []string{"account_id"},
+		Unique:  true,
 	},
 	schema.CreateTable{
 		Name: "solve_scope_event",
@@ -379,6 +386,7 @@ var s001 = []schema.Operation{
 			{Name: "event_kind", Type: schema.Int64},
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
+			{Name: "account_id", Type: schema.Int64},
 			{Name: "id", Type: schema.Int64},
 			{Name: "owner_id", Type: schema.Int64, Nullable: true},
 			{Name: "title", Type: schema.String},

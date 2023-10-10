@@ -173,7 +173,15 @@ func (v *View) createScope(c echo.Context) error {
 	if account := accountCtx.Account; account != nil {
 		scope.OwnerID = NInt64(account.ID)
 	}
-	if err := v.core.Scopes.Create(getContext(c), &scope); err != nil {
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+		account := models.Account{Kind: scope.AccountKind()}
+		if err := v.core.Accounts.Create(ctx, &account); err != nil {
+			return err
+		}
+		scope.AccountID = account.ID
+		return v.core.Scopes.Create(ctx, &scope)
+	}, sqlRepeatableRead); err != nil {
+		c.Logger().Error(err)
 		return err
 	}
 	return c.JSON(http.StatusCreated, makeScope(scope))

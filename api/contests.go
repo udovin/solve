@@ -752,6 +752,7 @@ type ContestParticipant struct {
 	ID        int64      `json:"id,omitempty"`
 	User      *User      `json:"user,omitempty"`
 	ScopeUser *ScopeUser `json:"scope_user,omitempty"`
+	Scope     *Scope     `json:"scope,omitempty"`
 	ContestID int64      `json:"contest_id,omitempty"`
 	// Kind contains kind.
 	Kind models.ParticipantKind `json:"kind"`
@@ -785,6 +786,7 @@ type CreateContestParticipantForm struct {
 	UserID      *int64                 `json:"user_id"`
 	UserLogin   *string                `json:"user_login"`
 	ScopeUserID *int64                 `json:"scope_user_id"`
+	ScopeID     *int64                 `json:"scope_id"`
 	Kind        models.ParticipantKind `json:"kind"`
 }
 
@@ -827,6 +829,18 @@ func (f CreateContestParticipantForm) Update(
 			}
 		}
 		participant.AccountID = user.AccountID
+	} else if f.ScopeID != nil {
+		scope, err := core.Scopes.Get(getContext(c), *f.ScopeID)
+		if err != nil {
+			return &errorResponse{
+				Code: http.StatusBadRequest,
+				Message: localize(
+					c, "Scope {id} does not exists.",
+					replaceField("id", *f.ScopeUserID),
+				),
+			}
+		}
+		participant.AccountID = scope.AccountID
 	}
 	participant.Kind = f.Kind
 	if participant.Kind == 0 {
@@ -1175,34 +1189,36 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 			MissingPermissions: []string{models.SubmitContestSolutionRole},
 		}
 	}
+	needUpdate := false
+	if participant.Kind == models.RegularParticipant &&
+		contestCtx.Stage == managers.ContestStarted {
+		contestConfig, err := contestCtx.Contest.GetConfig()
+		if err != nil {
+			return err
+		}
+		var config models.RegularParticipantConfig
+		if err := participant.ScanConfig(&config); err != nil {
+			return err
+		}
+		if config.BeginTime != contestConfig.BeginTime {
+			config.BeginTime = contestConfig.BeginTime
+			if err := participant.SetConfig(config); err != nil {
+				return err
+			}
+			needUpdate = true
+		}
+	}
 	if participant.ID == 0 {
 		if err := v.core.ContestParticipants.Create(
 			getContext(c), participant,
 		); err != nil {
 			return err
 		}
-	} else {
-		if participant.Kind == models.RegularParticipant &&
-			contestCtx.Stage == managers.ContestStarted {
-			contestConfig, err := contestCtx.Contest.GetConfig()
-			if err != nil {
-				return err
-			}
-			var config models.RegularParticipantConfig
-			if err := participant.ScanConfig(&config); err != nil {
-				return err
-			}
-			if config.BeginTime != contestConfig.BeginTime {
-				config.BeginTime = contestConfig.BeginTime
-				if err := participant.SetConfig(config); err != nil {
-					return err
-				}
-				if err := v.core.ContestParticipants.Update(
-					getContext(c), *participant,
-				); err != nil {
-					return err
-				}
-			}
+	} else if needUpdate {
+		if err := v.core.ContestParticipants.Update(
+			getContext(c), *participant,
+		); err != nil {
+			return err
 		}
 	}
 	if participant.ID == 0 {
@@ -1347,6 +1363,13 @@ func makeContestParticipant(
 					ID:    user.ID,
 					Login: user.Login,
 					Title: string(user.Title),
+				}
+			}
+		case models.ScopeAccount:
+			if scope, err := core.Scopes.GetByAccount(account.ID); err == nil {
+				resp.Scope = &Scope{
+					ID:    scope.ID,
+					Title: scope.Title,
 				}
 			}
 		}

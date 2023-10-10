@@ -208,11 +208,45 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 			}
 		}
 		c.Participants = participants
+		for _, group := range ctx.GroupAccounts {
+			groupParticipants, err := m.participants.FindByContestAccount(contest.ID, group.ID)
+			if err != nil {
+				return nil, fmt.Errorf("unable to build contest context: %w", err)
+			}
+			for _, groupParticipant := range groupParticipants {
+				for permission := range getParticipantPermissions(
+					contest, c.Stage, config, groupParticipant,
+				) {
+					c.Permissions.AddPermission(permission)
+				}
+				switch groupParticipant.Kind {
+				case models.RegularParticipant:
+					if !hasRegular && (c.Stage == ContestNotStarted || c.Stage == ContestStarted) {
+						c.Participants = append(c.Participants, models.ContestParticipant{
+							ContestID: contest.ID,
+							AccountID: account.ID,
+							Kind:      models.RegularParticipant,
+							Config:    groupParticipant.Config.Clone(),
+						})
+					}
+					hasRegular = true
+				case models.ManagerParticipant:
+					if !hasManager {
+						c.Participants = append(c.Participants, models.ContestParticipant{
+							ContestID: contest.ID,
+							AccountID: account.ID,
+							Kind:      models.ManagerParticipant,
+						})
+					}
+					hasManager = true
+				}
+			}
+		}
 		if !hasManager && contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
 			c.Participants = append(c.Participants, models.ContestParticipant{
-				Kind:      models.ManagerParticipant,
 				ContestID: contest.ID,
 				AccountID: account.ID,
+				Kind:      models.ManagerParticipant,
 			})
 			addContestManagerPermissions(c.Permissions)
 		}
@@ -226,9 +260,9 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 			config.EnableUpsolving && (hasRegular || config.EnableRegistration) {
 			// Add virtual participant for upsolving.
 			c.Participants = append(c.Participants, models.ContestParticipant{
-				Kind:      models.UpsolvingParticipant,
 				ContestID: contest.ID,
 				AccountID: account.ID,
+				Kind:      models.UpsolvingParticipant,
 			})
 			addContestUpsolvingPermissions(c.Permissions, c.Stage, config)
 		}

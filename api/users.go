@@ -465,6 +465,12 @@ func (v *View) loginAccount(c echo.Context) error {
 		c.Logger().Error("auth not extracted")
 		return fmt.Errorf("auth not extracted")
 	}
+	if accountCtx.Account.Kind == models.ScopeAccount {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "User not found."),
+		}
+	}
 	expires := now.AddDate(0, 0, 90)
 	session := models.Session{
 		AccountID:  accountCtx.Account.ID,

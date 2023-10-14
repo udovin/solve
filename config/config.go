@@ -123,6 +123,7 @@ type SMTP struct {
 	Port     int    `json:"port"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Name     string `json:"name,omitempty"`
 }
 
 var configFuncs = template.FuncMap{

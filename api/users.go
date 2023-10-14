@@ -14,10 +14,13 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/config"
+	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
@@ -73,6 +76,11 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	)
 	g.POST(
 		"/v0/users/:user/email", v.updateUserEmail,
+		v.extractAuth(v.sessionAuth), v.extractUser,
+		v.requirePermission(models.UpdateUserRole, models.UpdateUserEmailRole),
+	)
+	g.POST(
+		"/v0/users/:user/email-resend", v.resendUserEmail,
 		v.extractAuth(v.sessionAuth), v.extractUser,
 		v.requirePermission(models.UpdateUserRole, models.UpdateUserEmailRole),
 	)
@@ -320,6 +328,31 @@ func (f updateEmailForm) Update(c echo.Context, user *models.User) error {
 	return nil
 }
 
+const emailTokensLimit = 2
+
+func countConfirmEmailTokens(
+	c echo.Context, store *models.TokenStore, id int64, limit int,
+) (int, error) {
+	now := getNow(c).Unix()
+	tokens, err := store.Find(getContext(c), db.FindQuery{
+		Where: gosql.Column("account_id").Equal(id).
+			And(gosql.Column("kind").Equal(models.ConfirmEmailToken)),
+		OrderBy: []any{gosql.Descending("id")},
+		Limit:   limit,
+	})
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tokens.Close() }()
+	var count int
+	for tokens.Next() {
+		if tokens.Row().ExpireTime >= now {
+			count++
+		}
+	}
+	return count, tokens.Err()
+}
+
 func (v *View) updateUserEmail(c echo.Context) error {
 	now := getNow(c)
 	user, ok := c.Get(userKey).(models.User)
@@ -351,12 +384,20 @@ func (v *View) updateUserEmail(c echo.Context) error {
 			Message: localize(c, "Invalid password."),
 		}
 	}
+	if count, err := countConfirmEmailTokens(
+		c, v.core.Tokens, user.AccountID, emailTokensLimit,
+	); err != nil {
+		c.Logger().Warn(err)
+		return err
+	} else if count >= emailTokensLimit {
+		return c.NoContent(http.StatusTooManyRequests)
+	}
 	if err := form.Update(c, &user); err != nil {
 		c.Logger().Warn(err)
 		return err
 	}
 	if cfg := v.core.Config.SMTP; cfg != nil {
-		expires := now.AddDate(0, 0, 1)
+		expires := now.Add(3 * time.Hour)
 		token := models.Token{
 			AccountID:  user.AccountID,
 			CreateTime: now.Unix(),
@@ -373,9 +414,7 @@ func (v *View) updateUserEmail(c echo.Context) error {
 		if err := v.core.Tokens.Create(getContext(c), &token); err != nil {
 			return err
 		}
-		to := mail.Address{
-			Address: string(form.Email),
-		}
+		to := mail.Address{Address: form.Email}
 		values := v.getConfirmEmailValues(c, user, token)
 		if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
 			c.Logger().Error(err)
@@ -387,6 +426,68 @@ func (v *View) updateUserEmail(c echo.Context) error {
 			c.Logger().Error(err)
 			return err
 		}
+	}
+	return c.JSON(http.StatusOK, makeUser(user, permissions))
+}
+
+func (v *View) resendUserEmail(c echo.Context) error {
+	now := getNow(c)
+	cfg := v.core.Config.SMTP
+	if cfg == nil {
+		return c.NoContent(http.StatusNotImplemented)
+	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	if !ok {
+		c.Logger().Error("permissions not extracted")
+		return fmt.Errorf("permissions not extracted")
+	}
+	if user.Status != models.PendingUser {
+		return c.NoContent(http.StatusForbidden)
+	}
+	errors := errorFields{}
+	validateEmail(c, errors, string(user.Email))
+	if len(errors) > 0 {
+		return errorResponse{
+			Code:          http.StatusBadRequest,
+			Message:       localize(c, "Form has invalid fields."),
+			InvalidFields: errors,
+		}
+	}
+	if count, err := countConfirmEmailTokens(
+		c, v.core.Tokens, user.AccountID, emailTokensLimit,
+	); err != nil {
+		c.Logger().Warn(err)
+		return err
+	} else if count >= emailTokensLimit {
+		return c.NoContent(http.StatusTooManyRequests)
+	}
+	expires := now.Add(3 * time.Hour)
+	token := models.Token{
+		AccountID:  user.AccountID,
+		CreateTime: now.Unix(),
+		ExpireTime: expires.Unix(),
+	}
+	if err := token.GenerateSecret(); err != nil {
+		return err
+	}
+	if err := token.SetConfig(models.ConfirmEmailTokenConfig{
+		Email: string(user.Email),
+	}); err != nil {
+		return err
+	}
+	if err := v.core.Tokens.Create(getContext(c), &token); err != nil {
+		return err
+	}
+	to := mail.Address{Address: string(user.Email)}
+	values := v.getConfirmEmailValues(c, user, token)
+	if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
+		c.Logger().Error(err)
+		return err
 	}
 	return c.JSON(http.StatusOK, makeUser(user, permissions))
 }
@@ -722,9 +823,7 @@ func (v *View) registerUser(c echo.Context) error {
 		return err
 	}
 	if cfg := v.core.Config.SMTP; cfg != nil {
-		to := mail.Address{
-			Address: string(user.Email),
-		}
+		to := mail.Address{Address: string(user.Email)}
 		values := v.getConfirmEmailValues(c, user, token)
 		if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
 			c.Logger().Error(err)
@@ -765,7 +864,7 @@ func (v *View) sendMail(c echo.Context, cfg *config.SMTP, to mail.Address, key s
 		return err
 	}
 	defer writer.Close()
-	from := mail.Address{Name: "", Address: cfg.Email}
+	from := mail.Address{Name: cfg.Name, Address: cfg.Email}
 	locale := getLocale(c)
 	subject, err := renderTemplate(locale.LocalizeKey(key+".subject", "Email confirmation on Solve"), values)
 	if err != nil {

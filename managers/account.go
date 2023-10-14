@@ -54,12 +54,14 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 				return nil, err
 			}
 			roleIDs = append(roleIDs, role.ID)
-			edges, err := m.accountRoles.FindByAccount(account.ID)
-			if err != nil {
-				return nil, err
-			}
-			for _, edge := range edges {
-				roleIDs = append(roleIDs, edge.RoleID)
+			if user.Status != models.BlockedUser {
+				edges, err := m.accountRoles.FindByAccount(account.ID)
+				if err != nil {
+					return nil, err
+				}
+				for _, edge := range edges {
+					roleIDs = append(roleIDs, edge.RoleID)
+				}
 			}
 		case models.ScopeUserAccount:
 			user, err := m.scopeUsers.GetByAccount(account.ID)

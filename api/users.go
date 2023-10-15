@@ -384,6 +384,19 @@ func (v *View) updateUserEmail(c echo.Context) error {
 			Message: localize(c, "Invalid password."),
 		}
 	}
+	if err := form.Update(c, &user); err != nil {
+		c.Logger().Warn(err)
+		return err
+	}
+	cfg := v.core.Config.SMTP
+	if cfg == nil {
+		user.Email = models.NString(form.Email)
+		if err := v.core.Users.Update(getContext(c), user); err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+		return c.JSON(http.StatusOK, makeUser(user, permissions))
+	}
 	if count, err := countConfirmEmailTokens(
 		c, v.core.Tokens, user.AccountID, emailTokensLimit,
 	); err != nil {
@@ -392,40 +405,28 @@ func (v *View) updateUserEmail(c echo.Context) error {
 	} else if count >= emailTokensLimit {
 		return c.NoContent(http.StatusTooManyRequests)
 	}
-	if err := form.Update(c, &user); err != nil {
-		c.Logger().Warn(err)
+	expires := now.Add(3 * time.Hour)
+	token := models.Token{
+		AccountID:  user.AccountID,
+		CreateTime: now.Unix(),
+		ExpireTime: expires.Unix(),
+	}
+	if err := token.GenerateSecret(); err != nil {
 		return err
 	}
-	if cfg := v.core.Config.SMTP; cfg != nil {
-		expires := now.Add(3 * time.Hour)
-		token := models.Token{
-			AccountID:  user.AccountID,
-			CreateTime: now.Unix(),
-			ExpireTime: expires.Unix(),
-		}
-		if err := token.GenerateSecret(); err != nil {
-			return err
-		}
-		if err := token.SetConfig(models.ConfirmEmailTokenConfig{
-			Email: form.Email,
-		}); err != nil {
-			return err
-		}
-		if err := v.core.Tokens.Create(getContext(c), &token); err != nil {
-			return err
-		}
-		to := mail.Address{Address: form.Email}
-		values := v.getConfirmEmailValues(c, user, token)
-		if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
-			c.Logger().Error(err)
-			return err
-		}
-	} else {
-		user.Email = models.NString(form.Email)
-		if err := v.core.Users.Update(getContext(c), user); err != nil {
-			c.Logger().Error(err)
-			return err
-		}
+	if err := token.SetConfig(models.ConfirmEmailTokenConfig{
+		Email: form.Email,
+	}); err != nil {
+		return err
+	}
+	if err := v.core.Tokens.Create(getContext(c), &token); err != nil {
+		return err
+	}
+	to := mail.Address{Address: form.Email}
+	values := v.getConfirmEmailValues(c, user, token)
+	if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
+		c.Logger().Error(err)
+		return err
 	}
 	return c.JSON(http.StatusOK, makeUser(user, permissions))
 }

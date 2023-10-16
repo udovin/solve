@@ -83,6 +83,30 @@ func (c *Core) SetupAllStores() {
 	c.Visits = models.NewVisitStore(c.DB, "solve_visit")
 }
 
+func (c *Core) SetupInvokerStores() {
+	c.Settings = models.NewSettingStore(
+		c.DB, "solve_setting", "solve_setting_event",
+	)
+	c.Tasks = models.NewTaskStore(
+		c.DB, "solve_task", "solve_task_event",
+	)
+	c.Files = models.NewFileStore(
+		c.DB, "solve_file", "solve_file_event",
+	)
+	c.Problems = models.NewProblemStore(
+		c.DB, "solve_problem", "solve_problem_event",
+	)
+	c.ProblemResources = models.NewProblemResourceStore(
+		c.DB, "solve_problem_resource", "solve_problem_resource_event",
+	)
+	c.Solutions = models.NewSolutionStore(
+		c.DB, "solve_solution", "solve_solution_event",
+	)
+	c.Compilers = models.NewCompilerStore(
+		c.DB, "solve_compiler", "solve_compiler_event",
+	)
+}
+
 func (c *Core) startStores(start func(any, string, time.Duration)) {
 	start(c.Settings, "settings", time.Second*5)
 	start(c.Tasks, "tasks", time.Second)

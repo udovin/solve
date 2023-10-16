@@ -87,7 +87,11 @@ func serverMain(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		panic(err)
 	}
-	c.SetupAllStores()
+	if cfg.Server != nil {
+		c.SetupAllStores()
+	} else if cfg.Invoker != nil {
+		c.SetupInvokerStores()
+	}
 	if err := c.Start(); err != nil {
 		panic(err)
 	}

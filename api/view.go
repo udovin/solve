@@ -82,6 +82,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerScopeHandlers(g)
 	v.registerRoleHandlers(g)
 	v.registerSessionHandlers(g)
+	v.registerTokenHandlers(g)
 	v.registerContestHandlers(g)
 	v.registerContestStandingsHandlers(g)
 	v.registerContestMessageHandlers(g)
@@ -91,6 +92,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerSettingHandlers(g)
 	v.registerLocaleHandlers(g)
 	v.registerFileHandlers(g)
+	v.registerTokenHandlers(g)
 }
 
 func (v *View) RegisterSocket(g *echo.Group) {
@@ -154,6 +156,7 @@ const (
 	settingKey            = "setting"
 	scopeKey              = "scope"
 	scopeUserKey          = "scope_user"
+	tokenKey              = "token"
 	localeKey             = "locale"
 	syncKey               = "sync"
 )
@@ -590,6 +593,7 @@ func (v *View) getInt64Setting(key string, logger echo.Logger) models.Option[int
 type locale interface {
 	Name() string
 	Localize(text string, options ...func(*string)) string
+	LocalizeKey(key string, text string, options ...func(*string)) string
 	GetLocalizations() ([]Localization, error)
 }
 
@@ -626,6 +630,10 @@ func (stubLocale) Localize(text string, options ...func(*string)) string {
 	return text
 }
 
+func (l stubLocale) LocalizeKey(key string, text string, options ...func(*string)) string {
+	return l.Localize(text, options...)
+}
+
 func (stubLocale) GetLocalizations() ([]Localization, error) {
 	return nil, nil
 }
@@ -640,8 +648,16 @@ func (l *settingLocale) Name() string {
 }
 
 func (l *settingLocale) Localize(text string, options ...func(*string)) string {
-	key := l.getLocalizationKey(text)
-	if localized, err := l.settings.GetByKey(key); err == nil {
+	return l.LocalizeKey(getLocalizationKey(text), text, options...)
+}
+
+func (l *settingLocale) LocalizeKey(key string, text string, options ...func(*string)) string {
+	settingKey := strings.Builder{}
+	settingKey.WriteString("localization.")
+	settingKey.WriteString(l.name)
+	settingKey.WriteRune('.')
+	settingKey.WriteString(key)
+	if localized, err := l.settings.GetByKey(settingKey.String()); err == nil {
 		text = localized.Value
 	}
 	for _, option := range options {
@@ -674,11 +690,8 @@ func (l *settingLocale) GetLocalizations() ([]Localization, error) {
 	return localizations, nil
 }
 
-func (l *settingLocale) getLocalizationKey(text string) string {
+func getLocalizationKey(text string) string {
 	var key strings.Builder
-	key.WriteString("localization.")
-	key.WriteString(l.name)
-	key.WriteRune('.')
 	split := false
 	for _, c := range text {
 		if unicode.IsLetter(c) {

@@ -2,17 +2,25 @@ package api
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
+	"net/mail"
+	"net/smtp"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/udovin/gosql"
+	"github.com/udovin/solve/config"
+	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
@@ -25,6 +33,8 @@ type User struct {
 	Login string `json:"login"`
 	// Email contains user email.
 	Email string `json:"email,omitempty"`
+	// Status contains user status.
+	Status string `json:"status,omitempty"`
 	// FirstName contains first name.
 	FirstName string `json:"first_name,omitempty"`
 	// LastName contains last name.
@@ -62,7 +72,17 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	g.POST(
 		"/v0/users/:user/password", v.updateUserPassword,
 		v.extractAuth(v.sessionAuth), v.extractUser,
-		v.requirePermission(models.UpdateUserPasswordRole),
+		v.requirePermission(models.UpdateUserRole, models.UpdateUserPasswordRole),
+	)
+	g.POST(
+		"/v0/users/:user/email", v.updateUserEmail,
+		v.extractAuth(v.sessionAuth), v.extractUser,
+		v.requirePermission(models.UpdateUserRole, models.UpdateUserEmailRole),
+	)
+	g.POST(
+		"/v0/users/:user/email-resend", v.resendUserEmail,
+		v.extractAuth(v.sessionAuth), v.extractUser,
+		v.requirePermission(models.UpdateUserRole, models.UpdateUserEmailRole),
 	)
 	g.GET(
 		"/v0/status", v.status,
@@ -213,8 +233,8 @@ func (v *View) updateUser(c echo.Context) error {
 }
 
 type updatePasswordForm struct {
-	OldPassword string `json:"old_password"`
-	Password    string `json:"password"`
+	CurrentPassword string `json:"current_password"`
+	Password        string `json:"password"`
 }
 
 func (f updatePasswordForm) Update(
@@ -227,12 +247,6 @@ func (f updatePasswordForm) Update(
 			Code:          http.StatusBadRequest,
 			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
-		}
-	}
-	if f.OldPassword == f.Password {
-		return errorResponse{
-			Code:    http.StatusBadRequest,
-			Message: localize(c, "Old and new passwords are the same."),
 		}
 	}
 	if err := users.SetPassword(user, f.Password); err != nil {
@@ -265,18 +279,19 @@ func (v *View) updateUserPassword(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	if authUser := accountCtx.User; authUser != nil && user.ID == authUser.ID {
-		if len(form.OldPassword) == 0 {
-			return errorResponse{
-				Code:    http.StatusBadRequest,
-				Message: localize(c, "Old password should not be empty."),
-			}
+	authUser := accountCtx.User
+	if authUser == nil ||
+		len(form.CurrentPassword) == 0 ||
+		!v.core.Users.CheckPassword(*authUser, form.CurrentPassword) {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Invalid password."),
 		}
-		if !v.core.Users.CheckPassword(user, form.OldPassword) {
-			return errorResponse{
-				Code:    http.StatusBadRequest,
-				Message: localize(c, "Invalid password."),
-			}
+	}
+	if authUser.ID == user.ID && form.CurrentPassword == form.Password {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Old and new passwords are the same."),
 		}
 	}
 	if err := form.Update(c, &user, v.core.Users); err != nil {
@@ -287,6 +302,204 @@ func (v *View) updateUserPassword(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, makeUser(user, permissions))
+}
+
+type updateEmailForm struct {
+	CurrentPassword string `json:"current_password"`
+	Email           string `json:"email"`
+}
+
+func (f updateEmailForm) Update(c echo.Context, user *models.User) error {
+	errors := errorFields{}
+	validateEmail(c, errors, f.Email)
+	if len(errors) > 0 {
+		return errorResponse{
+			Code:          http.StatusBadRequest,
+			Message:       localize(c, "Form has invalid fields."),
+			InvalidFields: errors,
+		}
+	}
+	if f.Email == string(user.Email) {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Form has invalid fields."),
+		}
+	}
+	return nil
+}
+
+const emailTokensLimit = 2
+
+func countConfirmEmailTokens(
+	c echo.Context, store *models.TokenStore, id int64, limit int,
+) (int, error) {
+	now := getNow(c).Unix()
+	tokens, err := store.Find(getContext(c), db.FindQuery{
+		Where: gosql.Column("account_id").Equal(id).
+			And(gosql.Column("kind").Equal(models.ConfirmEmailToken)),
+		OrderBy: []any{gosql.Descending("id")},
+		Limit:   limit,
+	})
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tokens.Close() }()
+	var count int
+	for tokens.Next() {
+		if tokens.Row().ExpireTime >= now {
+			count++
+		}
+	}
+	return count, tokens.Err()
+}
+
+func (v *View) updateUserEmail(c echo.Context) error {
+	now := getNow(c)
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		c.Logger().Error("auth not extracted")
+		return fmt.Errorf("auth not extracted")
+	}
+	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	if !ok {
+		c.Logger().Error("permissions not extracted")
+		return fmt.Errorf("permissions not extracted")
+	}
+	var form updateEmailForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	authUser := accountCtx.User
+	if authUser == nil ||
+		len(form.CurrentPassword) == 0 ||
+		!v.core.Users.CheckPassword(*authUser, form.CurrentPassword) {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Invalid password."),
+		}
+	}
+	if err := form.Update(c, &user); err != nil {
+		c.Logger().Warn(err)
+		return err
+	}
+	cfg := v.core.Config.SMTP
+	if cfg == nil {
+		user.Email = models.NString(form.Email)
+		if err := v.core.Users.Update(getContext(c), user); err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+		return c.JSON(http.StatusOK, makeUser(user, permissions))
+	}
+	if count, err := countConfirmEmailTokens(
+		c, v.core.Tokens, user.AccountID, emailTokensLimit,
+	); err != nil {
+		c.Logger().Warn(err)
+		return err
+	} else if count >= emailTokensLimit {
+		return c.NoContent(http.StatusTooManyRequests)
+	}
+	expires := now.Add(3 * time.Hour)
+	token := models.Token{
+		AccountID:  user.AccountID,
+		CreateTime: now.Unix(),
+		ExpireTime: expires.Unix(),
+	}
+	if err := token.GenerateSecret(); err != nil {
+		return err
+	}
+	if err := token.SetConfig(models.ConfirmEmailTokenConfig{
+		Email: form.Email,
+	}); err != nil {
+		return err
+	}
+	if err := v.core.Tokens.Create(getContext(c), &token); err != nil {
+		return err
+	}
+	to := mail.Address{Address: form.Email}
+	values := v.getConfirmEmailValues(c, user, token)
+	if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusOK, makeUser(user, permissions))
+}
+
+func (v *View) resendUserEmail(c echo.Context) error {
+	now := getNow(c)
+	cfg := v.core.Config.SMTP
+	if cfg == nil {
+		return c.NoContent(http.StatusNotImplemented)
+	}
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	if !ok {
+		c.Logger().Error("permissions not extracted")
+		return fmt.Errorf("permissions not extracted")
+	}
+	if user.Status != models.PendingUser {
+		return c.NoContent(http.StatusForbidden)
+	}
+	errors := errorFields{}
+	validateEmail(c, errors, string(user.Email))
+	if len(errors) > 0 {
+		return errorResponse{
+			Code:          http.StatusBadRequest,
+			Message:       localize(c, "Form has invalid fields."),
+			InvalidFields: errors,
+		}
+	}
+	if count, err := countConfirmEmailTokens(
+		c, v.core.Tokens, user.AccountID, emailTokensLimit,
+	); err != nil {
+		c.Logger().Warn(err)
+		return err
+	} else if count >= emailTokensLimit {
+		return c.NoContent(http.StatusTooManyRequests)
+	}
+	expires := now.Add(3 * time.Hour)
+	token := models.Token{
+		AccountID:  user.AccountID,
+		CreateTime: now.Unix(),
+		ExpireTime: expires.Unix(),
+	}
+	if err := token.GenerateSecret(); err != nil {
+		return err
+	}
+	if err := token.SetConfig(models.ConfirmEmailTokenConfig{
+		Email: string(user.Email),
+	}); err != nil {
+		return err
+	}
+	if err := v.core.Tokens.Create(getContext(c), &token); err != nil {
+		return err
+	}
+	to := mail.Address{Address: string(user.Email)}
+	values := v.getConfirmEmailValues(c, user, token)
+	if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusOK, makeUser(user, permissions))
+}
+
+func (v *View) getConfirmEmailValues(c echo.Context, user models.User, token models.Token) map[string]any {
+	return map[string]any{
+		"site_url": v.core.Config.Server.SiteURL,
+		"login":    user.Login,
+		"id":       token.ID,
+		"secret":   token.Secret,
+	}
 }
 
 func (v *View) observeUserSessions(c echo.Context) error {
@@ -327,7 +540,11 @@ func (v *View) status(c echo.Context) error {
 		}
 	}
 	if user := accountCtx.User; user != nil {
-		status.User = &User{ID: user.ID, Login: user.Login}
+		status.User = &User{
+			ID:     user.ID,
+			Login:  user.Login,
+			Status: user.Status.String(),
+		}
 	}
 	if user := accountCtx.ScopeUser; user != nil {
 		status.ScopeUser = &ScopeUser{ID: user.ID, Login: user.Login}
@@ -567,21 +784,52 @@ func (v *View) registerUser(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	var user models.User
+	now := getNow(c)
+	user := models.User{}
 	if err := form.Update(c, &user, v.core.Users); err != nil {
 		return err
 	}
 	user.Status = models.PendingUser
+	expires := now.AddDate(0, 0, 1)
+	token := models.Token{
+		CreateTime: now.Unix(),
+		ExpireTime: expires.Unix(),
+	}
+	if err := token.SetConfig(models.ConfirmEmailTokenConfig{
+		Email: string(user.Email),
+	}); err != nil {
+		return err
+	}
+	if err := token.GenerateSecret(); err != nil {
+		return err
+	}
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
 		account := models.Account{Kind: user.AccountKind()}
 		if err := v.core.Accounts.Create(ctx, &account); err != nil {
 			return err
 		}
 		user.AccountID = account.ID
-		return v.core.Users.Create(ctx, &user)
+		if err := v.core.Users.Create(ctx, &user); err != nil {
+			return err
+		}
+		if v.core.Config.SMTP != nil {
+			token.AccountID = account.ID
+			if err := v.core.Tokens.Create(ctx, &token); err != nil {
+				return err
+			}
+		}
+		return nil
 	}, sqlRepeatableRead); err != nil {
 		c.Logger().Error(err)
 		return err
+	}
+	if cfg := v.core.Config.SMTP; cfg != nil {
+		to := mail.Address{Address: string(user.Email)}
+		values := v.getConfirmEmailValues(c, user, token)
+		if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
+			c.Logger().Error(err)
+			return err
+		}
 	}
 	return c.JSON(http.StatusCreated, User{
 		ID:         user.ID,
@@ -591,6 +839,73 @@ func (v *View) registerUser(c echo.Context) error {
 		LastName:   form.LastName,
 		MiddleName: form.MiddleName,
 	})
+}
+
+func (v *View) sendMail(c echo.Context, cfg *config.SMTP, to mail.Address, key string, values map[string]any) error {
+	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", cfg.Host, cfg.Port), nil)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client, err := smtp.NewClient(conn, cfg.Host)
+	if err != nil {
+		return err
+	}
+	if err := client.Auth(smtp.PlainAuth("", cfg.Email, cfg.Password, cfg.Host)); err != nil {
+		return err
+	}
+	if err := client.Mail(cfg.Email); err != nil {
+		return err
+	}
+	if err := client.Rcpt(to.Address); err != nil {
+		return err
+	}
+	writer, err := client.Data()
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+	from := mail.Address{Name: cfg.Name, Address: cfg.Email}
+	locale := getLocale(c)
+	subject, err := renderTemplate(locale.LocalizeKey(key+".subject", "Email confirmation on Solve"), values)
+	if err != nil {
+		return err
+	}
+	body, err := renderTemplate(locale.LocalizeKey(key+".body", "Confirmation link: {{.site_url}}/confirm-email?id={{.id}}&secret={{.secret}}"), values)
+	if err != nil {
+		return err
+	}
+	if _, err := writer.Write([]byte(fmt.Sprintf("From: %s\r\n", from.String()))); err != nil {
+		return err
+	}
+	if _, err := writer.Write([]byte(fmt.Sprintf("To: %s\r\n", to.String()))); err != nil {
+		return err
+	}
+	if _, err := writer.Write([]byte(fmt.Sprintf("Subject: %s\r\n", subject))); err != nil {
+		return err
+	}
+	if _, err := writer.Write([]byte("\r\n")); err != nil {
+		return err
+	}
+	if _, err := writer.Write([]byte(body)); err != nil {
+		return err
+	}
+	if err := writer.Close(); err != nil {
+		return err
+	}
+	return client.Quit()
+}
+
+func renderTemplate(text string, values map[string]any) (string, error) {
+	tmpl, err := template.New("").Parse(text)
+	if err != nil {
+		return "", err
+	}
+	b := strings.Builder{}
+	if err := tmpl.Execute(&b, values); err != nil {
+		return "", err
+	}
+	return b.String(), nil
 }
 
 func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {

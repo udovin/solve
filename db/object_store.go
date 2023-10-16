@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/udovin/gosql"
@@ -24,10 +25,10 @@ type FindObjectsOption interface {
 type ObjectROStore[T any] interface {
 	// LoadObjects should load objects from store.
 	LoadObjects(ctx context.Context) (Rows[T], error)
-	// FindObjects should bind objects with specified expression.
-	FindObjects(
-		ctx context.Context, options ...FindObjectsOption,
-	) (Rows[T], error)
+	// FindObjects should find objects with specified expression.
+	FindObjects(ctx context.Context, options ...FindObjectsOption) (Rows[T], error)
+	// FindObject should bind one object with specified expression.
+	FindObject(ctx context.Context, options ...FindObjectsOption) (T, error)
 }
 
 // ObjectStore represents persistent store for objects.
@@ -52,7 +53,7 @@ func (s *objectStore[T, TPtr]) LoadObjects(ctx context.Context) (Rows[T], error)
 	builder := s.db.Select(s.table)
 	builder.SetNames(s.columns...)
 	builder.SetOrderBy(gosql.Ascending(s.id))
-	rows, err := GetRunner(ctx, s.db.RO).QueryContext(ctx, builder.String())
+	rows, err := GetRunner(ctx, s.db.RO).QueryContext(ctx, s.db.BuildString(builder))
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,7 @@ func (s *objectStore[T, TPtr]) FindObjects(
 	for _, option := range options {
 		option.UpdateSelect(builder)
 	}
-	query, values := builder.Build()
+	query, values := s.db.Build(builder)
 	rows, err := GetRunner(ctx, s.db.RO).QueryContext(ctx, query, values...)
 	if err != nil {
 		return nil, err
@@ -80,6 +81,25 @@ func (s *objectStore[T, TPtr]) FindObjects(
 		return nil, fmt.Errorf("store %q: %w", s.table, err)
 	}
 	return newRowReader[T](rows), nil
+}
+
+// FindOne finds one object with specified query.
+func (s *objectStore[T, TPtr]) FindObject(
+	ctx context.Context, options ...FindObjectsOption,
+) (T, error) {
+	var empty T
+	rows, err := s.FindObjects(ctx, append(options, WithLimit(1))...)
+	if err != nil {
+		return empty, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return empty, err
+		}
+		return empty, sql.ErrNoRows
+	}
+	return rows.Row(), nil
 }
 
 func (s *objectStore[T, TPtr]) CreateObject(ctx context.Context, object TPtr) error {
@@ -112,7 +132,7 @@ func NewObjectStore[T any, TPtr ObjectPtr[T]](
 }
 
 type FindQuery struct {
-	Where   gosql.BoolExpression
+	Where   gosql.BoolExpr
 	Limit   int
 	OrderBy []any
 }

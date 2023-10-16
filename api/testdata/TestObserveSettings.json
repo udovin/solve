@@ -158,88 +158,88 @@
       },
       {
         "id": 32,
+        "key": "localization.ru.invalid_token_id",
+        "value": "Неверный ID токена."
+      },
+      {
+        "id": 33,
         "key": "localization.ru.invalid_user_id",
         "value": "Неправильный ID пользователя."
       },
       {
-        "id": 33,
+        "id": 34,
         "key": "localization.ru.last_name_too_long",
         "value": "Фамилия слишком длинная."
       },
       {
-        "id": 34,
+        "id": 35,
         "key": "localization.ru.last_name_too_short",
         "value": "Фамилия слишком короткая."
       },
       {
-        "id": 35,
+        "id": 36,
         "key": "localization.ru.login_has_invalid_format",
         "value": "Логин не соотвествует формату."
       },
       {
-        "id": 36,
+        "id": 37,
         "key": "localization.ru.login_too_long",
         "value": "Логин слишком длинный"
       },
       {
-        "id": 37,
+        "id": 38,
         "key": "localization.ru.login_too_short",
         "value": "Логин слишком короткий"
       },
       {
-        "id": 38,
+        "id": 39,
         "key": "localization.ru.mail_server_host_not_responding",
         "value": "Почтовый сервер \"{host}\" не отвечает."
       },
       {
-        "id": 39,
+        "id": 40,
         "key": "localization.ru.message_not_found",
         "value": "Сообщение не найдено."
       },
       {
-        "id": 40,
+        "id": 41,
         "key": "localization.ru.message_should_be_a_question",
         "value": "Сообщение должно быть вопросом"
       },
       {
-        "id": 41,
+        "id": 42,
         "key": "localization.ru.middle_name_too_long",
         "value": "Отчество слишком длинное."
       },
       {
-        "id": 42,
+        "id": 43,
         "key": "localization.ru.middle_name_too_short",
         "value": "Отчество слишком короткое."
       },
       {
-        "id": 43,
+        "id": 44,
         "key": "localization.ru.name_has_invalid_format",
         "value": "Название не соотвествует формату."
       },
       {
-        "id": 44,
+        "id": 45,
         "key": "localization.ru.name_is_required",
         "value": "Имя является обязательным."
       },
       {
-        "id": 45,
+        "id": 46,
         "key": "localization.ru.name_is_too_long",
         "value": "Название слишком длинное."
       },
       {
-        "id": 46,
+        "id": 47,
         "key": "localization.ru.name_is_too_short",
         "value": "Название слишком короткое."
       },
       {
-        "id": 47,
+        "id": 48,
         "key": "localization.ru.old_and_new_passwords_are_the_same",
         "value": "Старый и новый пароли совпадают."
-      },
-      {
-        "id": 48,
-        "key": "localization.ru.old_password_should_not_be_empty",
-        "value": "Старый пароль не может быть пустым."
       },
       {
         "id": 49,

@@ -74,6 +74,20 @@ var s001 = []schema.Operation{
 		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
+		Name: "solve_lock",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", Type: schema.String},
+			{Name: "token", Type: schema.Int64},
+			{Name: "expire_time", Type: schema.Int64},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_lock",
+		Columns: []string{"name"},
+		Unique:  true,
+	},
+	schema.CreateTable{
 		Name: "solve_file",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -257,6 +271,41 @@ var s001 = []schema.Operation{
 		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
+		Name: "solve_token",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "account_id", Type: schema.Int64},
+			{Name: "secret", Type: schema.String},
+			{Name: "kind", Type: schema.Int64},
+			{Name: "config", Type: schema.JSON},
+			{Name: "create_time", Type: schema.Int64},
+			{Name: "expire_time", Type: schema.Int64},
+		},
+		ForeignKeys: []schema.ForeignKey{
+			{Column: "account_id", ParentTable: "solve_account", ParentColumn: "id"},
+		},
+	},
+	schema.CreateTable{
+		Name: "solve_token_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_kind", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
+			{Name: "id", Type: schema.Int64},
+			{Name: "account_id", Type: schema.Int64},
+			{Name: "secret", Type: schema.String},
+			{Name: "kind", Type: schema.Int64},
+			{Name: "config", Type: schema.JSON},
+			{Name: "create_time", Type: schema.Int64},
+			{Name: "expire_time", Type: schema.Int64},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_token_event",
+		Columns: []string{"id", "event_id"},
+	},
+	schema.CreateTable{
 		Name: "solve_user",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
@@ -282,6 +331,11 @@ var s001 = []schema.Operation{
 	schema.CreateIndex{
 		Table:      "solve_user",
 		Expression: "LOWER(\"login\")",
+		Unique:     true,
+	},
+	schema.CreateIndex{
+		Table:      "solve_user",
+		Expression: "LOWER(\"email\")",
 		Unique:     true,
 	},
 	schema.CreateTable{

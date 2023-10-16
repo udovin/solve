@@ -18,6 +18,7 @@ func (c *Core) SetupAllStores() {
 	c.Tasks = models.NewTaskStore(
 		c.DB, "solve_task", "solve_task_event",
 	)
+	c.Locks = models.NewLockStore(c.DB, "solve_lock")
 	c.Files = models.NewCachedFileStore(
 		c.DB, "solve_file", "solve_file_event",
 	)
@@ -35,6 +36,9 @@ func (c *Core) SetupAllStores() {
 	)
 	c.Sessions = models.NewSessionStore(
 		c.DB, "solve_session", "solve_session_event",
+	)
+	c.Tokens = models.NewTokenStore(
+		c.DB, "solve_token", "solve_token_event",
 	)
 	if c.Config.Security != nil {
 		c.Users = models.NewUserStore(

@@ -217,6 +217,10 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 				for permission := range getParticipantPermissions(
 					contest, c.Stage, config, groupParticipant,
 				) {
+					if permission == models.DeregisterContestRole {
+						// User cannot deregister group account.
+						continue
+					}
 					c.Permissions.AddPermission(permission)
 				}
 				switch groupParticipant.Kind {
@@ -230,12 +234,23 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 						})
 					}
 					hasRegular = true
+				case models.UpsolvingParticipant:
+					if !hasUpsolving && c.Stage == ContestFinished {
+						c.Participants = append(c.Participants, models.ContestParticipant{
+							ContestID: contest.ID,
+							AccountID: account.ID,
+							Kind:      models.UpsolvingParticipant,
+							Config:    groupParticipant.Config.Clone(),
+						})
+					}
+					hasUpsolving = true
 				case models.ManagerParticipant:
 					if !hasManager {
 						c.Participants = append(c.Participants, models.ContestParticipant{
 							ContestID: contest.ID,
 							AccountID: account.ID,
 							Kind:      models.ManagerParticipant,
+							Config:    groupParticipant.Config.Clone(),
 						})
 					}
 					hasManager = true

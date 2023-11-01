@@ -3,7 +3,7 @@ module github.com/udovin/solve
 go 1.20
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.21.1
+	github.com/aws/aws-sdk-go-v2 v1.22.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.42
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.40.1
 	github.com/jackc/pgx/v4 v4.18.1
@@ -30,7 +30,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.37 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.36 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.15.5 // indirect
-	github.com/aws/smithy-go v1.15.0 // indirect
+	github.com/aws/smithy-go v1.16.0 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

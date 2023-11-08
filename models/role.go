@@ -95,6 +95,8 @@ const (
 	CreateProblemRole = "create_problem"
 	// UpdateProblemRole represents role for updating problem.
 	UpdateProblemRole = "update_problem"
+	// UpdateProblemOwnerRole represents role for updating problem owner.
+	UpdateProblemOwnerRole = "update_problem_owner"
 	// DeleteProblemRole represents role for deleting problem.
 	DeleteProblemRole = "delete_problem"
 	// ObserveCompilersRole represents role for observing compiler list.
@@ -192,6 +194,8 @@ const (
 	CreateContestRole = "create_contest"
 	// UpdateContestRole represents role for updating contest.
 	UpdateContestRole = "update_contest"
+	// UpdateContestOwnerRole represents role for updating contest owner.
+	UpdateContestOwnerRole = "update_contest_owner"
 	// DeleteContestRole represents role for deleting contest.
 	DeleteContestRole = "delete_contest"
 	// RegisterContestsRole represents role for register to contests.
@@ -259,6 +263,7 @@ var builtInRoles = map[string]struct{}{
 	ObserveProblemRole:               {},
 	CreateProblemRole:                {},
 	UpdateProblemRole:                {},
+	UpdateProblemOwnerRole:           {},
 	DeleteProblemRole:                {},
 	ObserveCompilersRole:             {},
 	ObserveCompilerRole:              {},
@@ -296,6 +301,7 @@ var builtInRoles = map[string]struct{}{
 	ObserveContestsRole:              {},
 	CreateContestRole:                {},
 	UpdateContestRole:                {},
+	UpdateContestOwnerRole:           {},
 	DeleteContestRole:                {},
 	DeleteSessionRole:                {},
 	RegisterContestsRole:             {},

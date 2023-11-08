@@ -165,6 +165,7 @@ type ContestProblems struct {
 
 var contestPermissions = []string{
 	models.UpdateContestRole,
+	models.UpdateContestOwnerRole,
 	models.DeleteContestRole,
 	models.RegisterContestRole,
 	models.DeregisterContestRole,
@@ -352,6 +353,7 @@ type updateContestForm struct {
 	FreezeBeginDuration *int                  `json:"freeze_begin_duration" form:"freeze_begin_duration"`
 	FreezeEndTime       *NInt64               `json:"freeze_end_time" form:"freeze_end_time"`
 	StandingsKind       *models.StandingsKind `json:"standings_kind" form:"standings_kind"`
+	OwnerID             *int64                `json:"owner_id" form:"owner_id"`
 }
 
 func (f *updateContestForm) Update(
@@ -476,6 +478,37 @@ func (v *View) updateContest(c echo.Context) error {
 	}
 	if err := form.Update(c, &contest); err != nil {
 		return err
+	}
+	var missingPermissions []string
+	if form.OwnerID != nil {
+		if !contestCtx.HasPermission(models.UpdateContestOwnerRole) {
+			missingPermissions = append(missingPermissions, models.UpdateContestOwnerRole)
+		} else {
+			account, err := v.core.Accounts.Get(getContext(c), *form.OwnerID)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return errorResponse{
+						Code:    http.StatusBadRequest,
+						Message: localize(c, "User not found."),
+					}
+				}
+				return err
+			}
+			if account.Kind != models.UserAccount {
+				return errorResponse{
+					Code:    http.StatusBadRequest,
+					Message: localize(c, "User not found."),
+				}
+			}
+			contest.OwnerID = models.NInt64(*form.OwnerID)
+		}
+	}
+	if len(missingPermissions) > 0 {
+		return errorResponse{
+			Code:               http.StatusForbidden,
+			Message:            localize(c, "Account missing permissions."),
+			MissingPermissions: missingPermissions,
+		}
 	}
 	if err := v.core.Contests.Update(getContext(c), contest); err != nil {
 		return err

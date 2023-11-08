@@ -279,6 +279,7 @@ func (v *View) observeProblemResource(c echo.Context) error {
 
 type UpdateProblemForm struct {
 	Title       *string     `json:"title" form:"title"`
+	OwnerID     *int64      `json:"owner_id" form:"owner_id"`
 	PackageFile *FileReader `json:"-"`
 }
 
@@ -407,10 +408,15 @@ func (v *View) createProblem(c echo.Context) error {
 }
 
 func (v *View) updateProblem(c echo.Context) error {
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		return fmt.Errorf("account not extracted")
+	}
 	problem, ok := c.Get(problemKey).(models.Problem)
 	if !ok {
 		return fmt.Errorf("problem not extracted")
 	}
+	permissions := v.getProblemPermissions(accountCtx, problem)
 	var form UpdateProblemForm
 	if err := form.Parse(c); err != nil {
 		return err
@@ -418,6 +424,37 @@ func (v *View) updateProblem(c echo.Context) error {
 	defer func() { _ = form.Close() }()
 	if err := form.Update(c, &problem); err != nil {
 		return c.JSON(http.StatusBadRequest, err)
+	}
+	var missingPermissions []string
+	if form.OwnerID != nil {
+		if !permissions.HasPermission(models.UpdateProblemOwnerRole) {
+			missingPermissions = append(missingPermissions, models.UpdateProblemOwnerRole)
+		} else {
+			account, err := v.core.Accounts.Get(getContext(c), *form.OwnerID)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return errorResponse{
+						Code:    http.StatusBadRequest,
+						Message: localize(c, "User not found."),
+					}
+				}
+				return err
+			}
+			if account.Kind != models.UserAccount {
+				return errorResponse{
+					Code:    http.StatusBadRequest,
+					Message: localize(c, "User not found."),
+				}
+			}
+			problem.OwnerID = models.NInt64(*form.OwnerID)
+		}
+	}
+	if len(missingPermissions) > 0 {
+		return errorResponse{
+			Code:               http.StatusForbidden,
+			Message:            localize(c, "Account missing permissions."),
+			MissingPermissions: missingPermissions,
+		}
 	}
 	var formFile *models.File
 	if form.PackageFile != nil {
@@ -449,11 +486,6 @@ func (v *View) updateProblem(c echo.Context) error {
 	}, sqlRepeatableRead); err != nil {
 		return err
 	}
-	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
-	if !ok {
-		return fmt.Errorf("account not extracted")
-	}
-	permissions := v.getProblemPermissions(accountCtx, problem)
 	return c.JSON(
 		http.StatusOK,
 		v.makeProblem(c, problem, permissions, false, false, nil),
@@ -604,6 +636,7 @@ func (v *View) getProblemPermissions(
 		problem.OwnerID != 0 && account.ID == int64(problem.OwnerID) {
 		permissions[models.ObserveProblemRole] = struct{}{}
 		permissions[models.UpdateProblemRole] = struct{}{}
+		permissions[models.UpdateProblemOwnerRole] = struct{}{}
 		permissions[models.DeleteProblemRole] = struct{}{}
 	}
 	return permissions

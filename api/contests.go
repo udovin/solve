@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/udovin/solve/core"
+	"github.com/udovin/solve/db"
 	"github.com/udovin/solve/managers"
 	"github.com/udovin/solve/models"
 )
@@ -165,6 +166,7 @@ type ContestProblems struct {
 
 var contestPermissions = []string{
 	models.UpdateContestRole,
+	models.UpdateContestOwnerRole,
 	models.DeleteContestRole,
 	models.RegisterContestRole,
 	models.DeregisterContestRole,
@@ -352,6 +354,7 @@ type updateContestForm struct {
 	FreezeBeginDuration *int                  `json:"freeze_begin_duration" form:"freeze_begin_duration"`
 	FreezeEndTime       *NInt64               `json:"freeze_end_time" form:"freeze_end_time"`
 	StandingsKind       *models.StandingsKind `json:"standings_kind" form:"standings_kind"`
+	OwnerID             *int64                `json:"owner_id" form:"owner_id"`
 }
 
 func (f *updateContestForm) Update(
@@ -477,6 +480,37 @@ func (v *View) updateContest(c echo.Context) error {
 	if err := form.Update(c, &contest); err != nil {
 		return err
 	}
+	var missingPermissions []string
+	if form.OwnerID != nil {
+		if !contestCtx.HasPermission(models.UpdateContestOwnerRole) {
+			missingPermissions = append(missingPermissions, models.UpdateContestOwnerRole)
+		} else {
+			account, err := v.core.Accounts.Get(getContext(c), *form.OwnerID)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return errorResponse{
+						Code:    http.StatusBadRequest,
+						Message: localize(c, "User not found."),
+					}
+				}
+				return err
+			}
+			if account.Kind != models.UserAccount {
+				return errorResponse{
+					Code:    http.StatusBadRequest,
+					Message: localize(c, "User not found."),
+				}
+			}
+			contest.OwnerID = models.NInt64(*form.OwnerID)
+		}
+	}
+	if len(missingPermissions) > 0 {
+		return errorResponse{
+			Code:               http.StatusForbidden,
+			Message:            localize(c, "Account missing permissions."),
+			MissingPermissions: missingPermissions,
+		}
+	}
 	if err := v.core.Contests.Update(getContext(c), contest); err != nil {
 		return err
 	}
@@ -503,26 +537,29 @@ func (v *View) deleteContest(c echo.Context) error {
 
 func getSolvedProblems(ctx *managers.ContestContext, c *core.Core) map[int64]bool {
 	solved := map[int64]bool{}
+	var participantIDs []int64
 	for _, participant := range ctx.Participants {
-		if participant.ID == 0 {
-			continue
+		if participant.ID != 0 {
+			participantIDs = append(participantIDs, participant.ID)
 		}
-		solutions, err := c.ContestSolutions.FindByParticipant(participant.ID)
+	}
+	solutions, err := c.ContestSolutions.FindByParticipant(ctx, participantIDs...)
+	if err != nil {
+		return solved
+	}
+	defer func() { _ = solutions.Close() }()
+	for solutions.Next() {
+		contestSolution := solutions.Row()
+		solution, err := c.Solutions.Get(ctx, contestSolution.SolutionID)
 		if err != nil {
 			continue
 		}
-		for _, contestSolution := range solutions {
-			solution, err := c.Solutions.Get(ctx, contestSolution.SolutionID)
-			if err != nil {
-				continue
-			}
-			report, err := solution.GetReport()
-			if err != nil || report == nil {
-				continue
-			}
-			solved[contestSolution.ProblemID] = solved[contestSolution.ProblemID] ||
-				report.Verdict == models.Accepted
+		report, err := solution.GetReport()
+		if err != nil || report == nil {
+			continue
 		}
+		solved[contestSolution.ProblemID] = solved[contestSolution.ProblemID] ||
+			report.Verdict == models.Accepted
 	}
 	return solved
 }
@@ -1005,27 +1042,34 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 	if err := syncStore(c, v.core.ContestSolutions); err != nil {
 		return err
 	}
-	var solutions []models.ContestSolution
+	var solutions db.Rows[models.ContestSolution]
 	if contestCtx.HasPermission(models.ObserveContestSolutionRole) {
-		contestSolutions, err := v.core.ContestSolutions.FindByContest(contest.ID)
+		contestSolutions, err := v.core.ContestSolutions.FindByContest(
+			getContext(c), contest.ID,
+		)
 		if err != nil {
 			return err
 		}
 		solutions = contestSolutions
 	} else {
+		var participantIDs []int64
 		for _, participant := range contestCtx.Participants {
-			if participant.ID == 0 {
-				continue
+			if participant.ID != 0 {
+				participantIDs = append(participantIDs, participant.ID)
 			}
-			participantSolutions, err := v.core.ContestSolutions.FindByParticipant(participant.ID)
-			if err != nil {
-				return err
-			}
-			solutions = append(solutions, participantSolutions...)
 		}
+		participantSolutions, err := v.core.ContestSolutions.FindByParticipant(
+			getContext(c), participantIDs...,
+		)
+		if err != nil {
+			return err
+		}
+		solutions = participantSolutions
 	}
+	defer func() { _ = solutions.Close() }()
 	var resp ContestSolutions
-	for _, solution := range solutions {
+	for solutions.Next() {
+		solution := solutions.Row()
 		permissions := v.getContestSolutionPermissions(contestCtx, solution)
 		if permissions.HasPermission(models.ObserveContestSolutionRole) {
 			resp.Solutions = append(
@@ -1034,7 +1078,7 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 			)
 		}
 	}
-	sortFunc(resp.Solutions, contestSolutionGreater)
+	reverse(resp.Solutions)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -1131,16 +1175,18 @@ func (v *View) hasSolutionsQuota(
 	participant models.ContestParticipant,
 	logger echo.Logger,
 ) bool {
-	solutions, err := v.core.ContestSolutions.FindByParticipant(participant.ID)
+	solutions, err := v.core.ContestSolutions.FindByParticipant(contestCtx, participant.ID)
 	if err != nil {
 		logger.Warn("Cannot get solutions for participant: %v", participant.ID)
 		return false
 	}
+	defer func() { _ = solutions.Close() }()
 	window := v.getInt64Setting("contests.solutions_quota.window", logger).OrElse(60)
 	amount := v.getInt64Setting("contests.solutions_quota.amount", logger).OrElse(3)
 	toTime := contestCtx.Now
 	fromTime := toTime.Add(-time.Second * time.Duration(window))
-	for _, contestSolution := range solutions {
+	for solutions.Next() {
+		contestSolution := solutions.Row()
 		solution, err := v.core.Solutions.Get(contestCtx, contestSolution.SolutionID)
 		if err != nil {
 			logger.Warn("Cannot find solution: %v", contestSolution.SolutionID)
@@ -1580,10 +1626,6 @@ func (v *View) getContestSolutionPermissions(
 }
 
 func contestGreater(l, r Contest) bool {
-	return l.ID > r.ID
-}
-
-func contestSolutionGreater(l, r ContestSolution) bool {
 	return l.ID > r.ID
 }
 

@@ -83,15 +83,24 @@ func (v *View) getEventFeed(c echo.Context) error {
 	if err != nil {
 		return fmt.Errorf("cannot get participants: %w", err)
 	}
-	contestSolutions, err := v.core.ContestSolutions.FindByContest(contestCtx.Contest.ID)
-	if err != nil {
-		return fmt.Errorf("cannot get solutions: %w", err)
-	}
 	solutionsByParticipant := map[int64][]models.ContestSolution{}
-	for _, solution := range contestSolutions {
-		solutionsByParticipant[solution.ParticipantID] = append(
-			solutionsByParticipant[solution.ParticipantID], solution,
+	if err := func() error {
+		contestSolutions, err := v.core.ContestSolutions.FindByContest(
+			c.Request().Context(), contestCtx.Contest.ID,
 		)
+		if err != nil {
+			return fmt.Errorf("cannot get solutions: %w", err)
+		}
+		defer func() { _ = contestSolutions.Close() }()
+		for contestSolutions.Next() {
+			solution := contestSolutions.Row()
+			solutionsByParticipant[solution.ParticipantID] = append(
+				solutionsByParticipant[solution.ParticipantID], solution,
+			)
+		}
+		return nil
+	}(); err != nil {
+		return err
 	}
 	events = append(events, getContestState(contestCtx))
 	runningSolutions := map[int64]struct{}{}

@@ -190,7 +190,6 @@ func (v *View) updateUser(c echo.Context) error {
 	}
 	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
 	if !ok {
-		c.Logger().Error("permissions not extracted")
 		return fmt.Errorf("permissions not extracted")
 	}
 	var form updateUserForm

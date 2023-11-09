@@ -132,15 +132,22 @@ func (m *ContestStandingsManager) buildStandings(
 	sortFunc(contestProblems, func(lhs, rhs models.ContestProblem) bool {
 		return lhs.Code < rhs.Code
 	})
-	contestSolutions, err := m.contestSolutions.FindByContest(ctx.Contest.ID)
-	if err != nil {
-		return nil, err
-	}
 	solutionsByParticipant := map[int64][]models.ContestSolution{}
-	for _, solution := range contestSolutions {
-		solutionsByParticipant[solution.ParticipantID] = append(
-			solutionsByParticipant[solution.ParticipantID], solution,
-		)
+	if err := func() error {
+		contestSolutions, err := m.contestSolutions.FindByContest(ctx, ctx.Contest.ID)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = contestSolutions.Close() }()
+		for contestSolutions.Next() {
+			solution := contestSolutions.Row()
+			solutionsByParticipant[solution.ParticipantID] = append(
+				solutionsByParticipant[solution.ParticipantID], solution,
+			)
+		}
+		return nil
+	}(); err != nil {
+		return nil, err
 	}
 	switch ctx.ContestConfig.StandingsKind {
 	case models.IOIStandings:

@@ -1078,7 +1078,7 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 			)
 		}
 	}
-	sortFunc(resp.Solutions, contestSolutionGreater)
+	reverse(resp.Solutions)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -1626,10 +1626,6 @@ func (v *View) getContestSolutionPermissions(
 }
 
 func contestGreater(l, r Contest) bool {
-	return l.ID > r.ID
-}
-
-func contestSolutionGreater(l, r ContestSolution) bool {
 	return l.ID > r.ID
 }
 

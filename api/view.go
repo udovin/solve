@@ -770,6 +770,12 @@ func (s *sortFuncImpl[T]) Less(i, j int) bool {
 	return s.less(s.data[i], s.data[j])
 }
 
+func reverse[S ~[]E, E any](s S) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+}
+
 // reusableBind is required when we need to use Bind multiple times.
 func reusableBind(c echo.Context, form any) error {
 	if c.Request().Body != nil {

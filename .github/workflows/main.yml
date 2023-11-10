@@ -89,3 +89,4 @@ jobs:
         output-file-path: bench.txt
         external-data-json-path: ./cache/benchmark-data.json
         fail-on-alert: true
+        save-data-file: ${{ github.ref == 'refs/heads/master' }}

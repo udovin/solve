@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/udovin/solve/managers"
-	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/internal/managers"
+	"github.com/udovin/solve/internal/models"
 )
 
 func TestProblemsSimpleScenario(t *testing.T) {
@@ -17,7 +17,7 @@ func TestProblemsSimpleScenario(t *testing.T) {
 	user := NewTestUser(e)
 	user.AddRoles(models.CreateProblemRole)
 	user.LoginClient()
-	file, err := os.Open(filepath.Join("../testdata", "a-plus-b.zip"))
+	file, err := os.Open(filepath.Join(testDataDir, "a-plus-b.zip"))
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -30,7 +30,7 @@ func TestProblemsSimpleScenario(t *testing.T) {
 	}
 	e.Check(problem)
 	{
-		file, err := os.Open(filepath.Join("../testdata", "a-plus-b.zip"))
+		file, err := os.Open(filepath.Join(testDataDir, "a-plus-b.zip"))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
@@ -65,7 +65,7 @@ func TestProblemBuildScenario(t *testing.T) {
 	user.LoginClient()
 	// Create compiler.
 	{
-		file, err := os.Open(filepath.Join("../testdata", "alpine-cpp.tar.gz"))
+		file, err := os.Open(filepath.Join(testDataDir, "alpine-cpp.tar.gz"))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
@@ -117,7 +117,7 @@ func TestProblemBuildScenario(t *testing.T) {
 	}
 	// Create problem.
 	{
-		file, err := os.Open(filepath.Join("../testdata", "a-plus-b.zip"))
+		file, err := os.Open(filepath.Join(testDataDir, "a-plus-b.zip"))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
@@ -132,7 +132,7 @@ func TestProblemBuildScenario(t *testing.T) {
 	}
 	// Create interactive problem.
 	{
-		file, err := os.Open(filepath.Join("../testdata", "a-plus-b-interactive.zip"))
+		file, err := os.Open(filepath.Join(testDataDir, "a-plus-b-interactive.zip"))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}

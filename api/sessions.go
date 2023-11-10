@@ -8,8 +8,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/udovin/solve/managers"
-	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/internal/managers"
+	"github.com/udovin/solve/internal/models"
 )
 
 // Session represents session.

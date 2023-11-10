@@ -19,10 +19,10 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/config"
-	"github.com/udovin/solve/db"
-	"github.com/udovin/solve/managers"
-	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/internal/config"
+	"github.com/udovin/solve/internal/db"
+	"github.com/udovin/solve/internal/managers"
+	"github.com/udovin/solve/internal/models"
 )
 
 // User represents user.

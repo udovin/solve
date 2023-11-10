@@ -9,7 +9,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/internal/models"
 )
 
 // Role represents role.

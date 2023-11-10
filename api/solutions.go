@@ -10,8 +10,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/labstack/echo/v4"
-	"github.com/udovin/solve/managers"
-	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/internal/managers"
+	"github.com/udovin/solve/internal/models"
 )
 
 // registerSolutionHandlers registers handlers for solution management.

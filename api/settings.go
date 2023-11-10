@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
-	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/internal/models"
 )
 
 type Setting struct {

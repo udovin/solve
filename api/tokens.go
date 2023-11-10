@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/internal/models"
 )
 
 // registerTokenHandlers registers handlers for token management.

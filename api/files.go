@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/internal/models"
 )
 
 func (v *View) registerFileHandlers(g *echo.Group) {

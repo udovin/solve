@@ -18,11 +18,11 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/udovin/gosql"
-	"github.com/udovin/solve/config"
-	"github.com/udovin/solve/core"
-	"github.com/udovin/solve/managers"
-	"github.com/udovin/solve/models"
-	"github.com/udovin/solve/pkg/logs"
+	"github.com/udovin/solve/internal/config"
+	"github.com/udovin/solve/internal/core"
+	"github.com/udovin/solve/internal/managers"
+	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/pkg/logs"
 )
 
 // View represents API view.

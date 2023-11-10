@@ -30,6 +30,8 @@ jobs:
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-          files: |
-            cmd/solve/solve
-            cmd/safeexec/safeexec
+        files: |
+          cmd/solve/solve
+          cmd/safeexec/safeexec
+      env:
+        VERSION=${{ github.ref_name }}

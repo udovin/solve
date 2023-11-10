@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/internal/models"
 )
 
 var testSimpleContest = createContestForm{

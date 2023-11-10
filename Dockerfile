@@ -11,7 +11,7 @@ FROM alpine:3.17
 RUN apk add --no-cache curl && \
     apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing delve && \
     addgroup -S solve -g 1000 && adduser -S solve -G solve -u 1000
-COPY --from=build /src/solve/solve /src/solve/safeexec/safeexec /bin/
+COPY --from=build /src/solve/cmd/solve/solve /src/solve/cmd/safeexec/safeexec /bin/
 USER solve
 VOLUME ["/tmp"]
 ENV SOLVE_CONFIG=/etc/solve/config.json

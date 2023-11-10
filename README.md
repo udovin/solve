@@ -31,7 +31,7 @@ Then create config file `config.json` with following contents:
   "invoker": {
     "workers": 1,
     "safeexec": {
-      "path": "safeexec/safeexec"
+      "path": "cmd/safeexec/safeexec"
     }
   },
   "security": {
@@ -50,19 +50,19 @@ Then create config file `config.json` with following contents:
 Then apply database migrations:
 
 ```bash
-mkdir -p data && ./solve migrate --with-data
+mkdir -p data && ./cmd/solve/solve migrate --with-data
 ```
 
 Then run server (API will be available on `http://localhost:4242`):
 
 ```bash
-./solve server
+./cmd/solve/solve server
 ```
 
 Then you can register new `admin` user with password `qwerty123`:
 
 ```bash
-./solve client create-user \
+./cmd/solve/solve client create-user \
   --login admin \
   --password qwerty123 \
   --email admin@gmail.com \

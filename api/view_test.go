@@ -20,12 +20,17 @@ import (
 	"github.com/labstack/gommon/log"
 	"github.com/nsf/jsondiff"
 
-	"github.com/udovin/solve/config"
-	"github.com/udovin/solve/core"
-	"github.com/udovin/solve/db"
-	"github.com/udovin/solve/invoker"
-	"github.com/udovin/solve/migrations"
-	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/internal/config"
+	"github.com/udovin/solve/internal/core"
+	"github.com/udovin/solve/internal/db"
+	"github.com/udovin/solve/internal/invoker"
+	"github.com/udovin/solve/internal/migrations"
+	"github.com/udovin/solve/internal/models"
+)
+
+const (
+	testDataDir      = "../testdata"
+	testSafeexecPath = "../cmd/safeexec/safeexec"
 )
 
 type TestEnv struct {
@@ -127,7 +132,7 @@ func (o WithInvoker) UpdateConfig(cfg *config.Config) {
 	cfg.Invoker = &config.Invoker{
 		Workers: 1,
 		Safeexec: config.Safeexec{
-			Path: "../safeexec/safeexec",
+			Path: testSafeexecPath,
 		},
 	}
 }

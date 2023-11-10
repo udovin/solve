@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/udovin/solve/managers"
-	"github.com/udovin/solve/models"
+	"github.com/udovin/solve/internal/managers"
+	"github.com/udovin/solve/internal/models"
 )
 
 func TestCompilersSimpleScenario(t *testing.T) {
@@ -21,7 +21,7 @@ func TestCompilersSimpleScenario(t *testing.T) {
 		models.DeleteCompilerRole,
 	)
 	user.LoginClient()
-	file, err := os.Open(filepath.Join("../testdata", "alpine-cpp.tar.gz"))
+	file, err := os.Open(filepath.Join(testDataDir, "alpine-cpp.tar.gz"))
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -49,7 +49,7 @@ func TestCompilersSimpleScenario(t *testing.T) {
 		e.Check(compilers)
 	}
 	{
-		file, err := os.Open(filepath.Join("../testdata", "alpine-cpp.tar.gz"))
+		file, err := os.Open(filepath.Join(testDataDir, "alpine-cpp.tar.gz"))
 		if err != nil {
 			t.Fatal("Error:", err)
 		}

@@ -34,4 +34,4 @@ jobs:
           cmd/solve/solve
           cmd/safeexec/safeexec
       env:
-        VERSION=${{ github.ref_name }}
+        VERSION: ${{ github.ref_name }}

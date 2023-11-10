@@ -26,6 +26,8 @@ jobs:
         fi
     - name: Build
       run: make all
+      env:
+        VERSION: ${{ github.ref_name }}
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
@@ -33,5 +35,3 @@ jobs:
         files: |
           cmd/solve/solve
           cmd/safeexec/safeexec
-      env:
-        VERSION: ${{ github.ref_name }}

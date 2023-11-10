@@ -33,7 +33,7 @@ jobs:
         fi
     - name: Run tests
       run: |
-        make -C safeexec
+        make safeexec
         sudo -E PATH="$PATH" -- go test -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...
       env:
         POSTGRES_HOST: localhost

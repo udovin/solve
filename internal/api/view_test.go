@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	testDataDir      = "../testdata"
-	testSafeexecPath = "../cmd/safeexec/safeexec"
+	testDataDir      = "../../testdata"
+	testSafeexecPath = "../../cmd/safeexec/safeexec"
 )
 
 type TestEnv struct {

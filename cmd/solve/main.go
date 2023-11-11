@@ -15,8 +15,8 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/cobra"
 
-	"github.com/udovin/solve/api"
-	"github.com/udovin/solve/api/ccs"
+	"github.com/udovin/solve/internal/api"
+	"github.com/udovin/solve/internal/api/ccs"
 	"github.com/udovin/solve/internal/config"
 	"github.com/udovin/solve/internal/core"
 	"github.com/udovin/solve/internal/db"

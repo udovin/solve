@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/spf13/cobra"
-	"github.com/udovin/solve/api"
+	"github.com/udovin/solve/internal/api"
 )
 
 var ClientCmd = cobra.Command{

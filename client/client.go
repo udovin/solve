@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/udovin/solve/internal/api"
+	"github.com/udovin/solve/internal/models"
 )
 
 type (
@@ -35,6 +36,13 @@ type (
 	Settings           = api.Settings
 	Solution           = api.Solution
 	User               = api.User
+)
+
+const (
+	RegularParticipant   = models.RegularParticipant
+	UpsolvingParticipant = models.UpsolvingParticipant
+	ManagerParticipant   = models.ManagerParticipant
+	ObserverParticipant  = models.ObserverParticipant
 )
 
 type Client struct {

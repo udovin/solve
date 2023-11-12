@@ -1,4 +1,4 @@
-package client
+package api
 
 import (
 	"net/http"
@@ -11,14 +11,15 @@ import (
 type (
 	ClientOption = api.ClientOption
 
-	CreateCompilerForm = api.CreateCompilerForm
-	CreateProblemForm  = api.CreateProblemForm
-	CreateSettingForm  = api.CreateSettingForm
-	RegisterUserForm   = api.RegisterUserForm
-	SubmitSolutionForm = api.SubmitSolutionForm
-	UpdateCompilerForm = api.UpdateCompilerForm
-	UpdateProblemForm  = api.UpdateProblemForm
-	UpdateSettingForm  = api.UpdateSettingForm
+	CreateCompilerForm           = api.CreateCompilerForm
+	CreateContestParticipantForm = api.CreateContestParticipantForm
+	CreateProblemForm            = api.CreateProblemForm
+	CreateSettingForm            = api.CreateSettingForm
+	RegisterUserForm             = api.RegisterUserForm
+	SubmitSolutionForm           = api.SubmitSolutionForm
+	UpdateCompilerForm           = api.UpdateCompilerForm
+	UpdateProblemForm            = api.UpdateProblemForm
+	UpdateSettingForm            = api.UpdateSettingForm
 
 	Compiler           = api.Compiler
 	Compilers          = api.Compilers
@@ -27,6 +28,7 @@ type (
 	ContestSolution    = api.ContestSolution
 	ContestSolutions   = api.ContestSolutions
 	ContestStandings   = api.ContestStandings
+	FileReader         = api.FileReader
 	Problem            = api.Problem
 	Role               = api.Role
 	Roles              = api.Roles
@@ -36,6 +38,8 @@ type (
 	Settings           = api.Settings
 	Solution           = api.Solution
 	User               = api.User
+
+	CompilerConfig = models.CompilerConfig
 )
 
 const (

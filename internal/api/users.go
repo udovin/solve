@@ -789,6 +789,9 @@ func (v *View) registerUser(c echo.Context) error {
 		return err
 	}
 	user.Status = models.PendingUser
+	if v.core.Config.SMTP == nil {
+		user.Status = models.ActiveUser
+	}
 	expires := now.AddDate(0, 0, 1)
 	token := models.Token{
 		CreateTime: now.Unix(),

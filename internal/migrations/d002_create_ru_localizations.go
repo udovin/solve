@@ -22,6 +22,8 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		{"code_is_too_long", "Код слишком длинный."},
 		{"compiler_not_found", "Компилятор не найден."},
 		{"config_is_required", "Конфигурация является обязательной."},
+		{"confirm_email.body", "Ссылка для подтверждения: {{.site_url}}/confirm-email?id={{.id}}&secret={{.secret}}"},
+		{"confirm_email.subject", "Подтверждение почты на Solve"},
 		{"contest_not_found", "Соревнование не найдено."},
 		{"description_is_too_long", "Описание слишком длинное."},
 		{"description_is_too_short", "Описание слишком короткое."},

@@ -1,6 +1,5 @@
 all: solve safeexec
 .PHONY: solve safeexec
-VERSION ?= development
 solve:
 	@$(MAKE) --no-print-directory -C cmd/solve
 safeexec:

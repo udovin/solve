@@ -480,7 +480,7 @@ func stableParticipantLess(lhs, rhs ContestStandingsRow) bool {
 	if lhs.Score != rhs.Score {
 		return lhs.Score > rhs.Score
 	}
-	if lhs.Penalty != nil && rhs.Penalty != nil {
+	if lhs.Penalty != nil && rhs.Penalty != nil && *lhs.Penalty != *rhs.Penalty {
 		return *lhs.Penalty < *rhs.Penalty
 	}
 	return lhs.Participant.ID < rhs.Participant.ID

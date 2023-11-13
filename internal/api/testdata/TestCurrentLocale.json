@@ -31,6 +31,14 @@
         "text": "Конфигурация является обязательной."
       },
       {
+        "key": "confirm_email.body",
+        "text": "Ссылка для подтверждения: {{.site_url}}/confirm-email?id={{.id}}\u0026secret={{.secret}}"
+      },
+      {
+        "key": "confirm_email.subject",
+        "text": "Подтверждение почты на Solve"
+      },
+      {
         "key": "contest_not_found",
         "text": "Соревнование не найдено."
       },

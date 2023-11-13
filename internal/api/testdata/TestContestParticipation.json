@@ -4,6 +4,9 @@
     "title": "Test contest",
     "begin_time": 1577876400,
     "duration": 7200,
+    "permissions": [
+      "register_contest"
+    ],
     "enable_registration": true,
     "enable_upsolving": true,
     "standings_kind": "icpc",

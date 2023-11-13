@@ -12,7 +12,7 @@
     "user": {
       "id": 1,
       "login": "login-801072305",
-      "status": "pending"
+      "status": "active"
     },
     "session": {
       "id": 1,
@@ -26,6 +26,7 @@
       "observe_compilers",
       "observe_contests",
       "observe_user",
+      "register_contests",
       "status"
     ]
   },

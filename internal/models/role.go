@@ -214,6 +214,8 @@ const (
 	CreateScopeRole = "create_scope"
 	// UpdateScopeRole represents role for updating scope.
 	UpdateScopeRole = "update_scope"
+	// UpdateScopeOwnerRole represents role for updating scope owner.
+	UpdateScopeOwnerRole = "update_scope_owner"
 	// DeleteScopeRole represents role for deleting scope.
 	DeleteScopeRole = "delete_scope"
 	// ObserveScopeUserRole represents role for observing scope user.
@@ -312,6 +314,7 @@ var builtInRoles = map[string]struct{}{
 	ObserveScopeRole:                 {},
 	CreateScopeRole:                  {},
 	UpdateScopeRole:                  {},
+	UpdateScopeOwnerRole:             {},
 	DeleteScopeRole:                  {},
 	ObserveScopeUserRole:             {},
 	CreateScopeUserRole:              {},

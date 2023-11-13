@@ -112,7 +112,8 @@ func (v *View) observeScope(c echo.Context) error {
 }
 
 type updateScopeForm struct {
-	Title *string `json:"title"`
+	Title   *string `json:"title"`
+	OwnerID *int64  `json:"owner_id"`
 }
 
 func (f *updateScopeForm) Update(c echo.Context, o *models.Scope) error {
@@ -188,10 +189,15 @@ func (v *View) createScope(c echo.Context) error {
 }
 
 func (v *View) updateScope(c echo.Context) error {
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		return fmt.Errorf("account not extracted")
+	}
 	scope, ok := c.Get(scopeKey).(models.Scope)
 	if !ok {
 		return fmt.Errorf("scope not extracted")
 	}
+	permissions := v.getScopePermissions(accountCtx, scope)
 	var form updateScopeForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
@@ -199,6 +205,37 @@ func (v *View) updateScope(c echo.Context) error {
 	}
 	if err := form.Update(c, &scope); err != nil {
 		return err
+	}
+	var missingPermissions []string
+	if form.OwnerID != nil {
+		if !permissions.HasPermission(models.UpdateScopeOwnerRole) {
+			missingPermissions = append(missingPermissions, models.UpdateScopeOwnerRole)
+		} else {
+			account, err := v.core.Accounts.Get(getContext(c), *form.OwnerID)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return errorResponse{
+						Code:    http.StatusBadRequest,
+						Message: localize(c, "User not found."),
+					}
+				}
+				return err
+			}
+			if account.Kind != models.UserAccount {
+				return errorResponse{
+					Code:    http.StatusBadRequest,
+					Message: localize(c, "User not found."),
+				}
+			}
+			scope.OwnerID = models.NInt64(*form.OwnerID)
+		}
+	}
+	if len(missingPermissions) > 0 {
+		return errorResponse{
+			Code:               http.StatusForbidden,
+			Message:            localize(c, "Account missing permissions."),
+			MissingPermissions: missingPermissions,
+		}
 	}
 	if err := v.core.Scopes.Update(getContext(c), scope); err != nil {
 		return err

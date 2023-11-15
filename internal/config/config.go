@@ -114,8 +114,9 @@ type Invoker struct {
 }
 
 type Safeexec struct {
-	Path   string `json:"path"`
-	Cgroup string `json:"cgroup"`
+	Path       string `json:"path"`
+	Cgroup     string `json:"cgroup"`
+	MemoryPeak *bool  `json:"memory_peak,omitempty"`
 }
 
 type SMTP struct {

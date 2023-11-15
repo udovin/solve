@@ -24,8 +24,11 @@
 #define CGROUP_MEMORY_MAX_FILE "memory.max"
 #define CGROUP_MEMORY_SWAP_MAX_FILE "memory.swap.max"
 #define CGROUP_MEMORY_CURRENT_FILE "memory.current"
+#define CGROUP_MEMORY_PEAK_FILE "memory.peak"
 #define CGROUP_MEMORY_EVENTS_FILE "memory.events"
 #define CGROUP_CPU_STAT_FILE "cpu.stat"
+
+#define MEMORY_PEAK_FLAG 1
 
 typedef struct {
 	char* rootfs;
@@ -40,6 +43,7 @@ typedef struct {
 	char* cgroupPath;
 	int memoryLimit;
 	int timeLimit;
+	int flags;
 	char* report;
 	int initializePipe[2];
 	int finalizePipe[2];
@@ -245,6 +249,9 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--memory-limit") == 0) {
 			++i;
 			ensure(i < argc, "--memory-limit requires argument");
+		} else if (strcmp(argv[i], "--flags") == 0) {
+			++i;
+			ensure(i < argc, "--flags requires argument");
 		} else if (strcmp(argv[i], "--report") == 0) {
 			++i;
 			ensure(i < argc, "--report requires argument");
@@ -289,6 +296,9 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--memory-limit") == 0) {
 			++i;
 			ensure(sscanf(argv[i], "%d", &ctx->memoryLimit) == 1, "--memory-limit has invalid argument");
+		} else if (strcmp(argv[i], "--flags") == 0) {
+			++i;
+			ensure(sscanf(argv[i], "%d", &ctx->flags) == 1, "--flags has invalid argument");
 		} else if (strcmp(argv[i], "--report") == 0) {
 			++i;
 			ctx->report = argv[i];
@@ -327,9 +337,13 @@ static inline Context* newContext() {
 	ctx->environ = NULL;
 	ctx->environLen = 0;
 	ctx->cgroupPath = "";
-	ctx->timeLimit = 0;
 	ctx->memoryLimit = 0;
+	ctx->timeLimit = 0;
+	ctx->flags = 0;
 	ctx->report = "";
+	// Uninitialized:
+	//   ctx->initializePipe
+	//   ctx->finalizePipe
 	return ctx;
 }
 
@@ -448,11 +462,15 @@ int main(int argc, char* argv[]) {
 	// Setup user namespace.
 	prepareUserNamespace(pid);
 	// Setup cgroup file paths.
-	char* memoryCurrentPath = malloc(strlen(ctx->cgroupPath) + strlen(CGROUP_MEMORY_CURRENT_FILE) + 2);
-	ensure(memoryCurrentPath != NULL, "cannot allocate memory.current path");
-	strcpy(memoryCurrentPath, ctx->cgroupPath);
-	strcat(memoryCurrentPath, "/");
-	strcat(memoryCurrentPath, CGROUP_MEMORY_CURRENT_FILE);
+	char* memoryUsagePath = malloc(strlen(ctx->cgroupPath) + strlen(CGROUP_MEMORY_CURRENT_FILE) + 2);
+	ensure(memoryUsagePath != NULL, "cannot allocate memory.current path");
+	strcpy(memoryUsagePath, ctx->cgroupPath);
+	strcat(memoryUsagePath, "/");
+	if (!(ctx->flags & MEMORY_PEAK_FLAG)) {
+		strcat(memoryUsagePath, CGROUP_MEMORY_CURRENT_FILE);
+	} else {
+		strcat(memoryUsagePath, CGROUP_MEMORY_PEAK_FILE);
+	}
 	char* cpuStatPath = malloc(strlen(ctx->cgroupPath) + strlen(CGROUP_CPU_STAT_FILE) + 2);
 	ensure(cpuStatPath != NULL, "cannot allocate cpu.stat path");
 	strcpy(cpuStatPath, ctx->cgroupPath);
@@ -493,15 +511,17 @@ int main(int argc, char* argv[]) {
 			result = waitpid(pid, &status, WUNTRACED | __WALL);
 			break;
 		}
-		readCgroupMemory(memoryCurrentPath, &currentMemory);
-		if (currentMemory > memory) {
-			memory = currentMemory;
-			if (memory > ctx->memoryLimit) {
-				if (kill(pid, SIGKILL) != 0) {
-					ensure(errno == ESRCH, "cannot kill process");
+		if (!(ctx->flags & MEMORY_PEAK_FLAG)) {
+			readCgroupMemory(memoryUsagePath, &currentMemory);
+			if (currentMemory > memory) {
+				memory = currentMemory;
+				if (memory > ctx->memoryLimit) {
+					if (kill(pid, SIGKILL) != 0) {
+						ensure(errno == ESRCH, "cannot kill process");
+					}
+					result = waitpid(pid, &status, WUNTRACED | __WALL);
+					break;
 				}
-				result = waitpid(pid, &status, WUNTRACED | __WALL);
-				break;
 			}
 		}
 		readCgroupCpuUsage(cpuStatPath, &time);
@@ -516,7 +536,7 @@ int main(int argc, char* argv[]) {
 	}
 	ensure(result > 0, "cannot wait for child process");
 	ensure(clock_gettime(CLOCK_MONOTONIC, &currentTime) == 0, "cannot get current time");
-	readCgroupMemory(memoryCurrentPath, &currentMemory);
+	readCgroupMemory(memoryUsagePath, &currentMemory);
 	if (currentMemory > memory) {
 		memory = currentMemory;
 	}
@@ -550,7 +570,7 @@ int main(int argc, char* argv[]) {
 		close(fd);
 	}
 	free(cpuStatPath);
-	free(memoryCurrentPath);
+	free(memoryUsagePath);
 	freeContext(ctx);
 	return EXIT_SUCCESS;
 }

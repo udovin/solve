@@ -48,8 +48,12 @@ func (s *Invoker) Start() error {
 	if len(cgroupPath) == 0 {
 		cgroupPath = "../solve-safeexec"
 	}
+	var safeexecOptions []safeexec.Option
+	if safeexecConfig.MemoryPeak == nil || *safeexecConfig.MemoryPeak {
+		safeexecOptions = append(safeexecOptions, safeexec.WithMemoryPeak)
+	}
 	safeexec, err := safeexec.NewManager(
-		safeexecConfig.Path, "/tmp/solve-safeexec", cgroupPath,
+		safeexecConfig.Path, "/tmp/solve-safeexec", cgroupPath, safeexecOptions...,
 	)
 	if err != nil {
 		return err

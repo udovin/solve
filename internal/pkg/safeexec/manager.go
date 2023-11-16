@@ -19,6 +19,7 @@ type Manager struct {
 	path          string
 	executionPath string
 	cgroupPath    string
+	useMemoryPeak bool
 }
 
 type ProcessConfig struct {
@@ -32,6 +33,10 @@ type ProcessConfig struct {
 	Workdir     string
 	Command     []string
 }
+
+const (
+	memoryPeakFlag = 1
+)
 
 func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, error) {
 	workdir := filepath.Clean(string(filepath.Separator) + config.Workdir)
@@ -53,6 +58,13 @@ func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, e
 	args = append(args, "--cgroup-path", process.cgroupPath)
 	args = append(args, "--report", filepath.Join(process.path, "report.txt"))
 	args = append(args, "--workdir", workdir)
+	var flags int
+	if m.useMemoryPeak {
+		flags = flags | memoryPeakFlag
+	}
+	if flags > 0 {
+		args = append(args, "--flags", fmt.Sprint(flags))
+	}
 	for _, env := range config.Environ {
 		args = append(args, "--env", env)
 	}
@@ -123,7 +135,14 @@ func (m *Manager) prepareProcess() (*Process, error) {
 	}, nil
 }
 
-func NewManager(path, executionPath, cgroupName string) (*Manager, error) {
+type Option func(*Manager) error
+
+func WithMemoryPeak(m *Manager) error {
+	m.useMemoryPeak = true
+	return nil
+}
+
+func NewManager(path, executionPath, cgroupName string, options ...Option) (*Manager, error) {
 	cgroupPath, err := getCurrentCgroupPath()
 	if err != nil {
 		return nil, err
@@ -138,17 +157,23 @@ func NewManager(path, executionPath, cgroupName string) (*Manager, error) {
 	if cgroupPath == cgroupRootPath {
 		return nil, fmt.Errorf("cannot use root cgroup")
 	}
-	if err := setupCgroup(cgroupPath); err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(executionPath, os.ModePerm); err != nil && !os.IsExist(err) {
-		return nil, err
-	}
-	return &Manager{
+	m := Manager{
 		path:          path,
 		executionPath: executionPath,
 		cgroupPath:    cgroupPath,
-	}, nil
+	}
+	for _, option := range options {
+		if err := option(&m); err != nil {
+			return nil, err
+		}
+	}
+	if err := setupCgroup(m.cgroupPath); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(m.executionPath, os.ModePerm); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+	return &m, nil
 }
 
 func setupCgroup(path string) error {

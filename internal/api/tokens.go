@@ -10,6 +10,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 // registerTokenHandlers registers handlers for token management.
@@ -17,7 +18,7 @@ func (v *View) registerTokenHandlers(g *echo.Group) {
 	g.POST(
 		"/v0/tokens/:token", v.consumeToken,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractToken,
-		v.requirePermission(models.ConsumeTokenRole),
+		v.requirePermission(perms.ConsumeTokenRole),
 	)
 }
 

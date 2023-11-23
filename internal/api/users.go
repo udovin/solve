@@ -23,6 +23,7 @@ import (
 	"github.com/udovin/solve/internal/db"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 // User represents user.
@@ -57,52 +58,52 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/users/:user", v.observeUser,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractUser,
-		v.requirePermission(models.ObserveUserRole),
+		v.requirePermission(perms.ObserveUserRole),
 	)
 	g.PATCH(
 		"/v0/users/:user", v.updateUser,
 		v.extractAuth(v.sessionAuth), v.extractUser,
-		v.requirePermission(models.UpdateUserRole),
+		v.requirePermission(perms.UpdateUserRole),
 	)
 	g.GET(
 		"/v0/users/:user/sessions", v.observeUserSessions,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractUser,
-		v.requirePermission(models.ObserveUserSessionsRole),
+		v.requirePermission(perms.ObserveUserSessionsRole),
 	)
 	g.POST(
 		"/v0/users/:user/password", v.updateUserPassword,
 		v.extractAuth(v.sessionAuth), v.extractUser,
-		v.requirePermission(models.UpdateUserRole, models.UpdateUserPasswordRole),
+		v.requirePermission(perms.UpdateUserRole, perms.UpdateUserPasswordRole),
 	)
 	g.POST(
 		"/v0/users/:user/email", v.updateUserEmail,
 		v.extractAuth(v.sessionAuth), v.extractUser,
-		v.requirePermission(models.UpdateUserRole, models.UpdateUserEmailRole),
+		v.requirePermission(perms.UpdateUserRole, perms.UpdateUserEmailRole),
 	)
 	g.POST(
 		"/v0/users/:user/email-resend", v.resendUserEmail,
 		v.extractAuth(v.sessionAuth), v.extractUser,
-		v.requirePermission(models.UpdateUserRole, models.UpdateUserEmailRole),
+		v.requirePermission(perms.UpdateUserRole, perms.UpdateUserEmailRole),
 	)
 	g.GET(
 		"/v0/status", v.status,
 		v.extractAuth(v.sessionAuth, v.scopeUserAuth, v.userAuth, v.guestAuth),
-		v.requirePermission(models.StatusRole),
+		v.requirePermission(perms.StatusRole),
 	)
 	g.POST(
 		"/v0/login", v.loginAccount,
 		v.extractAuth(v.scopeUserAuth, v.userAuth),
-		v.requirePermission(models.LoginRole),
+		v.requirePermission(perms.LoginRole),
 	)
 	g.POST(
 		"/v0/logout", v.logoutAccount,
 		v.extractAuth(v.sessionAuth),
-		v.requirePermission(models.LogoutRole),
+		v.requirePermission(perms.LogoutRole),
 	)
 	g.POST(
 		"/v0/register", v.registerUser,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
-		v.requirePermission(models.RegisterRole),
+		v.requirePermission(perms.RegisterRole),
 	)
 }
 
@@ -118,17 +119,17 @@ func (v *View) registerSocketUserHandlers(g *echo.Group) {
 	)
 }
 
-func makeUser(user models.User, permissions managers.Permissions) User {
+func makeUser(user models.User, permissions perms.Permissions) User {
 	assign := func(field *string, value, permission string) {
 		if permissions.HasPermission(permission) {
 			*field = value
 		}
 	}
 	resp := User{ID: user.ID, Login: user.Login}
-	assign(&resp.Email, string(user.Email), models.ObserveUserEmailRole)
-	assign(&resp.FirstName, string(user.FirstName), models.ObserveUserFirstNameRole)
-	assign(&resp.LastName, string(user.LastName), models.ObserveUserLastNameRole)
-	assign(&resp.MiddleName, string(user.MiddleName), models.ObserveUserMiddleNameRole)
+	assign(&resp.Email, string(user.Email), perms.ObserveUserEmailRole)
+	assign(&resp.FirstName, string(user.FirstName), perms.ObserveUserFirstNameRole)
+	assign(&resp.LastName, string(user.LastName), perms.ObserveUserLastNameRole)
+	assign(&resp.MiddleName, string(user.MiddleName), perms.ObserveUserMiddleNameRole)
 	return resp
 }
 
@@ -138,7 +139,7 @@ func (v *View) observeUser(c echo.Context) error {
 		c.Logger().Error("user not extracted")
 		return fmt.Errorf("user not extracted")
 	}
-	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	permissions, ok := c.Get(permissionCtxKey).(perms.Permissions)
 	if !ok {
 		c.Logger().Error("permissions not extracted")
 		return fmt.Errorf("permissions not extracted")
@@ -188,7 +189,7 @@ func (v *View) updateUser(c echo.Context) error {
 		c.Logger().Error("user not extracted")
 		return fmt.Errorf("user not extracted")
 	}
-	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	permissions, ok := c.Get(permissionCtxKey).(perms.Permissions)
 	if !ok {
 		return fmt.Errorf("permissions not extracted")
 	}
@@ -199,18 +200,18 @@ func (v *View) updateUser(c echo.Context) error {
 	}
 	var missingPermissions []string
 	if form.FirstName != nil {
-		if !permissions.HasPermission(models.UpdateUserFirstNameRole) {
-			missingPermissions = append(missingPermissions, models.UpdateUserFirstNameRole)
+		if !permissions.HasPermission(perms.UpdateUserFirstNameRole) {
+			missingPermissions = append(missingPermissions, perms.UpdateUserFirstNameRole)
 		}
 	}
 	if form.LastName != nil {
-		if !permissions.HasPermission(models.UpdateUserLastNameRole) {
-			missingPermissions = append(missingPermissions, models.UpdateUserLastNameRole)
+		if !permissions.HasPermission(perms.UpdateUserLastNameRole) {
+			missingPermissions = append(missingPermissions, perms.UpdateUserLastNameRole)
 		}
 	}
 	if form.MiddleName != nil {
-		if !permissions.HasPermission(models.UpdateUserMiddleNameRole) {
-			missingPermissions = append(missingPermissions, models.UpdateUserMiddleNameRole)
+		if !permissions.HasPermission(perms.UpdateUserMiddleNameRole) {
+			missingPermissions = append(missingPermissions, perms.UpdateUserMiddleNameRole)
 		}
 	}
 	if len(missingPermissions) > 0 {
@@ -268,7 +269,7 @@ func (v *View) updateUserPassword(c echo.Context) error {
 		c.Logger().Error("auth not extracted")
 		return fmt.Errorf("auth not extracted")
 	}
-	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	permissions, ok := c.Get(permissionCtxKey).(perms.Permissions)
 	if !ok {
 		c.Logger().Error("permissions not extracted")
 		return fmt.Errorf("permissions not extracted")
@@ -364,7 +365,7 @@ func (v *View) updateUserEmail(c echo.Context) error {
 		c.Logger().Error("auth not extracted")
 		return fmt.Errorf("auth not extracted")
 	}
-	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	permissions, ok := c.Get(permissionCtxKey).(perms.Permissions)
 	if !ok {
 		c.Logger().Error("permissions not extracted")
 		return fmt.Errorf("permissions not extracted")
@@ -441,7 +442,7 @@ func (v *View) resendUserEmail(c echo.Context) error {
 		c.Logger().Error("user not extracted")
 		return fmt.Errorf("user not extracted")
 	}
-	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	permissions, ok := c.Get(permissionCtxKey).(perms.Permissions)
 	if !ok {
 		c.Logger().Error("permissions not extracted")
 		return fmt.Errorf("permissions not extracted")
@@ -960,20 +961,24 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) getUserPermissions(
 	ctx *managers.AccountContext, user models.User,
-) managers.PermissionSet {
+) perms.PermissionSet {
 	permissions := ctx.Permissions.Clone()
 	if authUser := ctx.User; authUser != nil && authUser.ID == user.ID {
-		permissions[models.ObserveUserEmailRole] = struct{}{}
-		permissions[models.ObserveUserMiddleNameRole] = struct{}{}
-		permissions[models.ObserveUserSessionsRole] = struct{}{}
-		permissions[models.UpdateUserRole] = struct{}{}
-		permissions[models.UpdateUserPasswordRole] = struct{}{}
-		permissions[models.UpdateUserEmailRole] = struct{}{}
-		permissions[models.UpdateUserFirstNameRole] = struct{}{}
-		permissions[models.UpdateUserLastNameRole] = struct{}{}
-		permissions[models.UpdateUserMiddleNameRole] = struct{}{}
+		permissions.AddPermission(
+			perms.ObserveUserEmailRole,
+			perms.ObserveUserMiddleNameRole,
+			perms.ObserveUserSessionsRole,
+			perms.UpdateUserRole,
+			perms.UpdateUserPasswordRole,
+			perms.UpdateUserEmailRole,
+			perms.UpdateUserFirstNameRole,
+			perms.UpdateUserLastNameRole,
+			perms.UpdateUserMiddleNameRole,
+		)
 	}
-	permissions[models.ObserveUserFirstNameRole] = struct{}{}
-	permissions[models.ObserveUserLastNameRole] = struct{}{}
+	permissions.AddPermission(
+		perms.ObserveUserFirstNameRole,
+		perms.ObserveUserLastNameRole,
+	)
 	return permissions
 }

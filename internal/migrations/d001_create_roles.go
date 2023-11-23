@@ -5,6 +5,7 @@ import (
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 func init() {
@@ -33,7 +34,7 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 		}
 		return roleEdgeStore.Create(ctx, &edge)
 	}
-	allRoles := models.GetBuiltInRoles()
+	allRoles := perms.GetBuiltInRoles()
 	allGroups := []string{
 		"guest_group",
 		"pending_user_group",
@@ -53,64 +54,64 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 		}
 	}
 	for _, role := range []string{
-		models.LoginRole,
-		models.RegisterRole,
-		models.StatusRole,
-		models.ObserveUserRole,
-		models.ObserveContestsRole,
-		models.ObserveCompilersRole,
-		models.ConsumeTokenRole,
+		perms.LoginRole,
+		perms.RegisterRole,
+		perms.StatusRole,
+		perms.ObserveUserRole,
+		perms.ObserveContestsRole,
+		perms.ObserveCompilersRole,
+		perms.ConsumeTokenRole,
 	} {
 		if err := join(role, "guest_group"); err != nil {
 			return err
 		}
 	}
 	for _, role := range []string{
-		models.LoginRole,
-		models.LogoutRole,
-		models.StatusRole,
-		models.ObserveUserRole,
-		models.ObserveContestsRole,
-		models.ObserveCompilersRole,
-		models.ConsumeTokenRole,
+		perms.LoginRole,
+		perms.LogoutRole,
+		perms.StatusRole,
+		perms.ObserveUserRole,
+		perms.ObserveContestsRole,
+		perms.ObserveCompilersRole,
+		perms.ConsumeTokenRole,
 	} {
 		if err := join(role, "pending_user_group"); err != nil {
 			return err
 		}
 	}
 	for _, role := range []string{
-		models.LoginRole,
-		models.LogoutRole,
-		models.StatusRole,
-		models.ObserveUserRole,
-		models.ObserveContestsRole,
-		models.ObserveCompilersRole,
-		models.RegisterContestsRole,
-		models.ConsumeTokenRole,
+		perms.LoginRole,
+		perms.LogoutRole,
+		perms.StatusRole,
+		perms.ObserveUserRole,
+		perms.ObserveContestsRole,
+		perms.ObserveCompilersRole,
+		perms.RegisterContestsRole,
+		perms.ConsumeTokenRole,
 	} {
 		if err := join(role, "active_user_group"); err != nil {
 			return err
 		}
 	}
 	for _, role := range []string{
-		models.LoginRole,
-		models.LogoutRole,
-		models.StatusRole,
-		models.ObserveUserRole,
-		models.ObserveContestsRole,
-		models.ObserveCompilersRole,
+		perms.LoginRole,
+		perms.LogoutRole,
+		perms.StatusRole,
+		perms.ObserveUserRole,
+		perms.ObserveContestsRole,
+		perms.ObserveCompilersRole,
 	} {
 		if err := join(role, "blocked_user_group"); err != nil {
 			return err
 		}
 	}
 	for _, role := range []string{
-		models.LoginRole,
-		models.LogoutRole,
-		models.StatusRole,
-		models.ObserveUserRole,
-		models.ObserveContestsRole,
-		models.ObserveCompilersRole,
+		perms.LoginRole,
+		perms.LogoutRole,
+		perms.StatusRole,
+		perms.ObserveUserRole,
+		perms.ObserveContestsRole,
+		perms.ObserveCompilersRole,
 	} {
 		if err := join(role, "scope_user_group"); err != nil {
 			return err

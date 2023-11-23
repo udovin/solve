@@ -11,28 +11,29 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 func (v *View) registerCompilerHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/compilers", v.ObserveCompilers,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
-		v.requirePermission(models.ObserveCompilersRole),
+		v.requirePermission(perms.ObserveCompilersRole),
 	)
 	g.POST(
 		"/v0/compilers", v.createCompiler,
 		v.extractAuth(v.sessionAuth),
-		v.requirePermission(models.CreateCompilerRole),
+		v.requirePermission(perms.CreateCompilerRole),
 	)
 	g.PATCH(
 		"/v0/compilers/:compiler", v.updateCompiler,
 		v.extractAuth(v.sessionAuth), v.extractCompiler,
-		v.requirePermission(models.UpdateCompilerRole),
+		v.requirePermission(perms.UpdateCompilerRole),
 	)
 	g.DELETE(
 		"/v0/compilers/:compiler", v.deleteCompiler,
 		v.extractAuth(v.sessionAuth), v.extractCompiler,
-		v.requirePermission(models.DeleteCompilerRole),
+		v.requirePermission(perms.DeleteCompilerRole),
 	)
 }
 
@@ -64,7 +65,7 @@ func (v *View) ObserveCompilers(c echo.Context) error {
 	for compilers.Next() {
 		compiler := compilers.Row()
 		permissions := v.getCompilerPermissions(accountCtx, compiler)
-		if permissions.HasPermission(models.ObserveCompilerRole) {
+		if permissions.HasPermission(perms.ObserveCompilerRole) {
 			resp.Compilers = append(resp.Compilers, makeCompiler(compiler))
 		}
 	}
@@ -291,8 +292,8 @@ func (v *View) extractCompiler(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) getCompilerPermissions(
 	ctx *managers.AccountContext, compiler models.Compiler,
-) managers.PermissionSet {
+) perms.PermissionSet {
 	permissions := ctx.Permissions.Clone()
-	permissions[models.ObserveCompilerRole] = struct{}{}
+	permissions[perms.ObserveCompilerRole] = struct{}{}
 	return permissions
 }

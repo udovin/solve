@@ -10,23 +10,24 @@ import (
 	"github.com/udovin/solve/internal/core"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 func (v *View) registerContestMessageHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/contests/:contest/messages", v.observeContestMessages,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
-		v.requirePermission(models.ObserveContestMessagesRole),
+		v.requirePermission(perms.ObserveContestMessagesRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/messages", v.createContestMessage,
 		v.extractAuth(v.sessionAuth), v.extractContest,
-		v.requirePermission(models.CreateContestMessageRole),
+		v.requirePermission(perms.CreateContestMessageRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/submit-question", v.submitContestQuestion,
 		v.extractAuth(v.sessionAuth), v.extractContest,
-		v.requirePermission(models.SubmitContestQuestionRole),
+		v.requirePermission(perms.SubmitContestQuestionRole),
 	)
 }
 
@@ -49,7 +50,7 @@ func (v *View) observeContestMessages(c echo.Context) error {
 	for messages.Next() {
 		message := messages.Row()
 		permissions := v.getContestMessagePermissions(contestCtx, message)
-		if permissions.HasPermission(models.ObserveContestMessageRole) {
+		if permissions.HasPermission(perms.ObserveContestMessageRole) {
 			resp.Messages = append(
 				resp.Messages,
 				makeContestMessage(c, message, v.core),
@@ -212,11 +213,11 @@ func (v *View) submitContestQuestion(c echo.Context) error {
 			Message: localize(c, "Participant not found."),
 		}
 	}
-	if !contestCtx.HasEffectivePermission(models.SubmitContestQuestionRole) {
+	if !contestCtx.HasEffectivePermission(perms.SubmitContestQuestionRole) {
 		return errorResponse{
 			Code:               http.StatusForbidden,
 			Message:            localize(c, "Account missing permissions."),
-			MissingPermissions: []string{models.SubmitContestQuestionRole},
+			MissingPermissions: []string{perms.SubmitContestQuestionRole},
 		}
 	}
 	if participant.ID == 0 {
@@ -283,16 +284,16 @@ func makeContestMessage(
 
 func (v *View) getContestMessagePermissions(
 	ctx *managers.ContestContext, message models.ContestMessage,
-) managers.PermissionSet {
+) perms.PermissionSet {
 	permissions := ctx.Permissions.Clone()
 	if message.ParticipantID != 0 {
 		for _, participant := range ctx.Participants {
 			if participant.ID == int64(message.ParticipantID) {
-				permissions.AddPermission(models.ObserveContestMessageRole)
+				permissions.AddPermission(perms.ObserveContestMessageRole)
 			}
 		}
 	} else {
-		permissions.AddPermission(models.ObserveContestMessageRole)
+		permissions.AddPermission(perms.ObserveContestMessageRole)
 	}
 	return permissions
 }

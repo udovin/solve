@@ -9,6 +9,7 @@ import (
 
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 func TestCompilersSimpleScenario(t *testing.T) {
@@ -16,9 +17,9 @@ func TestCompilersSimpleScenario(t *testing.T) {
 	defer e.Close()
 	user := NewTestUser(e)
 	user.AddRoles(
-		models.CreateCompilerRole,
-		models.UpdateCompilerRole,
-		models.DeleteCompilerRole,
+		perms.CreateCompilerRole,
+		perms.UpdateCompilerRole,
+		perms.DeleteCompilerRole,
 	)
 	user.LoginClient()
 	file, err := os.Open(filepath.Join(testDataDir, "alpine-cpp.tar.gz"))

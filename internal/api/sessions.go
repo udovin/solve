@@ -10,6 +10,7 @@ import (
 
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 // Session represents session.
@@ -32,12 +33,12 @@ func (v *View) registerSessionHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/sessions/:session", v.observeSession,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractSession,
-		v.requirePermission(models.ObserveSessionRole),
+		v.requirePermission(perms.ObserveSessionRole),
 	)
 	g.DELETE(
 		"/v0/sessions/:session", v.deleteSession,
 		v.extractAuth(v.sessionAuth), v.extractSession,
-		v.requirePermission(models.DeleteSessionRole),
+		v.requirePermission(perms.DeleteSessionRole),
 	)
 }
 
@@ -107,11 +108,13 @@ func (v *View) extractSession(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) getSessionPermissions(
 	ctx *managers.AccountContext, session models.Session,
-) managers.PermissionSet {
+) perms.PermissionSet {
 	permissions := ctx.Permissions.Clone()
 	if account := ctx.Account; account != nil && account.ID == session.AccountID {
-		permissions[models.ObserveSessionRole] = struct{}{}
-		permissions[models.DeleteSessionRole] = struct{}{}
+		permissions.AddPermission(
+			perms.ObserveSessionRole,
+			perms.DeleteSessionRole,
+		)
 	}
 	return permissions
 }

@@ -7,13 +7,14 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 func (v *View) registerContestStandingsHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/contests/:contest/standings", v.observeContestStandings,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
-		v.requirePermission(models.ObserveContestStandingsRole),
+		v.requirePermission(perms.ObserveContestStandingsRole),
 	)
 }
 

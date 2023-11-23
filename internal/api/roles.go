@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 // Role represents role.
@@ -32,47 +33,47 @@ func (v *View) registerRoleHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/roles", v.observeRoles,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
-		v.requirePermission(models.ObserveRolesRole),
+		v.requirePermission(perms.ObserveRolesRole),
 	)
 	g.POST(
 		"/v0/roles", v.createRole,
 		v.extractAuth(v.sessionAuth),
-		v.requirePermission(models.CreateRoleRole),
+		v.requirePermission(perms.CreateRoleRole),
 	)
 	g.DELETE(
 		"/v0/roles/:role", v.deleteRole,
 		v.extractAuth(v.sessionAuth), v.extractRole,
-		v.requirePermission(models.DeleteRoleRole),
+		v.requirePermission(perms.DeleteRoleRole),
 	)
 	g.GET(
 		"/v0/roles/:role/roles", v.observeRoleRoles,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractRole,
-		v.requirePermission(models.ObserveRoleRolesRole),
+		v.requirePermission(perms.ObserveRoleRolesRole),
 	)
 	g.POST(
 		"/v0/roles/:role/roles/:child_role", v.createRoleRole,
 		v.extractAuth(v.sessionAuth), v.extractRole, v.extractChildRole,
-		v.requirePermission(models.CreateRoleRoleRole),
+		v.requirePermission(perms.CreateRoleRoleRole),
 	)
 	g.DELETE(
 		"/v0/roles/:role/roles/:child_role", v.deleteRoleRole,
 		v.extractAuth(v.sessionAuth), v.extractRole, v.extractChildRole,
-		v.requirePermission(models.DeleteRoleRoleRole),
+		v.requirePermission(perms.DeleteRoleRoleRole),
 	)
 	g.GET(
 		"/v0/users/:user/roles", v.observeUserRoles,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractUser,
-		v.requirePermission(models.ObserveUserRolesRole),
+		v.requirePermission(perms.ObserveUserRolesRole),
 	)
 	g.POST(
 		"/v0/users/:user/roles/:role", v.createUserRole,
 		v.extractAuth(v.sessionAuth), v.extractUser, v.extractRole,
-		v.requirePermission(models.CreateUserRoleRole),
+		v.requirePermission(perms.CreateUserRoleRole),
 	)
 	g.DELETE(
 		"/v0/users/:user/roles/:role", v.deleteUserRole,
 		v.extractAuth(v.sessionAuth), v.extractUser, v.extractRole,
-		v.requirePermission(models.DeleteUserRoleRole),
+		v.requirePermission(perms.DeleteUserRoleRole),
 	)
 }
 
@@ -122,7 +123,7 @@ func (v *View) observeRoles(c echo.Context) error {
 		resp.Roles = append(resp.Roles, Role{
 			ID:      role.ID,
 			Name:    role.Name,
-			BuiltIn: role.IsBuiltIn(),
+			BuiltIn: perms.IsBuiltInRole(role.Name),
 		})
 	}
 	return c.JSON(http.StatusOK, resp)
@@ -203,7 +204,7 @@ func (v *View) deleteRole(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("role not extracted")
 	}
-	if role.IsBuiltIn() {
+	if perms.IsBuiltInRole(role.Name) {
 		return errorResponse{
 			Code:    http.StatusBadRequest,
 			Message: localize(c, "Unable to delete builtin role."),

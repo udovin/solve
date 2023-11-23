@@ -11,13 +11,14 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 func (v *View) registerFileHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/files/:file/content/*", v.observeFileContent,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractFile,
-		v.requirePermission(models.ObserveFileContentRole),
+		v.requirePermission(perms.ObserveFileContentRole),
 	)
 }
 

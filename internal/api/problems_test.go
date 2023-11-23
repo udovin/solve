@@ -9,13 +9,14 @@ import (
 
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 func TestProblemsSimpleScenario(t *testing.T) {
 	e := NewTestEnv(t)
 	defer e.Close()
 	user := NewTestUser(e)
-	user.AddRoles(models.CreateProblemRole)
+	user.AddRoles(perms.CreateProblemRole)
 	user.LoginClient()
 	file, err := os.Open(filepath.Join(testDataDir, "a-plus-b.zip"))
 	if err != nil {
@@ -57,10 +58,10 @@ func TestProblemBuildScenario(t *testing.T) {
 	defer e.Close()
 	user := NewTestUser(e)
 	user.AddRoles(
-		models.CreateContestRole,
-		models.CreateCompilerRole,
-		models.CreateProblemRole,
-		models.CreateSettingRole,
+		perms.CreateContestRole,
+		perms.CreateCompilerRole,
+		perms.CreateProblemRole,
+		perms.CreateSettingRole,
 	)
 	user.LoginClient()
 	// Create compiler.

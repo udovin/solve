@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 // registerProblemHandlers registers handlers for problem management.
@@ -18,37 +19,37 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/problems", v.observeProblems,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
-		v.requirePermission(models.ObserveProblemsRole),
+		v.requirePermission(perms.ObserveProblemsRole),
 	)
 	g.POST(
 		"/v0/problems", v.createProblem,
 		v.extractAuth(v.sessionAuth),
-		v.requirePermission(models.CreateProblemRole),
+		v.requirePermission(perms.CreateProblemRole),
 	)
 	g.GET(
 		"/v0/problems/:problem", v.observeProblem,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractProblem,
-		v.requirePermission(models.ObserveProblemRole),
+		v.requirePermission(perms.ObserveProblemRole),
 	)
 	g.PATCH(
 		"/v0/problems/:problem", v.updateProblem,
 		v.extractAuth(v.sessionAuth), v.extractProblem,
-		v.requirePermission(models.UpdateProblemRole),
+		v.requirePermission(perms.UpdateProblemRole),
 	)
 	g.POST(
 		"/v0/problems/:problem/rebuild", v.rebuildProblem,
 		v.extractAuth(v.sessionAuth), v.extractProblem,
-		v.requirePermission(models.UpdateProblemRole),
+		v.requirePermission(perms.UpdateProblemRole),
 	)
 	g.GET(
 		"/v0/problems/:problem/resources/:resource", v.observeProblemResource,
 		v.extractAuth(v.sessionAuth), v.extractProblem,
-		v.requirePermission(models.ObserveProblemRole),
+		v.requirePermission(perms.ObserveProblemRole),
 	)
 	g.DELETE(
 		"/v0/problems/:problem", v.deleteProblem,
 		v.extractAuth(v.sessionAuth), v.extractProblem,
-		v.requirePermission(models.DeleteProblemRole),
+		v.requirePermission(perms.DeleteProblemRole),
 	)
 }
 
@@ -73,14 +74,14 @@ type Problems struct {
 }
 
 var problemPermissions = []string{
-	models.UpdateProblemRole,
-	models.DeleteProblemRole,
+	perms.UpdateProblemRole,
+	perms.DeleteProblemRole,
 }
 
 func (v *View) makeProblem(
 	c echo.Context,
 	problem models.Problem,
-	permissions managers.Permissions,
+	permissions perms.Permissions,
 	withStatement bool,
 	withTask bool,
 	locales map[string]struct{},
@@ -136,7 +137,7 @@ func (v *View) makeProblem(
 			}
 		}
 	}
-	if withTask && permissions.HasPermission(models.UpdateProblemRole) {
+	if withTask && permissions.HasPermission(perms.UpdateProblemRole) {
 		task, err := v.findProblemTask(c, problem.ID)
 		if err == nil {
 			taskResp := ProblemTask{
@@ -198,7 +199,7 @@ func (v *View) observeProblems(c echo.Context) error {
 			continue
 		}
 		permissions := v.getProblemPermissions(accountCtx, problem)
-		if permissions.HasPermission(models.ObserveProblemRole) {
+		if permissions.HasPermission(perms.ObserveProblemRole) {
 			resp.Problems = append(
 				resp.Problems,
 				v.makeProblem(c, problem, permissions, false, false, nil),
@@ -427,8 +428,8 @@ func (v *View) updateProblem(c echo.Context) error {
 	}
 	var missingPermissions []string
 	if form.OwnerID != nil {
-		if !permissions.HasPermission(models.UpdateProblemOwnerRole) {
-			missingPermissions = append(missingPermissions, models.UpdateProblemOwnerRole)
+		if !permissions.HasPermission(perms.UpdateProblemOwnerRole) {
+			missingPermissions = append(missingPermissions, perms.UpdateProblemOwnerRole)
 		} else {
 			account, err := v.core.Accounts.Get(getContext(c), *form.OwnerID)
 			if err != nil {
@@ -568,7 +569,7 @@ func (v *View) deleteProblem(c echo.Context) error {
 	}
 	return c.JSON(
 		http.StatusOK,
-		v.makeProblem(c, problem, managers.PermissionSet{}, false, false, nil),
+		v.makeProblem(c, problem, perms.PermissionSet{}, false, false, nil),
 	)
 }
 
@@ -630,14 +631,16 @@ func (v *View) extractProblem(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) getProblemPermissions(
 	ctx *managers.AccountContext, problem models.Problem,
-) managers.PermissionSet {
+) perms.PermissionSet {
 	permissions := ctx.Permissions.Clone()
 	if account := ctx.Account; account != nil &&
 		problem.OwnerID != 0 && account.ID == int64(problem.OwnerID) {
-		permissions[models.ObserveProblemRole] = struct{}{}
-		permissions[models.UpdateProblemRole] = struct{}{}
-		permissions[models.UpdateProblemOwnerRole] = struct{}{}
-		permissions[models.DeleteProblemRole] = struct{}{}
+		permissions.AddPermission(
+			perms.ObserveProblemRole,
+			perms.UpdateProblemRole,
+			perms.UpdateProblemOwnerRole,
+			perms.DeleteProblemRole,
+		)
 	}
 	return permissions
 }

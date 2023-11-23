@@ -16,112 +16,113 @@ import (
 	"github.com/udovin/solve/internal/db"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 func (v *View) registerContestHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/contests", v.observeContests,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
-		v.requirePermission(models.ObserveContestsRole),
+		v.requirePermission(perms.ObserveContestsRole),
 	)
 	g.POST(
 		"/v0/contests", v.createContest,
 		v.extractAuth(v.sessionAuth),
-		v.requirePermission(models.CreateContestRole),
+		v.requirePermission(perms.CreateContestRole),
 	)
 	g.GET(
 		"/v0/contests/:contest", v.observeContest,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
-		v.requirePermission(models.ObserveContestRole),
+		v.requirePermission(perms.ObserveContestRole),
 	)
 	g.PATCH(
 		"/v0/contests/:contest", v.updateContest,
 		v.extractAuth(v.sessionAuth), v.extractContest,
-		v.requirePermission(models.UpdateContestRole),
+		v.requirePermission(perms.UpdateContestRole),
 	)
 	g.DELETE(
 		"/v0/contests/:contest", v.deleteContest,
 		v.extractAuth(v.sessionAuth), v.extractContest,
-		v.requirePermission(models.DeleteContestRole),
+		v.requirePermission(perms.DeleteContestRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/problems", v.observeContestProblems,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
-		v.requirePermission(models.ObserveContestProblemsRole),
+		v.requirePermission(perms.ObserveContestProblemsRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/problems/:problem", v.observeContestProblem,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
 		v.extractContest, v.extractContestProblem,
-		v.requirePermission(models.ObserveContestProblemRole),
+		v.requirePermission(perms.ObserveContestProblemRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/problems/:problem/resources/:resource",
 		v.observeProblemResource,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
 		v.extractContest, v.extractContestProblem,
-		v.requirePermission(models.ObserveContestProblemRole),
+		v.requirePermission(perms.ObserveContestProblemRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/problems", v.createContestProblem,
 		v.extractAuth(v.sessionAuth), v.extractContest,
-		v.requirePermission(models.CreateContestProblemRole),
+		v.requirePermission(perms.CreateContestProblemRole),
 	)
 	g.PATCH(
 		"/v0/contests/:contest/problems/:problem", v.updateContestProblem,
 		v.extractAuth(v.sessionAuth), v.extractContest,
 		v.extractContestProblem,
-		v.requirePermission(models.UpdateContestProblemRole),
+		v.requirePermission(perms.UpdateContestProblemRole),
 	)
 	g.DELETE(
 		"/v0/contests/:contest/problems/:problem", v.deleteContestProblem,
 		v.extractAuth(v.sessionAuth), v.extractContest,
 		v.extractContestProblem,
-		v.requirePermission(models.DeleteContestProblemRole),
+		v.requirePermission(perms.DeleteContestProblemRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/problems/:problem/submit",
 		v.submitContestProblemSolution, v.extractAuth(v.sessionAuth),
 		v.extractContest, v.extractContestProblem,
-		v.requirePermission(models.SubmitContestSolutionRole),
+		v.requirePermission(perms.SubmitContestSolutionRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/solutions", v.observeContestSolutions,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
-		v.requirePermission(models.ObserveContestSolutionsRole),
+		v.requirePermission(perms.ObserveContestSolutionsRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/solutions/:solution", v.observeContestSolution,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
 		v.extractContest, v.extractContestSolution,
-		v.requirePermission(models.ObserveContestSolutionRole),
+		v.requirePermission(perms.ObserveContestSolutionRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/solutions/:solution/rejudge", v.rejudgeContestSolution,
 		v.extractAuth(v.sessionAuth),
 		v.extractContest, v.extractContestSolution,
-		v.requirePermission(models.UpdateContestSolutionRole),
+		v.requirePermission(perms.UpdateContestSolutionRole),
 	)
 	g.GET(
 		"/v0/contests/:contest/participants", v.observeContestParticipants,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractContest,
-		v.requirePermission(models.ObserveContestParticipantsRole),
+		v.requirePermission(perms.ObserveContestParticipantsRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/participants", v.createContestParticipant,
 		v.extractAuth(v.sessionAuth), v.extractContest,
-		v.requirePermission(models.CreateContestParticipantRole),
+		v.requirePermission(perms.CreateContestParticipantRole),
 	)
 	g.DELETE(
 		"/v0/contests/:contest/participants/:participant",
 		v.deleteContestParticipant, v.extractAuth(v.sessionAuth),
 		v.extractContest, v.extractContestParticipant,
-		v.requirePermission(models.DeleteContestParticipantRole),
+		v.requirePermission(perms.DeleteContestParticipantRole),
 	)
 	g.POST(
 		"/v0/contests/:contest/register", v.registerContest,
 		v.extractAuth(v.sessionAuth), v.extractContest,
-		v.requirePermission(models.RegisterContestRole),
+		v.requirePermission(perms.RegisterContestRole),
 	)
 }
 
@@ -165,30 +166,30 @@ type ContestProblems struct {
 }
 
 var contestPermissions = []string{
-	models.UpdateContestRole,
-	models.UpdateContestOwnerRole,
-	models.DeleteContestRole,
-	models.RegisterContestRole,
-	models.DeregisterContestRole,
-	models.ObserveContestProblemsRole,
-	models.CreateContestProblemRole,
-	models.UpdateContestProblemRole,
-	models.DeleteContestProblemRole,
-	models.ObserveContestParticipantsRole,
-	models.CreateContestParticipantRole,
-	models.DeleteContestParticipantRole,
-	models.ObserveContestSolutionsRole,
-	models.CreateContestSolutionRole,
-	models.SubmitContestSolutionRole,
-	models.UpdateContestSolutionRole,
-	models.DeleteContestSolutionRole,
-	models.ObserveContestStandingsRole,
-	models.ObserveContestFullStandingsRole,
-	models.ObserveContestMessagesRole,
-	models.CreateContestMessageRole,
-	models.UpdateContestMessageRole,
-	models.DeleteContestMessageRole,
-	models.SubmitContestQuestionRole,
+	perms.UpdateContestRole,
+	perms.UpdateContestOwnerRole,
+	perms.DeleteContestRole,
+	perms.RegisterContestRole,
+	perms.DeregisterContestRole,
+	perms.ObserveContestProblemsRole,
+	perms.CreateContestProblemRole,
+	perms.UpdateContestProblemRole,
+	perms.DeleteContestProblemRole,
+	perms.ObserveContestParticipantsRole,
+	perms.CreateContestParticipantRole,
+	perms.DeleteContestParticipantRole,
+	perms.ObserveContestSolutionsRole,
+	perms.CreateContestSolutionRole,
+	perms.SubmitContestSolutionRole,
+	perms.UpdateContestSolutionRole,
+	perms.DeleteContestSolutionRole,
+	perms.ObserveContestStandingsRole,
+	perms.ObserveContestFullStandingsRole,
+	perms.ObserveContestMessagesRole,
+	perms.CreateContestMessageRole,
+	perms.UpdateContestMessageRole,
+	perms.DeleteContestMessageRole,
+	perms.SubmitContestQuestionRole,
 }
 
 func makeContestStage(stage managers.ContestStage) string {
@@ -209,7 +210,7 @@ func makeContestStage(stage managers.ContestStage) string {
 func makeContest(
 	c echo.Context,
 	contest models.Contest,
-	permissions managers.Permissions,
+	permissions perms.Permissions,
 	core *core.Core,
 ) Contest {
 	resp := Contest{ID: contest.ID, Title: contest.Title}
@@ -264,7 +265,7 @@ func (v *View) makeContestProblem(
 		getContext(c), contestProblem.ProblemID,
 	); err == nil {
 		resp.Problem = v.makeProblem(
-			c, problem, managers.PermissionSet{}, withStatement, false, locales,
+			c, problem, perms.PermissionSet{}, withStatement, false, locales,
 		)
 		resp.Problem.Permissions = nil
 	}
@@ -318,7 +319,7 @@ func (v *View) observeContests(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		if contestCtx.HasPermission(models.ObserveContestRole) {
+		if contestCtx.HasPermission(perms.ObserveContestRole) {
 			resp.Contests = append(
 				resp.Contests,
 				makeContest(c, contest, contestCtx, v.core),
@@ -482,8 +483,8 @@ func (v *View) updateContest(c echo.Context) error {
 	}
 	var missingPermissions []string
 	if form.OwnerID != nil {
-		if !contestCtx.HasPermission(models.UpdateContestOwnerRole) {
-			missingPermissions = append(missingPermissions, models.UpdateContestOwnerRole)
+		if !contestCtx.HasPermission(perms.UpdateContestOwnerRole) {
+			missingPermissions = append(missingPermissions, perms.UpdateContestOwnerRole)
 		} else {
 			account, err := v.core.Accounts.Get(getContext(c), *form.OwnerID)
 			if err != nil {
@@ -1043,7 +1044,7 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 		return err
 	}
 	var solutions db.Rows[models.ContestSolution]
-	if contestCtx.HasPermission(models.ObserveContestSolutionRole) {
+	if contestCtx.HasPermission(perms.ObserveContestSolutionRole) {
 		contestSolutions, err := v.core.ContestSolutions.FindByContest(
 			getContext(c), contest.ID,
 		)
@@ -1071,7 +1072,7 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 	for solutions.Next() {
 		solution := solutions.Row()
 		permissions := v.getContestSolutionPermissions(contestCtx, solution)
-		if permissions.HasPermission(models.ObserveContestSolutionRole) {
+		if permissions.HasPermission(perms.ObserveContestSolutionRole) {
 			resp.Solutions = append(
 				resp.Solutions,
 				v.makeContestSolution(c, solution, false),
@@ -1228,11 +1229,11 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 			Message: localize(c, "Participant not found."),
 		}
 	}
-	if !contestCtx.HasEffectivePermission(models.SubmitContestSolutionRole) {
+	if !contestCtx.HasEffectivePermission(perms.SubmitContestSolutionRole) {
 		return errorResponse{
 			Code:               http.StatusForbidden,
 			Message:            localize(c, "Account missing permissions."),
-			MissingPermissions: []string{models.SubmitContestSolutionRole},
+			MissingPermissions: []string{perms.SubmitContestSolutionRole},
 		}
 	}
 	needUpdate := false
@@ -1609,7 +1610,7 @@ func (v *View) extractContestSolution(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) getContestSolutionPermissions(
 	ctx *managers.ContestContext, solution models.ContestSolution,
-) managers.PermissionSet {
+) perms.PermissionSet {
 	permissions := ctx.Permissions.Clone()
 	if solution.ID == 0 {
 		return permissions
@@ -1617,7 +1618,7 @@ func (v *View) getContestSolutionPermissions(
 	if solution.ParticipantID != 0 {
 		for _, participant := range ctx.Participants {
 			if participant.ID == solution.ParticipantID {
-				permissions[models.ObserveContestSolutionRole] = struct{}{}
+				permissions.AddPermission(perms.ObserveContestSolutionRole)
 				break
 			}
 		}

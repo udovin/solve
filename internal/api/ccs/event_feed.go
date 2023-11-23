@@ -13,6 +13,7 @@ import (
 	"github.com/udovin/solve/internal/db"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 func (v *View) getEventFeed(c echo.Context) error {
@@ -29,7 +30,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("contest not extracted")
 	}
-	if !contestCtx.HasPermission(models.ObserveContestFullStandingsRole) {
+	if !contestCtx.HasPermission(perms.ObserveContestFullStandingsRole) {
 		return c.NoContent(http.StatusForbidden)
 	}
 	config := contestCtx.ContestConfig

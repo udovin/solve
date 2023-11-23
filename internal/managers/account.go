@@ -8,6 +8,7 @@ import (
 
 	"github.com/udovin/solve/internal/core"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 type AccountManager struct {
@@ -38,7 +39,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 	c := AccountContext{
 		context:     ctx,
 		Account:     account,
-		Permissions: PermissionSet{},
+		Permissions: perms.PermissionSet{},
 	}
 	var roleIDs []int64
 	if account != nil {
@@ -134,12 +135,12 @@ func (m *AccountManager) getScopeUserRole() (models.Role, error) {
 	return m.roles.GetByName(roleName)
 }
 
-func (m *AccountManager) getRecursivePermissions(ctx context.Context, roleIDs ...int64) (PermissionSet, error) {
+func (m *AccountManager) getRecursivePermissions(ctx context.Context, roleIDs ...int64) (perms.PermissionSet, error) {
 	roles := map[int64]struct{}{}
 	for _, id := range roleIDs {
 		roles[id] = struct{}{}
 	}
-	stack, permissions := roleIDs, PermissionSet{}
+	stack, permissions := roleIDs, perms.PermissionSet{}
 	for len(stack) > 0 {
 		roleID := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
@@ -147,8 +148,8 @@ func (m *AccountManager) getRecursivePermissions(ctx context.Context, roleIDs ..
 		if err != nil {
 			return nil, err
 		}
-		if role.IsBuiltIn() {
-			permissions[role.Name] = struct{}{}
+		if perms.IsBuiltInRole(role.Name) {
+			permissions.AddPermission(role.Name)
 		}
 		edges, err := m.roleEdges.FindByRole(roleID)
 		if err != nil {
@@ -164,37 +165,12 @@ func (m *AccountManager) getRecursivePermissions(ctx context.Context, roleIDs ..
 	return permissions, nil
 }
 
-type Permissions interface {
-	HasPermission(name string) bool
-}
-
-type PermissionSet map[string]struct{}
-
-func (p PermissionSet) AddPermission(names ...string) {
-	for _, name := range names {
-		p[name] = struct{}{}
-	}
-}
-
-func (p PermissionSet) HasPermission(name string) bool {
-	_, ok := p[name]
-	return ok
-}
-
-func (p PermissionSet) Clone() PermissionSet {
-	clone := PermissionSet{}
-	for key := range p {
-		clone[key] = struct{}{}
-	}
-	return clone
-}
-
 type AccountContext struct {
 	context       context.Context
 	Account       *models.Account
 	User          *models.User
 	ScopeUser     *models.ScopeUser
-	Permissions   PermissionSet
+	Permissions   perms.PermissionSet
 	GroupAccounts []models.Account
 }
 
@@ -219,6 +195,6 @@ func (c *AccountContext) Value(key any) any {
 }
 
 var (
-	_ context.Context = (*AccountContext)(nil)
-	_ Permissions     = (*AccountContext)(nil)
+	_ context.Context   = (*AccountContext)(nil)
+	_ perms.Permissions = (*AccountContext)(nil)
 )

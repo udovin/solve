@@ -8,6 +8,7 @@ import (
 
 	"github.com/udovin/solve/internal/core"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 type ContestStandingsColumn struct {
@@ -78,7 +79,7 @@ func (m *ContestStandingsManager) BuildStandings(
 		ContestID:     ctx.Contest.ID,
 		OnlyOfficial:  options.OnlyOfficial,
 		IgnoreFreeze:  options.IgnoreFreeze,
-		FullStandings: ctx.HasPermission(models.ObserveContestFullStandingsRole),
+		FullStandings: ctx.HasPermission(perms.ObserveContestFullStandingsRole),
 	}
 	m.mutex.Lock()
 	cache, ok := m.cache[key]
@@ -176,7 +177,7 @@ func (m *ContestStandingsManager) buildICPCStandings(
 		})
 		columnByProblem[problem.ID] = i
 	}
-	observeFullStandings := ctx.HasPermission(models.ObserveContestFullStandingsRole)
+	observeFullStandings := ctx.HasPermission(perms.ObserveContestFullStandingsRole)
 	ignoreFreeze := options.IgnoreFreeze && observeFullStandings
 	contestTime := ctx.Now.Unix() - int64(ctx.ContestConfig.BeginTime)
 	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, contestTime)
@@ -311,7 +312,7 @@ func (m *ContestStandingsManager) buildIOIStandings(
 		})
 		columnByProblem[problem.ID] = i
 	}
-	observeFullStandings := ctx.HasPermission(models.ObserveContestFullStandingsRole)
+	observeFullStandings := ctx.HasPermission(perms.ObserveContestFullStandingsRole)
 	ignoreFreeze := options.IgnoreFreeze && observeFullStandings
 	contestTime := ctx.Now.Unix() - int64(ctx.ContestConfig.BeginTime)
 	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, contestTime)

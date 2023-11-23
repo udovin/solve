@@ -12,6 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 // registerSolutionHandlers registers handlers for solution management.
@@ -19,12 +20,12 @@ func (v *View) registerSolutionHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/solutions", v.observeSolutions,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
-		v.requirePermission(models.ObserveSolutionsRole),
+		v.requirePermission(perms.ObserveSolutionsRole),
 	)
 	g.GET(
 		"/v0/solutions/:solution", v.observeSolution,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractSolution,
-		v.requirePermission(models.ObserveSolutionRole),
+		v.requirePermission(perms.ObserveSolutionRole),
 	)
 }
 
@@ -143,9 +144,9 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 		}
 		return &resp
 	}
-	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	permissions, ok := c.Get(permissionCtxKey).(perms.Permissions)
 	if !ok {
-		permissions = managers.PermissionSet{}
+		permissions = perms.PermissionSet{}
 	}
 	resp := SolutionReport{
 		Verdict:    report.Verdict.String(),
@@ -154,7 +155,7 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 		UsedMemory: report.Usage.Memory,
 	}
 	if report.Verdict != models.Accepted &&
-		permissions.HasPermission(models.ObserveSolutionReportTestNumber) {
+		permissions.HasPermission(perms.ObserveSolutionReportTestNumber) {
 		for i, test := range report.Tests {
 			if test.Verdict == report.Verdict {
 				resp.TestNumber = i + 1
@@ -163,10 +164,13 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 		}
 	}
 	if withLogs &&
-		permissions.HasPermission(models.ObserveSolutionReportCheckerLogs) {
+		permissions.HasPermission(perms.ObserveSolutionReportCompileLog) {
 		if report.Compiler != nil {
 			resp.CompileLog = report.Compiler.Log
 		}
+	}
+	if withLogs &&
+		permissions.HasPermission(perms.ObserveSolutionReportCheckerLogs) {
 		for _, test := range report.Tests {
 			testResp := TestReport{
 				Verdict:    test.Verdict,
@@ -193,7 +197,7 @@ func (v *View) makeSolution(
 		CreateTime: solution.CreateTime,
 	}
 	if problem, err := v.core.Problems.Get(getContext(c), solution.ProblemID); err == nil {
-		problemResp := v.makeProblem(c, problem, managers.PermissionSet{}, false, false, nil)
+		problemResp := v.makeProblem(c, problem, perms.PermissionSet{}, false, false, nil)
 		resp.Problem = &problemResp
 	}
 	if compiler, err := v.core.Compilers.Get(getContext(c), solution.CompilerID); err == nil {
@@ -279,7 +283,7 @@ func (v *View) observeSolutions(c echo.Context) error {
 			continue
 		}
 		permissions := v.getSolutionPermissions(accountCtx, solution)
-		if permissions.HasPermission(models.ObserveSolutionRole) {
+		if permissions.HasPermission(perms.ObserveSolutionRole) {
 			if len(resp.Solutions) > filter.Limit {
 				resp.NextBeginID = solution.ID
 				break
@@ -339,14 +343,14 @@ func (v *View) extractSolution(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) getSolutionPermissions(
 	ctx *managers.AccountContext, solution models.Solution,
-) managers.PermissionSet {
+) perms.PermissionSet {
 	permissions := ctx.Permissions.Clone()
 	if solution.ID == 0 {
 		return permissions
 	}
 	if account := ctx.Account; account != nil &&
 		solution.AuthorID != 0 && account.ID == int64(solution.AuthorID) {
-		permissions[models.ObserveSolutionRole] = struct{}{}
+		permissions.AddPermission(perms.ObserveSolutionRole)
 	}
 	return permissions
 }

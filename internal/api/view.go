@@ -22,6 +22,7 @@ import (
 	"github.com/udovin/solve/internal/core"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 	"github.com/udovin/solve/internal/pkg/logs"
 )
 
@@ -554,7 +555,7 @@ func (v *View) requirePermission(names ...string) echo.MiddlewareFunc {
 				Code:    http.StatusForbidden,
 				Message: localize(c, "Account missing permissions."),
 			}
-			ctx, ok := c.Get(permissionCtxKey).(managers.Permissions)
+			ctx, ok := c.Get(permissionCtxKey).(perms.Permissions)
 			if !ok {
 				resp.MissingPermissions = names
 				return resp

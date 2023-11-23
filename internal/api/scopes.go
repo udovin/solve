@@ -12,6 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 // registerScopeHandlers registers handlers for scope management.
@@ -19,57 +20,57 @@ func (v *View) registerScopeHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/scopes", v.observeScopes,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
-		v.requirePermission(models.ObserveScopesRole),
+		v.requirePermission(perms.ObserveScopesRole),
 	)
 	g.GET(
 		"/v0/scopes/:scope", v.observeScope,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractScope,
-		v.requirePermission(models.ObserveScopeRole),
+		v.requirePermission(perms.ObserveScopeRole),
 	)
 	g.POST(
 		"/v0/scopes", v.createScope,
 		v.extractAuth(v.sessionAuth),
-		v.requirePermission(models.CreateScopeRole),
+		v.requirePermission(perms.CreateScopeRole),
 	)
 	g.PATCH(
 		"/v0/scopes/:scope", v.updateScope,
 		v.extractAuth(v.sessionAuth), v.extractScope,
-		v.requirePermission(models.UpdateScopeRole),
+		v.requirePermission(perms.UpdateScopeRole),
 	)
 	g.DELETE(
 		"/v0/scopes/:scope", v.deleteScope,
 		v.extractAuth(v.sessionAuth), v.extractScope,
-		v.requirePermission(models.DeleteScopeRole),
+		v.requirePermission(perms.DeleteScopeRole),
 	)
 	g.GET(
 		"/v0/scopes/:scope/users", v.observeScopeUsers,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractScope,
-		v.requirePermission(models.ObserveScopeRole),
+		v.requirePermission(perms.ObserveScopeRole),
 	)
 	g.POST(
 		"/v0/scopes/:scope/users", v.createScopeUser,
 		v.extractAuth(v.sessionAuth), v.extractScope,
-		v.requirePermission(models.CreateScopeUserRole),
+		v.requirePermission(perms.CreateScopeUserRole),
 	)
 	g.GET(
 		"/v0/scopes/:scope/users/:user", v.observeScopeUser,
 		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractScope, v.extractScopeUser,
-		v.requirePermission(models.ObserveScopeUserRole),
+		v.requirePermission(perms.ObserveScopeUserRole),
 	)
 	g.PATCH(
 		"/v0/scopes/:scope/users/:user", v.updateScopeUser,
 		v.extractAuth(v.sessionAuth), v.extractScope, v.extractScopeUser,
-		v.requirePermission(models.UpdateScopeUserRole),
+		v.requirePermission(perms.UpdateScopeUserRole),
 	)
 	g.POST(
 		"/v0/scopes/:scope/users/:user/logout", v.logoutScopeUser,
 		v.extractAuth(v.sessionAuth), v.extractScope, v.extractScopeUser,
-		v.requirePermission(models.UpdateScopeUserRole),
+		v.requirePermission(perms.UpdateScopeUserRole),
 	)
 	g.DELETE(
 		"/v0/scopes/:scope/users/:user", v.deleteScopeUser,
 		v.extractAuth(v.sessionAuth), v.extractScope, v.extractScopeUser,
-		v.requirePermission(models.DeleteScopeUserRole),
+		v.requirePermission(perms.DeleteScopeUserRole),
 	)
 }
 
@@ -90,7 +91,7 @@ func (v *View) observeScopes(c echo.Context) error {
 	for scopes.Next() {
 		scope := scopes.Row()
 		permissions := v.getScopePermissions(accountCtx, scope)
-		if permissions.HasPermission(models.ObserveScopeRole) {
+		if permissions.HasPermission(perms.ObserveScopeRole) {
 			resp.Scopes = append(
 				resp.Scopes,
 				makeScope(scope),
@@ -208,8 +209,8 @@ func (v *View) updateScope(c echo.Context) error {
 	}
 	var missingPermissions []string
 	if form.OwnerID != nil {
-		if !permissions.HasPermission(models.UpdateScopeOwnerRole) {
-			missingPermissions = append(missingPermissions, models.UpdateScopeOwnerRole)
+		if !permissions.HasPermission(perms.UpdateScopeOwnerRole) {
+			missingPermissions = append(missingPermissions, perms.UpdateScopeOwnerRole)
 		} else {
 			account, err := v.core.Accounts.Get(getContext(c), *form.OwnerID)
 			if err != nil {
@@ -259,7 +260,7 @@ func (v *View) observeScopeUsers(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("scope not extracted")
 	}
-	permissions, ok := c.Get(permissionCtxKey).(managers.Permissions)
+	permissions, ok := c.Get(permissionCtxKey).(perms.Permissions)
 	if !ok {
 		return fmt.Errorf("permissions not extracted")
 	}
@@ -269,7 +270,7 @@ func (v *View) observeScopeUsers(c echo.Context) error {
 	}
 	resp := ScopeUsers{}
 	for _, user := range users {
-		if permissions.HasPermission(models.ObserveScopeUserRole) {
+		if permissions.HasPermission(perms.ObserveScopeUserRole) {
 			resp.Users = append(resp.Users, makeScopeUser(user))
 		}
 	}
@@ -533,17 +534,17 @@ func (v *View) extractScopeUser(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (v *View) getScopePermissions(
 	ctx *managers.AccountContext, scope models.Scope,
-) managers.PermissionSet {
+) perms.PermissionSet {
 	permissions := ctx.Permissions.Clone()
 	if ctx.Account.ID != 0 && ctx.Account.ID == int64(scope.OwnerID) {
 		permissions.AddPermission(
-			models.ObserveScopeRole,
-			models.UpdateScopeRole,
-			models.DeleteScopeRole,
-			models.ObserveScopeUserRole,
-			models.CreateScopeUserRole,
-			models.UpdateScopeUserRole,
-			models.DeleteScopeUserRole,
+			perms.ObserveScopeRole,
+			perms.UpdateScopeRole,
+			perms.DeleteScopeRole,
+			perms.ObserveScopeUserRole,
+			perms.CreateScopeUserRole,
+			perms.UpdateScopeUserRole,
+			perms.DeleteScopeUserRole,
 		)
 	}
 	return permissions

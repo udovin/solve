@@ -7,6 +7,7 @@ import (
 
 	"github.com/udovin/solve/internal/core"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 type ContestManager struct {
@@ -23,102 +24,102 @@ func NewContestManager(core *core.Core) *ContestManager {
 	}
 }
 
-func addContestManagerPermissions(permissions PermissionSet) {
+func addContestManagerPermissions(permissions perms.PermissionSet) {
 	permissions.AddPermission(
-		models.ObserveContestRole,
-		models.UpdateContestRole,
-		models.ObserveContestProblemsRole,
-		models.ObserveContestProblemRole,
-		models.CreateContestProblemRole,
-		models.UpdateContestProblemRole,
-		models.DeleteContestProblemRole,
-		models.ObserveContestParticipantsRole,
-		models.ObserveContestParticipantRole,
-		models.CreateContestParticipantRole,
-		models.DeleteContestParticipantRole,
-		models.ObserveContestSolutionsRole,
-		models.ObserveContestSolutionRole,
-		models.CreateContestSolutionRole,
-		models.UpdateContestSolutionRole,
-		models.DeleteContestSolutionRole,
-		models.SubmitContestSolutionRole,
-		models.ObserveContestStandingsRole,
-		models.ObserveContestFullStandingsRole,
-		models.ObserveSolutionReportTestNumber,
-		models.ObserveSolutionReportCheckerLogs,
-		models.ObserveContestMessagesRole,
-		models.ObserveContestMessageRole,
-		models.CreateContestMessageRole,
-		models.UpdateContestMessageRole,
-		models.DeleteContestMessageRole,
-		models.SubmitContestQuestionRole,
+		perms.ObserveContestRole,
+		perms.UpdateContestRole,
+		perms.ObserveContestProblemsRole,
+		perms.ObserveContestProblemRole,
+		perms.CreateContestProblemRole,
+		perms.UpdateContestProblemRole,
+		perms.DeleteContestProblemRole,
+		perms.ObserveContestParticipantsRole,
+		perms.ObserveContestParticipantRole,
+		perms.CreateContestParticipantRole,
+		perms.DeleteContestParticipantRole,
+		perms.ObserveContestSolutionsRole,
+		perms.ObserveContestSolutionRole,
+		perms.CreateContestSolutionRole,
+		perms.UpdateContestSolutionRole,
+		perms.DeleteContestSolutionRole,
+		perms.SubmitContestSolutionRole,
+		perms.ObserveContestStandingsRole,
+		perms.ObserveContestFullStandingsRole,
+		perms.ObserveSolutionReportTestNumber,
+		perms.ObserveSolutionReportCheckerLogs,
+		perms.ObserveContestMessagesRole,
+		perms.ObserveContestMessageRole,
+		perms.CreateContestMessageRole,
+		perms.UpdateContestMessageRole,
+		perms.DeleteContestMessageRole,
+		perms.SubmitContestQuestionRole,
 	)
 }
 
 func addContestRegularPermissions(
-	permissions PermissionSet, stage ContestStage, config models.ContestConfig,
+	permissions perms.PermissionSet, stage ContestStage, config models.ContestConfig,
 ) {
-	permissions.AddPermission(models.ObserveContestRole)
+	permissions.AddPermission(perms.ObserveContestRole)
 	switch stage {
 	case ContestNotStarted:
-		permissions.AddPermission(models.DeregisterContestRole)
+		permissions.AddPermission(perms.DeregisterContestRole)
 	case ContestStarted:
 		permissions.AddPermission(
-			models.ObserveContestProblemsRole,
-			models.ObserveContestProblemRole,
-			models.ObserveContestSolutionsRole,
-			models.SubmitContestSolutionRole,
-			models.ObserveSolutionReportTestNumber,
-			models.ObserveContestMessagesRole,
-			models.SubmitContestQuestionRole,
+			perms.ObserveContestProblemsRole,
+			perms.ObserveContestProblemRole,
+			perms.ObserveContestSolutionsRole,
+			perms.SubmitContestSolutionRole,
+			perms.ObserveSolutionReportTestNumber,
+			perms.ObserveContestMessagesRole,
+			perms.SubmitContestQuestionRole,
 		)
 		if config.StandingsKind != models.DisabledStandings {
-			permissions.AddPermission(models.ObserveContestStandingsRole)
+			permissions.AddPermission(perms.ObserveContestStandingsRole)
 		}
 	case ContestFinished:
 		permissions.AddPermission(
-			models.ObserveContestProblemsRole,
-			models.ObserveContestProblemRole,
-			models.ObserveContestSolutionsRole,
-			models.ObserveSolutionReportTestNumber,
-			models.ObserveContestMessagesRole,
+			perms.ObserveContestProblemsRole,
+			perms.ObserveContestProblemRole,
+			perms.ObserveContestSolutionsRole,
+			perms.ObserveSolutionReportTestNumber,
+			perms.ObserveContestMessagesRole,
 		)
 		if config.StandingsKind != models.DisabledStandings {
-			permissions.AddPermission(models.ObserveContestStandingsRole)
+			permissions.AddPermission(perms.ObserveContestStandingsRole)
 		}
 	}
 }
 
 func addContestUpsolvingPermissions(
-	permissions PermissionSet, stage ContestStage, config models.ContestConfig,
+	permissions perms.PermissionSet, stage ContestStage, config models.ContestConfig,
 ) {
-	permissions.AddPermission(models.ObserveContestRole)
+	permissions.AddPermission(perms.ObserveContestRole)
 	if stage == ContestFinished {
 		permissions.AddPermission(
-			models.ObserveContestProblemsRole,
-			models.ObserveContestProblemRole,
-			models.ObserveContestSolutionsRole,
-			models.SubmitContestSolutionRole,
-			models.ObserveSolutionReportTestNumber,
-			models.ObserveContestMessagesRole,
+			perms.ObserveContestProblemsRole,
+			perms.ObserveContestProblemRole,
+			perms.ObserveContestSolutionsRole,
+			perms.SubmitContestSolutionRole,
+			perms.ObserveSolutionReportTestNumber,
+			perms.ObserveContestMessagesRole,
 		)
 		if config.StandingsKind != models.DisabledStandings {
-			permissions.AddPermission(models.ObserveContestStandingsRole)
+			permissions.AddPermission(perms.ObserveContestStandingsRole)
 		}
 	}
 }
 
 func addContestObserverPermissions(
-	permissions PermissionSet, stage ContestStage, config models.ContestConfig,
+	permissions perms.PermissionSet, stage ContestStage, config models.ContestConfig,
 ) {
-	permissions.AddPermission(models.ObserveContestRole)
+	permissions.AddPermission(perms.ObserveContestRole)
 	switch stage {
 	case ContestStarted, ContestFinished:
 		if config.StandingsKind != models.DisabledStandings {
-			permissions.AddPermission(models.ObserveContestStandingsRole)
+			permissions.AddPermission(perms.ObserveContestStandingsRole)
 		}
 		if config.StandingsKind != models.DisabledStandings {
-			permissions.AddPermission(models.ObserveContestStandingsRole)
+			permissions.AddPermission(perms.ObserveContestStandingsRole)
 		}
 	}
 }
@@ -128,8 +129,8 @@ func getParticipantPermissions(
 	stage ContestStage,
 	config models.ContestConfig,
 	participant models.ContestParticipant,
-) PermissionSet {
-	permissions := PermissionSet{}
+) perms.PermissionSet {
+	permissions := perms.PermissionSet{}
 	switch participant.Kind {
 	case models.RegularParticipant:
 		addContestRegularPermissions(permissions, stage, config)
@@ -183,8 +184,8 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 	}
 	if account := ctx.Account; account != nil {
 		if contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
-			c.Permissions.AddPermission(models.UpdateContestOwnerRole)
-			c.Permissions.AddPermission(models.DeleteContestRole)
+			c.Permissions.AddPermission(perms.UpdateContestOwnerRole)
+			c.Permissions.AddPermission(perms.DeleteContestRole)
 		}
 		participants, err := m.participants.FindByContestAccount(contest.ID, account.ID)
 		if err != nil {
@@ -218,7 +219,7 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 				for permission := range getParticipantPermissions(
 					contest, c.Stage, config, groupParticipant,
 				) {
-					if permission == models.DeregisterContestRole {
+					if permission == perms.DeregisterContestRole {
 						// User cannot deregister group account.
 						continue
 					}
@@ -267,9 +268,9 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 			addContestManagerPermissions(c.Permissions)
 		}
 		if !hasRegular && c.Stage == ContestNotStarted && config.EnableRegistration {
-			c.Permissions.AddPermission(models.ObserveContestRole)
-			if c.HasPermission(models.RegisterContestsRole) {
-				c.Permissions.AddPermission(models.RegisterContestRole)
+			c.Permissions.AddPermission(perms.ObserveContestRole)
+			if c.HasPermission(perms.RegisterContestsRole) {
+				c.Permissions.AddPermission(perms.RegisterContestRole)
 			}
 		}
 		if !hasUpsolving && c.Stage == ContestFinished &&
@@ -317,7 +318,7 @@ type ContestContext struct {
 	Contest       models.Contest
 	ContestConfig models.ContestConfig
 	Participants  []models.ContestParticipant
-	Permissions   PermissionSet
+	Permissions   perms.PermissionSet
 	Stage         ContestStage
 	Now           time.Time
 	effectivePos  int
@@ -345,10 +346,10 @@ func (c *ContestContext) SetEffectiveParticipant(id int64) {
 	}
 }
 
-func (c *ContestContext) GetEffectivePermissions() PermissionSet {
+func (c *ContestContext) GetEffectivePermissions() perms.PermissionSet {
 	participant := c.GetEffectiveParticipant()
 	if participant == nil {
-		return PermissionSet{}
+		return perms.PermissionSet{}
 	}
 	return getParticipantPermissions(c.Contest, c.Stage, c.ContestConfig, *participant)
 }
@@ -358,6 +359,6 @@ func (c *ContestContext) HasEffectivePermission(name string) bool {
 }
 
 var (
-	_ context.Context = (*ContestContext)(nil)
-	_ Permissions     = (*ContestContext)(nil)
+	_ context.Context   = (*ContestContext)(nil)
+	_ perms.Permissions = (*ContestContext)(nil)
 )

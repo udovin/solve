@@ -8,6 +8,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/perms"
 )
 
 type Setting struct {
@@ -33,22 +34,22 @@ func (v *View) registerSettingHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/settings", v.observeSettings,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
-		v.requirePermission(models.ObserveSettingsRole),
+		v.requirePermission(perms.ObserveSettingsRole),
 	)
 	g.POST(
 		"/v0/settings", v.createSetting,
 		v.extractAuth(v.sessionAuth),
-		v.requirePermission(models.CreateSettingRole),
+		v.requirePermission(perms.CreateSettingRole),
 	)
 	g.PATCH(
 		"/v0/settings/:setting", v.updateSetting,
 		v.extractAuth(v.sessionAuth), v.extractSetting,
-		v.requirePermission(models.UpdateSettingRole),
+		v.requirePermission(perms.UpdateSettingRole),
 	)
 	g.DELETE(
 		"/v0/settings/:setting", v.deleteSetting,
 		v.extractAuth(v.sessionAuth), v.extractSetting,
-		v.requirePermission(models.DeleteSettingRole),
+		v.requirePermission(perms.DeleteSettingRole),
 	)
 }
 

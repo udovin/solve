@@ -3,8 +3,11 @@ package cache
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/udovin/algo/futures"
 )
 
 type testResult struct {
@@ -16,17 +19,31 @@ type testStorageImpl struct {
 	values chan testResult
 }
 
-func (s *testStorageImpl) Get(key int) (string, error) {
-	result := <-s.values
-	return result.Value, result.Err
+type testResource struct {
+	value    string
+	released atomic.Bool
 }
 
-func (s *testStorageImpl) Actual(key int, value string) bool {
-	return true
+func (r *testResource) Get() string {
+	return r.value
 }
 
-func (s *testStorageImpl) Delete(key int, value string) error {
-	return nil
+func (r *testResource) Release() {
+	if !r.released.CompareAndSwap(false, true) {
+		panic("already released")
+	}
+}
+
+func (s *testStorageImpl) Load(ctx context.Context, key int) (Resource[string], error) {
+	select {
+	case result := <-s.values:
+		if result.Err != nil {
+			return nil, result.Err
+		}
+		return &testResource{value: result.Value}, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func TestCache(t *testing.T) {
@@ -35,98 +52,53 @@ func TestCache(t *testing.T) {
 	}
 	manager := NewManager[int, string](storage)
 	func() {
-		ref1 := manager.Load(42)
-		defer ref1.Release()
-		ref2 := manager.Load(42)
-		defer ref2.Release()
+		fref1 := futures.Call(func() (Resource[string], error) { return manager.Load(context.Background(), 42) })
+		fref2 := futures.Call(func() (Resource[string], error) { return manager.Load(context.Background(), 42) })
 		select {
 		case <-time.After(time.Second):
 			t.Fatal("Storage blocked")
 		case storage.values <- testResult{"test", nil}:
 		}
-		if value, err := ref1.Get(context.Background()); err != nil {
+		ref1, err := fref1.Get(context.Background())
+		if err != nil {
 			t.Fatal("Error:", err)
-		} else {
-			expectEqual(t, value, "test")
 		}
-		if value, err := ref2.Get(context.Background()); err != nil {
+		defer ref1.Release()
+		ref2, err := fref2.Get(context.Background())
+		if err != nil {
 			t.Fatal("Error:", err)
-		} else {
-			expectEqual(t, value, "test")
 		}
+		defer ref2.Release()
+		expectEqual(t, ref1.Get(), "test")
+		expectEqual(t, ref2.Get(), "test")
 		expectEqual(t, manager.Len(), 1)
 		expectEqual(t, manager.Delete(42), true)
+		expectEqual(t, manager.Delete(42), false)
 		expectEqual(t, manager.Len(), 0)
-		expectEqual(t, manager.Cleanup(), 0)
 		ref1.Release()
-		expectEqual(t, manager.Cleanup(), 0)
-		// Check that double release is ignored.
-		ref1.Release()
-		expectEqual(t, manager.Cleanup(), 0)
 		ref2.Release()
-		expectEqual(t, manager.Cleanup(), 1)
 	}()
 	func() {
-		ref1 := manager.Load(42)
-		defer ref1.Release()
-		ref2 := manager.Load(42)
-		defer ref2.Release()
+		fref1 := futures.Call(func() (Resource[string], error) { return manager.Load(context.Background(), 42) })
+		fref2 := futures.Call(func() (Resource[string], error) { return manager.Load(context.Background(), 42) })
+		time.Sleep(time.Millisecond)
 		select {
 		case <-time.After(time.Second):
 			t.Fatal("Storage blocked")
 		case storage.values <- testResult{"", fmt.Errorf("test")}:
 		}
-		if _, err := ref1.Get(context.Background()); err == nil {
-			t.Fatalf("Expected error")
-		} else {
-			expectEqual(t, err.Error(), "test")
+		ref1, err := fref1.Get(context.Background())
+		if err == nil {
+			ref1.Release()
+			t.Fatal("Expected error")
 		}
-		if _, err := ref2.Get(context.Background()); err == nil {
-			t.Fatalf("Expected error")
-		} else {
-			expectEqual(t, err.Error(), "test")
+		ref2, err := fref2.Get(context.Background())
+		if err == nil {
+			ref2.Release()
+			t.Fatal("Expected error")
 		}
 		expectEqual(t, manager.Len(), 0)
 		expectEqual(t, manager.Delete(42), false)
-		expectEqual(t, manager.Cleanup(), 0)
-		ref1.Release()
-		expectEqual(t, manager.Cleanup(), 0)
-		ref2.Release()
-		expectEqual(t, manager.Cleanup(), 1)
-	}()
-	func() {
-		ref1 := manager.Load(42)
-		defer ref1.Release()
-		select {
-		case <-time.After(time.Second):
-			t.Fatal("Storage blocked")
-		case storage.values <- testResult{"test", nil}:
-		}
-		if value, err := ref1.Get(context.Background()); err != nil {
-			t.Fatal("Error:", err)
-		} else {
-			expectEqual(t, value, "test")
-		}
-		ref2 := manager.Load(42)
-		defer ref2.Release()
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-		if value, err := ref2.Get(timeoutCtx); err != nil {
-			t.Fatal("Error:", err)
-		} else {
-			expectEqual(t, value, "test")
-		}
-		expectEqual(t, manager.Len(), 1)
-		expectEqual(t, manager.Delete(42), true)
-		expectEqual(t, manager.Len(), 0)
-		expectEqual(t, manager.Cleanup(), 0)
-		ref1.Release()
-		expectEqual(t, manager.Cleanup(), 0)
-		// Check that double release is ignored.
-		ref1.Release()
-		expectEqual(t, manager.Cleanup(), 0)
-		ref2.Release()
-		expectEqual(t, manager.Cleanup(), 1)
 	}()
 }
 

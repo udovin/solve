@@ -31,7 +31,7 @@ func NewProblemPackageManager(files *FileManager, dir string) *ProblemPackageMan
 	return &m
 }
 
-func (m *ProblemPackageManager) Download(ctx context.Context, fileID int64, kind string) (cache.Resource[Problem], error) {
+func (m *ProblemPackageManager) Download(ctx context.Context, fileID int64, kind string) cache.ResourceFuture[Problem] {
 	return m.cache.Load(ctx, problemPackageKey{ID: fileID, Kind: kind})
 }
 

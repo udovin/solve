@@ -6,8 +6,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"github.com/udovin/algo/futures"
 )
 
 type testResult struct {
@@ -52,50 +50,59 @@ func TestCache(t *testing.T) {
 	}
 	manager := NewManager[int, string](storage)
 	func() {
-		fref1 := futures.Call(func() (Resource[string], error) { return manager.Load(context.Background(), 42) })
-		fref2 := futures.Call(func() (Resource[string], error) { return manager.Load(context.Background(), 42) })
+		ref1 := manager.Load(context.Background(), 42)
+		defer ref1.Release()
+		ref2 := manager.Load(context.Background(), 42)
+		defer ref2.Release()
 		select {
 		case <-time.After(time.Second):
 			t.Fatal("Storage blocked")
 		case storage.values <- testResult{"test", nil}:
 		}
-		ref1, err := fref1.Get(context.Background())
+		if value, err := ref1.Get(context.Background()); err != nil {
+			t.Fatal("Error:", err)
+		} else {
+			expectEqual(t, value, "test")
+		}
+		if value, err := ref2.Get(context.Background()); err != nil {
+			t.Fatal("Error:", err)
+		} else {
+			expectEqual(t, value, "test")
+		}
+		ref3, err := manager.LoadSync(context.Background(), 42)
 		if err != nil {
 			t.Fatal("Error:", err)
 		}
-		defer ref1.Release()
-		ref2, err := fref2.Get(context.Background())
-		if err != nil {
-			t.Fatal("Error:", err)
-		}
-		defer ref2.Release()
-		expectEqual(t, ref1.Get(), "test")
-		expectEqual(t, ref2.Get(), "test")
+		defer ref3.Release()
+		expectEqual(t, ref3.Get(), "test")
 		expectEqual(t, manager.Len(), 1)
 		expectEqual(t, manager.Delete(42), true)
 		expectEqual(t, manager.Delete(42), false)
 		expectEqual(t, manager.Len(), 0)
 		ref1.Release()
 		ref2.Release()
+		ref3.Release()
 	}()
 	func() {
-		fref1 := futures.Call(func() (Resource[string], error) { return manager.Load(context.Background(), 42) })
-		fref2 := futures.Call(func() (Resource[string], error) { return manager.Load(context.Background(), 42) })
+		ref1 := manager.Load(context.Background(), 42)
+		defer ref1.Release()
+		ref2 := manager.Load(context.Background(), 42)
+		defer ref2.Release()
 		time.Sleep(time.Millisecond)
 		select {
 		case <-time.After(time.Second):
 			t.Fatal("Storage blocked")
 		case storage.values <- testResult{"", fmt.Errorf("test")}:
 		}
-		ref1, err := fref1.Get(context.Background())
-		if err == nil {
-			ref1.Release()
-			t.Fatal("Expected error")
+		if _, err := ref1.Get(context.Background()); err == nil {
+			t.Fatalf("Expected error")
+		} else {
+			expectEqual(t, err.Error(), "test")
 		}
-		ref2, err := fref2.Get(context.Background())
-		if err == nil {
-			ref2.Release()
-			t.Fatal("Expected error")
+		if _, err := ref2.Get(context.Background()); err == nil {
+			t.Fatalf("Expected error")
+		} else {
+			expectEqual(t, err.Error(), "test")
 		}
 		expectEqual(t, manager.Len(), 0)
 		expectEqual(t, manager.Delete(42), false)

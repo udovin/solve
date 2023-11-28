@@ -2,12 +2,21 @@ package cache
 
 import (
 	"context"
+	"fmt"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
+
+	"github.com/udovin/algo/futures"
 )
 
 type Resource[T any] interface {
 	Get() T
+	Release()
+}
+
+type ResourceFuture[T any] interface {
+	futures.Future[T]
 	Release()
 }
 
@@ -16,7 +25,8 @@ type Storage[K any, V any] interface {
 }
 
 type Manager[K comparable, V any] interface {
-	Storage[K, V]
+	Load(ctx context.Context, key K) ResourceFuture[V]
+	LoadSync(ctx context.Context, key K) (Resource[V], error)
 	// Delete deletes resource with the given key from cache.
 	Delete(key K) bool
 	// Len returns current amount of keys in cache.
@@ -26,7 +36,7 @@ type Manager[K comparable, V any] interface {
 func NewManager[K comparable, V any](storage Storage[K, V]) Manager[K, V] {
 	return &manager[K, V]{
 		cache:   map[K]*resource[V]{},
-		futures: map[K]*inflightResource[V]{},
+		futures: map[K]*resourceFuture[V]{},
 		storage: storage,
 	}
 }
@@ -34,7 +44,7 @@ func NewManager[K comparable, V any](storage Storage[K, V]) Manager[K, V] {
 type manager[K comparable, V any] struct {
 	mutex   sync.RWMutex
 	cache   map[K]*resource[V]
-	futures map[K]*inflightResource[V]
+	futures map[K]*resourceFuture[V]
 	storage Storage[K, V]
 }
 
@@ -42,33 +52,46 @@ type manager[K comparable, V any] struct {
 // or reuses a cached resource.
 //
 // If the resource is not required, Release() should be called.
-func (m *manager[K, V]) Load(ctx context.Context, key K) (Resource[V], error) {
-	if i, r, ok := m.getFast(key); ok {
-		return m.getResource(ctx, i, r)
+func (m *manager[K, V]) Load(ctx context.Context, key K) ResourceFuture[V] {
+	if r, ok := m.loadFast(key); ok {
+		return r
 	}
-	i, r, ok := m.getSlow(key)
-	if ok {
-		return m.getResource(ctx, i, r)
-	}
-	panicking := true
-	defer func() {
-		m.finish(key, i)
-		if panicking {
-			r.Release()
+	return m.loadSlow(ctx, key)
+}
+
+// LoadSync synchronously loads resource with the given key,
+// or reuses a cached resource.
+//
+// If the resource is not required, Release() should be called.
+func (m *manager[K, V]) LoadSync(ctx context.Context, key K) (Resource[V], error) {
+	r := m.Load(ctx, key)
+	switch v := r.(type) {
+	case *resourceRef[V]:
+		return &resourceSyncRef[V]{v.resource}, nil
+	case *resourceFutureRef[V]:
+		select {
+		case <-v.future.done:
+			if v.future.err != nil {
+				v.Release()
+				return nil, v.future.err
+			}
+			return &resourceSyncRef[V]{v.future.resource}, nil
+		default:
 		}
-	}()
-	v, err := m.storage.Load(ctx, key)
-	panicking = false
-	if err != nil {
-		i.err = err
-		r.Release()
-		return nil, err
+		select {
+		case <-v.future.done:
+			if v.future.err != nil {
+				v.Release()
+				return nil, v.future.err
+			}
+			return &resourceSyncRef[V]{v.future.resource}, nil
+		case <-ctx.Done():
+			v.Release()
+			return nil, ctx.Err()
+		}
+	default:
+		panic(fmt.Errorf("unexpected resource future type: %T", v))
 	}
-	i.resource.resource = v
-	if o := m.set(key, i.resource); o != nil {
-		o.Release()
-	}
-	return r, nil
 }
 
 // Delete deletes resource with the given key from cache.
@@ -87,58 +110,70 @@ func (m *manager[K, V]) Len() int {
 	return len(m.cache)
 }
 
-func (m *manager[K, V]) getResource(ctx context.Context, i *inflightResource[V], r *resourceRef[V]) (*resourceRef[V], error) {
-	if i != nil {
-		select {
-		case <-i.done:
-			if i.err != nil {
-				r.Release()
-				return nil, i.err
-			}
-		case <-ctx.Done():
-			r.Release()
-			return nil, ctx.Err()
-		}
-	}
-	return r, nil
-}
-
-func (m *manager[K, V]) getFast(key K) (*inflightResource[V], *resourceRef[V], bool) {
+func (m *manager[K, V]) loadFast(key K) (ResourceFuture[V], bool) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	if r, ok := m.cache[key]; ok {
-		return nil, r.acquire(), true
+		r.acquire()
+		return &resourceRef[V]{r}, true
 	}
-	if i, ok := m.futures[key]; ok {
-		return i, i.acquire(), true
+	if f, ok := m.futures[key]; ok {
+		f.resource.acquire()
+		return &resourceFutureRef[V]{f}, true
 	}
-	return nil, nil, false
+	return nil, false
 }
 
-func (m *manager[K, V]) getSlow(key K) (*inflightResource[V], *resourceRef[V], bool) {
+func (m *manager[K, V]) loadSlow(ctx context.Context, key K) ResourceFuture[V] {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	if r, ok := m.cache[key]; ok {
-		return nil, r.acquire(), true
+		r.acquire()
+		return &resourceRef[V]{r}
 	}
-	if i, ok := m.futures[key]; ok {
-		return i, i.acquire(), true
+	if f, ok := m.futures[key]; ok {
+		f.resource.acquire()
+		return &resourceFutureRef[V]{f}
 	}
-	i := &inflightResource[V]{
-		done:     make(chan struct{}),
-		resource: &resource[V]{counter: 1},
+	done := make(chan struct{})
+	f := &resourceFuture[V]{
+		done:     done,
+		resource: &resource[V]{counter: 2},
 	}
-	m.futures[key] = i
-	return i, &resourceRef[V]{resource: i.resource}, false
+	m.futures[key] = f
+	go func() {
+		panicking := true
+		defer func() {
+			if r := recover(); panicking {
+				f.resource.resource = nil
+				f.err = futures.PanicError{
+					Value: r,
+					Stack: debug.Stack(),
+				}
+			}
+			close(done)
+		}()
+		f.resource.resource, f.err = m.storage.Load(ctx, key)
+		if r := m.updateCache(key, f); r != nil {
+			r.Release()
+		}
+		panicking = false
+	}()
+	return &resourceFutureRef[V]{f}
 }
 
-func (m *manager[K, V]) set(key K, r *resource[V]) *resource[V] {
-	atomic.AddInt64(&r.counter, 1)
+func (m *manager[K, V]) updateCache(key K, f *resourceFuture[V]) *resource[V] {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	o := m.cache[key]
-	m.cache[key] = r
-	return o
+	if v, ok := m.futures[key]; ok && v == f {
+		delete(m.futures, key)
+	}
+	if f.err != nil {
+		return f.resource
+	}
+	r := m.cache[key]
+	m.cache[key] = f.resource
+	return r
 }
 
 func (m *manager[K, V]) delete(key K) *resource[V] {
@@ -151,26 +186,15 @@ func (m *manager[K, V]) delete(key K) *resource[V] {
 	return r
 }
 
-func (m *manager[K, V]) finish(key K, i *inflightResource[V]) {
-	close(i.done)
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	v, ok := m.futures[key]
-	if ok && v == i {
-		delete(m.futures, key)
-	}
-}
-
 type resource[T any] struct {
 	resource Resource[T]
 	counter  int64
 }
 
-func (r *resource[T]) acquire() *resourceRef[T] {
-	if atomic.AddInt64(&r.counter, 1) > 1 {
-		return &resourceRef[T]{resource: r}
+func (r *resource[T]) acquire() {
+	if atomic.AddInt64(&r.counter, 1) <= 1 {
+		panic("cannot acquire released resource")
 	}
-	return nil
 }
 
 func (r *resource[T]) Release() {
@@ -180,12 +204,22 @@ func (r *resource[T]) Release() {
 	}
 }
 
-type resourceRef[T any] struct {
-	*resource[T]
+type resourceFuture[T any] struct {
+	done     chan struct{}
+	err      error
+	resource *resource[T]
 }
 
-func (r *resourceRef[T]) Get() T {
-	return r.resource.resource.Get()
+type resourceRef[T any] struct {
+	resource *resource[T]
+}
+
+func (r *resourceRef[T]) Get(ctx context.Context) (T, error) {
+	return r.resource.resource.Get(), nil
+}
+
+func (r *resourceRef[T]) Done() <-chan struct{} {
+	return chanDone
 }
 
 func (r *resourceRef[T]) Release() {
@@ -195,8 +229,59 @@ func (r *resourceRef[T]) Release() {
 	}
 }
 
-type inflightResource[T any] struct {
-	done chan struct{}
-	err  error
-	*resource[T]
+type resourceFutureRef[T any] struct {
+	future *resourceFuture[T]
+}
+
+func (r *resourceFutureRef[T]) Get(ctx context.Context) (T, error) {
+	var empty T
+	select {
+	case <-r.future.done:
+		if r.future.err != nil {
+			return empty, r.future.err
+		}
+		return r.future.resource.resource.Get(), nil
+	default:
+	}
+	select {
+	case <-r.future.done:
+		if r.future.err != nil {
+			return empty, r.future.err
+		}
+		return r.future.resource.resource.Get(), nil
+	case <-ctx.Done():
+		return empty, ctx.Err()
+	}
+}
+
+func (r *resourceFutureRef[T]) Done() <-chan struct{} {
+	return r.future.done
+}
+
+func (r *resourceFutureRef[T]) Release() {
+	if r.future != nil {
+		r.future.resource.Release()
+		r.future = nil
+	}
+}
+
+type resourceSyncRef[T any] struct {
+	resource *resource[T]
+}
+
+func (r *resourceSyncRef[T]) Get() T {
+	return r.resource.resource.Get()
+}
+
+func (r *resourceSyncRef[T]) Release() {
+	if r.resource != nil {
+		r.resource.Release()
+		r.resource = nil
+	}
+}
+
+var chanDone = make(chan struct{})
+
+func init() {
+	close(chanDone)
 }

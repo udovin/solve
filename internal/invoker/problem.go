@@ -13,71 +13,28 @@ import (
 	"github.com/udovin/solve/internal/models"
 )
 
-type ProblemTest interface {
-	OpenInput() (*os.File, error)
-	OpenAnswer() (*os.File, error)
-	Points() float64
-	Group() string
-}
-
-type ProblemExecutableKind string
-
-const (
-	TestlibChecker    ProblemExecutableKind = "testlib_checker"
-	TestlibInteractor ProblemExecutableKind = "testlib_interactor"
+type (
+	ProblemTest           = managers.ProblemTest
+	ProblemExecutableKind = managers.ProblemExecutableKind
+	ProblemExecutable     = managers.ProblemExecutable
+	ProblemPointsPolicy   = managers.ProblemPointsPolicy
+	ProblemTestGroup      = managers.ProblemTestGroup
+	ProblemTestSet        = managers.ProblemTestSet
+	ProblemResource       = managers.ProblemResource
+	ProblemStatement      = managers.ProblemStatement
+	Problem               = managers.Problem
+	ProblemKind           = managers.ProblemKind
 )
 
-type ProblemExecutable interface {
-	Name() string
-	Kind() ProblemExecutableKind
-	OpenBinary() (*os.File, error)
-	GetCompiler(context.Context, CompilerManager) (Compiler, error)
-}
-
-type ProblemPointsPolicy string
-
 const (
-	EachTestPointsPolicy      ProblemPointsPolicy = "each_test"
-	CompleteGroupPointsPolicy ProblemPointsPolicy = "complete_group"
-)
+	TestlibChecker    = managers.TestlibChecker
+	TestlibInteractor = managers.TestlibInteractor
 
-type ProblemTestGroup interface {
-	Name() string
-	PointsPolicy() ProblemPointsPolicy
-}
+	EachTestPointsPolicy      = managers.EachTestPointsPolicy
+	CompleteGroupPointsPolicy = managers.CompleteGroupPointsPolicy
 
-type ProblemTestSet interface {
-	Name() string
-	TimeLimit() int64
-	MemoryLimit() int64
-	GetTests() ([]ProblemTest, error)
-	GetGroups() ([]ProblemTestGroup, error)
-}
-
-type ProblemResource interface {
-	Name() string
-	Open() (*os.File, error)
-	GetMD5() (string, error)
-}
-
-type ProblemStatement interface {
-	Locale() string
-	GetConfig() (models.ProblemStatementConfig, error)
-	GetResources() ([]ProblemResource, error)
-}
-
-type Problem interface {
-	Compile(context.Context, CompilerManager) error
-	GetExecutables() ([]ProblemExecutable, error)
-	GetTestSets() ([]ProblemTestSet, error)
-	GetStatements() ([]ProblemStatement, error)
-}
-
-type ProblemKind string
-
-const (
-	PolygonProblem  ProblemKind = "polygon"
-	CompiledProblem ProblemKind = "compiled"
+	PolygonProblem  = managers.PolygonProblem
+	CompiledProblem = managers.CompiledProblem
 )
 
 type problemManager struct {

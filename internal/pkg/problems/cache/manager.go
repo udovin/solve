@@ -25,12 +25,12 @@ type problemPackage struct {
 	problem problems.Problem
 }
 
-func (p *problemPackage) Get() problems.Problem {
-	return p.problem
+func (r *problemPackage) Get() problems.Problem {
+	return r.problem
 }
 
-func (p *problemPackage) Release() {
-	p.mgr.deletePackage(p)
+func (r *problemPackage) Release() {
+	r.mgr.deletePackage(r)
 }
 
 type ProblemPackageManager struct {
@@ -52,10 +52,10 @@ func NewProblemPackageManager(files *managers.FileManager, dir string) *ProblemP
 	return &m
 }
 
-func (m *ProblemPackageManager) Download(
+func (m *ProblemPackageManager) LoadSync(
 	ctx context.Context, fileID int64, kind string,
-) cache.ResourceFuture[problems.Problem] {
-	return m.cache.Load(ctx, problemPackageKey{ID: fileID, Kind: kind})
+) (cache.Resource[problems.Problem], error) {
+	return m.cache.LoadSync(ctx, problemPackageKey{fileID, kind})
 }
 
 func (m *ProblemPackageManager) load(
@@ -120,13 +120,13 @@ func (m *ProblemPackageManager) newPackage() (*problemPackage, error) {
 	return p, nil
 }
 
-func (m *ProblemPackageManager) deletePackage(p *problemPackage) {
+func (m *ProblemPackageManager) deletePackage(r *problemPackage) {
 	// Delete all package files.
-	_ = os.RemoveAll(filepath.Join(m.dir, fmt.Sprint(p.id)))
+	_ = os.RemoveAll(filepath.Join(m.dir, fmt.Sprint(r.id)))
 	// Delete information about package.
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	delete(m.packages, p.id)
+	delete(m.packages, r.id)
 }
 
 type problemPackageManagerStorage struct {

@@ -11,36 +11,13 @@ import (
 	"github.com/udovin/algo/futures"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
-)
-
-type (
-	ProblemTest           = managers.ProblemTest
-	ProblemExecutableKind = managers.ProblemExecutableKind
-	ProblemExecutable     = managers.ProblemExecutable
-	ProblemPointsPolicy   = managers.ProblemPointsPolicy
-	ProblemTestGroup      = managers.ProblemTestGroup
-	ProblemTestSet        = managers.ProblemTestSet
-	ProblemResource       = managers.ProblemResource
-	ProblemStatement      = managers.ProblemStatement
-	Problem               = managers.Problem
-	ProblemKind           = managers.ProblemKind
-)
-
-const (
-	TestlibChecker    = managers.TestlibChecker
-	TestlibInteractor = managers.TestlibInteractor
-
-	EachTestPointsPolicy      = managers.EachTestPointsPolicy
-	CompleteGroupPointsPolicy = managers.CompleteGroupPointsPolicy
-
-	PolygonProblem  = managers.PolygonProblem
-	CompiledProblem = managers.CompiledProblem
+	"github.com/udovin/solve/internal/pkg/problems"
 )
 
 type problemManager struct {
 	files     *managers.FileManager
 	cacheDir  string
-	problems  map[int64]futures.Future[Problem]
+	problems  map[int64]futures.Future[problems.Problem]
 	compilers *compilerManager
 	mutex     sync.Mutex
 }
@@ -56,18 +33,18 @@ func newProblemManager(
 	return &problemManager{
 		files:     files,
 		cacheDir:  cacheDir,
-		problems:  map[int64]futures.Future[Problem]{},
+		problems:  map[int64]futures.Future[problems.Problem]{},
 		compilers: compilers,
 	}, nil
 }
 
 func (m *problemManager) DownloadProblem(
-	ctx context.Context, p models.Problem, kind ProblemKind,
-) (Problem, error) {
+	ctx context.Context, p models.Problem, kind problems.ProblemKind,
+) (problems.Problem, error) {
 	switch kind {
-	case PolygonProblem:
+	case problems.PolygonProblem:
 		return m.downloadProblemAsync(ctx, int64(p.PackageID), kind).Get(ctx)
-	case CompiledProblem:
+	case problems.CompiledProblem:
 		return m.downloadProblemAsync(ctx, int64(p.CompiledID), kind).Get(ctx)
 	default:
 		return nil, fmt.Errorf("unknown package kind: %v", kind)
@@ -75,14 +52,14 @@ func (m *problemManager) DownloadProblem(
 }
 
 func (m *problemManager) downloadProblemAsync(
-	ctx context.Context, packageID int64, kind ProblemKind,
-) futures.Future[Problem] {
+	ctx context.Context, packageID int64, kind problems.ProblemKind,
+) futures.Future[problems.Problem] {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	if problem, ok := m.problems[packageID]; ok {
 		return problem
 	}
-	future, setResult := futures.New[Problem]()
+	future, setResult := futures.New[problems.Problem]()
 	m.problems[packageID] = future
 	go func() {
 		problem, err := m.runDownloadProblem(ctx, packageID, kind)
@@ -95,8 +72,8 @@ func (m *problemManager) downloadProblemAsync(
 }
 
 func (m *problemManager) runDownloadProblem(
-	ctx context.Context, packageID int64, kind ProblemKind,
-) (Problem, error) {
+	ctx context.Context, packageID int64, kind problems.ProblemKind,
+) (problems.Problem, error) {
 	problemFile, err := m.files.DownloadFile(ctx, packageID)
 	if err != nil {
 		return nil, err
@@ -125,9 +102,9 @@ func (m *problemManager) runDownloadProblem(
 		}
 	}
 	switch kind {
-	case PolygonProblem:
+	case problems.PolygonProblem:
 		return extractPolygonProblem(localProblemPath, problemPath)
-	case CompiledProblem:
+	case problems.CompiledProblem:
 		return extractCompiledProblem(localProblemPath, problemPath)
 	default:
 		return nil, fmt.Errorf("unsupported kind: %v", kind)

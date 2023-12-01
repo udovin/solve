@@ -1,11 +1,10 @@
-package managers
+package compilers
 
 import (
 	"context"
 	"io"
 	"time"
 
-	"github.com/udovin/solve/internal/pkg/logs"
 	"github.com/udovin/solve/internal/pkg/safeexec"
 )
 
@@ -57,20 +56,8 @@ func (r ExecuteReport) Success() bool {
 	return r.ExitCode == 0
 }
 
-type CompilerProcess interface {
-	Start() error
-	Wait() (ExecuteReport, error)
-	Release() error
-}
-
 type Compiler interface {
 	Name() string
 	Compile(ctx context.Context, options CompileOptions) (CompileReport, error)
-	CreateExecutable(binaryPath string) (Executable, error)
-}
-
-type CompilerManager interface {
-	GetCompiler(ctx context.Context, name string) (Compiler, error)
-	GetCompilerName(name string) (string, error)
-	Logger() *logs.Logger
+	CreateExecutable(ctx context.Context, binaryPath string) (Executable, error)
 }

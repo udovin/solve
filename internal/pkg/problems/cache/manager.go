@@ -1,4 +1,4 @@
-package managers
+package cache
 
 import (
 	"context"
@@ -9,76 +9,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/pkg/cache"
+	"github.com/udovin/solve/internal/pkg/problems"
 )
-
-type ProblemKind string
-
-const (
-	PolygonProblem  ProblemKind = "polygon"
-	CompiledProblem ProblemKind = "compiled"
-)
-
-type ProblemTest interface {
-	OpenInput() (*os.File, error)
-	OpenAnswer() (*os.File, error)
-	Points() float64
-	Group() string
-}
-
-type ProblemExecutableKind string
-
-const (
-	TestlibChecker    ProblemExecutableKind = "testlib_checker"
-	TestlibInteractor ProblemExecutableKind = "testlib_interactor"
-)
-
-type ProblemExecutable interface {
-	Name() string
-	Kind() ProblemExecutableKind
-	OpenBinary() (*os.File, error)
-	GetCompiler(context.Context, CompilerManager) (Compiler, error)
-}
-
-type ProblemPointsPolicy string
-
-const (
-	EachTestPointsPolicy      ProblemPointsPolicy = "each_test"
-	CompleteGroupPointsPolicy ProblemPointsPolicy = "complete_group"
-)
-
-type ProblemTestGroup interface {
-	Name() string
-	PointsPolicy() ProblemPointsPolicy
-}
-
-type ProblemTestSet interface {
-	Name() string
-	TimeLimit() int64
-	MemoryLimit() int64
-	GetTests() ([]ProblemTest, error)
-	GetGroups() ([]ProblemTestGroup, error)
-}
-
-type ProblemResource interface {
-	Name() string
-	Open() (*os.File, error)
-	GetMD5() (string, error)
-}
-
-type ProblemStatement interface {
-	Locale() string
-	GetConfig() (models.ProblemStatementConfig, error)
-	GetResources() ([]ProblemResource, error)
-}
-
-type Problem interface {
-	Compile(context.Context, CompilerManager) error
-	GetExecutables() ([]ProblemExecutable, error)
-	GetTestSets() ([]ProblemTestSet, error)
-	GetStatements() ([]ProblemStatement, error)
-}
 
 type problemPackageKey struct {
 	ID   int64
@@ -88,10 +22,10 @@ type problemPackageKey struct {
 type problemPackage struct {
 	id      int64
 	mgr     *ProblemPackageManager
-	problem Problem
+	problem problems.Problem
 }
 
-func (p *problemPackage) Get() Problem {
+func (p *problemPackage) Get() problems.Problem {
 	return p.problem
 }
 
@@ -100,29 +34,33 @@ func (p *problemPackage) Release() {
 }
 
 type ProblemPackageManager struct {
-	files    *FileManager
+	files    *managers.FileManager
 	dir      string
 	packages map[int64]*problemPackage
 	seqID    atomic.Int64
 	mutex    sync.Mutex
-	cache    cache.Manager[problemPackageKey, Problem]
+	cache    cache.Manager[problemPackageKey, problems.Problem]
 }
 
-func NewProblemPackageManager(files *FileManager, dir string) *ProblemPackageManager {
+func NewProblemPackageManager(files *managers.FileManager, dir string) *ProblemPackageManager {
 	m := ProblemPackageManager{
 		files:    files,
 		dir:      dir,
 		packages: map[int64]*problemPackage{},
 	}
-	m.cache = cache.NewManager[problemPackageKey, Problem](problemPackageManagerStorage{&m})
+	m.cache = cache.NewManager[problemPackageKey, problems.Problem](problemPackageManagerStorage{&m})
 	return &m
 }
 
-func (m *ProblemPackageManager) Download(ctx context.Context, fileID int64, kind string) cache.ResourceFuture[Problem] {
+func (m *ProblemPackageManager) Download(
+	ctx context.Context, fileID int64, kind string,
+) cache.ResourceFuture[problems.Problem] {
 	return m.cache.Load(ctx, problemPackageKey{ID: fileID, Kind: kind})
 }
 
-func (m *ProblemPackageManager) load(ctx context.Context, fileID int64, kind string) (cache.Resource[Problem], error) {
+func (m *ProblemPackageManager) load(
+	ctx context.Context, fileID int64, kind string,
+) (cache.Resource[problems.Problem], error) {
 	file, err := m.files.DownloadFile(ctx, fileID)
 	if err != nil {
 		return nil, err
@@ -195,10 +133,14 @@ type problemPackageManagerStorage struct {
 	*ProblemPackageManager
 }
 
-func (s problemPackageManagerStorage) Load(ctx context.Context, key problemPackageKey) (cache.Resource[Problem], error) {
+func (s problemPackageManagerStorage) Load(
+	ctx context.Context, key problemPackageKey,
+) (cache.Resource[problems.Problem], error) {
 	return s.ProblemPackageManager.load(ctx, key.ID, key.Kind)
 }
 
-func extractProblem(kind string, targetPath, sourcePath string) (Problem, error) {
+func extractProblem(
+	kind string, targetPath, sourcePath string,
+) (problems.Problem, error) {
 	panic("not implemented")
 }

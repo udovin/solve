@@ -11,13 +11,15 @@ import (
 	"github.com/udovin/algo/futures"
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/pkg/archives"
+	"github.com/udovin/solve/internal/pkg/compilers"
 	"github.com/udovin/solve/internal/pkg/hash"
 	"github.com/udovin/solve/internal/pkg/logs"
 	"github.com/udovin/solve/internal/pkg/polygon"
+	"github.com/udovin/solve/internal/pkg/problems"
 	"github.com/udovin/solve/internal/pkg/safeexec"
 )
 
-func extractPolygonProblem(source, target string) (Problem, error) {
+func extractPolygonProblem(source, target string) (problems.Problem, error) {
 	if err := archives.ExtractZip(source, target); err != nil {
 		return nil, fmt.Errorf("cannot extract problem: %w", err)
 	}
@@ -40,14 +42,14 @@ type polygonProblem struct {
 }
 
 func (p *polygonProblem) compileExecutable(
-	ctx context.Context, compilers CompilerManager, executables map[string]Executable, polygonType string, source string, resources []MountFile,
-) (Executable, error) {
+	ctx context.Context, manager problems.CompileContext, executables map[string]compilers.Executable, polygonType string, source string, resources []compilers.MountFile,
+) (compilers.Executable, error) {
 	polygonName := "polygon." + polygonType
-	compilerName, err := compilers.GetCompilerName(polygonName)
+	compilerName, err := manager.GetCompilerName(polygonName)
 	if err != nil {
 		return nil, err
 	}
-	compiler, err := compilers.GetCompiler(ctx, compilerName)
+	compiler, err := manager.GetCompiler(ctx, compilerName)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +57,7 @@ func (p *polygonProblem) compileExecutable(
 	if _, ok := executables[target]; !ok {
 		sourcePath := filepath.Join(p.path, source)
 		targetPath := filepath.Join(p.path, target)
-		report, err := compiler.Compile(ctx, CompileOptions{
+		report, err := compiler.Compile(ctx, compilers.CompileOptions{
 			Source:      sourcePath,
 			Target:      targetPath,
 			InputFiles:  resources,
@@ -71,11 +73,11 @@ func (p *polygonProblem) compileExecutable(
 				source, compilerName, report.Log,
 			)
 		}
-		compilers.Logger().Debug(
+		manager.Logger().Debug(
 			"Compiled executable",
 			logs.Any("path", source),
 		)
-		executable, err := compiler.CreateExecutable(targetPath)
+		executable, err := compiler.CreateExecutable(ctx, targetPath)
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +86,7 @@ func (p *polygonProblem) compileExecutable(
 	return executables[target], nil
 }
 
-func (p *polygonProblem) generateTest(ctx context.Context, executables map[string]Executable, args []string, input string) error {
+func (p *polygonProblem) generateTest(ctx context.Context, executables map[string]compilers.Executable, args []string, input string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("cannot find executable")
 	}
@@ -97,7 +99,7 @@ func (p *polygonProblem) generateTest(ctx context.Context, executables map[strin
 		return fmt.Errorf("cannot find executable: %q", args[0])
 	}
 	defer func() { _ = outputFile.Close() }()
-	process, err := executable.CreateProcess(ctx, ExecuteOptions{
+	process, err := executable.CreateProcess(ctx, compilers.ExecuteOptions{
 		Args:        args[1:],
 		Stdout:      outputFile,
 		TimeLimit:   20 * time.Second,
@@ -120,19 +122,19 @@ func (p *polygonProblem) generateTest(ctx context.Context, executables map[strin
 	return nil
 }
 
-func (p *polygonProblem) Compile(ctx context.Context, compilers CompilerManager) error {
-	executables := map[string]Executable{}
+func (p *polygonProblem) Compile(ctx context.Context, manager problems.CompileContext) error {
+	executables := map[string]compilers.Executable{}
 	defer func() {
 		for _, executable := range executables {
 			_ = executable.Release()
 		}
 	}()
-	resources := []MountFile{}
+	resources := []compilers.MountFile{}
 	for _, resource := range p.config.Files.Resources {
 		if resource.Type != "h.g++" {
 			continue
 		}
-		resources = append(resources, MountFile{
+		resources = append(resources, compilers.MountFile{
 			Source: filepath.Join(p.path, resource.Path),
 			Target: filepath.Base(resource.Path),
 		})
@@ -142,16 +144,16 @@ func (p *polygonProblem) Compile(ctx context.Context, compilers CompilerManager)
 			continue
 		}
 		if _, err := p.compileExecutable(
-			ctx, compilers, executables, e.Source.Type, e.Source.Path, resources,
+			ctx, manager, executables, e.Source.Type, e.Source.Path, resources,
 		); err != nil {
 			return err
 		}
 	}
-	var interactor Executable
+	var interactor compilers.Executable
 	if p.config.Assets != nil {
 		if e := p.config.Assets.Checker; e != nil {
 			if _, err := p.compileExecutable(
-				ctx, compilers, executables, e.Source.Type, e.Source.Path, resources,
+				ctx, manager, executables, e.Source.Type, e.Source.Path, resources,
 			); err != nil {
 				return err
 			}
@@ -159,7 +161,7 @@ func (p *polygonProblem) Compile(ctx context.Context, compilers CompilerManager)
 		if e := p.config.Assets.Interactor; e != nil {
 			var err error
 			interactor, err = p.compileExecutable(
-				ctx, compilers, executables, e.Source.Type, e.Source.Path, resources,
+				ctx, manager, executables, e.Source.Type, e.Source.Path, resources,
 			)
 			if err != nil {
 				return err
@@ -175,20 +177,20 @@ func (p *polygonProblem) Compile(ctx context.Context, compilers CompilerManager)
 	if mainSolution.Source == nil {
 		return fmt.Errorf("cannot find main solution")
 	}
-	var solution Executable
+	var solution compilers.Executable
 	{
 		polygonName := "polygon." + mainSolution.Source.Type
-		compilerName, err := compilers.GetCompilerName(polygonName)
+		compilerName, err := manager.GetCompilerName(polygonName)
 		if err != nil {
 			return err
 		}
-		compiler, err := compilers.GetCompiler(ctx, compilerName)
+		compiler, err := manager.GetCompiler(ctx, compilerName)
 		if err != nil {
 			return err
 		}
 		sourcePath := filepath.Join(p.path, mainSolution.Source.Path)
 		targetPath := strings.TrimSuffix(sourcePath, filepath.Ext(sourcePath))
-		report, err := compiler.Compile(ctx, CompileOptions{
+		report, err := compiler.Compile(ctx, compilers.CompileOptions{
 			Source:      sourcePath,
 			Target:      targetPath,
 			TimeLimit:   20 * time.Second,
@@ -203,11 +205,11 @@ func (p *polygonProblem) Compile(ctx context.Context, compilers CompilerManager)
 				mainSolution.Source.Path, compilerName, report.Log,
 			)
 		}
-		compilers.Logger().Debug(
+		manager.Logger().Debug(
 			"Compiled solution",
 			logs.Any("path", mainSolution.Source.Path),
 		)
-		solution, err = compiler.CreateExecutable(targetPath)
+		solution, err = compiler.CreateExecutable(ctx, targetPath)
 		if err != nil {
 			return err
 		}
@@ -240,7 +242,7 @@ func (p *polygonProblem) Compile(ctx context.Context, compilers CompilerManager)
 						_ = solutionReader.Close()
 						_ = solutionWriter.Close()
 					}()
-					process, err := interactor.CreateProcess(ctx, ExecuteOptions{
+					process, err := interactor.CreateProcess(ctx, compilers.ExecuteOptions{
 						Args:        []string{"input.in", "output.out"},
 						Stdin:       solutionReader,
 						Stdout:      interactorWriter,
@@ -255,7 +257,7 @@ func (p *polygonProblem) Compile(ctx context.Context, compilers CompilerManager)
 					if err := copyFileRec(inputPath, process.UpperPath("input.in")); err != nil {
 						return err
 					}
-					solutionProcess, err := solution.CreateProcess(ctx, ExecuteOptions{
+					solutionProcess, err := solution.CreateProcess(ctx, compilers.ExecuteOptions{
 						Stdin:       interactorReader,
 						Stdout:      solutionWriter,
 						TimeLimit:   time.Duration(testSet.TimeLimit) * time.Millisecond,
@@ -322,7 +324,7 @@ func (p *polygonProblem) Compile(ctx context.Context, compilers CompilerManager)
 					return fmt.Errorf("cannot create output file: %w", err)
 				}
 				defer func() { _ = output.Close() }()
-				process, err := solution.CreateProcess(ctx, ExecuteOptions{
+				process, err := solution.CreateProcess(ctx, compilers.ExecuteOptions{
 					Stdin:       input,
 					Stdout:      output,
 					TimeLimit:   time.Duration(testSet.TimeLimit) * time.Millisecond,
@@ -346,7 +348,7 @@ func (p *polygonProblem) Compile(ctx context.Context, compilers CompilerManager)
 					return fmt.Errorf("cannot sync output file: %w", err)
 				}
 			}
-			compilers.Logger().Debug(
+			manager.Logger().Debug(
 				"Generated test",
 				logs.Any("input", input),
 				logs.Any("answer", answer),
@@ -356,8 +358,8 @@ func (p *polygonProblem) Compile(ctx context.Context, compilers CompilerManager)
 	return nil
 }
 
-func (p *polygonProblem) GetExecutables() ([]ProblemExecutable, error) {
-	var executables []ProblemExecutable
+func (p *polygonProblem) GetExecutables() ([]problems.ProblemExecutable, error) {
+	var executables []problems.ProblemExecutable
 	if p.config.Assets == nil {
 		return executables, nil
 	}
@@ -368,7 +370,7 @@ func (p *polygonProblem) GetExecutables() ([]ProblemExecutable, error) {
 		targetPath := filepath.Join(p.path, target)
 		executables = append(executables, polygonProblemExecutable{
 			name:       "checker",
-			kind:       TestlibChecker,
+			kind:       problems.TestlibChecker,
 			binaryPath: targetPath,
 			compiler:   checker.Source.Type,
 		})
@@ -380,7 +382,7 @@ func (p *polygonProblem) GetExecutables() ([]ProblemExecutable, error) {
 		targetPath := filepath.Join(p.path, target)
 		executables = append(executables, polygonProblemExecutable{
 			name:       "interactor",
-			kind:       TestlibInteractor,
+			kind:       problems.TestlibInteractor,
 			binaryPath: targetPath,
 			compiler:   interactor.Source.Type,
 		})
@@ -390,7 +392,7 @@ func (p *polygonProblem) GetExecutables() ([]ProblemExecutable, error) {
 
 type polygonProblemExecutable struct {
 	name       string
-	kind       ProblemExecutableKind
+	kind       problems.ProblemExecutableKind
 	binaryPath string
 	compiler   string
 }
@@ -399,7 +401,7 @@ func (e polygonProblemExecutable) Name() string {
 	return e.name
 }
 
-func (e polygonProblemExecutable) Kind() ProblemExecutableKind {
+func (e polygonProblemExecutable) Kind() problems.ProblemExecutableKind {
 	return e.kind
 }
 
@@ -407,7 +409,7 @@ func (e polygonProblemExecutable) OpenBinary() (*os.File, error) {
 	return os.Open(e.binaryPath)
 }
 
-func (e polygonProblemExecutable) GetCompiler(ctx context.Context, compilers CompilerManager) (Compiler, error) {
+func (e polygonProblemExecutable) GetCompiler(ctx context.Context, compilers problems.CompileContext) (compilers.Compiler, error) {
 	name, err := compilers.GetCompilerName("polygon." + e.compiler)
 	if err != nil {
 		return nil, err
@@ -415,8 +417,8 @@ func (e polygonProblemExecutable) GetCompiler(ctx context.Context, compilers Com
 	return compilers.GetCompiler(ctx, name)
 }
 
-func (p *polygonProblem) GetTestSets() ([]ProblemTestSet, error) {
-	var testSets []ProblemTestSet
+func (p *polygonProblem) GetTestSets() ([]problems.ProblemTestSet, error) {
+	var testSets []problems.ProblemTestSet
 	for _, testSet := range p.config.TestSets {
 		testSets = append(testSets, &polygonProblemTestSet{
 			problem: p,
@@ -426,8 +428,8 @@ func (p *polygonProblem) GetTestSets() ([]ProblemTestSet, error) {
 	return testSets, nil
 }
 
-func (p *polygonProblem) GetStatements() ([]ProblemStatement, error) {
-	var statements []ProblemStatement
+func (p *polygonProblem) GetStatements() ([]problems.ProblemStatement, error) {
+	var statements []problems.ProblemStatement
 	for _, statement := range p.config.Statements {
 		if statement.Type != "application/x-tex" {
 			continue
@@ -460,8 +462,8 @@ func (g *polygonProblemTestSet) MemoryLimit() int64 {
 	return g.config.MemoryLimit
 }
 
-func (g *polygonProblemTestSet) GetGroups() ([]ProblemTestGroup, error) {
-	var groups []ProblemTestGroup
+func (g *polygonProblemTestSet) GetGroups() ([]problems.ProblemTestGroup, error) {
+	var groups []problems.ProblemTestGroup
 	for _, group := range g.config.Groups {
 		groups = append(groups, problemTestGroup{
 			name:         group.Name,
@@ -471,19 +473,19 @@ func (g *polygonProblemTestSet) GetGroups() ([]ProblemTestGroup, error) {
 	return groups, nil
 }
 
-func getPolygonPointsPolicy(policy string) ProblemPointsPolicy {
+func getPolygonPointsPolicy(policy string) problems.ProblemPointsPolicy {
 	switch policy {
 	case "each-test":
-		return EachTestPointsPolicy
+		return problems.EachTestPointsPolicy
 	case "complete-group":
-		return CompleteGroupPointsPolicy
+		return problems.CompleteGroupPointsPolicy
 	default:
-		return EachTestPointsPolicy
+		return problems.EachTestPointsPolicy
 	}
 }
 
-func (g *polygonProblemTestSet) GetTests() ([]ProblemTest, error) {
-	var tests []ProblemTest
+func (g *polygonProblemTestSet) GetTests() ([]problems.ProblemTest, error) {
+	var tests []problems.ProblemTest
 	for i := range g.config.Tests {
 		input := fmt.Sprintf(g.config.InputPathPattern, i+1)
 		answer := fmt.Sprintf(g.config.AnswerPathPattern, i+1)
@@ -499,14 +501,14 @@ func (g *polygonProblemTestSet) GetTests() ([]ProblemTest, error) {
 
 type problemTestGroup struct {
 	name         string
-	pointsPolicy ProblemPointsPolicy
+	pointsPolicy problems.ProblemPointsPolicy
 }
 
 func (g problemTestGroup) Name() string {
 	return g.name
 }
 
-func (g problemTestGroup) PointsPolicy() ProblemPointsPolicy {
+func (g problemTestGroup) PointsPolicy() problems.ProblemPointsPolicy {
 	return g.pointsPolicy
 }
 
@@ -571,7 +573,7 @@ func (s *polygonProblemStatement) GetConfig() (models.ProblemStatementConfig, er
 	return config, nil
 }
 
-func (s *polygonProblemStatement) GetResources() ([]ProblemResource, error) {
+func (s *polygonProblemStatement) GetResources() ([]problems.ProblemResource, error) {
 	config, err := s.GetConfig()
 	if err != nil {
 		return nil, err
@@ -581,7 +583,7 @@ func (s *polygonProblemStatement) GetResources() ([]ProblemResource, error) {
 	if err != nil {
 		return nil, err
 	}
-	resources := []ProblemResource{}
+	resources := []problems.ProblemResource{}
 	for _, file := range files {
 		if file.IsDir() {
 			continue

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/pkg/compilers"
 )
 
 func getTestlibExitCodeVerdict(exitCode int) (models.Verdict, error) {
@@ -28,9 +29,9 @@ func getTestlibExitCodeVerdict(exitCode int) (models.Verdict, error) {
 	}
 }
 
-func runTestlibChecker(ctx context.Context, checker Executable, inputPath, outputPath, answerPath string) (models.TestReport, error) {
+func runTestlibChecker(ctx context.Context, checker compilers.Executable, inputPath, outputPath, answerPath string) (models.TestReport, error) {
 	log := truncateBuffer{limit: 2048}
-	process, err := checker.CreateProcess(ctx, ExecuteOptions{
+	process, err := checker.CreateProcess(ctx, compilers.ExecuteOptions{
 		Args:        []string{"input.in", "output.out", "answer.ans"},
 		Stderr:      &log,
 		TimeLimit:   20 * time.Second,

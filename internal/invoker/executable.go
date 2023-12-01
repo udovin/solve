@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/pkg/compilers"
 	"github.com/udovin/solve/internal/pkg/safeexec"
 )
 
@@ -16,7 +17,7 @@ type executable struct {
 }
 
 func (e *executable) CreateProcess(
-	ctx context.Context, options ExecuteOptions,
+	ctx context.Context, options compilers.ExecuteOptions,
 ) (*safeexec.Process, error) {
 	config := safeexec.ProcessConfig{
 		Layers:      e.getLayers(),

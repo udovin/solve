@@ -11,7 +11,9 @@ import (
 
 	"github.com/udovin/algo/futures"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/pkg/compilers"
 	"github.com/udovin/solve/internal/pkg/logs"
+	"github.com/udovin/solve/internal/pkg/problems"
 	"github.com/udovin/solve/internal/pkg/safeexec"
 )
 
@@ -26,11 +28,11 @@ type judgeSolutionTask struct {
 	problem        models.Problem
 	compiler       models.Compiler
 	tempDir        string
-	problemImpl    Problem
-	compilerImpl   Compiler
-	solutionImpl   Executable
-	interactorImpl Executable
-	checkerImpl    Executable
+	problemImpl    problems.Problem
+	compilerImpl   compilers.Compiler
+	solutionImpl   compilers.Executable
+	interactorImpl compilers.Executable
+	checkerImpl    compilers.Executable
 	solutionPath   string
 	compiledPath   string
 }
@@ -85,7 +87,7 @@ func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
 		return fmt.Errorf("problem does not have package")
 	}
 	problem, err := t.invoker.problems.DownloadProblem(
-		ctx, t.problem, CompiledProblem,
+		ctx, t.problem, problems.CompiledProblem,
 	)
 	if err != nil {
 		return fmt.Errorf("cannot download problem: %w", err)
@@ -141,7 +143,7 @@ func (t *judgeSolutionTask) compileSolution(
 	if err := ctx.SetDeferredState(state); err != nil {
 		return false, err
 	}
-	compileReport, err := t.compilerImpl.Compile(ctx, CompileOptions{
+	compileReport, err := t.compilerImpl.Compile(ctx, compilers.CompileOptions{
 		Source:      t.solutionPath,
 		Target:      t.compiledPath,
 		TimeLimit:   20 * time.Second,
@@ -160,7 +162,7 @@ func (t *judgeSolutionTask) compileSolution(
 	if !compileReport.Success() {
 		return false, nil
 	}
-	exe, err := t.compilerImpl.CreateExecutable(t.compiledPath)
+	exe, err := t.compilerImpl.CreateExecutable(ctx, t.compiledPath)
 	if err != nil {
 		return false, err
 	}
@@ -174,11 +176,11 @@ var (
 )
 
 func (t *judgeSolutionTask) getChecker(
-	ctx TaskContext, executables []ProblemExecutable,
-) (Executable, error) {
-	var checker ProblemExecutable
+	ctx TaskContext, executables []problems.ProblemExecutable,
+) (compilers.Executable, error) {
+	var checker problems.ProblemExecutable
 	for _, executable := range executables {
-		if executable.Kind() == TestlibChecker {
+		if executable.Kind() == problems.TestlibChecker {
 			checker = executable
 			break
 		}
@@ -208,15 +210,15 @@ func (t *judgeSolutionTask) getChecker(
 	}(); err != nil {
 		return nil, err
 	}
-	return compiler.CreateExecutable(checkerPath)
+	return compiler.CreateExecutable(ctx, checkerPath)
 }
 
 func (t *judgeSolutionTask) getInteractor(
-	ctx TaskContext, executables []ProblemExecutable,
-) (Executable, error) {
-	var interactor ProblemExecutable
+	ctx TaskContext, executables []problems.ProblemExecutable,
+) (compilers.Executable, error) {
+	var interactor problems.ProblemExecutable
 	for _, executable := range executables {
-		if executable.Kind() == TestlibInteractor {
+		if executable.Kind() == problems.TestlibInteractor {
 			interactor = executable
 			break
 		}
@@ -246,13 +248,13 @@ func (t *judgeSolutionTask) getInteractor(
 	}(); err != nil {
 		return nil, err
 	}
-	return compiler.CreateExecutable(interactorPath)
+	return compiler.CreateExecutable(ctx, interactorPath)
 }
 
 func (t *judgeSolutionTask) calculateTestSetPoints(
 	ctx TaskContext,
 	report *models.SolutionReport,
-	testSet ProblemTestSet,
+	testSet problems.ProblemTestSet,
 	groupTests map[string][]int,
 ) error {
 	groups, err := testSet.GetGroups()
@@ -272,9 +274,9 @@ func (t *judgeSolutionTask) calculateTestSetPoints(
 			}
 		}
 		switch group.PointsPolicy() {
-		case EachTestPointsPolicy:
+		case problems.EachTestPointsPolicy:
 			*report.Points += groupPoints
-		case CompleteGroupPointsPolicy:
+		case problems.CompleteGroupPointsPolicy:
 			if groupVerdict == models.Accepted {
 				*report.Points += groupPoints
 			} else {
@@ -307,7 +309,7 @@ func (t *judgeSolutionTask) prepareExecutables(ctx TaskContext) error {
 
 func (t *judgeSolutionTask) executeSolution(
 	ctx context.Context,
-	testSet ProblemTestSet,
+	testSet problems.ProblemTestSet,
 	inputPath, outputPath, answerPath string,
 ) (models.TestReport, error) {
 	if t.interactorImpl != nil {
@@ -322,7 +324,7 @@ func (t *judgeSolutionTask) executeSolution(
 	if err != nil {
 		return models.TestReport{}, err
 	}
-	process, err := t.solutionImpl.CreateProcess(ctx, ExecuteOptions{
+	process, err := t.solutionImpl.CreateProcess(ctx, compilers.ExecuteOptions{
 		Stdin:       inputFile,
 		Stdout:      outputFile,
 		TimeLimit:   time.Duration(testSet.TimeLimit()) * time.Millisecond,
@@ -358,7 +360,7 @@ func (t *judgeSolutionTask) executeSolution(
 
 func (t *judgeSolutionTask) executeInteractiveSolution(
 	ctx context.Context,
-	testSet ProblemTestSet,
+	testSet problems.ProblemTestSet,
 	inputPath, outputPath, answerPath string,
 ) (models.TestReport, error) {
 	interactorReader, interactorWriter, err := os.Pipe()
@@ -378,7 +380,7 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 		_ = solutionWriter.Close()
 	}()
 	interactorLog := truncateBuffer{limit: 2048}
-	interactorProcess, err := t.interactorImpl.CreateProcess(ctx, ExecuteOptions{
+	interactorProcess, err := t.interactorImpl.CreateProcess(ctx, compilers.ExecuteOptions{
 		Args:        []string{"input.in", "output.out", "answer.ans"},
 		Stdin:       solutionReader,
 		Stdout:      interactorWriter,
@@ -396,7 +398,7 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 	if err := copyFileRec(answerPath, interactorProcess.UpperPath("answer.ans")); err != nil {
 		return models.TestReport{}, err
 	}
-	solutionProcess, err := t.solutionImpl.CreateProcess(ctx, ExecuteOptions{
+	solutionProcess, err := t.solutionImpl.CreateProcess(ctx, compilers.ExecuteOptions{
 		Stdin:       interactorReader,
 		Stdout:      solutionWriter,
 		TimeLimit:   time.Duration(testSet.TimeLimit()) * time.Millisecond,
@@ -469,8 +471,8 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 
 func (t *judgeSolutionTask) runSolutionTest(
 	ctx TaskContext,
-	testSet ProblemTestSet,
-	test ProblemTest,
+	testSet problems.ProblemTestSet,
+	test problems.ProblemTest,
 ) (models.TestReport, error) {
 	inputPath := filepath.Join(t.tempDir, "test.in")
 	outputPath := filepath.Join(t.tempDir, "test.out")

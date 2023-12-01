@@ -15,19 +15,9 @@ import (
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/pkg/archives"
+	"github.com/udovin/solve/internal/pkg/compilers"
 	"github.com/udovin/solve/internal/pkg/logs"
 	"github.com/udovin/solve/internal/pkg/safeexec"
-)
-
-type (
-	ExecuteOptions  = managers.ExecuteOptions
-	Executable      = managers.Executable
-	MountFile       = managers.MountFile
-	CompileReport   = managers.CompileReport
-	CompileOptions  = managers.CompileOptions
-	CompilerProcess = managers.CompilerProcess
-	Compiler        = managers.Compiler
-	CompilerManager = managers.CompilerManager
 )
 
 type compiler struct {
@@ -42,13 +32,13 @@ func (c *compiler) Name() string {
 }
 
 func (c *compiler) Compile(
-	ctx context.Context, options CompileOptions,
-) (CompileReport, error) {
+	ctx context.Context, options compilers.CompileOptions,
+) (compilers.CompileReport, error) {
 	if c.config.Compile == nil {
 		if err := copyFileRec(options.Source, options.Target); err != nil {
-			return CompileReport{}, fmt.Errorf("unable to copy source: %w", err)
+			return compilers.CompileReport{}, fmt.Errorf("unable to copy source: %w", err)
 		}
-		return CompileReport{}, nil
+		return compilers.CompileReport{}, nil
 	}
 	log := truncateBuffer{limit: 2048}
 	config := safeexec.ProcessConfig{
@@ -63,7 +53,7 @@ func (c *compiler) Compile(
 	}
 	process, err := c.safeexec.Create(ctx, config)
 	if err != nil {
-		return CompileReport{}, fmt.Errorf("unable to create compiler: %w", err)
+		return compilers.CompileReport{}, fmt.Errorf("unable to create compiler: %w", err)
 	}
 	if c.config.Compile.Source != nil {
 		path := filepath.Join(
@@ -72,7 +62,7 @@ func (c *compiler) Compile(
 			*c.config.Compile.Source,
 		)
 		if err := copyFileRec(options.Source, path); err != nil {
-			return CompileReport{}, fmt.Errorf("unable to write source: %w", err)
+			return compilers.CompileReport{}, fmt.Errorf("unable to write source: %w", err)
 		}
 	}
 	for _, file := range options.InputFiles {
@@ -82,16 +72,16 @@ func (c *compiler) Compile(
 			file.Target,
 		)
 		if err := copyFileRec(file.Source, path); err != nil {
-			return CompileReport{}, fmt.Errorf("unable to write file: %w", err)
+			return compilers.CompileReport{}, fmt.Errorf("unable to write file: %w", err)
 		}
 	}
 	defer func() { _ = process.Release() }()
 	if err := process.Start(); err != nil {
-		return CompileReport{}, fmt.Errorf("cannot start compiler: %w", err)
+		return compilers.CompileReport{}, fmt.Errorf("cannot start compiler: %w", err)
 	}
 	report, err := process.Wait()
 	if err != nil {
-		return CompileReport{}, err
+		return compilers.CompileReport{}, err
 	}
 	if report.ExitCode == 0 {
 		if c.config.Compile.Binary != nil {
@@ -101,11 +91,11 @@ func (c *compiler) Compile(
 				*c.config.Compile.Binary,
 			)
 			if err := copyFileRec(containerBinaryPath, options.Target); err != nil {
-				return CompileReport{}, fmt.Errorf("unable to copy binary: %w", err)
+				return compilers.CompileReport{}, fmt.Errorf("unable to copy binary: %w", err)
 			}
 		}
 	}
-	return CompileReport{
+	return compilers.CompileReport{
 		ExitCode:   report.ExitCode,
 		UsedTime:   report.Time,
 		UsedMemory: report.Memory,
@@ -113,7 +103,7 @@ func (c *compiler) Compile(
 	}, nil
 }
 
-func (c *compiler) CreateExecutable(binaryPath string) (Executable, error) {
+func (c *compiler) CreateExecutable(ctx context.Context, binaryPath string) (compilers.Executable, error) {
 	if c.config.Execute == nil {
 		return nil, fmt.Errorf("compiler has empty execute config")
 	}
@@ -180,7 +170,7 @@ func (m *compilerManager) GetCompilerName(name string) (string, error) {
 	return setting.Value, nil
 }
 
-func (m *compilerManager) GetCompiler(ctx context.Context, name string) (Compiler, error) {
+func (m *compilerManager) GetCompiler(ctx context.Context, name string) (compilers.Compiler, error) {
 	compiler, err := m.compilers.GetByName(name)
 	if err != nil {
 		return nil, err
@@ -192,7 +182,7 @@ func (m *compilerManager) Logger() *logs.Logger {
 	return m.logger
 }
 
-func (m *compilerManager) DownloadCompiler(ctx context.Context, c models.Compiler) (Compiler, error) {
+func (m *compilerManager) DownloadCompiler(ctx context.Context, c models.Compiler) (compilers.Compiler, error) {
 	config, err := c.GetConfig()
 	if err != nil {
 		return nil, err

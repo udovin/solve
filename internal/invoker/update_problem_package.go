@@ -8,6 +8,7 @@ import (
 
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/pkg/problems"
 	"golang.org/x/exp/constraints"
 )
 
@@ -22,7 +23,7 @@ type updateProblemPackageTask struct {
 	file        models.File
 	resources   []models.ProblemResource
 	tempDir     string
-	problemImpl Problem
+	problemImpl problems.Problem
 }
 
 func (updateProblemPackageTask) New(invoker *Invoker) taskImpl {
@@ -73,7 +74,7 @@ func (t *updateProblemPackageTask) prepareProblem(ctx TaskContext) error {
 	}
 	t.problem.PackageID = models.NInt64(t.file.ID)
 	problem, err := t.invoker.problems.DownloadProblem(
-		ctx, t.problem, PolygonProblem,
+		ctx, t.problem, problems.PolygonProblem,
 	)
 	if err != nil {
 		return fmt.Errorf("cannot download problem: %w", err)

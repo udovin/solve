@@ -90,19 +90,37 @@ func max[T constraints.Ordered](a, b T) T {
 	return a
 }
 
+func (t *updateProblemPackageTask) newCompileContext(ctx TaskContext) CompileContext {
+	baseCtx := compileContext{
+		compilers: t.invoker.core.Compilers,
+		cache:     t.invoker.compilerImages,
+		logger:    ctx.Logger(),
+	}
+	return &polygonCompileContext{ctx: &baseCtx, settings: t.invoker.core.Settings}
+}
+
+func (t *updateProblemPackageTask) compileProblem(ctx TaskContext, problemPath string) error {
+	compileCtx := t.newCompileContext(ctx)
+	defer compileCtx.Release()
+	if err := t.problemImpl.Compile(ctx, compileCtx); err != nil {
+		return fmt.Errorf("cannot compile problem: %w", err)
+	}
+	if err := buildCompiledProblem(
+		ctx, compileCtx, t.problemImpl, problemPath,
+	); err != nil {
+		return fmt.Errorf("cannot build compiled problem: %w", err)
+	}
+	return nil
+}
+
 func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	if err := t.prepareProblem(ctx); err != nil {
 		return fmt.Errorf("cannot prepare problem: %w", err)
 	}
 	problemPath := filepath.Join(t.tempDir, "problem.zip")
 	if t.config.Compile {
-		if err := t.problemImpl.Compile(ctx, t.invoker.compilers); err != nil {
-			return fmt.Errorf("cannot compile problem: %w", err)
-		}
-		if err := buildCompiledProblem(
-			ctx, t.invoker.compilers, t.problemImpl, problemPath,
-		); err != nil {
-			return fmt.Errorf("cannot build compiled problem: %w", err)
+		if err := t.compileProblem(ctx, problemPath); err != nil {
+			return err
 		}
 	}
 	testSets, err := t.problemImpl.GetTestSets()

@@ -42,14 +42,20 @@ type ProblemPackageManager struct {
 	cache    cache.Manager[problemPackageKey, problems.Problem]
 }
 
-func NewProblemPackageManager(files *managers.FileManager, dir string) *ProblemPackageManager {
+func NewProblemPackageManager(
+	files *managers.FileManager, dir string,
+) (*ProblemPackageManager, error) {
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return nil, err
+	}
 	m := ProblemPackageManager{
 		files:    files,
 		dir:      dir,
 		packages: map[int64]*problemPackage{},
 	}
-	m.cache = cache.NewManager[problemPackageKey, problems.Problem](problemPackageManagerStorage{&m})
-	return &m
+	impl := problemPackageManagerStorage{&m}
+	m.cache = cache.NewManager[problemPackageKey, problems.Problem](impl)
+	return &m, nil
 }
 
 func (m *ProblemPackageManager) LoadSync(

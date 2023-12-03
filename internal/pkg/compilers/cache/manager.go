@@ -53,15 +53,21 @@ type CompilerImageManager struct {
 	cache    cache.Manager[int64, CompilerImage]
 }
 
-func NewCompilerImageManager(files *managers.FileManager, safeexec *safeexec.Manager, dir string) *CompilerImageManager {
+func NewCompilerImageManager(
+	files *managers.FileManager, safeexec *safeexec.Manager, dir string,
+) (*CompilerImageManager, error) {
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return nil, err
+	}
 	m := CompilerImageManager{
 		files:    files,
 		safeexec: safeexec,
 		dir:      dir,
 		images:   map[int64]*compilerImage{},
 	}
-	m.cache = cache.NewManager[int64, CompilerImage](compilerImageManagerStorage{&m})
-	return &m
+	impl := compilerImageManagerStorage{&m}
+	m.cache = cache.NewManager[int64, CompilerImage](impl)
+	return &m, nil
 }
 
 func (m *CompilerImageManager) LoadSync(

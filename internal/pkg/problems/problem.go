@@ -72,8 +72,6 @@ type ProblemStatement interface {
 type CompileContext interface {
 	GetCompiler(ctx context.Context, name string) (compilers.Compiler, error)
 	Logger() *logs.Logger
-	// deprecated.
-	GetCompilerName(name string) (string, error)
 }
 
 type Problem interface {

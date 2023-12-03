@@ -44,12 +44,7 @@ type polygonProblem struct {
 func (p *polygonProblem) compileExecutable(
 	ctx context.Context, manager problems.CompileContext, executables map[string]compilers.Executable, polygonType string, source string, resources []compilers.MountFile,
 ) (compilers.Executable, error) {
-	polygonName := "polygon." + polygonType
-	compilerName, err := manager.GetCompilerName(polygonName)
-	if err != nil {
-		return nil, err
-	}
-	compiler, err := manager.GetCompiler(ctx, compilerName)
+	compiler, err := manager.GetCompiler(ctx, polygonType)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +65,7 @@ func (p *polygonProblem) compileExecutable(
 		if !report.Success() {
 			return nil, fmt.Errorf(
 				"cannot compile %q with compiler %q: %q",
-				source, compilerName, report.Log,
+				source, compiler.Name(), report.Log,
 			)
 		}
 		manager.Logger().Debug(
@@ -179,12 +174,7 @@ func (p *polygonProblem) Compile(ctx context.Context, manager problems.CompileCo
 	}
 	var solution compilers.Executable
 	{
-		polygonName := "polygon." + mainSolution.Source.Type
-		compilerName, err := manager.GetCompilerName(polygonName)
-		if err != nil {
-			return err
-		}
-		compiler, err := manager.GetCompiler(ctx, compilerName)
+		compiler, err := manager.GetCompiler(ctx, mainSolution.Source.Type)
 		if err != nil {
 			return err
 		}
@@ -202,7 +192,7 @@ func (p *polygonProblem) Compile(ctx context.Context, manager problems.CompileCo
 		if !report.Success() {
 			return fmt.Errorf(
 				"cannot compile %q with compiler %q: %q",
-				mainSolution.Source.Path, compilerName, report.Log,
+				mainSolution.Source.Path, compiler.Name(), report.Log,
 			)
 		}
 		manager.Logger().Debug(
@@ -409,12 +399,8 @@ func (e polygonProblemExecutable) OpenBinary() (*os.File, error) {
 	return os.Open(e.binaryPath)
 }
 
-func (e polygonProblemExecutable) GetCompiler(ctx context.Context, compilers problems.CompileContext) (compilers.Compiler, error) {
-	name, err := compilers.GetCompilerName("polygon." + e.compiler)
-	if err != nil {
-		return nil, err
-	}
-	return compilers.GetCompiler(ctx, name)
+func (e polygonProblemExecutable) GetCompiler(ctx context.Context, compileCtx problems.CompileContext) (compilers.Compiler, error) {
+	return compileCtx.GetCompiler(ctx, e.compiler)
 }
 
 func (p *polygonProblem) GetTestSets() ([]problems.ProblemTestSet, error) {

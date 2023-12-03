@@ -22,7 +22,6 @@ type Invoker struct {
 	core           *core.Core
 	files          *managers.FileManager
 	solutions      *managers.SolutionManager
-	compilers      *compilerManager
 	problems       *problemManager
 	compilerImages *cache.CompilerImageManager
 }
@@ -60,17 +59,13 @@ func (s *Invoker) Start() error {
 	if err != nil {
 		return err
 	}
-	compilers, err := newCompilerManager(
-		s.files, "/tmp/solve-compilers", safeexec, s.core,
+	s.compilerImages, err = cache.NewCompilerImageManager(
+		s.files, safeexec, "/tmp/solve-compilers",
 	)
 	if err != nil {
 		return err
 	}
-	s.compilers = compilers
-	s.compilerImages = cache.NewCompilerImageManager(s.files, safeexec, "/tmp/solve-compilers")
-	problems, err := newProblemManager(
-		s.files, "/tmp/solve-problems", compilers,
-	)
+	problems, err := newProblemManager(s.files, "/tmp/solve-problems")
 	if err != nil {
 		return err
 	}

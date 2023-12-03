@@ -83,7 +83,7 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 	return t.executeImpl(ctx, compileCtx)
 }
 
-func (t *judgeSolutionTask) newCompileContext(ctx TaskContext) *compileContext {
+func (t *judgeSolutionTask) newCompileContext(ctx TaskContext) CompileContext {
 	return &compileContext{
 		compilers: t.invoker.core.Compilers,
 		cache:     t.invoker.compilerImages,

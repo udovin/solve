@@ -2,13 +2,22 @@ package invoker
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/pkg/cache"
 	"github.com/udovin/solve/internal/pkg/compilers"
 	ccache "github.com/udovin/solve/internal/pkg/compilers/cache"
 	"github.com/udovin/solve/internal/pkg/logs"
+	"github.com/udovin/solve/internal/pkg/problems"
 )
+
+type CompileContext interface {
+	problems.CompileContext
+	GetCompilerByID(context.Context, int64) (compilers.Compiler, error)
+	Release()
+}
 
 type compileContext struct {
 	compilers *models.CompilerStore
@@ -19,10 +28,6 @@ type compileContext struct {
 
 func (c *compileContext) Logger() *logs.Logger {
 	return c.logger
-}
-
-func (c *compileContext) GetCompilerName(name string) (string, error) {
-	panic("not implemented")
 }
 
 func (c *compileContext) GetCompilerByID(ctx context.Context, id int64) (compilers.Compiler, error) {
@@ -67,6 +72,8 @@ func (c *compileContext) Release() {
 	c.images = nil
 }
 
+var _ CompileContext = (*compileContext)(nil)
+
 // pinnedCompileContext represents compile context with pinned compiler names.
 type pinnedCompileContext struct {
 	*compileContext
@@ -86,4 +93,46 @@ func (c *pinnedCompileContext) GetCompiler(ctx context.Context, name string) (co
 		return nil, err
 	}
 	return c.getCompiler(ctx, compiler)
+}
+
+var _ CompileContext = (*pinnedCompileContext)(nil)
+
+type polygonCompileContext struct {
+	ctx      CompileContext
+	settings *models.SettingStore
+}
+
+func (c *polygonCompileContext) GetCompilerByID(ctx context.Context, id int64) (compilers.Compiler, error) {
+	return c.ctx.GetCompilerByID(ctx, id)
+}
+
+func (c *polygonCompileContext) GetCompiler(ctx context.Context, polygonType string) (compilers.Compiler, error) {
+	name, err := c.getCompilerName("polygon." + polygonType)
+	if err != nil {
+		return nil, err
+	}
+	return c.ctx.GetCompiler(ctx, name)
+}
+
+func (c *polygonCompileContext) getCompilerName(name string) (string, error) {
+	setting, err := c.settings.GetByKey("invoker.compilers." + name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("cannot get compiler %q", name)
+		}
+		return "", err
+	}
+	return setting.Value, nil
+}
+
+func (c *polygonCompileContext) Logger() *logs.Logger {
+	return c.ctx.Logger()
+}
+
+func (c *polygonCompileContext) Release() {
+	c.ctx.Release()
+}
+
+func (c *polygonCompileContext) GetCompilerName(name string) (string, error) {
+	panic("not implemented")
 }

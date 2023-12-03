@@ -204,7 +204,9 @@ func buildCompiledProblem(ctx context.Context, compilers problems.CompileContext
 	if err != nil {
 		return err
 	}
-	if err := json.NewEncoder(header).Encode(config); err != nil {
+	encoder := json.NewEncoder(header)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(config); err != nil {
 		return err
 	}
 	if err := writer.Close(); err != nil {

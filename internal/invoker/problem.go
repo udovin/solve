@@ -15,26 +15,23 @@ import (
 )
 
 type problemManager struct {
-	files     *managers.FileManager
-	cacheDir  string
-	problems  map[int64]futures.Future[problems.Problem]
-	compilers *compilerManager
-	mutex     sync.Mutex
+	files    *managers.FileManager
+	cacheDir string
+	problems map[int64]futures.Future[problems.Problem]
+	mutex    sync.Mutex
 }
 
 func newProblemManager(
 	files *managers.FileManager,
 	cacheDir string,
-	compilers *compilerManager,
 ) (*problemManager, error) {
 	if err := os.MkdirAll(cacheDir, os.ModePerm); err != nil {
 		return nil, err
 	}
 	return &problemManager{
-		files:     files,
-		cacheDir:  cacheDir,
-		problems:  map[int64]futures.Future[problems.Problem]{},
-		compilers: compilers,
+		files:    files,
+		cacheDir: cacheDir,
+		problems: map[int64]futures.Future[problems.Problem]{},
 	}, nil
 }
 

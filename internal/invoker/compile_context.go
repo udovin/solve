@@ -1,4 +1,4 @@
-package problems
+package invoker
 
 import (
 	"context"
@@ -7,12 +7,30 @@ import (
 	"github.com/udovin/solve/internal/pkg/cache"
 	"github.com/udovin/solve/internal/pkg/compilers"
 	ccache "github.com/udovin/solve/internal/pkg/compilers/cache"
+	"github.com/udovin/solve/internal/pkg/logs"
 )
 
 type compileContext struct {
 	compilers *models.CompilerStore
 	cache     *ccache.CompilerImageManager
 	images    map[int64]cache.Resource[ccache.CompilerImage]
+	logger    *logs.Logger
+}
+
+func (c *compileContext) Logger() *logs.Logger {
+	return c.logger
+}
+
+func (c *compileContext) GetCompilerName(name string) (string, error) {
+	panic("not implemented")
+}
+
+func (c *compileContext) GetCompilerByID(ctx context.Context, id int64) (compilers.Compiler, error) {
+	compiler, err := c.compilers.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return c.getCompiler(ctx, compiler)
 }
 
 func (c *compileContext) GetCompiler(ctx context.Context, name string) (compilers.Compiler, error) {
@@ -32,14 +50,14 @@ func (c *compileContext) getCompiler(ctx context.Context, compiler models.Compil
 		c.images = map[int64]cache.Resource[ccache.CompilerImage]{}
 	}
 	if image, ok := c.images[compiler.ImageID]; ok {
-		return image.Get().Compiler(config), nil
+		return image.Get().Compiler(compiler.Name, config), nil
 	}
 	image, err := c.cache.LoadSync(ctx, compiler.ImageID)
 	if err != nil {
 		return nil, err
 	}
 	c.images[compiler.ImageID] = image
-	return image.Get().Compiler(config), nil
+	return image.Get().Compiler(compiler.Name, config), nil
 }
 
 func (c *compileContext) Release() {

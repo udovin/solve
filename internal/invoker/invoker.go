@@ -12,17 +12,19 @@ import (
 	"github.com/udovin/solve/internal/core"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/pkg/compilers/cache"
 	"github.com/udovin/solve/internal/pkg/logs"
 	"github.com/udovin/solve/internal/pkg/safeexec"
 )
 
 // Invoker represents manager for asynchronous actions (invocations).
 type Invoker struct {
-	core      *core.Core
-	files     *managers.FileManager
-	solutions *managers.SolutionManager
-	compilers *compilerManager
-	problems  *problemManager
+	core           *core.Core
+	files          *managers.FileManager
+	solutions      *managers.SolutionManager
+	compilers      *compilerManager
+	problems       *problemManager
+	compilerImages *cache.CompilerImageManager
 }
 
 // New creates a new instance of Invoker.
@@ -65,6 +67,7 @@ func (s *Invoker) Start() error {
 		return err
 	}
 	s.compilers = compilers
+	s.compilerImages = cache.NewCompilerImageManager(s.files, safeexec, "/tmp/solve-compilers")
 	problems, err := newProblemManager(
 		s.files, "/tmp/solve-problems", compilers,
 	)

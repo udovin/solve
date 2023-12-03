@@ -26,10 +26,9 @@ type judgeSolutionTask struct {
 	config         models.JudgeSolutionTaskConfig
 	solution       models.Solution
 	problem        models.Problem
-	compiler       models.Compiler
 	tempDir        string
 	problemImpl    problems.Problem
-	compilerImpl   compilers.Compiler
+	compiler       compilers.Compiler
 	solutionImpl   compilers.Executable
 	interactorImpl compilers.Executable
 	checkerImpl    compilers.Executable
@@ -51,11 +50,13 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("unable to fetch solution: %w", err)
 	}
+	compileCtx := t.newCompileContext(ctx)
+	defer compileCtx.Release()
 	problem, err := t.invoker.core.Problems.Get(syncCtx, solution.ProblemID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch problem: %w", err)
 	}
-	compiler, err := t.invoker.core.Compilers.Get(syncCtx, solution.CompilerID)
+	compiler, err := compileCtx.GetCompilerByID(ctx, solution.CompilerID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch compiler: %w", err)
 	}
@@ -79,7 +80,15 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 	t.solution = solution
 	t.problem = problem
 	t.compiler = compiler
-	return t.executeImpl(ctx)
+	return t.executeImpl(ctx, compileCtx)
+}
+
+func (t *judgeSolutionTask) newCompileContext(ctx TaskContext) *compileContext {
+	return &compileContext{
+		compilers: t.invoker.core.Compilers,
+		cache:     t.invoker.compilerImages,
+		logger:    ctx.Logger(),
+	}
 }
 
 func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
@@ -93,15 +102,6 @@ func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
 		return fmt.Errorf("cannot download problem: %w", err)
 	}
 	t.problemImpl = problem
-	return nil
-}
-
-func (t *judgeSolutionTask) prepareCompiler(ctx TaskContext) error {
-	compiler, err := t.invoker.compilers.DownloadCompiler(ctx, t.compiler)
-	if err != nil {
-		return fmt.Errorf("cannot download compiler: %w", err)
-	}
-	t.compilerImpl = compiler
 	return nil
 }
 
@@ -143,7 +143,7 @@ func (t *judgeSolutionTask) compileSolution(
 	if err := ctx.SetDeferredState(state); err != nil {
 		return false, err
 	}
-	compileReport, err := t.compilerImpl.Compile(ctx, compilers.CompileOptions{
+	compileReport, err := t.compiler.Compile(ctx, compilers.CompileOptions{
 		Source:      t.solutionPath,
 		Target:      t.compiledPath,
 		TimeLimit:   20 * time.Second,
@@ -162,7 +162,7 @@ func (t *judgeSolutionTask) compileSolution(
 	if !compileReport.Success() {
 		return false, nil
 	}
-	exe, err := t.compilerImpl.CreateExecutable(ctx, t.compiledPath)
+	exe, err := t.compiler.CreateExecutable(ctx, t.compiledPath)
 	if err != nil {
 		return false, err
 	}
@@ -176,7 +176,7 @@ var (
 )
 
 func (t *judgeSolutionTask) getChecker(
-	ctx TaskContext, executables []problems.ProblemExecutable,
+	ctx TaskContext, compileCtx problems.CompileContext, executables []problems.ProblemExecutable,
 ) (compilers.Executable, error) {
 	var checker problems.ProblemExecutable
 	for _, executable := range executables {
@@ -188,7 +188,7 @@ func (t *judgeSolutionTask) getChecker(
 	if checker == nil {
 		return nil, errNoChecker
 	}
-	compiler, err := checker.GetCompiler(ctx, t.invoker.compilers)
+	compiler, err := checker.GetCompiler(ctx, compileCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (t *judgeSolutionTask) getChecker(
 }
 
 func (t *judgeSolutionTask) getInteractor(
-	ctx TaskContext, executables []problems.ProblemExecutable,
+	ctx TaskContext, compileCtx problems.CompileContext, executables []problems.ProblemExecutable,
 ) (compilers.Executable, error) {
 	var interactor problems.ProblemExecutable
 	for _, executable := range executables {
@@ -226,7 +226,7 @@ func (t *judgeSolutionTask) getInteractor(
 	if interactor == nil {
 		return nil, errNoInteractor
 	}
-	compiler, err := interactor.GetCompiler(ctx, t.invoker.compilers)
+	compiler, err := interactor.GetCompiler(ctx, compileCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -291,16 +291,16 @@ func (t *judgeSolutionTask) calculateTestSetPoints(
 	return nil
 }
 
-func (t *judgeSolutionTask) prepareExecutables(ctx TaskContext) error {
+func (t *judgeSolutionTask) prepareExecutables(ctx TaskContext, compileCtx problems.CompileContext) error {
 	executables, err := t.problemImpl.GetExecutables()
 	if err != nil {
 		return fmt.Errorf("cannot get executables: %w", err)
 	}
-	t.checkerImpl, err = t.getChecker(ctx, executables)
+	t.checkerImpl, err = t.getChecker(ctx, compileCtx, executables)
 	if err != nil {
 		return err
 	}
-	t.interactorImpl, err = t.getInteractor(ctx, executables)
+	t.interactorImpl, err = t.getInteractor(ctx, compileCtx, executables)
 	if err != nil && err != errNoInteractor {
 		return err
 	}
@@ -610,12 +610,9 @@ func (t *judgeSolutionTask) runSolutionTests(
 	return nil
 }
 
-func (t *judgeSolutionTask) executeImpl(ctx TaskContext) error {
+func (t *judgeSolutionTask) executeImpl(ctx TaskContext, compileCtx problems.CompileContext) error {
 	if err := t.prepareProblem(ctx); err != nil {
 		return fmt.Errorf("cannot prepare problem: %w", err)
-	}
-	if err := t.prepareCompiler(ctx); err != nil {
-		return fmt.Errorf("cannot prepare compiler: %w", err)
 	}
 	if err := t.prepareSolution(ctx); err != nil {
 		return fmt.Errorf("cannot prepare solution: %w", err)
@@ -628,7 +625,7 @@ func (t *judgeSolutionTask) executeImpl(ctx TaskContext) error {
 	} else if !ok {
 		report.Verdict = models.CompilationError
 	} else {
-		if err := t.prepareExecutables(ctx); err != nil {
+		if err := t.prepareExecutables(ctx, compileCtx); err != nil {
 			return err
 		}
 		if err := t.runSolutionTests(ctx, &report); err != nil {

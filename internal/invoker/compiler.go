@@ -182,6 +182,8 @@ func (m *compilerManager) Logger() *logs.Logger {
 	return m.logger
 }
 
+func (m *compilerManager) Release() {}
+
 func (m *compilerManager) DownloadCompiler(ctx context.Context, c models.Compiler) (compilers.Compiler, error) {
 	config, err := c.GetConfig()
 	if err != nil {

@@ -14,10 +14,11 @@ import (
 	"github.com/udovin/solve/internal/pkg/archives"
 	"github.com/udovin/solve/internal/pkg/cache"
 	"github.com/udovin/solve/internal/pkg/compilers"
+	"github.com/udovin/solve/internal/pkg/safeexec"
 )
 
 type CompilerImage interface {
-	Compiler(models.CompilerConfig) compilers.Compiler
+	Compiler(name string, config models.CompilerConfig) compilers.Compiler
 }
 
 type compilerImage struct {
@@ -25,8 +26,13 @@ type compilerImage struct {
 	mgr *CompilerImageManager
 }
 
-func (r *compilerImage) Compiler(config models.CompilerConfig) compilers.Compiler {
-	panic("not implemented")
+func (r *compilerImage) Compiler(name string, config models.CompilerConfig) compilers.Compiler {
+	return &compiler{
+		safeexec: r.mgr.safeexec,
+		layer:    filepath.Join(r.mgr.dir, fmt.Sprint(r.id)),
+		name:     name,
+		config:   config,
+	}
 }
 
 func (r *compilerImage) Get() CompilerImage {
@@ -38,19 +44,21 @@ func (r *compilerImage) Release() {
 }
 
 type CompilerImageManager struct {
-	files  *managers.FileManager
-	dir    string
-	images map[int64]*compilerImage
-	seqID  atomic.Int64
-	mutex  sync.Mutex
-	cache  cache.Manager[int64, CompilerImage]
+	files    *managers.FileManager
+	safeexec *safeexec.Manager
+	dir      string
+	images   map[int64]*compilerImage
+	seqID    atomic.Int64
+	mutex    sync.Mutex
+	cache    cache.Manager[int64, CompilerImage]
 }
 
-func NewCompilerImageManager(files *managers.FileManager, dir string) *CompilerImageManager {
+func NewCompilerImageManager(files *managers.FileManager, safeexec *safeexec.Manager, dir string) *CompilerImageManager {
 	m := CompilerImageManager{
-		files:  files,
-		dir:    dir,
-		images: map[int64]*compilerImage{},
+		files:    files,
+		safeexec: safeexec,
+		dir:      dir,
+		images:   map[int64]*compilerImage{},
 	}
 	m.cache = cache.NewManager[int64, CompilerImage](compilerImageManagerStorage{&m})
 	return &m
@@ -107,7 +115,7 @@ func (m *CompilerImageManager) load(
 		}
 	}
 	if err := archives.ExtractTarGz(tempPath, targetPath); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot extract image: %w", err)
 	}
 	success = true
 	return img, nil

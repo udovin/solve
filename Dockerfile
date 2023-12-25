@@ -1,4 +1,4 @@
-FROM golang:1.20-alpine AS build
+FROM golang:1.21-alpine3.18 AS build
 RUN apk add --no-cache git gcc linux-headers libc-dev make
 WORKDIR /src/solve
 COPY go.mod go.sum /src/solve/
@@ -7,7 +7,7 @@ COPY . /src/solve
 ARG VERSION=development
 RUN make all
 
-FROM alpine:3.17
+FROM alpine:3.18
 RUN apk add --no-cache curl && \
     apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing delve && \
     addgroup -S solve -g 1000 && adduser -S solve -G solve -u 1000

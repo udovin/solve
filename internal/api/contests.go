@@ -874,7 +874,7 @@ func (f CreateContestParticipantForm) Update(
 				Code: http.StatusBadRequest,
 				Message: localize(
 					c, "Scope {id} does not exists.",
-					replaceField("id", *f.ScopeUserID),
+					replaceField("id", *f.ScopeID),
 				),
 			}
 		}

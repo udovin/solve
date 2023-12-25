@@ -139,7 +139,7 @@ func (s *S3Storage) WriteFile(ctx context.Context, filePath string, file io.Read
 		Key:           aws.String(s.pathPrefix + filePath),
 		Body:          file,
 		ContentMD5:    &baseMD5,
-		ContentLength: meta.Size,
+		ContentLength: &meta.Size,
 	})
 	if err != nil {
 		return models.FileMeta{}, err

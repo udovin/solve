@@ -1,4 +1,4 @@
-package invoker
+package cache
 
 import (
 	"archive/zip"
@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 
 	"github.com/udovin/solve/internal/pkg/archives"
+	"github.com/udovin/solve/internal/pkg/compilers"
+	"github.com/udovin/solve/internal/pkg/problems"
 )
 
 type problemTestConfig struct {
@@ -62,7 +64,7 @@ func writeZipDirectory(writer *zip.Writer, name string) error {
 	return err
 }
 
-func buildCompiledProblem(ctx context.Context, compilers CompilerManager, problem Problem, target string) error {
+func BuildCompiledProblem(ctx context.Context, compilers problems.CompileContext, problem problems.Problem, target string) error {
 	file, err := os.Create(target)
 	if err != nil {
 		return err
@@ -202,7 +204,9 @@ func buildCompiledProblem(ctx context.Context, compilers CompilerManager, proble
 	if err != nil {
 		return err
 	}
-	if err := json.NewEncoder(header).Encode(config); err != nil {
+	encoder := json.NewEncoder(header)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(config); err != nil {
 		return err
 	}
 	if err := writer.Close(); err != nil {
@@ -213,7 +217,7 @@ func buildCompiledProblem(ctx context.Context, compilers CompilerManager, proble
 
 func extractCompiledProblem(
 	source, target string,
-) (Problem, error) {
+) (problems.Problem, error) {
 	if err := archives.ExtractZip(source, target); err != nil {
 		return nil, fmt.Errorf("cannot extract problem: %w", err)
 	}
@@ -246,12 +250,12 @@ type compiledProblem struct {
 	config problemConfig
 }
 
-func (p *compiledProblem) Compile(ctx context.Context, compilers CompilerManager) error {
+func (p *compiledProblem) Compile(ctx context.Context, compilers problems.CompileContext) error {
 	return nil
 }
 
-func (p *compiledProblem) GetExecutables() ([]ProblemExecutable, error) {
-	var executables []ProblemExecutable
+func (p *compiledProblem) GetExecutables() ([]problems.ProblemExecutable, error) {
+	var executables []problems.ProblemExecutable
 	for _, executable := range p.config.Executables {
 		executables = append(executables, compiledProblemExecutable{
 			path:   p.path,
@@ -261,8 +265,8 @@ func (p *compiledProblem) GetExecutables() ([]ProblemExecutable, error) {
 	return executables, nil
 }
 
-func (p *compiledProblem) GetTestSets() ([]ProblemTestSet, error) {
-	var groups []ProblemTestSet
+func (p *compiledProblem) GetTestSets() ([]problems.ProblemTestSet, error) {
+	var groups []problems.ProblemTestSet
 	for _, group := range p.config.TestSets {
 		groups = append(groups, &compiledProblemTestSet{
 			path:   filepath.Join(p.path, group.Dir),
@@ -272,7 +276,7 @@ func (p *compiledProblem) GetTestSets() ([]ProblemTestSet, error) {
 	return groups, nil
 }
 
-func (p *compiledProblem) GetStatements() ([]ProblemStatement, error) {
+func (p *compiledProblem) GetStatements() ([]problems.ProblemStatement, error) {
 	return nil, nil
 }
 
@@ -285,15 +289,15 @@ func (e compiledProblemExecutable) Name() string {
 	return e.config.Name
 }
 
-func (e compiledProblemExecutable) Kind() ProblemExecutableKind {
-	return ProblemExecutableKind(e.config.Kind)
+func (e compiledProblemExecutable) Kind() problems.ProblemExecutableKind {
+	return problems.ProblemExecutableKind(e.config.Kind)
 }
 
 func (e compiledProblemExecutable) OpenBinary() (*os.File, error) {
 	return os.Open(filepath.Join(e.path, e.config.Binary))
 }
 
-func (e compiledProblemExecutable) GetCompiler(ctx context.Context, compilers CompilerManager) (Compiler, error) {
+func (e compiledProblemExecutable) GetCompiler(ctx context.Context, compilers problems.CompileContext) (compilers.Compiler, error) {
 	return compilers.GetCompiler(ctx, e.config.Compiler)
 }
 
@@ -314,19 +318,19 @@ func (g *compiledProblemTestSet) MemoryLimit() int64 {
 	return g.config.MemoryLimit
 }
 
-func (g *compiledProblemTestSet) GetGroups() ([]ProblemTestGroup, error) {
-	var groups []ProblemTestGroup
+func (g *compiledProblemTestSet) GetGroups() ([]problems.ProblemTestGroup, error) {
+	var groups []problems.ProblemTestGroup
 	for _, group := range g.config.Groups {
 		groups = append(groups, problemTestGroup{
 			name:         group.Name,
-			pointsPolicy: ProblemPointsPolicy(group.PointsPolicy),
+			pointsPolicy: problems.ProblemPointsPolicy(group.PointsPolicy),
 		})
 	}
 	return groups, nil
 }
 
-func (g *compiledProblemTestSet) GetTests() ([]ProblemTest, error) {
-	var tests []ProblemTest
+func (g *compiledProblemTestSet) GetTests() ([]problems.ProblemTest, error) {
+	var tests []problems.ProblemTest
 	for _, test := range g.config.Tests {
 		tests = append(tests, problemTest{
 			inputPath:  filepath.Join(g.path, test.Input),
@@ -338,4 +342,4 @@ func (g *compiledProblemTestSet) GetTests() ([]ProblemTest, error) {
 	return tests, nil
 }
 
-var _ Problem = (*compiledProblem)(nil)
+var _ problems.Problem = (*compiledProblem)(nil)

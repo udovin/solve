@@ -1,29 +1,14 @@
-package invoker
+package cache
 
 import (
 	"context"
-	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/pkg/compilers"
 	"github.com/udovin/solve/internal/pkg/safeexec"
 )
-
-type ExecuteOptions struct {
-	Args        []string
-	Stdin       io.Reader
-	Stdout      io.Writer
-	Stderr      io.Writer
-	TimeLimit   time.Duration
-	MemoryLimit int64
-}
-
-type Executable interface {
-	CreateProcess(ctx context.Context, options ExecuteOptions) (*safeexec.Process, error)
-	Release() error
-}
 
 type executable struct {
 	compiler *compiler
@@ -32,7 +17,7 @@ type executable struct {
 }
 
 func (e *executable) CreateProcess(
-	ctx context.Context, options ExecuteOptions,
+	ctx context.Context, options compilers.ExecuteOptions,
 ) (*safeexec.Process, error) {
 	config := safeexec.ProcessConfig{
 		Layers:      e.getLayers(),

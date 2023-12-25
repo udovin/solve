@@ -8,6 +8,8 @@ import (
 
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
+	"github.com/udovin/solve/internal/pkg/problems"
+	"github.com/udovin/solve/internal/pkg/problems/cache"
 	"golang.org/x/exp/constraints"
 )
 
@@ -22,7 +24,7 @@ type updateProblemPackageTask struct {
 	file        models.File
 	resources   []models.ProblemResource
 	tempDir     string
-	problemImpl Problem
+	problemImpl problems.Problem
 }
 
 func (updateProblemPackageTask) New(invoker *Invoker) taskImpl {
@@ -46,12 +48,18 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("unable to fetch resources: %w", err)
 	}
+	problemPackage, err := t.invoker.problemPackages.LoadSync(ctx, int64(problem.PackageID), problems.PolygonProblem)
+	if err != nil {
+		return fmt.Errorf("unable to fetch package: %w", err)
+	}
+	defer problemPackage.Release()
 	tempDir, err := makeTempDir()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = os.RemoveAll(tempDir) }()
 	t.problem = problem
+	t.problemImpl = problemPackage.Get()
 	t.file = file
 	t.resources = resources
 	t.tempDir = tempDir
@@ -67,21 +75,6 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 	return nil
 }
 
-func (t *updateProblemPackageTask) prepareProblem(ctx TaskContext) error {
-	if t.file.ID == 0 {
-		return fmt.Errorf("problem does not have package")
-	}
-	t.problem.PackageID = models.NInt64(t.file.ID)
-	problem, err := t.invoker.problems.DownloadProblem(
-		ctx, t.problem, PolygonProblem,
-	)
-	if err != nil {
-		return fmt.Errorf("cannot download problem: %w", err)
-	}
-	t.problemImpl = problem
-	return nil
-}
-
 func max[T constraints.Ordered](a, b T) T {
 	if a < b {
 		return b
@@ -89,19 +82,34 @@ func max[T constraints.Ordered](a, b T) T {
 	return a
 }
 
-func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
-	if err := t.prepareProblem(ctx); err != nil {
-		return fmt.Errorf("cannot prepare problem: %w", err)
+func (t *updateProblemPackageTask) newCompileContext(ctx TaskContext) CompileContext {
+	baseCtx := compileContext{
+		compilers: t.invoker.core.Compilers,
+		cache:     t.invoker.compilerImages,
+		logger:    ctx.Logger(),
 	}
+	return &polygonCompileContext{ctx: &baseCtx, settings: t.invoker.core.Settings}
+}
+
+func (t *updateProblemPackageTask) compileProblem(ctx TaskContext, problemPath string) error {
+	compileCtx := t.newCompileContext(ctx)
+	defer compileCtx.Release()
+	if err := t.problemImpl.Compile(ctx, compileCtx); err != nil {
+		return fmt.Errorf("cannot compile problem: %w", err)
+	}
+	if err := cache.BuildCompiledProblem(
+		ctx, compileCtx, t.problemImpl, problemPath,
+	); err != nil {
+		return fmt.Errorf("cannot build compiled problem: %w", err)
+	}
+	return nil
+}
+
+func (t *updateProblemPackageTask) executeImpl(ctx TaskContext) error {
 	problemPath := filepath.Join(t.tempDir, "problem.zip")
 	if t.config.Compile {
-		if err := t.problemImpl.Compile(ctx, t.invoker.compilers); err != nil {
-			return fmt.Errorf("cannot compile problem: %w", err)
-		}
-		if err := buildCompiledProblem(
-			ctx, t.invoker.compilers, t.problemImpl, problemPath,
-		); err != nil {
-			return fmt.Errorf("cannot build compiled problem: %w", err)
+		if err := t.compileProblem(ctx, problemPath); err != nil {
+			return err
 		}
 	}
 	testSets, err := t.problemImpl.GetTestSets()

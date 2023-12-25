@@ -3,15 +3,14 @@ package cache
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/pkg/compilers"
 	"github.com/udovin/solve/internal/pkg/safeexec"
+	"github.com/udovin/solve/internal/pkg/utils"
 )
 
 type compiler struct {
@@ -29,19 +28,19 @@ func (c *compiler) Compile(
 	ctx context.Context, options compilers.CompileOptions,
 ) (compilers.CompileReport, error) {
 	if c.config.Compile == nil {
-		if err := copyFileRec(options.Source, options.Target); err != nil {
+		if err := utils.CopyFileRec(options.Target, options.Source); err != nil {
 			return compilers.CompileReport{}, fmt.Errorf("unable to copy source: %w", err)
 		}
 		return compilers.CompileReport{}, nil
 	}
-	log := truncateBuffer{limit: 2048}
+	log := utils.NewTruncateBuffer(2048)
 	config := safeexec.ProcessConfig{
 		Layers:      []string{c.layer},
 		Command:     strings.Fields(c.config.Compile.Command),
 		Environ:     c.config.Compile.Environ,
 		Workdir:     c.config.Compile.Workdir,
-		Stdout:      &log,
-		Stderr:      &log,
+		Stdout:      log,
+		Stderr:      log,
 		TimeLimit:   options.TimeLimit,
 		MemoryLimit: options.MemoryLimit,
 	}
@@ -55,7 +54,7 @@ func (c *compiler) Compile(
 			c.config.Compile.Workdir,
 			*c.config.Compile.Source,
 		)
-		if err := copyFileRec(options.Source, path); err != nil {
+		if err := utils.CopyFileRec(path, options.Source); err != nil {
 			return compilers.CompileReport{}, fmt.Errorf("unable to write source: %w", err)
 		}
 	}
@@ -65,7 +64,7 @@ func (c *compiler) Compile(
 			c.config.Compile.Workdir,
 			file.Target,
 		)
-		if err := copyFileRec(file.Source, path); err != nil {
+		if err := utils.CopyFileRec(path, file.Source); err != nil {
 			return compilers.CompileReport{}, fmt.Errorf("unable to write file: %w", err)
 		}
 	}
@@ -84,7 +83,7 @@ func (c *compiler) Compile(
 				c.config.Compile.Workdir,
 				*c.config.Compile.Binary,
 			)
-			if err := copyFileRec(containerBinaryPath, options.Target); err != nil {
+			if err := utils.CopyFileRec(options.Target, containerBinaryPath); err != nil {
 				return compilers.CompileReport{}, fmt.Errorf("unable to copy binary: %w", err)
 			}
 		}
@@ -115,68 +114,9 @@ func (c *compiler) CreateExecutable(ctx context.Context, binaryPath string) (com
 	layerBinaryPath := filepath.Join(
 		layerPath, c.config.Execute.Workdir, *c.config.Execute.Binary,
 	)
-	if err := copyFileRec(binaryPath, layerBinaryPath); err != nil {
+	if err := utils.CopyFileRec(layerBinaryPath, binaryPath); err != nil {
 		return nil, fmt.Errorf("unable to copy binary: %w", err)
 	}
 	exe.layer = layerPath
 	return &exe, nil
-}
-
-func copyFileRec(source, target string) error {
-	if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
-		return err
-	}
-	return copyFile(source, target)
-}
-
-func copyFile(source, target string) error {
-	r, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = r.Close() }()
-	stat, err := r.Stat()
-	if err != nil {
-		return err
-	}
-	w, err := os.Create(target)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = w.Close() }()
-	if _, err := io.Copy(w, r); err != nil {
-		return err
-	}
-	return os.Chmod(w.Name(), stat.Mode())
-}
-
-type truncateBuffer struct {
-	buffer strings.Builder
-	limit  int
-	mutex  sync.Mutex
-}
-
-func (b *truncateBuffer) String() string {
-	return fixUTF8String(b.buffer.String())
-}
-
-func (b *truncateBuffer) Write(p []byte) (int, error) {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-	l := len(p)
-	if b.buffer.Len()+l > b.limit {
-		p = p[:b.limit-b.buffer.Len()]
-	}
-	if len(p) == 0 {
-		return l, nil
-	}
-	n, err := b.buffer.Write(p)
-	if err != nil {
-		return n, err
-	}
-	return l, nil
-}
-
-func fixUTF8String(s string) string {
-	return strings.ReplaceAll(strings.ToValidUTF8(s, ""), "\u0000", "")
 }

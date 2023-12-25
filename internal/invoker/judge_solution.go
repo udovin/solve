@@ -15,6 +15,7 @@ import (
 	"github.com/udovin/solve/internal/pkg/logs"
 	"github.com/udovin/solve/internal/pkg/problems"
 	"github.com/udovin/solve/internal/pkg/safeexec"
+	"github.com/udovin/solve/internal/pkg/utils"
 )
 
 func init() {
@@ -369,12 +370,12 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 		_ = solutionReader.Close()
 		_ = solutionWriter.Close()
 	}()
-	interactorLog := truncateBuffer{limit: 2048}
+	interactorLog := utils.NewTruncateBuffer(2048)
 	interactorProcess, err := t.interactorImpl.CreateProcess(ctx, compilers.ExecuteOptions{
 		Args:        []string{"input.in", "output.out", "answer.ans"},
 		Stdin:       solutionReader,
 		Stdout:      interactorWriter,
-		Stderr:      &interactorLog,
+		Stderr:      interactorLog,
 		TimeLimit:   2 * time.Duration(testSet.TimeLimit()) * time.Millisecond,
 		MemoryLimit: 256 * 1024 * 1024,
 	})
@@ -382,10 +383,10 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 		return models.TestReport{}, fmt.Errorf("cannot prepare interactor: %w", err)
 	}
 	defer func() { _ = interactorProcess.Release() }()
-	if err := copyFileRec(inputPath, interactorProcess.UpperPath("input.in")); err != nil {
+	if err := utils.CopyFileRec(interactorProcess.UpperPath("input.in"), inputPath); err != nil {
 		return models.TestReport{}, err
 	}
-	if err := copyFileRec(answerPath, interactorProcess.UpperPath("answer.ans")); err != nil {
+	if err := utils.CopyFileRec(interactorProcess.UpperPath("answer.ans"), answerPath); err != nil {
 		return models.TestReport{}, err
 	}
 	solutionProcess, err := t.solutionImpl.CreateProcess(ctx, compilers.ExecuteOptions{
@@ -426,7 +427,7 @@ func (t *judgeSolutionTask) executeInteractiveSolution(
 	if err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot wait solution: %w", err)
 	}
-	if err := copyFileRec(interactorProcess.UpperPath("output.out"), outputPath); err != nil {
+	if err := utils.CopyFileRec(outputPath, interactorProcess.UpperPath("output.out")); err != nil {
 		return models.TestReport{}, err
 	}
 	testReport := models.TestReport{

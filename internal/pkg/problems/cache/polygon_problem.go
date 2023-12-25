@@ -17,6 +17,7 @@ import (
 	"github.com/udovin/solve/internal/pkg/polygon"
 	"github.com/udovin/solve/internal/pkg/problems"
 	"github.com/udovin/solve/internal/pkg/safeexec"
+	"github.com/udovin/solve/internal/pkg/utils"
 )
 
 func extractPolygonProblem(source, target string) (problems.Problem, error) {
@@ -244,7 +245,7 @@ func (p *polygonProblem) Compile(ctx context.Context, manager problems.CompileCo
 					}
 					defer func() { _ = process.Release() }()
 					inputPath := filepath.Join(p.path, input)
-					if err := copyFileRec(inputPath, process.UpperPath("input.in")); err != nil {
+					if err := utils.CopyFileRec(process.UpperPath("input.in"), inputPath); err != nil {
 						return err
 					}
 					solutionProcess, err := solution.CreateProcess(ctx, compilers.ExecuteOptions{
@@ -286,7 +287,7 @@ func (p *polygonProblem) Compile(ctx context.Context, manager problems.CompileCo
 						return fmt.Errorf("cannot wait solution: %w", err)
 					}
 					outputPath := filepath.Join(p.path, answer)
-					if err := copyFileRec(process.UpperPath("output.out"), outputPath); err != nil {
+					if err := utils.CopyFileRec(outputPath, process.UpperPath("output.out")); err != nil {
 						return err
 					}
 					if solutionReport.ExitCode != 0 {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/pkg/compilers"
+	"github.com/udovin/solve/internal/pkg/utils"
 )
 
 func getTestlibExitCodeVerdict(exitCode int) (models.Verdict, error) {
@@ -30,10 +31,10 @@ func getTestlibExitCodeVerdict(exitCode int) (models.Verdict, error) {
 }
 
 func runTestlibChecker(ctx context.Context, checker compilers.Executable, inputPath, outputPath, answerPath string) (models.TestReport, error) {
-	log := truncateBuffer{limit: 2048}
+	log := utils.NewTruncateBuffer(2048)
 	process, err := checker.CreateProcess(ctx, compilers.ExecuteOptions{
 		Args:        []string{"input.in", "output.out", "answer.ans"},
-		Stderr:      &log,
+		Stderr:      log,
 		TimeLimit:   20 * time.Second,
 		MemoryLimit: 256 * 1024 * 1024,
 	})
@@ -41,13 +42,13 @@ func runTestlibChecker(ctx context.Context, checker compilers.Executable, inputP
 		return models.TestReport{}, fmt.Errorf("cannot create checker process: %w", err)
 	}
 	defer func() { _ = process.Release() }()
-	if err := copyFileRec(inputPath, process.UpperPath("input.in")); err != nil {
+	if err := utils.CopyFileRec(process.UpperPath("input.in"), inputPath); err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot write checker input file: %w", err)
 	}
-	if err := copyFileRec(outputPath, process.UpperPath("output.out")); err != nil {
+	if err := utils.CopyFileRec(process.UpperPath("output.out"), outputPath); err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot write checker output file: %w", err)
 	}
-	if err := copyFileRec(answerPath, process.UpperPath("answer.ans")); err != nil {
+	if err := utils.CopyFileRec(process.UpperPath("answer.ans"), answerPath); err != nil {
 		return models.TestReport{}, fmt.Errorf("cannot write checker answer file: %w", err)
 	}
 	if err := process.Start(); err != nil {

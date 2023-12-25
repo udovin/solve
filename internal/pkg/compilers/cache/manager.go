@@ -56,6 +56,7 @@ type CompilerImageManager struct {
 func NewCompilerImageManager(
 	files *managers.FileManager, safeexec *safeexec.Manager, dir string,
 ) (*CompilerImageManager, error) {
+	_ = os.RemoveAll(dir)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package invoker
+package cache
 
 import (
 	"archive/zip"
@@ -64,7 +64,7 @@ func writeZipDirectory(writer *zip.Writer, name string) error {
 	return err
 }
 
-func buildCompiledProblem(ctx context.Context, compilers problems.CompileContext, problem problems.Problem, target string) error {
+func BuildCompiledProblem(ctx context.Context, compilers problems.CompileContext, problem problems.Problem, target string) error {
 	file, err := os.Create(target)
 	if err != nil {
 		return err

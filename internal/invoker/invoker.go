@@ -12,18 +12,21 @@ import (
 	"github.com/udovin/solve/internal/core"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
-	"github.com/udovin/solve/internal/pkg/compilers/cache"
+
 	"github.com/udovin/solve/internal/pkg/logs"
 	"github.com/udovin/solve/internal/pkg/safeexec"
+
+	compilerCache "github.com/udovin/solve/internal/pkg/compilers/cache"
+	problemCache "github.com/udovin/solve/internal/pkg/problems/cache"
 )
 
 // Invoker represents manager for asynchronous actions (invocations).
 type Invoker struct {
-	core           *core.Core
-	files          *managers.FileManager
-	solutions      *managers.SolutionManager
-	problems       *problemManager
-	compilerImages *cache.CompilerImageManager
+	core            *core.Core
+	files           *managers.FileManager
+	solutions       *managers.SolutionManager
+	compilerImages  *compilerCache.CompilerImageManager
+	problemPackages *problemCache.ProblemPackageManager
 }
 
 // New creates a new instance of Invoker.
@@ -59,17 +62,16 @@ func (s *Invoker) Start() error {
 	if err != nil {
 		return err
 	}
-	s.compilerImages, err = cache.NewCompilerImageManager(
+	s.compilerImages, err = compilerCache.NewCompilerImageManager(
 		s.files, safeexec, "/tmp/solve-compilers",
 	)
 	if err != nil {
 		return err
 	}
-	problems, err := newProblemManager(s.files, "/tmp/solve-problems")
+	s.problemPackages, err = problemCache.NewProblemPackageManager(s.files, "/tmp/solve-problems")
 	if err != nil {
 		return err
 	}
-	s.problems = problems
 	workers := s.core.Config.Invoker.Workers
 	if workers <= 0 {
 		workers = 1

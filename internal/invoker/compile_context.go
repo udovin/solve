@@ -8,7 +8,7 @@ import (
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/pkg/cache"
 	"github.com/udovin/solve/internal/pkg/compilers"
-	ccache "github.com/udovin/solve/internal/pkg/compilers/cache"
+	compilerCache "github.com/udovin/solve/internal/pkg/compilers/cache"
 	"github.com/udovin/solve/internal/pkg/logs"
 	"github.com/udovin/solve/internal/pkg/problems"
 )
@@ -21,8 +21,8 @@ type CompileContext interface {
 
 type compileContext struct {
 	compilers *models.CompilerStore
-	cache     *ccache.CompilerImageManager
-	images    map[int64]cache.Resource[ccache.CompilerImage]
+	cache     *compilerCache.CompilerImageManager
+	images    map[int64]cache.Resource[compilerCache.CompilerImage]
 	logger    *logs.Logger
 }
 
@@ -52,7 +52,7 @@ func (c *compileContext) getCompiler(ctx context.Context, compiler models.Compil
 		return nil, err
 	}
 	if c.images == nil {
-		c.images = map[int64]cache.Resource[ccache.CompilerImage]{}
+		c.images = map[int64]cache.Resource[compilerCache.CompilerImage]{}
 	}
 	if image, ok := c.images[compiler.ImageID]; ok {
 		return image.Get().Compiler(compiler.Name, config), nil

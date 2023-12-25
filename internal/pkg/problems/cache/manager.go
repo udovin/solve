@@ -16,7 +16,7 @@ import (
 
 type problemPackageKey struct {
 	ID   int64
-	Kind string
+	Kind problems.ProblemKind
 }
 
 type problemPackage struct {
@@ -45,6 +45,7 @@ type ProblemPackageManager struct {
 func NewProblemPackageManager(
 	files *managers.FileManager, dir string,
 ) (*ProblemPackageManager, error) {
+	_ = os.RemoveAll(dir)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return nil, err
 	}
@@ -59,13 +60,13 @@ func NewProblemPackageManager(
 }
 
 func (m *ProblemPackageManager) LoadSync(
-	ctx context.Context, fileID int64, kind string,
+	ctx context.Context, fileID int64, kind problems.ProblemKind,
 ) (cache.Resource[problems.Problem], error) {
 	return m.cache.LoadSync(ctx, problemPackageKey{fileID, kind})
 }
 
 func (m *ProblemPackageManager) load(
-	ctx context.Context, fileID int64, kind string,
+	ctx context.Context, fileID int64, kind problems.ProblemKind,
 ) (cache.Resource[problems.Problem], error) {
 	file, err := m.files.DownloadFile(ctx, fileID)
 	if err != nil {
@@ -146,7 +147,42 @@ func (s problemPackageManagerStorage) Load(
 }
 
 func extractProblem(
-	kind string, targetPath, sourcePath string,
+	kind problems.ProblemKind, targetPath, sourcePath string,
 ) (problems.Problem, error) {
-	panic("not implemented")
+	switch kind {
+	case problems.PolygonProblem:
+		return extractPolygonProblem(sourcePath, targetPath)
+	case problems.CompiledProblem:
+		return extractCompiledProblem(sourcePath, targetPath)
+	default:
+		return nil, fmt.Errorf("unsupported kind: %v", kind)
+	}
+}
+
+func copyFileRec(source, target string) error {
+	if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
+		return err
+	}
+	return copyFile(source, target)
+}
+
+func copyFile(source, target string) error {
+	r, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = r.Close() }()
+	stat, err := r.Stat()
+	if err != nil {
+		return err
+	}
+	w, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = w.Close() }()
+	if _, err := io.Copy(w, r); err != nil {
+		return err
+	}
+	return os.Chmod(w.Name(), stat.Mode())
 }

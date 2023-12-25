@@ -1,4 +1,4 @@
-package invoker
+package cache
 
 import (
 	"context"
@@ -617,4 +617,24 @@ func (p polygonProblemResource) Open() (*os.File, error) {
 var polygonLocales = map[string]string{
 	"russian": "ru",
 	"english": "en",
+}
+
+func getTestlibExitCodeVerdict(exitCode int) (models.Verdict, error) {
+	switch exitCode {
+	case 0:
+		return models.Accepted, nil
+	case 1:
+		return models.WrongAnswer, nil
+	case 3:
+		return models.Failed, nil
+	case 2, 4, 8:
+		return models.PresentationError, nil
+	case 5:
+		return models.PartiallyAccepted, nil
+	default:
+		if exitCode < 16 {
+			return 0, fmt.Errorf("unknown exit code: %d", exitCode)
+		}
+		return models.PartiallyAccepted, nil
+	}
 }

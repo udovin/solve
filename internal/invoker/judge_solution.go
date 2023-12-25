@@ -25,10 +25,9 @@ type judgeSolutionTask struct {
 	invoker        *Invoker
 	config         models.JudgeSolutionTaskConfig
 	solution       models.Solution
-	problem        models.Problem
 	tempDir        string
-	problemImpl    problems.Problem
 	compiler       compilers.Compiler
+	problem        problems.Problem
 	solutionImpl   compilers.Executable
 	interactorImpl compilers.Executable
 	checkerImpl    compilers.Executable
@@ -50,16 +49,21 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("unable to fetch solution: %w", err)
 	}
-	compileCtx := t.newCompileContext(ctx)
-	defer compileCtx.Release()
 	problem, err := t.invoker.core.Problems.Get(syncCtx, solution.ProblemID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch problem: %w", err)
 	}
+	compileCtx := t.newCompileContext(ctx)
+	defer compileCtx.Release()
 	compiler, err := compileCtx.GetCompilerByID(ctx, solution.CompilerID)
 	if err != nil {
 		return fmt.Errorf("unable to fetch compiler: %w", err)
 	}
+	problemPackage, err := t.invoker.problemPackages.LoadSync(ctx, int64(problem.CompiledID), problems.CompiledProblem)
+	if err != nil {
+		return fmt.Errorf("unable to fetch package: %w", err)
+	}
+	defer problemPackage.Release()
 	tempDir, err := makeTempDir()
 	if err != nil {
 		return err
@@ -78,7 +82,7 @@ func (t *judgeSolutionTask) Execute(ctx TaskContext) error {
 	defer func() { _ = os.RemoveAll(tempDir) }()
 	t.tempDir = tempDir
 	t.solution = solution
-	t.problem = problem
+	t.problem = problemPackage.Get()
 	t.compiler = compiler
 	return t.executeImpl(ctx, compileCtx)
 }
@@ -89,20 +93,6 @@ func (t *judgeSolutionTask) newCompileContext(ctx TaskContext) CompileContext {
 		cache:     t.invoker.compilerImages,
 		logger:    ctx.Logger(),
 	}
-}
-
-func (t *judgeSolutionTask) prepareProblem(ctx TaskContext) error {
-	if t.problem.PackageID == 0 {
-		return fmt.Errorf("problem does not have package")
-	}
-	problem, err := t.invoker.problems.DownloadProblem(
-		ctx, t.problem, problems.CompiledProblem,
-	)
-	if err != nil {
-		return fmt.Errorf("cannot download problem: %w", err)
-	}
-	t.problemImpl = problem
-	return nil
 }
 
 func (t *judgeSolutionTask) prepareSolution(ctx TaskContext) error {
@@ -292,7 +282,7 @@ func (t *judgeSolutionTask) calculateTestSetPoints(
 }
 
 func (t *judgeSolutionTask) prepareExecutables(ctx TaskContext, compileCtx problems.CompileContext) error {
-	executables, err := t.problemImpl.GetExecutables()
+	executables, err := t.problem.GetExecutables()
 	if err != nil {
 		return fmt.Errorf("cannot get executables: %w", err)
 	}
@@ -545,7 +535,7 @@ func (t *judgeSolutionTask) runSolutionTests(
 	if err := ctx.SetDeferredState(state); err != nil {
 		return err
 	}
-	testSets, err := t.problemImpl.GetTestSets()
+	testSets, err := t.problem.GetTestSets()
 	if err != nil {
 		return err
 	}
@@ -611,9 +601,6 @@ func (t *judgeSolutionTask) runSolutionTests(
 }
 
 func (t *judgeSolutionTask) executeImpl(ctx TaskContext, compileCtx problems.CompileContext) error {
-	if err := t.prepareProblem(ctx); err != nil {
-		return fmt.Errorf("cannot prepare problem: %w", err)
-	}
 	if err := t.prepareSolution(ctx); err != nil {
 		return fmt.Errorf("cannot prepare solution: %w", err)
 	}

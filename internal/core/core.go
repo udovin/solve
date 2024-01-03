@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/labstack/gommon/log"
 
@@ -157,4 +158,74 @@ func (c *Core) startCoreTask(task func()) {
 		defer c.waiter.Done()
 		task()
 	}()
+}
+
+func (c *Core) StartUniqueTask(name string, task func(ctx context.Context)) {
+	c.startCoreTask(func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		c.startUniqueTask(name, task)
+		for {
+			select {
+			case <-c.taskContext.Done():
+				return
+			case <-ticker.C:
+				c.startUniqueTask(name, task)
+			}
+		}
+	})
+}
+
+func (c *Core) startUniqueTask(name string, task func(ctx context.Context)) {
+	c.taskWaiter.Add(1)
+	defer c.taskWaiter.Done()
+	guard, err := c.Locks.AcquireByName(c.taskContext, name)
+	if err != nil {
+		if err == context.Canceled || err == models.ErrLockAcquired {
+			return
+		}
+		if err == sql.ErrNoRows {
+			lock := models.Lock{Name: name}
+			if err := c.Locks.Create(c.taskContext, &lock); err != nil {
+				c.Logger().Warn("Cannot create lock for task", logs.Any("task", name), err)
+			}
+			return
+		}
+		c.Logger().Warn("Cannot acquire lock for task", logs.Any("task", name), err)
+		return
+	}
+	defer func() {
+		if err := guard.Release(c.context); err != nil {
+			c.Logger().Warn("Cannot release lock for task", logs.Any("task", name), err)
+		}
+	}()
+	c.Logger().Info("Start unique task", logs.Any("task", name))
+	defer c.Logger().Info("Unique task finished", logs.Any("task", name))
+	waiter := sync.WaitGroup{}
+	defer waiter.Wait()
+	ctx, cancel := context.WithCancel(c.taskContext)
+	defer cancel()
+	waiter.Add(1)
+	go func() {
+		defer waiter.Done()
+		defer cancel()
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := guard.Ping(ctx); err != nil {
+					if err != context.Canceled {
+						c.Logger().Warn("Cannot ping lock for task", logs.Any("task", name), err)
+					}
+					return
+				}
+				c.Logger().Debug("Pinged lock for task", logs.Any("task", name), err)
+			}
+
+		}
+	}()
+	task(ctx)
 }

@@ -47,6 +47,33 @@ func (s *LockStore) Get(ctx context.Context, id int64) (Lock, error) {
 	return lock, row.Err()
 }
 
+func (s *LockStore) Create(ctx context.Context, lock *Lock) error {
+	query := s.db.Insert(s.table)
+	query.SetNames("name", "token", "expire_time")
+	query.SetValues(lock.Name, lock.Token, lock.ExpireTime)
+	switch v := query.(type) {
+	case *gosql.PostgresInsertQuery:
+		v.SetReturning("id")
+		rawQuery, values := s.db.Build(query)
+		return db.GetRunner(ctx, s.db).QueryRowContext(ctx, rawQuery, values...).Scan(&lock.ID)
+	default:
+		rawQuery, values := s.db.Build(query)
+		res, err := db.GetRunner(ctx, s.db).ExecContext(ctx, rawQuery, values...)
+		if err != nil {
+			return err
+		}
+		count, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return fmt.Errorf("invalid amount of affected rows: %d", count)
+		}
+		lock.ID, err = res.LastInsertId()
+		return err
+	}
+}
+
 func (s *LockStore) GetByName(ctx context.Context, name string) (Lock, error) {
 	query := s.db.Select(s.table)
 	query.SetNames("id", "name", "token", "expire_time")
@@ -62,6 +89,9 @@ func (s *LockStore) GetByName(ctx context.Context, name string) (Lock, error) {
 }
 
 func (s *LockStore) AcquireByName(ctx context.Context, name string) (*LockGuard, error) {
+	if tx := db.GetTx(ctx); tx != nil {
+		return nil, fmt.Errorf("cannot acquire lock in transaction")
+	}
 	lock, err := s.GetByName(ctx, name)
 	if err != nil {
 		return nil, err
@@ -84,7 +114,7 @@ func (s *LockStore) AcquireByName(ctx context.Context, name string) (*LockGuard,
 		}
 		return nil, err
 	}
-	return nil, err
+	return &guard, nil
 }
 
 type LockGuard struct {

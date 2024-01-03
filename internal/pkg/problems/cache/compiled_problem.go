@@ -205,7 +205,7 @@ func BuildCompiledProblem(ctx context.Context, compilers problems.CompileContext
 		return err
 	}
 	encoder := json.NewEncoder(header)
-	encoder.SetIndent("", "  ")
+	encoder.SetIndent("", "\t")
 	if err := encoder.Encode(config); err != nil {
 		return err
 	}

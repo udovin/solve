@@ -160,8 +160,10 @@ func (c *Core) startCoreTask(task func()) {
 	}()
 }
 
-func (c *Core) StartUniqueTask(name string, task func(ctx context.Context)) {
+func (c *Core) StartUniqueDaemon(name string, task func(ctx context.Context)) {
+	c.taskWaiter.Add(1)
 	c.startCoreTask(func() {
+		defer c.taskWaiter.Done()
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		c.startUniqueTask(name, task)

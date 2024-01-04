@@ -41,7 +41,7 @@ type View struct {
 func (v *View) StartDaemons() {
 	v.visits = make(chan visitContext, 100)
 	v.core.StartTask("visits", v.visitsDaemon)
-	v.core.StartUniqueTask("sessions_cleanup", v.sessionsCleanupDaemon)
+	v.core.StartUniqueDaemon("session_cleanup", v.sessionCleanupDaemon)
 }
 
 type visitContext struct {
@@ -76,7 +76,7 @@ func (v *View) visitsDaemon(ctx context.Context) {
 	}
 }
 
-func (v *View) sessionsCleanupDaemon(ctx context.Context) {
+func (v *View) sessionCleanupDaemon(ctx context.Context) {
 	cleanupTask := func() error {
 		rows, err := v.core.Sessions.Find(ctx, db.FindQuery{
 			Where: gosql.Column("expire_time").LessEqual(time.Now().Unix()),

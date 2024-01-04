@@ -250,6 +250,10 @@ var s001 = []schema.Operation{
 			{Column: "account_id", ParentTable: "solve_account", ParentColumn: "id"},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_session",
+		Columns: []string{"expire_time"},
+	},
 	schema.CreateTable{
 		Name: "solve_session_event",
 		Columns: []schema.Column{

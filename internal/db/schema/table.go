@@ -152,7 +152,7 @@ type CreateIndex struct {
 func (q CreateIndex) getName() string {
 	if len(q.Expression) > 0 {
 		isPart := func(c rune) bool {
-			return c == '(' || c == ')' || c == '"'
+			return c == '(' || c == ')' || c == '"' || c == ',' || c == ' '
 		}
 		expressionParts := strings.FieldsFunc(q.Expression, isPart)
 		return fmt.Sprintf(

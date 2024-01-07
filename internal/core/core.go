@@ -179,6 +179,13 @@ func (c *Core) StartUniqueDaemon(name string, task func(ctx context.Context)) {
 }
 
 func (c *Core) startUniqueTask(name string, task func(ctx context.Context)) {
+	enabledKey := "tasks." + name + ".enabled"
+	if enabled, err := c.Settings.GetBool(enabledKey); err != nil {
+		c.Logger().Warn("Cannot check task config", logs.Any("task", name), err)
+		return
+	} else if !enabled.OrElse(true) {
+		return
+	}
 	c.taskWaiter.Add(1)
 	defer c.taskWaiter.Done()
 	guard, err := c.Locks.AcquireByName(c.taskContext, name)
@@ -193,12 +200,12 @@ func (c *Core) startUniqueTask(name string, task func(ctx context.Context)) {
 			}
 			return
 		}
-		c.Logger().Warn("Cannot acquire lock for task", logs.Any("task", name), err)
+		c.Logger().Warn("Cannot acquire task lock", logs.Any("task", name), err)
 		return
 	}
 	defer func() {
 		if err := guard.Release(c.context); err != nil {
-			c.Logger().Warn("Cannot release lock for task", logs.Any("task", name), err)
+			c.Logger().Warn("Cannot release task lock", logs.Any("task", name), err)
 		}
 	}()
 	c.Logger().Info("Start unique task", logs.Any("task", name))
@@ -218,15 +225,20 @@ func (c *Core) startUniqueTask(name string, task func(ctx context.Context)) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				if enabled, err := c.Settings.GetBool(enabledKey); err != nil {
+					c.Logger().Warn("Cannot check task config", logs.Any("task", name), err)
+					return
+				} else if !enabled.OrElse(true) {
+					return
+				}
 				if err := guard.Ping(ctx); err != nil {
 					if err != context.Canceled {
-						c.Logger().Warn("Cannot ping lock for task", logs.Any("task", name), err)
+						c.Logger().Warn("Cannot ping task lock", logs.Any("task", name), err)
 					}
 					return
 				}
-				c.Logger().Debug("Pinged lock for task", logs.Any("task", name), err)
+				c.Logger().Debug("Pinged task lock", logs.Any("task", name), err)
 			}
-
 		}
 	}()
 	task(ctx)

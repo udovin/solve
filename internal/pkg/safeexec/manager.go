@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -137,8 +138,8 @@ func (m *Manager) prepareProcess() (*Process, error) {
 
 type Option func(*Manager) error
 
-func WithMemoryPeak(m *Manager) error {
-	m.useMemoryPeak = true
+func WithDisableMemoryPeak(m *Manager) error {
+	m.useMemoryPeak = false
 	return nil
 }
 
@@ -161,6 +162,7 @@ func NewManager(path, executionPath, cgroupName string, options ...Option) (*Man
 		path:          path,
 		executionPath: executionPath,
 		cgroupPath:    cgroupPath,
+		useMemoryPeak: true,
 	}
 	for _, option := range options {
 		if err := option(&m); err != nil {
@@ -172,6 +174,13 @@ func NewManager(path, executionPath, cgroupName string, options ...Option) (*Man
 	}
 	if err := os.MkdirAll(m.executionPath, os.ModePerm); err != nil && !os.IsExist(err) {
 		return nil, err
+	}
+	if m.useMemoryPeak {
+		if ok, err := checkMemoryPeakFeature(m.cgroupPath); err != nil {
+			return nil, err
+		} else if !ok {
+			m.useMemoryPeak = false
+		}
 	}
 	return &m, nil
 }
@@ -202,6 +211,16 @@ func setupCgroup(path string) error {
 		}
 	}
 	return scanner.Err()
+}
+
+func checkMemoryPeakFeature(path string) (bool, error) {
+	if _, err := os.Stat(filepath.Join(path, "memory.peak")); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 const cgroupRootPath = "/sys/fs/cgroup"

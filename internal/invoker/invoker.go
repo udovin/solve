@@ -53,8 +53,8 @@ func (s *Invoker) Start() error {
 		cgroupPath = "../solve-safeexec"
 	}
 	var safeexecOptions []safeexec.Option
-	if safeexecConfig.MemoryPeak == nil || *safeexecConfig.MemoryPeak {
-		safeexecOptions = append(safeexecOptions, safeexec.WithMemoryPeak)
+	if safeexecConfig.DisableMemoryPeak {
+		safeexecOptions = append(safeexecOptions, safeexec.WithDisableMemoryPeak)
 	}
 	safeexec, err := safeexec.NewManager(
 		safeexecConfig.Path, "/tmp/solve-safeexec", cgroupPath, safeexecOptions...,

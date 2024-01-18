@@ -22,6 +22,7 @@
 #define PROC_PATH "/proc"
 #define CGROUP_PROCS_FILE "cgroup.procs"
 #define CGROUP_MEMORY_MAX_FILE "memory.max"
+#define CGROUP_PIDS_MAX_FILE "pids.max"
 #define CGROUP_MEMORY_SWAP_MAX_FILE "memory.swap.max"
 #define CGROUP_MEMORY_CURRENT_FILE "memory.current"
 #define CGROUP_MEMORY_PEAK_FILE "memory.peak"
@@ -196,24 +197,37 @@ static inline void prepareCgroupNamespace(const Context* ctx) {
 	}
 	char* cgroupPath = malloc((strlen(ctx->cgroupPath) + strlen(CGROUP_MEMORY_SWAP_MAX_FILE) + 2) * sizeof(char));
 	ensure(cgroupPath != 0, "cannot allocate cgroup path");
+	// Limit max memory usage.
 	{
 		strcpy(cgroupPath, ctx->cgroupPath);
 		strcat(cgroupPath, "/");
 		strcat(cgroupPath, CGROUP_MEMORY_MAX_FILE);
 		int fd = open(cgroupPath, O_WRONLY);
-		ensure(fd != -1, "cannot open memory.max");
+		ensure(fd != -1, "cannot open " CGROUP_MEMORY_MAX_FILE);
 		char memoryStr[21];
 		sprintf(memoryStr, "%d", ctx->memoryLimit);
 		ensure(write(fd, memoryStr, strlen(memoryStr)) != -1, "cannot write memory.max");
 		close(fd);
 	}
+	// Disable swap memory usage.
 	{
 		strcpy(cgroupPath, ctx->cgroupPath);
 		strcat(cgroupPath, "/");
 		strcat(cgroupPath, CGROUP_MEMORY_SWAP_MAX_FILE);
 		int fd = open(cgroupPath, O_WRONLY);
-		ensure(fd != -1, "cannot open memory.swap.max");
+		ensure(fd != -1, "cannot open " CGROUP_MEMORY_SWAP_MAX_FILE);
 		ensure(write(fd, "0", strlen("0")) != -1, "cannot write memory.swap.max");
+		close(fd);
+	}
+	// Limit process amount.
+	// TODO: Replace hardcode with configurable limit
+	{
+		strcpy(cgroupPath, ctx->cgroupPath);
+		strcat(cgroupPath, "/");
+		strcat(cgroupPath, CGROUP_PIDS_MAX_FILE);
+		int fd = open(cgroupPath, O_WRONLY);
+		ensure(fd != -1, "cannot open " CGROUP_PIDS_MAX_FILE);
+		ensure(write(fd, "16", strlen("16")) != -1, "cannot write memory.swap.max");
 		close(fd);
 	}
 	free(cgroupPath);

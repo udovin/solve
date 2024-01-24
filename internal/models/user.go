@@ -133,8 +133,8 @@ func NewUserStore(
 	db *gosql.DB, table, eventTable, salt string,
 ) *UserStore {
 	impl := &UserStore{
-		byAccount: newIndex(func(o User) int64 { return o.AccountID }),
-		byLogin:   newIndex(func(o User) string { return strings.ToLower(o.Login) }),
+		byAccount: newIndex(func(o User) (int64, bool) { return o.AccountID, true }),
+		byLogin:   newIndex(func(o User) (string, bool) { return strings.ToLower(o.Login), true }),
 		salt:      salt,
 	}
 	impl.cachedStore = makeCachedStore[User, UserEvent](

@@ -149,9 +149,9 @@ func NewContestParticipantStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestParticipantStore {
 	impl := &ContestParticipantStore{
-		byContest: newIndex(func(o ContestParticipant) int64 { return o.ContestID }),
-		byContestAccount: newIndex(func(o ContestParticipant) pair[int64, int64] {
-			return makePair(o.ContestID, o.AccountID)
+		byContest: newIndex(func(o ContestParticipant) (int64, bool) { return o.ContestID, true }),
+		byContestAccount: newIndex(func(o ContestParticipant) (pair[int64, int64], bool) {
+			return makePair(o.ContestID, o.AccountID), true
 		}),
 	}
 	impl.cachedStore = makeCachedStore[ContestParticipant, ContestParticipantEvent](

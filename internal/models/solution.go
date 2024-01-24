@@ -203,7 +203,7 @@ func NewSolutionStore(
 	db *gosql.DB, table, eventTable string,
 ) *SolutionStore {
 	impl := &SolutionStore{
-		byProblem: newIndex(func(o Solution) int64 { return o.ProblemID }),
+		byProblem: newIndex(func(o Solution) (int64, bool) { return o.ProblemID, true }),
 	}
 	impl.cachedStore = makeCachedStore[Solution, SolutionEvent](
 		db, table, eventTable, impl, impl.byProblem,

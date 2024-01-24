@@ -62,7 +62,7 @@ func NewRoleStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleStore {
 	impl := &RoleStore{
-		byName: newIndex(func(o Role) string { return o.Name }),
+		byName: newIndex(func(o Role) (string, bool) { return o.Name, true }),
 	}
 	impl.cachedStore = makeCachedStore[Role, RoleEvent](
 		db, table, eventTable, impl, impl.byName,

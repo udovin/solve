@@ -89,7 +89,7 @@ func NewContestProblemStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestProblemStore {
 	impl := &ContestProblemStore{
-		byContest: newIndex(func(o ContestProblem) int64 { return o.ContestID }),
+		byContest: newIndex(func(o ContestProblem) (int64, bool) { return o.ContestID, true }),
 	}
 	impl.cachedStore = makeCachedStore[ContestProblem, ContestProblemEvent](
 		db, table, eventTable, impl, impl.byContest,

@@ -93,7 +93,7 @@ func (s *CompilerStore) GetByName(name string) (Compiler, error) {
 // NewCompilerStore creates a new instance of CompilerStore.
 func NewCompilerStore(db *gosql.DB, table, eventTable string) *CompilerStore {
 	impl := &CompilerStore{
-		byName: newIndex(func(o Compiler) string { return o.Name }),
+		byName: newIndex(func(o Compiler) (string, bool) { return o.Name, true }),
 	}
 	impl.cachedStore = makeCachedStore[Compiler, CompilerEvent](
 		db, table, eventTable, impl, impl.byName,

@@ -114,7 +114,7 @@ func NewSessionStore(
 	db *gosql.DB, table, eventTable string,
 ) *SessionStore {
 	impl := &SessionStore{
-		byAccount: newIndex(func(o Session) int64 { return o.AccountID }),
+		byAccount: newIndex(func(o Session) (int64, bool) { return o.AccountID, true }),
 	}
 	impl.cachedStore = makeCachedStore[Session, SessionEvent](
 		db, table, eventTable, impl, impl.byAccount,

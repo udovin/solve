@@ -121,7 +121,7 @@ func NewProblemResourceStore(
 	db *gosql.DB, table, eventTable string,
 ) *ProblemResourceStore {
 	impl := &ProblemResourceStore{
-		byProblem: newIndex(func(o ProblemResource) int64 { return o.ProblemID }),
+		byProblem: newIndex(func(o ProblemResource) (int64, bool) { return o.ProblemID, true }),
 	}
 	impl.cachedStore = makeCachedStore[ProblemResource, ProblemResourceEvent](
 		db, table, eventTable, impl, impl.byProblem,

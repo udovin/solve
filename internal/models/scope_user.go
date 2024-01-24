@@ -118,10 +118,10 @@ func NewScopeUserStore(
 	db *gosql.DB, table, eventTable, salt string,
 ) *ScopeUserStore {
 	impl := &ScopeUserStore{
-		byAccount: newIndex(func(o ScopeUser) int64 { return o.AccountID }),
-		byScope:   newIndex(func(o ScopeUser) int64 { return o.ScopeID }),
-		byScopeLogin: newIndex(func(o ScopeUser) pair[int64, string] {
-			return makePair(o.ScopeID, strings.ToLower(o.Login))
+		byAccount: newIndex(func(o ScopeUser) (int64, bool) { return o.AccountID, true }),
+		byScope:   newIndex(func(o ScopeUser) (int64, bool) { return o.ScopeID, true }),
+		byScopeLogin: newIndex(func(o ScopeUser) (pair[int64, string], bool) {
+			return makePair(o.ScopeID, strings.ToLower(o.Login)), true
 		}),
 		salt: salt,
 	}

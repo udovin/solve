@@ -58,7 +58,7 @@ func NewAccountRoleStore(
 	db *gosql.DB, table, eventTable string,
 ) *AccountRoleStore {
 	impl := &AccountRoleStore{
-		byAccount: newIndex(func(o AccountRole) int64 { return o.AccountID }),
+		byAccount: newIndex(func(o AccountRole) (int64, bool) { return o.AccountID, true }),
 	}
 	impl.cachedStore = makeCachedStore[AccountRole, AccountRoleEvent](
 		db, table, eventTable, impl, impl.byAccount,

@@ -254,7 +254,7 @@ func NewTaskStore(
 	db *gosql.DB, table, eventTable string,
 ) *TaskStore {
 	impl := &TaskStore{
-		bySolution: newOptionalIndex(func(o Task) (int64, bool) {
+		bySolution: newIndex(func(o Task) (int64, bool) {
 			switch o.Kind {
 			case JudgeSolutionTask:
 				var config JudgeSolutionTaskConfig
@@ -264,7 +264,7 @@ func NewTaskStore(
 			}
 			return 0, false
 		}),
-		byProblem: newOptionalIndex(func(o Task) (int64, bool) {
+		byProblem: newIndex(func(o Task) (int64, bool) {
 			switch o.Kind {
 			case UpdateProblemPackageTask:
 				var config UpdateProblemPackageTaskConfig

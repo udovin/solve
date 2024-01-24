@@ -63,7 +63,7 @@ func NewScopeStore(
 	db *gosql.DB, table, eventTable string,
 ) *ScopeStore {
 	impl := &ScopeStore{
-		byAccount: newIndex(func(o Scope) int64 { return o.AccountID }),
+		byAccount: newIndex(func(o Scope) (int64, bool) { return o.AccountID, true }),
 	}
 	impl.cachedStore = makeCachedStore[Scope, ScopeEvent](
 		db, table, eventTable, impl, impl.byAccount,

@@ -116,7 +116,7 @@ func (s *SettingStore) GetInt64(key string) (Option[int64], error) {
 // NewSettingStore creates a new instance of SettingStore.
 func NewSettingStore(db *gosql.DB, table, eventTable string) *SettingStore {
 	impl := &SettingStore{
-		byKey: newIndex(func(o Setting) string { return o.Key }),
+		byKey: newIndex(func(o Setting) (string, bool) { return o.Key, true }),
 	}
 	impl.cachedStore = makeCachedStore[Setting, SettingEvent](
 		db, table, eventTable, impl, impl.byKey,

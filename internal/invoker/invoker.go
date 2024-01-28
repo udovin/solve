@@ -56,6 +56,9 @@ func (s *Invoker) Start() error {
 	if safeexecConfig.DisableMemoryPeak {
 		safeexecOptions = append(safeexecOptions, safeexec.WithDisableMemoryPeak)
 	}
+	if safeexecConfig.DisableCpuLimit {
+		safeexecOptions = append(safeexecOptions, safeexec.WithDisableCpuLimit)
+	}
 	safeexec, err := safeexec.NewManager(
 		safeexecConfig.Path, "/tmp/solve-safeexec", cgroupPath, safeexecOptions...,
 	)

@@ -30,6 +30,7 @@
 #define CGROUP_CPU_STAT_FILE "cpu.stat"
 
 #define MEMORY_PEAK_FLAG 1
+#define CPU_LIMIT_FLAG 2
 
 typedef struct {
 	char* rootfs;
@@ -229,6 +230,10 @@ static inline void prepareCgroupNamespace(const Context* ctx) {
 		ensure(fd != -1, "cannot open " CGROUP_PIDS_MAX_FILE);
 		ensure(write(fd, "16", strlen("16")) != -1, "cannot write memory.swap.max");
 		close(fd);
+	}
+	// Limit CPU usage.
+	if (ctx->flags & CPU_LIMIT_FLAG) {
+		// TODO: Implement CPU limit.
 	}
 	free(cgroupPath);
 }

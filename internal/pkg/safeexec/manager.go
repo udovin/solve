@@ -21,6 +21,7 @@ type Manager struct {
 	executionPath string
 	cgroupPath    string
 	useMemoryPeak bool
+	useCpuLimit   bool
 }
 
 type ProcessConfig struct {
@@ -37,6 +38,7 @@ type ProcessConfig struct {
 
 const (
 	memoryPeakFlag = 1
+	cpuLimitFlag   = 2
 )
 
 func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, error) {
@@ -62,6 +64,9 @@ func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, e
 	var flags int
 	if m.useMemoryPeak {
 		flags = flags | memoryPeakFlag
+	}
+	if m.useCpuLimit {
+		flags = flags | cpuLimitFlag
 	}
 	if flags > 0 {
 		args = append(args, "--flags", fmt.Sprint(flags))
@@ -143,6 +148,11 @@ func WithDisableMemoryPeak(m *Manager) error {
 	return nil
 }
 
+func WithDisableCpuLimit(m *Manager) error {
+	m.useCpuLimit = false
+	return nil
+}
+
 func NewManager(path, executionPath, cgroupName string, options ...Option) (*Manager, error) {
 	cgroupPath, err := getCurrentCgroupPath()
 	if err != nil {
@@ -163,6 +173,7 @@ func NewManager(path, executionPath, cgroupName string, options ...Option) (*Man
 		executionPath: executionPath,
 		cgroupPath:    cgroupPath,
 		useMemoryPeak: true,
+		useCpuLimit:   true,
 	}
 	for _, option := range options {
 		if err := option(&m); err != nil {
@@ -175,12 +186,11 @@ func NewManager(path, executionPath, cgroupName string, options ...Option) (*Man
 	if err := os.MkdirAll(m.executionPath, os.ModePerm); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-	if m.useMemoryPeak {
-		if ok, err := checkMemoryPeakFeature(m.cgroupPath); err != nil {
-			return nil, err
-		} else if !ok {
-			m.useMemoryPeak = false
-		}
+	if err := fixCgroupFeature(&m.useMemoryPeak, m.cgroupPath, "memory.peak"); err != nil {
+		return nil, err
+	}
+	if err := fixCgroupFeature(&m.useCpuLimit, m.cgroupPath, "cpu.max"); err != nil {
+		return nil, err
 	}
 	return &m, nil
 }
@@ -213,14 +223,18 @@ func setupCgroup(path string) error {
 	return scanner.Err()
 }
 
-func checkMemoryPeakFeature(path string) (bool, error) {
-	if _, err := os.Stat(filepath.Join(path, "memory.peak")); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
-		}
-		return false, err
+func fixCgroupFeature(enabled *bool, cgroupPath, name string) error {
+	if !*enabled {
+		return nil
 	}
-	return true, nil
+	if _, err := os.Stat(filepath.Join(cgroupPath, name)); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			*enabled = false
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 const cgroupRootPath = "/sys/fs/cgroup"

@@ -29,6 +29,12 @@ func (c ConfirmEmailTokenConfig) TokenKind() TokenKind {
 	return ConfirmEmailToken
 }
 
+type ResetPasswordTokenConfig struct{}
+
+func (c ResetPasswordTokenConfig) TokenKind() TokenKind {
+	return ResetPasswordToken
+}
+
 // Token represents a token.
 type Token struct {
 	baseObject

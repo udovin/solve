@@ -335,6 +335,7 @@ func (f updateEmailForm) Update(c echo.Context, user *models.User) error {
 }
 
 const emailTokensLimit = 3
+const passwordTokensLimit = 3
 
 func (v *View) updateUserEmail(c echo.Context) error {
 	now := getNow(c)
@@ -394,12 +395,12 @@ func (v *View) updateUserEmail(c echo.Context) error {
 		CreateTime: now.Unix(),
 		ExpireTime: expires.Unix(),
 	}
-	if err := token.GenerateSecret(); err != nil {
-		return err
-	}
 	if err := token.SetConfig(models.ConfirmEmailTokenConfig{
 		Email: form.Email,
 	}); err != nil {
+		return err
+	}
+	if err := token.GenerateSecret(); err != nil {
 		return err
 	}
 	if err := v.core.Tokens.Create(getContext(c), &token); err != nil {
@@ -407,7 +408,7 @@ func (v *View) updateUserEmail(c echo.Context) error {
 	}
 	to := mail.Address{Address: form.Email}
 	values := v.getConfirmEmailValues(c, user, token)
-	if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
+	if err := v.sendConfirmEmailMail(c, cfg, to, values); err != nil {
 		c.Logger().Error(err)
 		if err := v.core.Tokens.Delete(getContext(c), token.ID); err != nil {
 			c.Logger().Error("Cannot remove invalid token", logs.Any("token_id", token.ID), err)
@@ -461,12 +462,12 @@ func (v *View) resendUserEmail(c echo.Context) error {
 		CreateTime: now.Unix(),
 		ExpireTime: expires.Unix(),
 	}
-	if err := token.GenerateSecret(); err != nil {
-		return err
-	}
 	if err := token.SetConfig(models.ConfirmEmailTokenConfig{
 		Email: string(user.Email),
 	}); err != nil {
+		return err
+	}
+	if err := token.GenerateSecret(); err != nil {
 		return err
 	}
 	if err := v.core.Tokens.Create(getContext(c), &token); err != nil {
@@ -474,7 +475,7 @@ func (v *View) resendUserEmail(c echo.Context) error {
 	}
 	to := mail.Address{Address: string(user.Email)}
 	values := v.getConfirmEmailValues(c, user, token)
-	if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
+	if err := v.sendConfirmEmailMail(c, cfg, to, values); err != nil {
 		c.Logger().Error(err)
 		if err := v.core.Tokens.Delete(getContext(c), token.ID); err != nil {
 			c.Logger().Error("Cannot remove invalid token", logs.Any("token_id", token.ID), err)
@@ -485,6 +486,15 @@ func (v *View) resendUserEmail(c echo.Context) error {
 }
 
 func (v *View) getConfirmEmailValues(c echo.Context, user models.User, token models.Token) map[string]any {
+	return map[string]any{
+		"site_url": v.core.Config.Server.SiteURL,
+		"login":    user.Login,
+		"id":       token.ID,
+		"secret":   token.Secret,
+	}
+}
+
+func (v *View) getResetPasswordValues(c echo.Context, user models.User, token models.Token) map[string]any {
 	return map[string]any{
 		"site_url": v.core.Config.Server.SiteURL,
 		"login":    user.Login,
@@ -820,7 +830,7 @@ func (v *View) registerUser(c echo.Context) error {
 	if cfg := v.core.Config.SMTP; cfg != nil {
 		to := mail.Address{Address: string(user.Email)}
 		values := v.getConfirmEmailValues(c, user, token)
-		if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
+		if err := v.sendConfirmEmailMail(c, cfg, to, values); err != nil {
 			c.Logger().Error(err)
 			return err
 		}
@@ -835,17 +845,94 @@ func (v *View) registerUser(c echo.Context) error {
 	})
 }
 
+type resetPasswordForm struct {
+	Login string `json:"login"`
+}
+
 // resetUserPassword resets user password.
 func (v *View) resetUserPassword(c echo.Context) error {
-	// now := getNow(c)
+	now := getNow(c)
 	cfg := v.core.Config.SMTP
 	if cfg == nil {
 		return c.NoContent(http.StatusNotImplemented)
 	}
-	panic("not implemented")
+	var form resetPasswordForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	user, err := v.core.Users.GetByLogin(form.Login)
+	if err != nil {
+		return err
+	}
+	if count, err := v.core.Tokens.GetCountTokens(
+		getContext(c), user.AccountID, models.ResetPasswordToken, passwordTokensLimit,
+	); err != nil {
+		c.Logger().Warn(err)
+		return err
+	} else if count >= passwordTokensLimit {
+		return c.NoContent(http.StatusTooManyRequests)
+	}
+	expires := now.Add(30 * time.Minute)
+	token := models.Token{
+		AccountID:  user.AccountID,
+		CreateTime: now.Unix(),
+		ExpireTime: expires.Unix(),
+	}
+	if err := token.SetConfig(models.ResetPasswordTokenConfig{}); err != nil {
+		return err
+	}
+	if err := token.GenerateSecret(); err != nil {
+		return err
+	}
+	if err := v.core.Tokens.Create(getContext(c), &token); err != nil {
+		return err
+	}
+	to := mail.Address{Address: string(user.Email)}
+	values := v.getResetPasswordValues(c, user, token)
+	if err := v.sendResetPasswordMail(c, cfg, to, values); err != nil {
+		c.Logger().Error(err)
+		if err := v.core.Tokens.Delete(getContext(c), token.ID); err != nil {
+			c.Logger().Error("Cannot remove invalid token", logs.Any("token_id", token.ID), err)
+		}
+		return err
+	}
+	return c.NoContent(http.StatusOK)
 }
 
-func (v *View) sendMail(c echo.Context, cfg *config.SMTP, to mail.Address, key string, values map[string]any) error {
+func (v *View) sendConfirmEmailMail(c echo.Context, cfg *config.SMTP, to mail.Address, values map[string]any) error {
+	return v.sendMail(
+		c,
+		cfg,
+		to,
+		"confirm_email",
+		values,
+		"Email confirmation on Solve",
+		"Confirmation link: {{.site_url}}/confirm-email?id={{.id}}&secret={{.secret}}",
+	)
+}
+
+func (v *View) sendResetPasswordMail(c echo.Context, cfg *config.SMTP, to mail.Address, values map[string]any) error {
+	return v.sendMail(
+		c,
+		cfg,
+		to,
+		"reset_password",
+		values,
+		"Reset password on Solve",
+		"Reset link: {{.site_url}}/reset-password?id={{.id}}&secret={{.secret}}",
+	)
+}
+
+func (v *View) sendMail(
+	c echo.Context,
+	cfg *config.SMTP,
+	to mail.Address,
+	key string,
+	values map[string]any,
+	defaultSubject string,
+	defaultBody string,
+) error {
 	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", cfg.Host, cfg.Port), nil)
 	if err != nil {
 		return err
@@ -871,11 +958,11 @@ func (v *View) sendMail(c echo.Context, cfg *config.SMTP, to mail.Address, key s
 	defer writer.Close()
 	from := mail.Address{Name: cfg.Name, Address: cfg.Email}
 	locale := getLocale(c)
-	subject, err := renderTemplate(locale.LocalizeKey(key+".subject", "Email confirmation on Solve"), values)
+	subject, err := renderTemplate(locale.LocalizeKey(key+".subject", defaultSubject), values)
 	if err != nil {
 		return err
 	}
-	body, err := renderTemplate(locale.LocalizeKey(key+".body", "Confirmation link: {{.site_url}}/confirm-email?id={{.id}}&secret={{.secret}}"), values)
+	body, err := renderTemplate(locale.LocalizeKey(key+".body", defaultBody), values)
 	if err != nil {
 		return err
 	}

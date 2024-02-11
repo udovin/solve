@@ -117,6 +117,7 @@ type Safeexec struct {
 	Path              string `json:"path"`
 	Cgroup            string `json:"cgroup"`
 	DisableMemoryPeak bool   `json:"disable_memory_peak,omitempty"`
+	DisableCpuLimit   bool   `json:"disable_cpu_limit,omitempty"`
 }
 
 type SMTP struct {

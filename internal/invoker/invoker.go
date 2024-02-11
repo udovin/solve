@@ -56,12 +56,20 @@ func (s *Invoker) Start() error {
 	if safeexecConfig.DisableMemoryPeak {
 		safeexecOptions = append(safeexecOptions, safeexec.WithDisableMemoryPeak)
 	}
+	if safeexecConfig.DisableCpuLimit {
+		safeexecOptions = append(safeexecOptions, safeexec.WithDisableCpuLimit)
+	}
 	safeexec, err := safeexec.NewManager(
 		safeexecConfig.Path, "/tmp/solve-safeexec", cgroupPath, safeexecOptions...,
 	)
 	if err != nil {
 		return err
 	}
+	s.core.Logger().Info(
+		"Safeexec initialized",
+		logs.Any("memory_peak", safeexec.HasMemoryPeak()),
+		logs.Any("cpu_limit", safeexec.HasCPULimit()),
+	)
 	s.compilerImages, err = compilerCache.NewCompilerImageManager(
 		s.files, safeexec, "/tmp/solve-compilers",
 	)

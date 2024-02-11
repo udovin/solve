@@ -42,8 +42,8 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 	}
 	join := func(child, parent string) error {
 		if _, err := roleEdgeStore.FindOne(ctx, FindQuery{
-			Where: gosql.Column("role_id").Equal(parent).
-				And(gosql.Column("child_id").Equal(child)),
+			Where: gosql.Column("role_id").Equal(roles[parent]).
+				And(gosql.Column("child_id").Equal(roles[child])),
 		}); err != nil {
 			if err != sql.ErrNoRows {
 				return err

@@ -161,15 +161,11 @@ func serverMain(cmd *cobra.Command, _ []string) {
 }
 
 func migrateMain(cmd *cobra.Command, args []string) {
-	withData, err := cmd.Flags().GetBool("with-data")
+	from, err := cmd.Flags().GetString("from")
 	if err != nil {
 		panic(err)
 	}
 	force, err := cmd.Flags().GetBool("force")
-	if err != nil {
-		panic(err)
-	}
-	from, err := cmd.Flags().GetString("from")
 	if err != nil {
 		panic(err)
 	}
@@ -185,14 +181,12 @@ func migrateMain(cmd *cobra.Command, args []string) {
 	var options []db.MigrateOption
 	if len(from) > 0 {
 		options = append(options, db.WithFromMigration(from))
-		withData = false
 	}
 	if len(args) > 0 {
 		if !force {
-			panic("Trying to apply dangerous migration without '--force'")
+			panic("Trying to apply specified migration without '--force'")
 		}
 		options = append(options, db.WithMigration(args[0]))
-		withData = args[0] == "zero"
 	}
 	if err := db.ApplyMigrations(
 		context.Background(), c.DB, "solve", migrations.Schema,
@@ -200,13 +194,41 @@ func migrateMain(cmd *cobra.Command, args []string) {
 	); err != nil {
 		panic(err)
 	}
-	if withData {
-		if err := db.ApplyMigrations(
-			context.Background(), c.DB, "solve_data", migrations.Data,
-			options...,
-		); err != nil {
-			panic(err)
+}
+
+func migrateDataMain(cmd *cobra.Command, args []string) {
+	from, err := cmd.Flags().GetString("from")
+	if err != nil {
+		panic(err)
+	}
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		panic(err)
+	}
+	cfg, err := getConfig(cmd)
+	if err != nil {
+		panic(err)
+	}
+	c, err := core.NewCore(cfg)
+	if err != nil {
+		panic(err)
+	}
+	c.SetupAllStores()
+	var options []db.MigrateOption
+	if len(from) > 0 {
+		options = append(options, db.WithFromMigration(from))
+	}
+	if len(args) > 0 {
+		if !force {
+			panic("Trying to apply specified migration without '--force'")
 		}
+		options = append(options, db.WithMigration(args[0]))
+	}
+	if err := db.ApplyMigrations(
+		context.Background(), c.DB, "solve_data", migrations.Data,
+		options...,
+	); err != nil {
+		panic(err)
 	}
 }
 
@@ -229,20 +251,31 @@ func versionMain(cmd *cobra.Command, _ []string) {
 func main() {
 	rootCmd := cobra.Command{Use: os.Args[0]}
 	rootCmd.PersistentFlags().String("config", "config.json", "")
+	// server.
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "server",
 		Run:   serverMain,
 		Short: "Starts API server",
 	})
+	// migrate.
 	migrateCmd := cobra.Command{
 		Use:   "migrate",
 		Run:   migrateMain,
 		Short: "Applies migrations to database",
 	}
-	migrateCmd.Flags().Bool("with-data", false, "Enable data migrations")
-	migrateCmd.Flags().Bool("force", false, "Force dangerous migration")
 	migrateCmd.Flags().String("from", "", "Repeat migrations from specified name")
+	migrateCmd.Flags().Bool("force", false, "Force dangerous migration")
 	rootCmd.AddCommand(&migrateCmd)
+	// migrate-data.
+	migrateDataCmd := cobra.Command{
+		Use:   "migrate-data",
+		Run:   migrateDataMain,
+		Short: "Applies data migrations to database",
+	}
+	migrateDataCmd.Flags().String("from", "", "Repeat migrations from specified name")
+	migrateDataCmd.Flags().Bool("force", false, "Force dangerous migration")
+	rootCmd.AddCommand(&migrateDataCmd)
+	// version.
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",
 		Run:   versionMain,

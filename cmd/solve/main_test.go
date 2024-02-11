@@ -89,12 +89,23 @@ func TestMigrateMain(t *testing.T) {
 	defer testTeardown(t)
 	cmd := cobra.Command{}
 	cmd.Flags().String("config", "", "")
-	cmd.Flags().Bool("with-data", false, "")
 	cmd.Flags().Bool("force", false, "")
 	cmd.Flags().String("from", "", "")
 	cmd.Flags().Set("config", testConfigFile.Name())
 	go testCancel()
 	migrateMain(&cmd, nil)
+}
+
+func TestMigrateDataMain(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+	cmd := cobra.Command{}
+	cmd.Flags().String("config", "", "")
+	cmd.Flags().Bool("force", false, "")
+	cmd.Flags().String("from", "", "")
+	cmd.Flags().Set("config", testConfigFile.Name())
+	go testCancel()
+	migrateDataMain(&cmd, nil)
 }
 
 func TestVersionMain(t *testing.T) {

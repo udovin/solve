@@ -50,7 +50,7 @@ Then create config file `config.json` with following contents:
 Then apply database migrations:
 
 ```bash
-mkdir -p data && ./cmd/solve/solve migrate --with-data
+mkdir -p data && ./cmd/solve/solve migrate && ./cmd/solve/solve migrate-data
 ```
 
 Then run server (API will be available on `http://localhost:4242`):

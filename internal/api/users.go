@@ -387,7 +387,10 @@ func (v *View) updateUserEmail(c echo.Context) error {
 		c.Logger().Warn(err)
 		return err
 	} else if count >= emailTokensLimit {
-		return c.NoContent(http.StatusTooManyRequests)
+		return errorResponse{
+			Code:    http.StatusTooManyRequests,
+			Message: localize(c, "Too many requests."),
+		}
 	}
 	expires := now.Add(3 * time.Hour)
 	token := models.Token{
@@ -454,7 +457,10 @@ func (v *View) resendUserEmail(c echo.Context) error {
 		c.Logger().Warn(err)
 		return err
 	} else if count >= emailTokensLimit {
-		return c.NoContent(http.StatusTooManyRequests)
+		return errorResponse{
+			Code:    http.StatusTooManyRequests,
+			Message: localize(c, "Too many requests."),
+		}
 	}
 	expires := now.Add(3 * time.Hour)
 	token := models.Token{
@@ -871,7 +877,10 @@ func (v *View) resetUserPassword(c echo.Context) error {
 		c.Logger().Warn(err)
 		return err
 	} else if count >= passwordTokensLimit {
-		return c.NoContent(http.StatusTooManyRequests)
+		return errorResponse{
+			Code:    http.StatusTooManyRequests,
+			Message: localize(c, "Too many requests."),
+		}
 	}
 	expires := now.Add(30 * time.Minute)
 	token := models.Token{
@@ -897,7 +906,8 @@ func (v *View) resetUserPassword(c echo.Context) error {
 		}
 		return err
 	}
-	return c.NoContent(http.StatusOK)
+	userResp := User{Login: user.Login}
+	return c.JSON(http.StatusOK, userResp)
 }
 
 func (v *View) sendConfirmEmailMail(c echo.Context, cfg *config.SMTP, to mail.Address, values map[string]any) error {

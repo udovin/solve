@@ -165,6 +165,10 @@ func migrateMain(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		panic(err)
+	}
 	from, err := cmd.Flags().GetString("from")
 	if err != nil {
 		panic(err)
@@ -184,6 +188,9 @@ func migrateMain(cmd *cobra.Command, args []string) {
 		withData = false
 	}
 	if len(args) > 0 {
+		if !force {
+			panic("Trying to apply dangerous migration without '--force'")
+		}
 		options = append(options, db.WithMigration(args[0]))
 		withData = args[0] == "zero"
 	}
@@ -233,6 +240,7 @@ func main() {
 		Short: "Applies migrations to database",
 	}
 	migrateCmd.Flags().Bool("with-data", false, "Enable data migrations")
+	migrateCmd.Flags().Bool("force", false, "Force dangerous migration")
 	migrateCmd.Flags().String("from", "", "Repeat migrations from specified name")
 	rootCmd.AddCommand(&migrateCmd)
 	rootCmd.AddCommand(&cobra.Command{

@@ -18,12 +18,11 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/udovin/gosql"
 	"github.com/udovin/solve/internal/config"
-	"github.com/udovin/solve/internal/db"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/perms"
+	"github.com/udovin/solve/internal/pkg/logs"
 )
 
 // User represents user.
@@ -42,6 +41,8 @@ type User struct {
 	LastName string `json:"last_name,omitempty"`
 	// MiddleName contains middle name.
 	MiddleName string `json:"middle_name,omitempty"`
+	// UnconfirmedEmail contains email address that currently unconfirmed.
+	UnconfirmedEmail string `json:"unconfirmed_email,omitempty"`
 }
 
 // Status represents current authorization status.
@@ -104,6 +105,11 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 		"/v0/register", v.registerUser,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
 		v.requirePermission(perms.RegisterRole),
+	)
+	g.POST(
+		"/v0/password-reset", v.resetUserPassword,
+		v.extractAuth(v.sessionAuth, v.guestAuth),
+		v.requirePermission(perms.ResetPasswordRole),
 	)
 }
 
@@ -328,30 +334,7 @@ func (f updateEmailForm) Update(c echo.Context, user *models.User) error {
 	return nil
 }
 
-const emailTokensLimit = 2
-
-func countConfirmEmailTokens(
-	c echo.Context, store *models.TokenStore, id int64, limit int,
-) (int, error) {
-	now := getNow(c).Unix()
-	tokens, err := store.Find(getContext(c), db.FindQuery{
-		Where: gosql.Column("account_id").Equal(id).
-			And(gosql.Column("kind").Equal(models.ConfirmEmailToken)),
-		OrderBy: []any{gosql.Descending("id")},
-		Limit:   limit,
-	})
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = tokens.Close() }()
-	var count int
-	for tokens.Next() {
-		if tokens.Row().ExpireTime >= now {
-			count++
-		}
-	}
-	return count, tokens.Err()
-}
+const emailTokensLimit = 3
 
 func (v *View) updateUserEmail(c echo.Context) error {
 	now := getNow(c)
@@ -397,8 +380,8 @@ func (v *View) updateUserEmail(c echo.Context) error {
 		}
 		return c.JSON(http.StatusOK, makeUser(user, permissions))
 	}
-	if count, err := countConfirmEmailTokens(
-		c, v.core.Tokens, user.AccountID, emailTokensLimit,
+	if count, err := v.core.Tokens.GetCountTokens(
+		getContext(c), user.AccountID, models.ConfirmEmailToken, emailTokensLimit,
 	); err != nil {
 		c.Logger().Warn(err)
 		return err
@@ -426,9 +409,14 @@ func (v *View) updateUserEmail(c echo.Context) error {
 	values := v.getConfirmEmailValues(c, user, token)
 	if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
 		c.Logger().Error(err)
+		if err := v.core.Tokens.Delete(getContext(c), token.ID); err != nil {
+			c.Logger().Error("Cannot remove invalid token", logs.Any("token_id", token.ID), err)
+		}
 		return err
 	}
-	return c.JSON(http.StatusOK, makeUser(user, permissions))
+	userResp := makeUser(user, permissions)
+	userResp.UnconfirmedEmail = form.Email
+	return c.JSON(http.StatusOK, userResp)
 }
 
 func (v *View) resendUserEmail(c echo.Context) error {
@@ -459,8 +447,8 @@ func (v *View) resendUserEmail(c echo.Context) error {
 			InvalidFields: errors,
 		}
 	}
-	if count, err := countConfirmEmailTokens(
-		c, v.core.Tokens, user.AccountID, emailTokensLimit,
+	if count, err := v.core.Tokens.GetCountTokens(
+		getContext(c), user.AccountID, models.ConfirmEmailToken, emailTokensLimit,
 	); err != nil {
 		c.Logger().Warn(err)
 		return err
@@ -488,6 +476,9 @@ func (v *View) resendUserEmail(c echo.Context) error {
 	values := v.getConfirmEmailValues(c, user, token)
 	if err := v.sendMail(c, cfg, to, "confirm_email", values); err != nil {
 		c.Logger().Error(err)
+		if err := v.core.Tokens.Delete(getContext(c), token.ID); err != nil {
+			c.Logger().Error("Cannot remove invalid token", logs.Any("token_id", token.ID), err)
+		}
 		return err
 	}
 	return c.JSON(http.StatusOK, makeUser(user, permissions))
@@ -842,6 +833,16 @@ func (v *View) registerUser(c echo.Context) error {
 		LastName:   form.LastName,
 		MiddleName: form.MiddleName,
 	})
+}
+
+// resetUserPassword resets user password.
+func (v *View) resetUserPassword(c echo.Context) error {
+	// now := getNow(c)
+	cfg := v.core.Config.SMTP
+	if cfg == nil {
+		return c.NoContent(http.StatusNotImplemented)
+	}
+	panic("not implemented")
 }
 
 func (v *View) sendMail(c echo.Context, cfg *config.SMTP, to mail.Address, key string, values map[string]any) error {

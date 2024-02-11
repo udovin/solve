@@ -90,6 +90,7 @@ func TestMigrateMain(t *testing.T) {
 	cmd := cobra.Command{}
 	cmd.Flags().String("config", "", "")
 	cmd.Flags().Bool("with-data", false, "")
+	cmd.Flags().Bool("force", false, "")
 	cmd.Flags().String("from", "", "")
 	cmd.Flags().Set("config", testConfigFile.Name())
 	go testCancel()

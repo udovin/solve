@@ -27,6 +27,7 @@
       "observe_contests",
       "observe_user",
       "register_contests",
+      "reset_password",
       "status"
     ]
   },

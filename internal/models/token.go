@@ -1,11 +1,13 @@
 package models
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/internal/db"
 )
 
 type TokenKind int
@@ -25,6 +27,12 @@ type ConfirmEmailTokenConfig struct {
 
 func (c ConfirmEmailTokenConfig) TokenKind() TokenKind {
 	return ConfirmEmailToken
+}
+
+type ResetPasswordTokenConfig struct{}
+
+func (c ResetPasswordTokenConfig) TokenKind() TokenKind {
+	return ResetPasswordToken
 }
 
 // Token represents a token.
@@ -87,6 +95,27 @@ func (e *TokenEvent) SetObject(o Token) {
 // TokenStore represents store for tokens.
 type TokenStore struct {
 	baseStore[Token, TokenEvent, *Token, *TokenEvent]
+}
+
+func (s *TokenStore) GetCountTokens(ctx context.Context, accountID int64, kind TokenKind, limit int) (int, error) {
+	now := GetNow(ctx).Unix()
+	tokens, err := s.Find(ctx, db.FindQuery{
+		Where: gosql.Column("account_id").Equal(accountID).
+			And(gosql.Column("kind").Equal(kind)),
+		OrderBy: []any{gosql.Descending("id")},
+		Limit:   limit,
+	})
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tokens.Close() }()
+	var count int
+	for tokens.Next() {
+		if tokens.Row().ExpireTime >= now {
+			count++
+		}
+	}
+	return count, tokens.Err()
 }
 
 // NewTokenStore creates a new instance of TokenStore.

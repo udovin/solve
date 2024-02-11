@@ -71,6 +71,8 @@ const (
 	// UpdateUserMiddleNameRole represents name of role for updating
 	// user middle name.
 	UpdateUserMiddleNameRole = "update_user_middle_name"
+	// ResetPasswordRole represents name of role for reseting password.
+	ResetPasswordRole = "reset_password"
 	// ObserveSessionRole represents role for observing session.
 	ObserveSessionRole = "observe_session"
 	// DeleteSessionRole represents role for deleting session.
@@ -250,6 +252,7 @@ var builtInRoles = map[string]struct{}{
 	UpdateUserFirstNameRole:          {},
 	UpdateUserLastNameRole:           {},
 	UpdateUserMiddleNameRole:         {},
+	ResetPasswordRole:                {},
 	ObserveSessionRole:               {},
 	ObserveProblemsRole:              {},
 	ObserveProblemRole:               {},

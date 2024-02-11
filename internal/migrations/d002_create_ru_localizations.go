@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/internal/models"
@@ -104,6 +105,15 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		setting := models.Setting{
 			Key:   "localization.ru." + item[0],
 			Value: item[1],
+		}
+		if _, err := settingStore.FindOne(ctx, FindQuery{
+			Where: gosql.Column("key").Equal(setting.Key),
+		}); err != nil {
+			if err != sql.ErrNoRows {
+				return err
+			}
+		} else {
+			continue
 		}
 		if err := settingStore.Create(ctx, &setting); err != nil {
 			return err

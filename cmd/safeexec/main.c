@@ -26,6 +26,7 @@
 #define CGROUP_MEMORY_SWAP_MAX_FILE "memory.swap.max"
 #define CGROUP_MEMORY_CURRENT_FILE "memory.current"
 #define CGROUP_MEMORY_PEAK_FILE "memory.peak"
+#define CGROUP_CPU_MAX_FILE "cpu.max"
 #define CGROUP_MEMORY_EVENTS_FILE "memory.events"
 #define CGROUP_CPU_STAT_FILE "cpu.stat"
 
@@ -43,8 +44,9 @@ typedef struct {
 	char** environ;
 	int environLen;
 	char* cgroupPath;
-	int memoryLimit;
-	int timeLimit;
+	int memoryLimit; // Bytes.
+	int timeLimit;   // Milliseconds.
+	int cpuLimit;    // Percent.
 	int flags;
 	char* report;
 	int initializePipe[2];
@@ -207,7 +209,7 @@ static inline void prepareCgroupNamespace(const Context* ctx) {
 		ensure(fd != -1, "cannot open " CGROUP_MEMORY_MAX_FILE);
 		char memoryStr[21];
 		sprintf(memoryStr, "%d", ctx->memoryLimit);
-		ensure(write(fd, memoryStr, strlen(memoryStr)) != -1, "cannot write memory.max");
+		ensure(write(fd, memoryStr, strlen(memoryStr)) != -1, "cannot write " CGROUP_MEMORY_MAX_FILE);
 		close(fd);
 	}
 	// Disable swap memory usage.
@@ -217,7 +219,7 @@ static inline void prepareCgroupNamespace(const Context* ctx) {
 		strcat(cgroupPath, CGROUP_MEMORY_SWAP_MAX_FILE);
 		int fd = open(cgroupPath, O_WRONLY);
 		ensure(fd != -1, "cannot open " CGROUP_MEMORY_SWAP_MAX_FILE);
-		ensure(write(fd, "0", strlen("0")) != -1, "cannot write memory.swap.max");
+		ensure(write(fd, "0", strlen("0")) != -1, "cannot write " CGROUP_MEMORY_SWAP_MAX_FILE);
 		close(fd);
 	}
 	// Limit process amount.
@@ -228,12 +230,20 @@ static inline void prepareCgroupNamespace(const Context* ctx) {
 		strcat(cgroupPath, CGROUP_PIDS_MAX_FILE);
 		int fd = open(cgroupPath, O_WRONLY);
 		ensure(fd != -1, "cannot open " CGROUP_PIDS_MAX_FILE);
-		ensure(write(fd, "16", strlen("16")) != -1, "cannot write memory.swap.max");
+		ensure(write(fd, "16", strlen("16")) != -1, "cannot write " CGROUP_PIDS_MAX_FILE);
 		close(fd);
 	}
 	// Limit CPU usage.
 	if (ctx->flags & CPU_LIMIT_FLAG) {
-		// TODO: Implement CPU limit.
+		strcpy(cgroupPath, ctx->cgroupPath);
+		strcat(cgroupPath, "/");
+		strcat(cgroupPath, CGROUP_CPU_MAX_FILE);
+		int fd = open(cgroupPath, O_WRONLY);
+		ensure(fd != -1, "cannot open " CGROUP_CPU_MAX_FILE);
+		char cpuStr[21];
+		sprintf(cpuStr, "%d 100000", ctx->cpuLimit * 1000);
+		ensure(write(fd, cpuStr, strlen(cpuStr)) != -1, "cannot write " CGROUP_CPU_MAX_FILE);
+		close(fd);
 	}
 	free(cgroupPath);
 }
@@ -268,6 +278,9 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--memory-limit") == 0) {
 			++i;
 			ensure(i < argc, "--memory-limit requires argument");
+		} else if (strcmp(argv[i], "--cpu-limit") == 0) {
+			++i;
+			ensure(i < argc, "--cpu-limit requires argument");
 		} else if (strcmp(argv[i], "--flags") == 0) {
 			++i;
 			ensure(i < argc, "--flags requires argument");
@@ -315,6 +328,9 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--memory-limit") == 0) {
 			++i;
 			ensure(sscanf(argv[i], "%d", &ctx->memoryLimit) == 1, "--memory-limit has invalid argument");
+		} else if (strcmp(argv[i], "--cpu-limit") == 0) {
+			++i;
+			ensure(sscanf(argv[i], "%d", &ctx->cpuLimit) == 1, "--cpu-limit has invalid argument");
 		} else if (strcmp(argv[i], "--flags") == 0) {
 			++i;
 			ensure(sscanf(argv[i], "%d", &ctx->flags) == 1, "--flags has invalid argument");
@@ -358,6 +374,7 @@ static inline Context* newContext() {
 	ctx->cgroupPath = "";
 	ctx->memoryLimit = 0;
 	ctx->timeLimit = 0;
+	ctx->cpuLimit = 0;
 	ctx->flags = 0;
 	ctx->report = "";
 	// Uninitialized:
@@ -460,8 +477,9 @@ int main(int argc, char* argv[]) {
 	ensure(strlen(ctx->overlayUpperdir), "--overlay-upperdir is required");
 	ensure(strlen(ctx->overlayWorkdir), "--overlay-workdir is required");
 	ensure(strlen(ctx->cgroupPath), "--cgroup-path is required");
-	ensure(ctx->timeLimit, "--time-limit is required");
-	ensure(ctx->memoryLimit, "--memory-limit is required");
+	ensure(ctx->timeLimit > 0, "--time-limit is required");
+	ensure(ctx->memoryLimit > 0, "--memory-limit is required");
+	ensure(!(ctx->flags & CPU_LIMIT_FLAG) || ctx->cpuLimit > 0, "--cpu-limit is required");
 	ensure(pipe(ctx->initializePipe) == 0, "cannot create initialize pipe");
 	ensure(pipe(ctx->finalizePipe) == 0, "cannot create finalize pipe");
 	prepareCgroupNamespace(ctx);

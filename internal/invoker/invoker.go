@@ -65,6 +65,11 @@ func (s *Invoker) Start() error {
 	if err != nil {
 		return err
 	}
+	s.core.Logger().Info(
+		"Safeexec initialized",
+		logs.Any("memory_peak", safeexec.HasMemoryPeak()),
+		logs.Any("cpu_limit", safeexec.HasCPULimit()),
+	)
 	s.compilerImages, err = compilerCache.NewCompilerImageManager(
 		s.files, safeexec, "/tmp/solve-compilers",
 	)

@@ -21,7 +21,7 @@ type Manager struct {
 	executionPath string
 	cgroupPath    string
 	useMemoryPeak bool
-	useCpuLimit   bool
+	useCPULimit   bool
 }
 
 type ProcessConfig struct {
@@ -54,6 +54,9 @@ func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, e
 	var args []string
 	args = append(args, "--time-limit", fmt.Sprint(config.TimeLimit.Milliseconds()))
 	args = append(args, "--memory-limit", fmt.Sprint(config.MemoryLimit))
+	if m.useCPULimit {
+		args = append(args, "--cpu-limit", fmt.Sprint(100))
+	}
 	args = append(args, "--overlay-lowerdir", strings.Join(config.Layers, ":"))
 	args = append(args, "--overlay-upperdir", filepath.Join(process.path, "upper"))
 	args = append(args, "--overlay-workdir", filepath.Join(process.path, "workdir"))
@@ -65,7 +68,7 @@ func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, e
 	if m.useMemoryPeak {
 		flags = flags | memoryPeakFlag
 	}
-	if m.useCpuLimit {
+	if m.useCPULimit {
 		flags = flags | cpuLimitFlag
 	}
 	if flags > 0 {
@@ -86,6 +89,14 @@ func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, e
 	process.workdir = workdir
 	process.cmd = cmd
 	return process, nil
+}
+
+func (m *Manager) HasMemoryPeak() bool {
+	return m.useMemoryPeak
+}
+
+func (m *Manager) HasCPULimit() bool {
+	return m.useCPULimit
 }
 
 func (m *Manager) createProcessName() (string, error) {
@@ -149,7 +160,7 @@ func WithDisableMemoryPeak(m *Manager) error {
 }
 
 func WithDisableCpuLimit(m *Manager) error {
-	m.useCpuLimit = false
+	m.useCPULimit = false
 	return nil
 }
 
@@ -173,7 +184,7 @@ func NewManager(path, executionPath, cgroupName string, options ...Option) (*Man
 		executionPath: executionPath,
 		cgroupPath:    cgroupPath,
 		useMemoryPeak: true,
-		useCpuLimit:   true,
+		useCPULimit:   true,
 	}
 	for _, option := range options {
 		if err := option(&m); err != nil {
@@ -189,7 +200,7 @@ func NewManager(path, executionPath, cgroupName string, options ...Option) (*Man
 	if err := fixCgroupFeature(&m.useMemoryPeak, m.cgroupPath, "memory.peak"); err != nil {
 		return nil, err
 	}
-	if err := fixCgroupFeature(&m.useCpuLimit, m.cgroupPath, "cpu.max"); err != nil {
+	if err := fixCgroupFeature(&m.useCPULimit, m.cgroupPath, "cpu.max"); err != nil {
 		return nil, err
 	}
 	return &m, nil

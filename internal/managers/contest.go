@@ -267,14 +267,15 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 			})
 			addContestManagerPermissions(c.Permissions)
 		}
-		if !hasRegular && c.Stage == ContestNotStarted && config.EnableRegistration {
+		// User can possibly register on contest.
+		canRegister := config.EnableRegistration && c.HasPermission(perms.RegisterContestsRole)
+		if !hasRegular && c.Stage == ContestNotStarted && canRegister {
 			c.Permissions.AddPermission(perms.ObserveContestRole)
-			if c.HasPermission(perms.RegisterContestsRole) {
-				c.Permissions.AddPermission(perms.RegisterContestRole)
-			}
+			c.Permissions.AddPermission(perms.RegisterContestRole)
 		}
-		if !hasUpsolving && c.Stage == ContestFinished &&
-			config.EnableUpsolving && (hasRegular || config.EnableRegistration) {
+		// User can possibly upsolve contest.
+		canUpsolving := config.EnableUpsolving && (hasRegular || canRegister)
+		if !hasUpsolving && c.Stage == ContestFinished && canUpsolving {
 			// Add virtual participant for upsolving.
 			c.Participants = append(c.Participants, models.ContestParticipant{
 				ContestID: contest.ID,

@@ -219,7 +219,7 @@ const (
 	// DeleteScopeUserRole represents role for deleting scope user.
 	DeleteScopeUserRole = "delete_scope_user"
 	// ConsumeTokenRole represents role for consuming token.
-	ConsumeTokenRole = "consume_token_role"
+	ConsumeTokenRole = "consume_token"
 )
 
 var builtInRoles = map[string]struct{}{

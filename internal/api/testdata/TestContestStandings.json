@@ -1,0 +1,29 @@
+[
+  {
+    "kind": "icpc",
+    "columns": [
+      {
+        "code": "A"
+      },
+      {
+        "code": "B"
+      }
+    ],
+    "rows": [
+      {
+        "participant": {
+          "id": 1,
+          "user": {
+            "id": 2,
+            "login": "login-1297281668"
+          },
+          "contest_id": 1,
+          "kind": "regular"
+        },
+        "score": 0,
+        "penalty": 0,
+        "place": 1
+      }
+    ]
+  }
+]

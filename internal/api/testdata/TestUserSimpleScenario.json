@@ -20,7 +20,7 @@
       "expire_time": 1585648800
     },
     "permissions": [
-      "consume_token_role",
+      "consume_token",
       "login",
       "logout",
       "observe_compilers",

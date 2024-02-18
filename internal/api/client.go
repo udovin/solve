@@ -337,6 +337,29 @@ func (c *Client) ObserveRoles(ctx context.Context) (Roles, error) {
 func (c *Client) SubmitContestSolution(
 	ctx context.Context, contest int64, problem string, form SubmitSolutionForm,
 ) (ContestSolution, error) {
+	if form.ContentFile != nil {
+		return c.submitContestSolutionFile(ctx, contest, problem, form)
+	}
+	data, err := json.Marshal(form)
+	if err != nil {
+		return ContestSolution{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPost,
+		c.getURL("/v0/contests/%d/problems/%s/submit", contest, problem),
+		bytes.NewReader(data),
+	)
+	if err != nil {
+		return ContestSolution{}, err
+	}
+	var respData ContestSolution
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
+func (c *Client) submitContestSolutionFile(
+	ctx context.Context, contest int64, problem string, form SubmitSolutionForm,
+) (ContestSolution, error) {
 	defer func() { _ = form.ContentFile.Close() }()
 	buf := bytes.Buffer{}
 	w := multipart.NewWriter(&buf)

@@ -173,6 +173,112 @@ func TestContestParticipation(t *testing.T) {
 	}()
 }
 
+func TestContestStandings(t *testing.T) {
+	e := NewTestEnv(t, WithInvoker{})
+	defer e.Close()
+	owner := NewTestUser(e)
+	owner.AddRoles("create_contest", "create_compiler", "create_problem", "create_setting")
+	user1 := NewTestUser(e)
+	user2 := NewTestUser(e)
+	user3 := NewTestUser(e)
+	owner.LoginClient()
+	compiler := NewTestCompiler(e)
+	problem := NewTestProblem(e)
+	interactiveProblem := NewTestInteractiveProblem(e)
+	contestForm := createContestForm{
+		Title:              getPtr("Test contest"),
+		BeginTime:          getPtr(NInt64(e.Now.Add(time.Hour).Unix())),
+		Duration:           getPtr(7200),
+		EnableRegistration: getPtr(true),
+		EnableUpsolving:    getPtr(true),
+		StandingsKind:      getPtr(models.ICPCStandings),
+	}
+	contest, err := e.Client.CreateContest(contestForm)
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
+	{
+		problemForm := createContestProblemForm{}
+		problemForm.Code = getPtr("A")
+		problemForm.ProblemID = getPtr(problem.ID)
+		if _, err := e.Client.CreateContestProblem(contest.ID, problemForm); err != nil {
+			t.Fatal("Error", err)
+		}
+	}
+	{
+		problemForm := createContestProblemForm{}
+		problemForm.Code = getPtr("B")
+		problemForm.ProblemID = getPtr(interactiveProblem.ID)
+		if _, err := e.Client.CreateContestProblem(contest.ID, problemForm); err != nil {
+			t.Fatal("Error", err)
+		}
+	}
+	{
+		form := CreateContestParticipantForm{
+			UserID: getPtr(user1.ID),
+			Kind:   models.RegularParticipant,
+		}
+		if _, err := e.Client.CreateContestParticipant(context.Background(), contest.ID, form); err != nil {
+			t.Fatal("Error", err)
+		}
+	}
+	{
+		form := CreateContestParticipantForm{
+			UserID: getPtr(user2.ID),
+			Kind:   models.RegularParticipant,
+		}
+		if _, err := e.Client.CreateContestParticipant(context.Background(), contest.ID, form); err != nil {
+			t.Fatal("Error", err)
+		}
+	}
+	{
+		form := CreateContestParticipantForm{
+			UserID: getPtr(user3.ID),
+			Kind:   models.RegularParticipant,
+		}
+		if _, err := e.Client.CreateContestParticipant(context.Background(), contest.ID, form); err != nil {
+			t.Fatal("Error", err)
+		}
+	}
+	owner.LogoutClient()
+	e.SyncStores()
+	now := e.Now
+	{
+		user1.LoginClient()
+		e.Now = now.Add(time.Hour).Add(time.Minute * 5)
+		form := SubmitSolutionForm{
+			CompilerID: compiler.ID,
+			Content:    getPtr("CompilationError"),
+		}
+		solution, err := e.Client.SubmitContestSolution(context.Background(), contest.ID, "A", form)
+		if err != nil {
+			t.Fatal("Error", err)
+		}
+		// TODO: Fix submit solution handler.
+		if err := e.Core.ContestSolutions.Sync(context.Background()); err != nil {
+			t.Fatal("Error", err)
+		}
+		solutionModel, err := e.Core.ContestSolutions.Get(context.Background(), solution.ID)
+		if err != nil {
+			t.Fatal("Error", err)
+		}
+		e.WaitSolutionJudged(solutionModel.SolutionID)
+		solution, err = e.Client.ObserveContestSolution(context.Background(), contest.ID, solution.ID)
+		if err != nil {
+			t.Fatal("Error", err)
+		}
+		if v := solution.Solution.Report.Verdict; v != models.CompilationError.String() {
+			t.Fatalf("Expected: %q, got: %q", models.CompilationError, solution.Solution.Report.Verdict)
+		}
+		if standings, err := e.Client.ObserveContestStandings(context.Background(), contest.ID); err != nil {
+			t.Fatal("Error:", err)
+		} else {
+			e.Check(standings)
+		}
+		user1.LogoutClient()
+	}
+}
+
 func BenchmarkContests(b *testing.B) {
 	e := NewTestEnv(b)
 	defer e.Close()

@@ -67,6 +67,12 @@ func (e *TestEnv) SyncStores() {
 	if err := e.Core.Contests.Sync(ctx); err != nil {
 		e.tb.Fatal("Error:", err)
 	}
+	if err := e.Core.ContestProblems.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+	if err := e.Core.ContestParticipants.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
 	if err := e.Core.Problems.Sync(ctx); err != nil {
 		e.tb.Fatal("Error:", err)
 	}
@@ -109,9 +115,43 @@ func (e *TestEnv) WaitProblemUpdated(id int64) {
 			e.tb.Fatal("Error:", err)
 		}
 		if len(tasks) == 0 {
-			e.tb.Fatal("Empty problem tasks")
+			e.tb.Fatalf("Cannot find task for problem: %d", id)
 		}
 		if tasks[0].Status == models.SucceededTask {
+			if err := e.Core.Problems.Sync(context.Background()); err != nil {
+				e.tb.Fatal("Error:", err)
+			}
+			if err := e.Core.ProblemResources.Sync(context.Background()); err != nil {
+				e.tb.Fatal("Error:", err)
+			}
+			return
+		}
+		if tasks[0].Status == models.FailedTask {
+			e.tb.Fatalf("Task failed: %q", string(tasks[0].State))
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+func (e *TestEnv) WaitSolutionJudged(id int64) {
+	for {
+		if err := e.Core.Tasks.Sync(context.Background()); err != nil {
+			e.tb.Fatal("Error:", err)
+		}
+		tasks, err := e.Core.Tasks.FindBySolution(id)
+		if err != nil {
+			e.tb.Fatal("Error:", err)
+		}
+		if len(tasks) == 0 {
+			e.tb.Fatalf("Cannot find task for solution: %d", id)
+		}
+		if tasks[0].Status == models.SucceededTask {
+			if err := e.Core.Solutions.Sync(context.Background()); err != nil {
+				e.tb.Fatal("Error:", err)
+			}
+			if err := e.Core.ContestSolutions.Sync(context.Background()); err != nil {
+				e.tb.Fatal("Error:", err)
+			}
 			return
 		}
 		if tasks[0].Status == models.FailedTask {

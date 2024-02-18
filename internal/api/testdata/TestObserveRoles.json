@@ -482,7 +482,7 @@
       },
       {
         "id": 1,
-        "name": "consume_token_role",
+        "name": "consume_token",
         "built_in": true
       }
     ]

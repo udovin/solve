@@ -1176,6 +1176,9 @@ func (v *View) hasSolutionsQuota(
 	participant models.ContestParticipant,
 	logger echo.Logger,
 ) bool {
+	if participant.Kind == models.ManagerParticipant {
+		return true
+	}
 	solutions, err := v.core.ContestSolutions.FindByParticipant(contestCtx, participant.ID)
 	if err != nil {
 		logger.Warn("Cannot get solutions for participant: %v", participant.ID)

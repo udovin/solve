@@ -69,28 +69,26 @@ type ContestMessageStore interface {
 
 type cachedContestMessageStore struct {
 	cachedStore[ContestMessage, ContestMessageEvent, *ContestMessage, *ContestMessageEvent]
-	byContest *index[int64, ContestMessage, *ContestMessage]
+	byContest *btreeIndex[int64, ContestMessage, *ContestMessage]
 }
 
 func (s *cachedContestMessageStore) FindByContest(
 	ctx context.Context, contestID int64,
 ) (db.Rows[ContestMessage], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []ContestMessage
-	for id := range s.byContest.Get(contestID) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
-	}
-	return db.NewSliceRows(objects), nil
+	return btreeIndexFind(
+		s.byContest,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		contestID,
+	), nil
 }
 
 func NewCachedContestMessageStore(
 	db *gosql.DB, table, eventTable string,
 ) ContestMessageStore {
 	impl := &cachedContestMessageStore{
-		byContest: newIndex(func(o ContestMessage) (int64, bool) { return o.ContestID, true }),
+		byContest: newBTreeIndex(func(o ContestMessage) (int64, bool) { return o.ContestID, true }, lessInt64),
 	}
 	impl.cachedStore = makeCachedStore[ContestMessage, ContestMessageEvent](
 		db, table, eventTable, impl, impl.byContest,

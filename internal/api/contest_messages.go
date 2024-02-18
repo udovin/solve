@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -196,6 +197,47 @@ func (f SubmitContestQuestionForm) Update(
 	return nil
 }
 
+func (v *View) hasQuestionsQuota(
+	contestCtx *managers.ContestContext,
+	participant models.ContestParticipant,
+	logger echo.Logger,
+) bool {
+	if participant.Kind == models.ManagerParticipant {
+		return true
+	}
+	questions, err := v.core.ContestMessages.FindByContest(contestCtx, participant.ContestID)
+	if err != nil {
+		logger.Warn("Cannot get questions for participant: %v", participant.ID)
+		return false
+	}
+	defer func() { _ = questions.Close() }()
+	window := v.getInt64Setting("contests.questions_quota.window", logger).OrElse(60)
+	amount := v.getInt64Setting("contests.questions_quota.amount", logger).OrElse(3)
+	toTime := contestCtx.Now
+	fromTime := toTime.Add(-time.Second * time.Duration(window))
+	for questions.Next() {
+		question := questions.Row()
+		if question.Kind != models.QuestionContestMessage {
+			continue
+		}
+		if question.ParticipantID != models.NInt64(participant.ID) {
+			continue
+		}
+		createTime := time.Unix(question.CreateTime, 0)
+		if createTime.Before(fromTime) {
+			continue
+		}
+		if createTime.After(toTime) {
+			continue
+		}
+		amount--
+		if amount <= 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func (v *View) submitContestQuestion(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
@@ -229,6 +271,12 @@ func (v *View) submitContestQuestion(c echo.Context) error {
 	}
 	if participant.ID == 0 {
 		return fmt.Errorf("unable to register participant")
+	}
+	if !v.hasQuestionsQuota(contestCtx, *participant, c.Logger()) {
+		return errorResponse{
+			Code:    http.StatusTooManyRequests,
+			Message: localize(c, "Too many requests."),
+		}
 	}
 	message := models.ContestMessage{
 		ContestID:     contestCtx.Contest.ID,

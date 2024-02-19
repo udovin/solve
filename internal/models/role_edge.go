@@ -1,7 +1,10 @@
 package models
 
 import (
+	"context"
+
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/internal/db"
 )
 
 // RoleEdge represents connection for roles.
@@ -37,20 +40,18 @@ func (e *RoleEdgeEvent) SetObject(o RoleEdge) {
 // RoleEdgeStore represents a role edge store.
 type RoleEdgeStore struct {
 	cachedStore[RoleEdge, RoleEdgeEvent, *RoleEdge, *RoleEdgeEvent]
-	byRole *index[int64, RoleEdge, *RoleEdge]
+	byRole *btreeIndex[int64, RoleEdge, *RoleEdge]
 }
 
 // FindByRole returns edges by parent ID.
-func (s *RoleEdgeStore) FindByRole(id int64) ([]RoleEdge, error) {
+func (s *RoleEdgeStore) FindByRole(ctx context.Context, roleID ...int64) (db.Rows[RoleEdge], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []RoleEdge
-	for id := range s.byRole.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
-	}
-	return objects, nil
+	return btreeIndexFind(
+		s.byRole,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		roleID...,
+	), nil
 }
 
 // NewRoleEdgeStore creates a new instance of RoleEdgeStore.
@@ -58,7 +59,7 @@ func NewRoleEdgeStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleEdgeStore {
 	impl := &RoleEdgeStore{
-		byRole: newIndex(func(o RoleEdge) (int64, bool) { return o.RoleID, true }),
+		byRole: newBTreeIndex(func(o RoleEdge) (int64, bool) { return o.RoleID, true }, lessInt64),
 	}
 	impl.cachedStore = makeCachedStore[RoleEdge, RoleEdgeEvent](
 		db, table, eventTable, impl, impl.byRole,

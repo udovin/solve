@@ -271,7 +271,9 @@ func (u *TestUser) AddRoles(names ...string) {
 	if err := u.env.CreateUserRoles(u.User.Login, names...); err != nil {
 		u.env.tb.Fatal("Error:", err)
 	}
-	u.env.SyncStores()
+	if err := u.env.Core.AccountRoles.Sync(context.Background()); err != nil {
+		u.env.tb.Fatal("Error:", err)
+	}
 }
 
 func NewTestUser(e *TestEnv) *TestUser {

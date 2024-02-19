@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"math"
 	"testing"
 )
 
@@ -103,5 +104,36 @@ func TestRoleSimpleScenario(t *testing.T) {
 		} else {
 			e.Check(err)
 		}
+	}
+}
+
+func BenchmarkSqrtDepthRoles(b *testing.B) {
+	e := NewTestEnv(b)
+	defer e.Close()
+	for i := 0; i < b.N; i++ {
+		if _, err := e.Socket.CreateRole(context.Background(), fmt.Sprintf("bench_%d", i)); err != nil {
+			b.Fatal("Error:", err)
+		}
+	}
+	e.SyncStores()
+	delta := int(math.Sqrt(float64(b.N)))
+	for i := 0; i < b.N; i++ {
+		for j := i + 1; j < b.N; j += delta {
+			if _, err := e.Socket.CreateRoleRole(fmt.Sprintf("bench_%d", i), fmt.Sprintf("bench_%d", j)); err != nil {
+				b.Fatal("Error:", err)
+			}
+		}
+	}
+	e.SyncStores()
+	for i := 0; i < b.N; i++ {
+		user := NewTestUser(e)
+		user.AddRoles(fmt.Sprintf("bench_%d", i))
+		user.LoginClient()
+		status, err := e.Client.Status()
+		if err != nil {
+			b.Fatal("Error:", err)
+		}
+		_ = status
+		user.LogoutClient()
 	}
 }

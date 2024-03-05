@@ -1,7 +1,10 @@
 package models
 
 import (
+	"context"
+
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/internal/db"
 )
 
 // AccountRole represents a account role.
@@ -37,20 +40,18 @@ func (e *AccountRoleEvent) SetObject(o AccountRole) {
 // AccountRoleStore represents store for account roles.
 type AccountRoleStore struct {
 	cachedStore[AccountRole, AccountRoleEvent, *AccountRole, *AccountRoleEvent]
-	byAccount *index[int64, AccountRole, *AccountRole]
+	byAccount *btreeIndex[int64, AccountRole, *AccountRole]
 }
 
 // FindByAccount returns roles by account ID.
-func (s *AccountRoleStore) FindByAccount(id int64) ([]AccountRole, error) {
+func (s *AccountRoleStore) FindByAccount(ctx context.Context, accountID int64) (db.Rows[AccountRole], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []AccountRole
-	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
-	}
-	return objects, nil
+	return btreeIndexFind(
+		s.byAccount,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		accountID,
+	), nil
 }
 
 // NewAccountRoleStore creates a new instance of AccountRoleStore.
@@ -58,7 +59,7 @@ func NewAccountRoleStore(
 	db *gosql.DB, table, eventTable string,
 ) *AccountRoleStore {
 	impl := &AccountRoleStore{
-		byAccount: newIndex(func(o AccountRole) (int64, bool) { return o.AccountID, true }),
+		byAccount: newBTreeIndex(func(o AccountRole) (int64, bool) { return o.AccountID, true }, lessInt64),
 	}
 	impl.cachedStore = makeCachedStore[AccountRole, AccountRoleEvent](
 		db, table, eventTable, impl, impl.byAccount,

@@ -375,6 +375,10 @@ func lessInt64(lhs, rhs int64) bool {
 	return lhs < rhs
 }
 
+func lessString(lhs, rhs string) bool {
+	return lhs < rhs
+}
+
 //lint:ignore U1000 Used in generic interface.
 func (s *cachedStore[T, E, TPtr, EPtr]) onCreateObject(object T) {
 	id := TPtr(&object).ObjectID()

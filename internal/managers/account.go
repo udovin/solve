@@ -50,19 +50,28 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 				return nil, err
 			}
 			c.User = &user
-			role, err := m.getUserRole(user.Status)
+			role, err := m.getUserRole(ctx, user.Status)
 			if err != nil {
 				return nil, err
 			}
 			roleIDs = append(roleIDs, role.ID)
-			if user.Status != models.BlockedUser {
-				edges, err := m.accountRoles.FindByAccount(account.ID)
-				if err != nil {
-					return nil, err
+			if err := func() error {
+				// Blocked users cannot have additional permissions.
+				if user.Status == models.BlockedUser {
+					return nil
 				}
-				for _, edge := range edges {
+				edges, err := m.accountRoles.FindByAccount(ctx, account.ID)
+				if err != nil {
+					return err
+				}
+				defer func() { _ = edges.Close() }()
+				for edges.Next() {
+					edge := edges.Row()
 					roleIDs = append(roleIDs, edge.RoleID)
 				}
+				return edges.Err()
+			}(); err != nil {
+				return nil, err
 			}
 		case models.ScopeUserAccount:
 			user, err := m.scopeUsers.GetByAccount(account.ID)
@@ -79,7 +88,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 			}
 			c.ScopeUser = &user
 			c.GroupAccounts = append(c.GroupAccounts, scopeAccount)
-			role, err := m.getScopeUserRole()
+			role, err := m.getScopeUserRole(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -88,13 +97,13 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 			return nil, fmt.Errorf("unknown account kind: %v", account.Kind)
 		}
 	} else {
-		role, err := m.getGuestRole()
+		role, err := m.getGuestRole(ctx)
 		if err != nil {
 			return nil, err
 		}
 		roleIDs = append(roleIDs, role.ID)
 	}
-	permissions, err := m.getRecursivePermissions(ctx, roleIDs...)
+	permissions, err := m.getRecursivePermissions(ctx, roleIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +111,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 	return &c, nil
 }
 
-func (m *AccountManager) getGuestRole() (models.Role, error) {
+func (m *AccountManager) getGuestRole(ctx context.Context) (models.Role, error) {
 	roleName := "guest_group"
 	roleNameSetting, err := m.settings.GetByKey("accounts.guest_role")
 	if err == nil {
@@ -110,10 +119,10 @@ func (m *AccountManager) getGuestRole() (models.Role, error) {
 	} else if err != sql.ErrNoRows {
 		return models.Role{}, err
 	}
-	return m.roles.GetByName(roleName)
+	return m.roles.GetByName(ctx, roleName)
 }
 
-func (m *AccountManager) getUserRole(status models.UserStatus) (models.Role, error) {
+func (m *AccountManager) getUserRole(ctx context.Context, status models.UserStatus) (models.Role, error) {
 	roleName := fmt.Sprintf("%s_user_group", status)
 	roleNameSetting, err := m.settings.GetByKey(fmt.Sprintf("accounts.%s_user_role", status))
 	if err == nil {
@@ -121,10 +130,10 @@ func (m *AccountManager) getUserRole(status models.UserStatus) (models.Role, err
 	} else if err != sql.ErrNoRows {
 		return models.Role{}, err
 	}
-	return m.roles.GetByName(roleName)
+	return m.roles.GetByName(ctx, roleName)
 }
 
-func (m *AccountManager) getScopeUserRole() (models.Role, error) {
+func (m *AccountManager) getScopeUserRole(ctx context.Context) (models.Role, error) {
 	roleName := "scope_user_group"
 	roleNameSetting, err := m.settings.GetByKey("accounts.scope_user_role")
 	if err == nil {
@@ -132,34 +141,46 @@ func (m *AccountManager) getScopeUserRole() (models.Role, error) {
 	} else if err != sql.ErrNoRows {
 		return models.Role{}, err
 	}
-	return m.roles.GetByName(roleName)
+	return m.roles.GetByName(ctx, roleName)
 }
 
-func (m *AccountManager) getRecursivePermissions(ctx context.Context, roleIDs ...int64) (perms.PermissionSet, error) {
+func (m *AccountManager) getRecursivePermissions(ctx context.Context, roleIDs []int64) (perms.PermissionSet, error) {
 	roles := map[int64]struct{}{}
 	for _, id := range roleIDs {
 		roles[id] = struct{}{}
 	}
-	stack, permissions := roleIDs, perms.PermissionSet{}
-	for len(stack) > 0 {
-		roleID := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		role, err := m.roles.Get(ctx, roleID)
-		if err != nil {
-			return nil, err
-		}
-		if perms.IsBuiltInRole(role.Name) {
-			permissions.AddPermission(role.Name)
-		}
-		edges, err := m.roleEdges.FindByRole(roleID)
-		if err != nil {
-			return nil, err
-		}
-		for _, edge := range edges {
-			if _, ok := roles[edge.ChildID]; !ok {
-				stack = append(stack, edge.ChildID)
-				roles[edge.ChildID] = struct{}{}
+	permissions := perms.PermissionSet{}
+	for len(roleIDs) > 0 {
+		for _, id := range roleIDs {
+			role, err := m.roles.Get(ctx, id)
+			if err != nil {
+				return nil, err
 			}
+			if perms.IsBuiltInRole(role.Name) {
+				permissions.AddPermission(role.Name)
+			}
+		}
+		if err := func() error {
+			edges, err := m.roleEdges.FindByRole(ctx, roleIDs...)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = edges.Close() }()
+			// Clear previous roleIDs.
+			roleIDs = roleIDs[:0]
+			for edges.Next() {
+				edge := edges.Row()
+				if _, ok := roles[edge.ChildID]; !ok {
+					roleIDs = append(roleIDs, edge.ChildID)
+					roles[edge.ChildID] = struct{}{}
+				}
+			}
+			if err := edges.Err(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return nil, err
 		}
 	}
 	return permissions, nil

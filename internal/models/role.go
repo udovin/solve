@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/udovin/gosql"
@@ -39,22 +40,29 @@ func (e *RoleEvent) SetObject(o Role) {
 // RoleStore represents a role store.
 type RoleStore struct {
 	cachedStore[Role, RoleEvent, *Role, *RoleEvent]
-	byName *index[string, Role, *Role]
+	byName *btreeIndex[string, Role, *Role]
 }
 
 // GetByName returns role by name.
 //
 // If there is no role with specified name then
 // sql.ErrNoRows will be returned.
-func (s *RoleStore) GetByName(name string) (Role, error) {
+func (s *RoleStore) GetByName(ctx context.Context, name string) (Role, error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	for id := range s.byName.Get(name) {
-		if object, ok := s.objects.Get(id); ok {
-			return object.Clone(), nil
+	roles := btreeIndexFind(
+		s.byName,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		name,
+	)
+	defer func() { _ = roles.Close() }()
+	if !roles.Next() {
+		if err := roles.Err(); err != nil {
+			return Role{}, err
 		}
+		return Role{}, sql.ErrNoRows
 	}
-	return Role{}, sql.ErrNoRows
+	return roles.Row(), nil
 }
 
 // NewRoleStore creates a new instance of RoleStore.
@@ -62,7 +70,7 @@ func NewRoleStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleStore {
 	impl := &RoleStore{
-		byName: newIndex(func(o Role) (string, bool) { return o.Name, true }),
+		byName: newBTreeIndex(func(o Role) (string, bool) { return o.Name, true }, lessString),
 	}
 	impl.cachedStore = makeCachedStore[Role, RoleEvent](
 		db, table, eventTable, impl, impl.byName,

@@ -57,8 +57,8 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 		v.requirePermission(perms.ObserveContestProblemRole),
 	)
 	g.GET(
-		"/v0/contests/:contest/problems/:problem/resources/:resource",
-		v.observeProblemResource,
+		"/v0/contests/:contest/problems/:problem/statement-files/:name",
+		v.observeProblemStatementFile,
 		v.extractAuth(v.sessionAuth, v.guestAuth),
 		v.extractContest, v.extractContestProblem,
 		v.requirePermission(perms.ObserveContestProblemRole),

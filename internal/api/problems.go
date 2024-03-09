@@ -42,7 +42,8 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 		v.requirePermission(perms.UpdateProblemRole),
 	)
 	g.GET(
-		"/v0/problems/:problem/resources/:resource", v.observeProblemResource,
+		"/v0/problems/:problem/statement-files/:name",
+		v.observeProblemStatementFile,
 		v.extractAuth(v.sessionAuth), v.extractProblem,
 		v.requirePermission(perms.ObserveProblemRole),
 	)
@@ -228,12 +229,12 @@ func (v *View) observeProblem(c echo.Context) error {
 	)
 }
 
-func (v *View) observeProblemResource(c echo.Context) error {
+func (v *View) observeProblemStatementFile(c echo.Context) error {
 	problem, ok := c.Get(problemKey).(models.Problem)
 	if !ok {
 		return fmt.Errorf("problem not extracted")
 	}
-	resourceName := c.Param("resource")
+	resourceName := c.Param("name")
 	locale := getLocale(c)
 	resources, err := v.core.ProblemResources.FindByProblem(getContext(c), problem.ID)
 	if err != nil {

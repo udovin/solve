@@ -631,7 +631,7 @@ func (l *settingLocale) LocalizeKey(key string, text string, options ...func(*st
 }
 
 func (l *settingLocale) GetLocalizations() ([]Localization, error) {
-	settings, err := l.settings.All(context.TODO(), 0)
+	settings, err := l.settings.All(context.TODO(), 0, 0)
 	if err != nil {
 		return nil, err
 	}

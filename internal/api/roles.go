@@ -115,7 +115,7 @@ func (v *View) registerSocketRoleHandlers(g *echo.Group) {
 
 func (v *View) observeRoles(c echo.Context) error {
 	var resp Roles
-	roles, err := v.core.Roles.ReverseAll(getContext(c), 0)
+	roles, err := v.core.Roles.ReverseAll(getContext(c), 0, 0)
 	if err != nil {
 		return err
 	}

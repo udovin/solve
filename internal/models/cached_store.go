@@ -229,9 +229,10 @@ func (s *cachedStore[T, E, TPtr, EPtr]) Get(ctx context.Context, id int64) (T, e
 }
 
 type btreeRows[T any, TPtr ObjectPtr[T]] struct {
-	iter  btree.MapIter[int64, T]
-	limit int
-	mutex sync.Locker
+	iter    btree.MapIter[int64, T]
+	mutex   sync.Locker
+	limit   int
+	beginID int64
 }
 
 func (r *btreeRows[T, TPtr]) Next() bool {
@@ -240,6 +241,11 @@ func (r *btreeRows[T, TPtr]) Next() bool {
 		return false
 	}
 	r.limit--
+	if r.beginID > 0 {
+		hasNext := r.iter.Seek(r.beginID)
+		r.beginID = 0
+		return hasNext
+	}
 	return r.iter.Next()
 }
 
@@ -262,9 +268,10 @@ func (r *btreeRows[T, TPtr]) Close() error {
 }
 
 type btreeReverseRows[T any, TPtr ObjectPtr[T]] struct {
-	iter  btree.MapIter[int64, T]
-	mutex sync.Locker
-	limit int
+	iter    btree.MapIter[int64, T]
+	mutex   sync.Locker
+	limit   int
+	beginID int64
 }
 
 func (r *btreeReverseRows[T, TPtr]) Next() bool {
@@ -273,6 +280,13 @@ func (r *btreeReverseRows[T, TPtr]) Next() bool {
 		return false
 	}
 	r.limit--
+	if r.beginID > 0 {
+		hasNext := r.iter.Seek(r.beginID + 1)
+		r.beginID = 0
+		if !hasNext {
+			return r.iter.Last()
+		}
+	}
 	return r.iter.Prev()
 }
 
@@ -295,28 +309,30 @@ func (r *btreeReverseRows[T, TPtr]) Close() error {
 }
 
 // All returns all objects contained by this store.
-func (s *cachedStore[T, E, TPtr, EPtr]) All(ctx context.Context, limit int) (db.Rows[T], error) {
+func (s *cachedStore[T, E, TPtr, EPtr]) All(ctx context.Context, limit int, beginID int64) (db.Rows[T], error) {
 	if limit <= 0 {
 		limit = math.MaxInt
 	}
 	s.mutex.RLock()
 	return &btreeRows[T, TPtr]{
-		iter:  s.objects.Iter(),
-		mutex: s.mutex.RLocker(),
-		limit: limit,
+		iter:    s.objects.Iter(),
+		mutex:   s.mutex.RLocker(),
+		limit:   limit,
+		beginID: beginID,
 	}, nil
 }
 
 // ReverseAll returns all objects contained by this store.
-func (s *cachedStore[T, E, TPtr, EPtr]) ReverseAll(ctx context.Context, limit int) (db.Rows[T], error) {
+func (s *cachedStore[T, E, TPtr, EPtr]) ReverseAll(ctx context.Context, limit int, beginID int64) (db.Rows[T], error) {
 	if limit <= 0 {
 		limit = math.MaxInt
 	}
 	s.mutex.RLock()
 	return &btreeReverseRows[T, TPtr]{
-		iter:  s.objects.Iter(),
-		mutex: s.mutex.RLocker(),
-		limit: limit,
+		iter:    s.objects.Iter(),
+		mutex:   s.mutex.RLocker(),
+		limit:   limit,
+		beginID: beginID,
 	}, nil
 }
 

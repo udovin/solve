@@ -83,7 +83,7 @@ func (v *View) observeScopes(c echo.Context) error {
 		return err
 	}
 	var resp Scopes
-	scopes, err := v.core.Scopes.ReverseAll(getContext(c), 0)
+	scopes, err := v.core.Scopes.ReverseAll(getContext(c), 0, 0)
 	if err != nil {
 		return err
 	}

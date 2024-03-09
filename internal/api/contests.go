@@ -305,7 +305,7 @@ func (v *View) observeContests(c echo.Context) error {
 		return err
 	}
 	var resp Contests
-	contests, err := v.core.Contests.All(getContext(c), 0)
+	contests, err := v.core.Contests.ReverseAll(getContext(c), 0, 0)
 	if err != nil {
 		return err
 	}
@@ -329,7 +329,6 @@ func (v *View) observeContests(c echo.Context) error {
 	if err := contests.Err(); err != nil {
 		return err
 	}
-	sortFunc(resp.Contests, contestGreater)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -1627,10 +1626,6 @@ func (v *View) getContestSolutionPermissions(
 		}
 	}
 	return permissions
-}
-
-func contestGreater(l, r Contest) bool {
-	return l.ID > r.ID
 }
 
 func contestProblemLess(l, r ContestProblem) bool {

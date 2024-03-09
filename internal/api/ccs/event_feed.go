@@ -38,7 +38,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 	events = append(events, getContest(contestCtx))
 	events = append(events, getJudgementTypes()...)
 	if err := func() error {
-		compilers, err := v.core.Compilers.All(c.Request().Context(), 0)
+		compilers, err := v.core.Compilers.All(c.Request().Context(), 0, 0)
 		if err != nil {
 			return err
 		}

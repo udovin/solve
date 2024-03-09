@@ -237,6 +237,22 @@ type solutionsFilter struct {
 	Limit     int            `query:"limit"`
 }
 
+const maxSolutionLimit = 5000
+
+func (f *solutionsFilter) Parse(c echo.Context) error {
+	if err := c.Bind(f); err != nil {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Invalid filter."),
+		}
+	}
+	if f.Limit <= 0 {
+		f.Limit = maxSolutionLimit
+	}
+	f.Limit = min(f.Limit, maxSolutionLimit)
+	return nil
+}
+
 func (f *solutionsFilter) Filter(solution models.Solution) bool {
 	if f.ProblemID != 0 && solution.ProblemID != f.ProblemID {
 		return false
@@ -263,31 +279,30 @@ func (v *View) observeSolutions(c echo.Context) error {
 		return fmt.Errorf("auth not extracted")
 	}
 	filter := solutionsFilter{Limit: 200}
-	if err := c.Bind(&filter); err != nil {
+	if err := filter.Parse(c); err != nil {
 		c.Logger().Warn(err)
-		return errorResponse{
-			Code:    http.StatusBadRequest,
-			Message: localize(c, "Invalid filter."),
-		}
+		return err
 	}
 	var resp Solutions
-	solutions, err := v.core.Solutions.ReverseAll(getContext(c), 0)
+	solutions, err := v.core.Solutions.ReverseAll(getContext(c), filter.Limit+1, filter.BeginID)
 	if err != nil {
 		c.Logger().Error(err)
 		return err
 	}
 	defer func() { _ = solutions.Close() }()
+	solutionsCount := 0
 	for solutions.Next() {
 		solution := solutions.Row()
+		if solutionsCount >= filter.Limit {
+			resp.NextBeginID = solution.ID
+			break
+		}
+		solutionsCount++
 		if !filter.Filter(solution) {
 			continue
 		}
 		permissions := v.getSolutionPermissions(accountCtx, solution)
 		if permissions.HasPermission(perms.ObserveSolutionRole) {
-			if len(resp.Solutions) > filter.Limit {
-				resp.NextBeginID = solution.ID
-				break
-			}
 			resp.Solutions = append(resp.Solutions, v.makeSolution(c, solution, false))
 		}
 	}

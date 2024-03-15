@@ -123,6 +123,18 @@ func (r *sliceRows[T]) Err() error {
 	return nil
 }
 
+func CollectRows[T any](rows Rows[T]) ([]T, error) {
+	defer func() { _ = rows.Close() }()
+	var result []T
+	for rows.Next() {
+		result = append(result, rows.Row())
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func NewSliceRows[T any](rows []T) Rows[T] {
 	return &sliceRows[T]{rows: rows, pos: -1}
 }

@@ -19,6 +19,21 @@ type CachedStore interface {
 	Sync(ctx context.Context) error
 }
 
+type storeIndex[T any] interface {
+	Reset()
+	Register(object T)
+	Deregister(object T)
+}
+
+type pair[F, S any] struct {
+	First  F
+	Second S
+}
+
+func makePair[F, S any](f F, s S) pair[F, S] {
+	return pair[F, S]{First: f, Second: s}
+}
+
 type cachedStoreImpl[T any] interface {
 	reset()
 	onCreateObject(T)
@@ -132,6 +147,10 @@ func (s *cachedStore[T, E, TPtr, EPtr]) updateSync(t time.Time) {
 }
 
 func (s *cachedStore[T, E, TPtr, EPtr]) needSync(ctx context.Context) bool {
+	// We cannot sync store in transaction.
+	if tx := db.GetTx(ctx); tx != nil {
+		return false
+	}
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	t, ok := ctx.Value(syncKey{}).(time.Time)
@@ -389,6 +408,20 @@ func (s *cachedStore[T, E, TPtr, EPtr]) reset() {
 
 func lessInt64(lhs, rhs int64) bool {
 	return lhs < rhs
+}
+
+func lessPairInt64(lhs, rhs pair[int64, int64]) bool {
+	if lhs.First != rhs.First {
+		return lhs.First < rhs.First
+	}
+	return lhs.Second < rhs.Second
+}
+
+func lessPairInt64String(lhs, rhs pair[int64, string]) bool {
+	if lhs.First != rhs.First {
+		return lhs.First < rhs.First
+	}
+	return lhs.Second < rhs.Second
 }
 
 func lessString(lhs, rhs string) bool {

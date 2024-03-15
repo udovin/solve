@@ -447,6 +447,80 @@ var s001 = []schema.Operation{
 		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
+		Name: "solve_group",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "account_id", Type: schema.Int64},
+			{Name: "owner_id", Type: schema.Int64, Nullable: true},
+			{Name: "title", Type: schema.String},
+		},
+		ForeignKeys: []schema.ForeignKey{
+			{Column: "account_id", ParentTable: "solve_account", ParentColumn: "id"},
+			{Column: "owner_id", ParentTable: "solve_account", ParentColumn: "id"},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_group",
+		Columns: []string{"account_id"},
+		Unique:  true,
+	},
+	schema.CreateTable{
+		Name: "solve_group_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_kind", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
+			{Name: "id", Type: schema.Int64},
+			{Name: "account_id", Type: schema.Int64},
+			{Name: "owner_id", Type: schema.Int64, Nullable: true},
+			{Name: "title", Type: schema.String},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_group_event",
+		Columns: []string{"id", "event_id"},
+	},
+	schema.CreateTable{
+		Name: "solve_group_member",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "group_id", Type: schema.Int64},
+			{Name: "account_id", Type: schema.Int64},
+			{Name: "kind", Type: schema.Int64},
+		},
+		ForeignKeys: []schema.ForeignKey{
+			{Column: "group_id", ParentTable: "solve_group", ParentColumn: "id"},
+			{Column: "account_id", ParentTable: "solve_account", ParentColumn: "id"},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_group_member",
+		Columns: []string{"group_id", "account_id"},
+		Unique:  true,
+	},
+	schema.CreateIndex{
+		Table:   "solve_group_member",
+		Columns: []string{"account_id"},
+	},
+	schema.CreateTable{
+		Name: "solve_group_member_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_kind", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
+			{Name: "id", Type: schema.Int64},
+			{Name: "group_id", Type: schema.Int64},
+			{Name: "account_id", Type: schema.Int64},
+			{Name: "kind", Type: schema.Int64},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_group_member_event",
+		Columns: []string{"id", "event_id"},
+	},
+	schema.CreateTable{
 		Name: "solve_contest",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},

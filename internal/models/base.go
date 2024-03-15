@@ -12,62 +12,6 @@ import (
 	"github.com/udovin/solve/internal/db"
 )
 
-type storeIndex[T any] interface {
-	Reset()
-	Register(object T)
-	Deregister(object T)
-}
-
-func newIndex[K comparable, T any, TPtr ObjectPtr[T]](key func(T) (K, bool)) *index[K, T, TPtr] {
-	return &index[K, T, TPtr]{key: key}
-}
-
-type index[K comparable, T any, TPtr ObjectPtr[T]] struct {
-	key   func(T) (K, bool)
-	index map[K]map[int64]struct{}
-}
-
-func (i *index[K, T, TPtr]) Reset() {
-	i.index = map[K]map[int64]struct{}{}
-}
-
-func (i *index[K, T, TPtr]) Get(key K) map[int64]struct{} {
-	return i.index[key]
-}
-
-func (i *index[K, T, TPtr]) Register(object T) {
-	key, ok := i.key(object)
-	if !ok {
-		return
-	}
-	id := TPtr(&object).ObjectID()
-	if _, ok := i.index[key]; !ok {
-		i.index[key] = map[int64]struct{}{}
-	}
-	i.index[key][id] = struct{}{}
-}
-
-func (i *index[K, T, TPtr]) Deregister(object T) {
-	key, ok := i.key(object)
-	if !ok {
-		return
-	}
-	id := TPtr(&object).ObjectID()
-	delete(i.index[key], id)
-	if len(i.index[key]) == 0 {
-		delete(i.index, key)
-	}
-}
-
-type pair[F, S any] struct {
-	First  F
-	Second S
-}
-
-func makePair[F, S any](f F, s S) pair[F, S] {
-	return pair[F, S]{First: f, Second: s}
-}
-
 // EventKind represents kind of object event.
 type EventKind int8
 

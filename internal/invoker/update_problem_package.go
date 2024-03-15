@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/udovin/solve/internal/db"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/pkg/problems"
@@ -44,7 +45,11 @@ func (t *updateProblemPackageTask) Execute(ctx TaskContext) error {
 	if err != nil {
 		return fmt.Errorf("unable to fetch problem: %w", err)
 	}
-	resources, err := t.invoker.core.ProblemResources.FindByProblem(syncCtx, problem.ID)
+	resourceRows, err := t.invoker.core.ProblemResources.FindByProblem(syncCtx, problem.ID)
+	if err != nil {
+		return fmt.Errorf("unable to fetch resources: %w", err)
+	}
+	resources, err := db.CollectRows(resourceRows)
 	if err != nil {
 		return fmt.Errorf("unable to fetch resources: %w", err)
 	}

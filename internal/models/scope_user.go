@@ -1,11 +1,12 @@
 package models
 
 import (
+	"context"
 	"crypto/rand"
-	"database/sql"
 	"strings"
 
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/internal/db"
 )
 
 // ScopeUser contains common information about scope user.
@@ -48,47 +49,39 @@ func (e *ScopeUserEvent) SetObject(o ScopeUser) {
 // ScopeUserStore represents scope users store.
 type ScopeUserStore struct {
 	cachedStore[ScopeUser, ScopeUserEvent, *ScopeUser, *ScopeUserEvent]
-	byAccount    *index[int64, ScopeUser, *ScopeUser]
-	byScope      *index[int64, ScopeUser, *ScopeUser]
-	byScopeLogin *index[pair[int64, string], ScopeUser, *ScopeUser]
+	byAccount    *btreeIndex[int64, ScopeUser, *ScopeUser]
+	byScope      *btreeIndex[int64, ScopeUser, *ScopeUser]
+	byScopeLogin *btreeIndex[pair[int64, string], ScopeUser, *ScopeUser]
 	salt         string
 }
 
 // FindByScope returns scope users by scope.
-func (s *ScopeUserStore) FindByScope(scope int64) ([]ScopeUser, error) {
+func (s *ScopeUserStore) FindByScope(scopeID int64) (db.Rows[ScopeUser], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []ScopeUser
-	for id := range s.byScope.Get(scope) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object)
-		}
-	}
-	return objects, nil
+	return btreeIndexFind(
+		s.byScope,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		scopeID,
+	), nil
 }
 
 // GetByScopeLogin returns scope user by scope and login.
-func (s *ScopeUserStore) GetByScopeLogin(scope int64, login string) (ScopeUser, error) {
+func (s *ScopeUserStore) GetByScopeLogin(scopeID int64, login string) (ScopeUser, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	for id := range s.byScopeLogin.Get(makePair(scope, strings.ToLower(login))) {
-		if object, ok := s.objects.Get(id); ok {
-			return object.Clone(), nil
-		}
-	}
-	return ScopeUser{}, sql.ErrNoRows
+	return btreeIndexGet(
+		s.byScopeLogin,
+		s.objects.Iter(),
+		makePair(scopeID, strings.ToLower(login)),
+	)
 }
 
 // GetByAccount returns scope user by account id.
-func (s *ScopeUserStore) GetByAccount(id int64) (ScopeUser, error) {
+func (s *ScopeUserStore) GetByAccount(ctx context.Context, accountID int64) (ScopeUser, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			return object.Clone(), nil
-		}
-	}
-	return ScopeUser{}, sql.ErrNoRows
+	return btreeIndexGet(s.byAccount, s.objects.Iter(), accountID)
 }
 
 // SetPassword modifies PasswordHash and PasswordSalt fields.
@@ -118,11 +111,14 @@ func NewScopeUserStore(
 	db *gosql.DB, table, eventTable, salt string,
 ) *ScopeUserStore {
 	impl := &ScopeUserStore{
-		byAccount: newIndex(func(o ScopeUser) (int64, bool) { return o.AccountID, true }),
-		byScope:   newIndex(func(o ScopeUser) (int64, bool) { return o.ScopeID, true }),
-		byScopeLogin: newIndex(func(o ScopeUser) (pair[int64, string], bool) {
-			return makePair(o.ScopeID, strings.ToLower(o.Login)), true
-		}),
+		byAccount: newBTreeIndex(func(o ScopeUser) (int64, bool) { return o.AccountID, true }, lessInt64),
+		byScope:   newBTreeIndex(func(o ScopeUser) (int64, bool) { return o.ScopeID, true }, lessInt64),
+		byScopeLogin: newBTreeIndex(
+			func(o ScopeUser) (pair[int64, string], bool) {
+				return makePair(o.ScopeID, strings.ToLower(o.Login)), true
+			},
+			lessPairInt64String,
+		),
 		salt: salt,
 	}
 	impl.cachedStore = makeCachedStore[ScopeUser, ScopeUserEvent](

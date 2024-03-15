@@ -401,7 +401,8 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 	if err := syncStore(c, v.core.Users); err != nil {
 		return false, err
 	}
-	user, err := v.core.Users.GetByLogin(form.Login)
+	ctx := getContext(c)
+	user, err := v.core.Users.GetByLogin(ctx, form.Login)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			resp := errorResponse{
@@ -422,7 +423,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 	if err := syncStore(c, v.core.Accounts); err != nil {
 		return false, err
 	}
-	account, err := v.core.Accounts.Get(getContext(c), user.AccountID)
+	account, err := v.core.Accounts.Get(ctx, user.AccountID)
 	if err != nil {
 		return false, err
 	}
@@ -433,7 +434,7 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 		)
 		return false, fmt.Errorf("invalid account kind %q", account.Kind)
 	}
-	accountCtx, err := v.accounts.MakeContext(getContext(c), &account)
+	accountCtx, err := v.accounts.MakeContext(ctx, &account)
 	if err != nil {
 		return false, err
 	}

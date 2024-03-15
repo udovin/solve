@@ -60,7 +60,7 @@ func (v *View) consumeToken(c echo.Context) error {
 			return err
 		}
 		if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
-			user, err := v.core.Users.GetByAccount(token.AccountID)
+			user, err := v.core.Users.GetByAccount(ctx, token.AccountID)
 			if err != nil {
 				return err
 			}
@@ -90,7 +90,7 @@ func (v *View) consumeToken(c echo.Context) error {
 			}
 		}
 		if err := v.core.WrapTx(c.Request().Context(), func(ctx context.Context) error {
-			user, err := v.core.Users.GetByAccount(token.AccountID)
+			user, err := v.core.Users.GetByAccount(ctx, token.AccountID)
 			if err != nil {
 				return err
 			}

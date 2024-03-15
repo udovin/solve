@@ -520,13 +520,18 @@ func (v *View) observeUserSessions(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
+	defer func() { _ = sessions.Close() }()
 	var resp Sessions
-	for _, session := range sessions {
+	for sessions.Next() {
+		session := sessions.Row()
 		resp.Sessions = append(resp.Sessions, Session{
 			ID:         session.ID,
 			ExpireTime: session.ExpireTime,
 			CreateTime: session.CreateTime,
 		})
+	}
+	if err := sessions.Err(); err != nil {
+		return err
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -755,7 +760,7 @@ func (f RegisterUserForm) Update(
 			InvalidFields: errors,
 		}
 	}
-	if _, err := store.GetByLogin(f.Login); err != sql.ErrNoRows {
+	if _, err := store.GetByLogin(getContext(c), f.Login); err != sql.ErrNoRows {
 		if err != nil {
 			return errorResponse{
 				Code:    http.StatusInternalServerError,
@@ -867,12 +872,13 @@ func (v *View) resetUserPassword(c echo.Context) error {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
 	}
-	user, err := v.core.Users.GetByLogin(form.Login)
+	ctx := getContext(c)
+	user, err := v.core.Users.GetByLogin(ctx, form.Login)
 	if err != nil {
 		return err
 	}
 	if count, err := v.core.Tokens.GetCountTokens(
-		getContext(c), user.AccountID, models.ResetPasswordToken, passwordTokensLimit,
+		ctx, user.AccountID, models.ResetPasswordToken, passwordTokensLimit,
 	); err != nil {
 		c.Logger().Warn(err)
 		return err
@@ -894,14 +900,14 @@ func (v *View) resetUserPassword(c echo.Context) error {
 	if err := token.GenerateSecret(); err != nil {
 		return err
 	}
-	if err := v.core.Tokens.Create(getContext(c), &token); err != nil {
+	if err := v.core.Tokens.Create(ctx, &token); err != nil {
 		return err
 	}
 	to := mail.Address{Address: string(user.Email)}
 	values := v.getResetPasswordValues(c, user, token)
 	if err := v.sendResetPasswordMail(c, cfg, to, values); err != nil {
 		c.Logger().Error(err)
-		if err := v.core.Tokens.Delete(getContext(c), token.ID); err != nil {
+		if err := v.core.Tokens.Delete(ctx, token.ID); err != nil {
 			c.Logger().Error("Cannot remove invalid token", logs.Any("token_id", token.ID), err)
 		}
 		return err
@@ -1021,7 +1027,7 @@ func (v *View) extractUser(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		id, err := strconv.ParseInt(login, 10, 64)
 		if err != nil {
-			user, err := v.core.Users.GetByLogin(login)
+			user, err := v.core.Users.GetByLogin(getContext(c), login)
 			if err != nil {
 				if err == sql.ErrNoRows {
 					return errorResponse{

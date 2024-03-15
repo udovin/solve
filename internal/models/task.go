@@ -171,33 +171,29 @@ func (e *TaskEvent) SetObject(o Task) {
 // TaskStore represents store for tasks.
 type TaskStore struct {
 	cachedStore[Task, TaskEvent, *Task, *TaskEvent]
-	bySolution *index[int64, Task, *Task]
-	byProblem  *index[int64, Task, *Task]
+	bySolution *btreeIndex[int64, Task, *Task]
+	byProblem  *btreeIndex[int64, Task, *Task]
 }
 
 // FindBySolution returns a list of tasks by specified solution.
-func (s *TaskStore) FindBySolution(id int64) ([]Task, error) {
+func (s *TaskStore) FindBySolution(ctx context.Context, id int64) (db.Rows[Task], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []Task
-	for id := range s.bySolution.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
-	}
-	return objects, nil
+	return btreeIndexFind(
+		s.bySolution,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		id,
+	), nil
 }
 
-func (s *TaskStore) FindByProblem(id int64) ([]Task, error) {
+func (s *TaskStore) FindByProblem(ctx context.Context, id int64) (db.Rows[Task], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []Task
-	for id := range s.byProblem.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
-	}
-	return objects, nil
+	return btreeIndexFind(
+		s.byProblem,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		id,
+	), nil
 }
 
 // PopQueued pops queued action from the events and sets running status.
@@ -254,7 +250,7 @@ func NewTaskStore(
 	db *gosql.DB, table, eventTable string,
 ) *TaskStore {
 	impl := &TaskStore{
-		bySolution: newIndex(func(o Task) (int64, bool) {
+		bySolution: newBTreeIndex(func(o Task) (int64, bool) {
 			switch o.Kind {
 			case JudgeSolutionTask:
 				var config JudgeSolutionTaskConfig
@@ -263,8 +259,8 @@ func NewTaskStore(
 				}
 			}
 			return 0, false
-		}),
-		byProblem: newIndex(func(o Task) (int64, bool) {
+		}, lessInt64),
+		byProblem: newBTreeIndex(func(o Task) (int64, bool) {
 			switch o.Kind {
 			case UpdateProblemPackageTask:
 				var config UpdateProblemPackageTaskConfig
@@ -273,7 +269,7 @@ func NewTaskStore(
 				}
 			}
 			return 0, false
-		}),
+		}, lessInt64),
 	}
 	impl.cachedStore = makeCachedStore[Task, TaskEvent](
 		db, table, eventTable, impl, impl.bySolution, impl.byProblem,

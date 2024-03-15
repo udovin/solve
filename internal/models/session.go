@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/internal/db"
 )
 
 // Session represents account session.
@@ -73,20 +74,18 @@ func (e *SessionEvent) SetObject(o Session) {
 // SessionStore represents store for sessions.
 type SessionStore struct {
 	cachedStore[Session, SessionEvent, *Session, *SessionEvent]
-	byAccount *index[int64, Session, *Session]
+	byAccount *btreeIndex[int64, Session, *Session]
 }
 
 // FindByAccount returns sessions by account ID.
-func (s *SessionStore) FindByAccount(id int64) ([]Session, error) {
+func (s *SessionStore) FindByAccount(id int64) (db.Rows[Session], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []Session
-	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
-	}
-	return objects, nil
+	return btreeIndexFind(
+		s.byAccount,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		id,
+	), nil
 }
 
 // GetByCookie returns session for specified cookie value.
@@ -114,7 +113,10 @@ func NewSessionStore(
 	db *gosql.DB, table, eventTable string,
 ) *SessionStore {
 	impl := &SessionStore{
-		byAccount: newIndex(func(o Session) (int64, bool) { return o.AccountID, true }),
+		byAccount: newBTreeIndex(
+			func(o Session) (int64, bool) { return o.AccountID, true },
+			lessInt64,
+		),
 	}
 	impl.cachedStore = makeCachedStore[Session, SessionEvent](
 		db, table, eventTable, impl, impl.byAccount,

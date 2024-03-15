@@ -46,6 +46,10 @@ type Core struct {
 	Scopes *models.ScopeStore
 	// ScopeUsers contains scope user store.
 	ScopeUsers *models.ScopeUserStore
+	// Groups contains group store.
+	Groups *models.GroupStore
+	// GroupMembers contains group member store.
+	GroupMembers *models.GroupMemberStore
 	// Problems contains problems store.
 	Problems *models.ProblemStore
 	// ProblemResources contains problem resources store.

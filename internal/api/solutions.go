@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -45,13 +46,15 @@ type Solutions struct {
 	NextBeginID int64      `json:"next_begin_id,omitempty"`
 }
 
-func (v *View) tryFindSolutionTask(id int64) (models.Task, error) {
-	tasks, err := v.core.Tasks.FindBySolution(id)
+func (v *View) tryFindSolutionTask(ctx context.Context, id int64) (models.Task, error) {
+	tasks, err := v.core.Tasks.FindBySolution(ctx, id)
 	if err != nil {
 		return models.Task{}, err
 	}
+	defer func() { _ = tasks.Close() }()
 	var lastTask models.Task
-	for _, task := range tasks {
+	for tasks.Next() {
+		task := tasks.Row()
 		if task.Kind == models.JudgeSolutionTask {
 			var config models.JudgeSolutionTaskConfig
 			if err := task.ScanConfig(&config); err != nil {
@@ -62,6 +65,9 @@ func (v *View) tryFindSolutionTask(id int64) (models.Task, error) {
 			}
 		}
 	}
+	if err := tasks.Err(); err != nil {
+		return models.Task{}, err
+	}
 	if lastTask.ID == 0 {
 		return models.Task{}, sql.ErrNoRows
 	}
@@ -69,12 +75,13 @@ func (v *View) tryFindSolutionTask(id int64) (models.Task, error) {
 }
 
 func (v *View) findSolutionTask(c echo.Context, id int64) (models.Task, error) {
-	task, err := v.tryFindSolutionTask(id)
+	ctx := getContext(c)
+	task, err := v.tryFindSolutionTask(ctx, id)
 	if err == sql.ErrNoRows {
-		if err := v.core.Tasks.Sync(getContext(c)); err != nil {
+		if err := v.core.Tasks.Sync(ctx); err != nil {
 			return models.Task{}, err
 		}
-		return v.tryFindSolutionTask(id)
+		return v.tryFindSolutionTask(ctx, id)
 	}
 	return task, err
 }
@@ -196,25 +203,26 @@ func (v *View) makeSolution(
 		ID:         solution.ID,
 		CreateTime: solution.CreateTime,
 	}
-	if problem, err := v.core.Problems.Get(getContext(c), solution.ProblemID); err == nil {
+	ctx := getContext(c)
+	if problem, err := v.core.Problems.Get(ctx, solution.ProblemID); err == nil {
 		problemResp := v.makeProblem(c, problem, perms.PermissionSet{}, false, false, nil)
 		resp.Problem = &problemResp
 	}
-	if compiler, err := v.core.Compilers.Get(getContext(c), solution.CompilerID); err == nil {
+	if compiler, err := v.core.Compilers.Get(ctx, solution.CompilerID); err == nil {
 		compilerResp := makeCompiler(compiler)
 		resp.Compiler = &compilerResp
 	}
-	if account, err := v.core.Accounts.Get(getContext(c), solution.AuthorID); err == nil {
+	if account, err := v.core.Accounts.Get(ctx, solution.AuthorID); err == nil {
 		switch account.Kind {
 		case models.UserAccount:
-			if user, err := v.core.Users.GetByAccount(account.ID); err == nil {
+			if user, err := v.core.Users.GetByAccount(ctx, account.ID); err == nil {
 				resp.User = &User{
 					ID:    user.ID,
 					Login: user.Login,
 				}
 			}
 		case models.ScopeUserAccount:
-			if user, err := v.core.ScopeUsers.GetByAccount(account.ID); err == nil {
+			if user, err := v.core.ScopeUsers.GetByAccount(ctx, account.ID); err == nil {
 				resp.ScopeUser = &ScopeUser{
 					ID:    user.ID,
 					Login: user.Login,

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/udovin/solve/internal/core"
+	"github.com/udovin/solve/internal/db"
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/perms"
 )
@@ -122,11 +123,19 @@ type standingsCacheKey struct {
 func (m *ContestStandingsManager) buildStandings(
 	ctx *ContestContext, options BuildStandingsOptions,
 ) (*ContestStandings, error) {
-	participants, err := m.contestParticipants.FindByContest(ctx.Contest.ID)
+	participantRows, err := m.contestParticipants.FindByContest(ctx, ctx.Contest.ID)
 	if err != nil {
 		return nil, err
 	}
-	contestProblems, err := m.contestProblems.FindByContest(ctx.Contest.ID)
+	participants, err := db.CollectRows(participantRows)
+	if err != nil {
+		return nil, err
+	}
+	contestProblemRows, err := m.contestProblems.FindByContest(ctx, ctx.Contest.ID)
+	if err != nil {
+		return nil, err
+	}
+	contestProblems, err := db.CollectRows(contestProblemRows)
 	if err != nil {
 		return nil, err
 	}

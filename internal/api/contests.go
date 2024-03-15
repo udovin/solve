@@ -570,13 +570,15 @@ func (v *View) observeContestProblems(c echo.Context) error {
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
-	problems, err := v.core.ContestProblems.FindByContest(contest.ID)
+	solvedProblems := getSolvedProblems(contestCtx, v.core)
+	problems, err := v.core.ContestProblems.FindByContest(getContext(c), contest.ID)
 	if err != nil {
 		return err
 	}
-	solvedProblems := getSolvedProblems(contestCtx, v.core)
+	defer func() { _ = problems.Close() }()
 	resp := ContestProblems{}
-	for _, problem := range problems {
+	for problems.Next() {
+		problem := problems.Row()
 		problemResp := v.makeContestProblem(c, problem, false)
 		if v, ok := solvedProblems[problem.ID]; ok {
 			problemResp.Solved = &v
@@ -585,6 +587,9 @@ func (v *View) observeContestProblems(c echo.Context) error {
 			resp.Problems,
 			problemResp,
 		)
+	}
+	if err := problems.Err(); err != nil {
+		return err
 	}
 	sortFunc(resp.Problems, contestProblemLess)
 	return c.JSON(http.StatusOK, resp)
@@ -717,13 +722,15 @@ func (v *View) createContestProblem(c echo.Context) error {
 		return err
 	}
 	problem.ContestID = contest.ID
-	{
-		problems, err := v.core.ContestProblems.FindByContest(contest.ID)
+	if err := func() error {
+		rows, err := v.core.ContestProblems.FindByContest(getContext(c), contest.ID)
 		if err != nil {
 			return err
 		}
-		for _, contestProblem := range problems {
-			if problem.Code == contestProblem.Code {
+		defer func() { _ = rows.Close() }()
+		for rows.Next() {
+			row := rows.Row()
+			if problem.Code == row.Code {
 				return errorResponse{
 					Code: http.StatusBadRequest,
 					Message: localize(
@@ -732,7 +739,7 @@ func (v *View) createContestProblem(c echo.Context) error {
 					),
 				}
 			}
-			if problem.ProblemID == contestProblem.ProblemID {
+			if problem.ProblemID == row.ProblemID {
 				return errorResponse{
 					Code: http.StatusBadRequest,
 					Message: localize(
@@ -742,6 +749,9 @@ func (v *View) createContestProblem(c echo.Context) error {
 				}
 			}
 		}
+		return rows.Err()
+	}(); err != nil {
+		return err
 	}
 	if err := v.core.ContestProblems.Create(
 		getContext(c), &problem,
@@ -805,16 +815,20 @@ func (v *View) observeContestParticipants(c echo.Context) error {
 		return fmt.Errorf("contest not extracted")
 	}
 	contest := contestCtx.Contest
-	participants, err := v.core.ContestParticipants.FindByContest(contest.ID)
+	participants, err := v.core.ContestParticipants.FindByContest(getContext(c), contest.ID)
 	if err != nil {
 		return err
 	}
+	defer func() { _ = participants.Close() }()
 	var resp ContestParticipants
-	for _, participant := range participants {
+	for participants.Next() {
 		resp.Participants = append(
 			resp.Participants,
-			makeContestParticipant(c, participant, v.core),
+			makeContestParticipant(c, participants.Row(), v.core),
 		)
+	}
+	if err := participants.Err(); err != nil {
+		return err
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -824,14 +838,16 @@ type CreateContestParticipantForm struct {
 	UserLogin   *string                `json:"user_login"`
 	ScopeUserID *int64                 `json:"scope_user_id"`
 	ScopeID     *int64                 `json:"scope_id"`
+	GroupID     *int64                 `json:"group_id"`
 	Kind        models.ParticipantKind `json:"kind"`
 }
 
 func (f CreateContestParticipantForm) Update(
 	c echo.Context, participant *models.ContestParticipant, core *core.Core,
 ) *errorResponse {
+	ctx := getContext(c)
 	if f.UserID != nil {
-		user, err := core.Users.Get(getContext(c), *f.UserID)
+		user, err := core.Users.Get(ctx, *f.UserID)
 		if err != nil {
 			return &errorResponse{
 				Code: http.StatusBadRequest,
@@ -843,7 +859,7 @@ func (f CreateContestParticipantForm) Update(
 		}
 		participant.AccountID = user.AccountID
 	} else if f.UserLogin != nil {
-		user, err := core.Users.GetByLogin(*f.UserLogin)
+		user, err := core.Users.GetByLogin(ctx, *f.UserLogin)
 		if err != nil {
 			return &errorResponse{
 				Code: http.StatusBadRequest,
@@ -855,7 +871,7 @@ func (f CreateContestParticipantForm) Update(
 		}
 		participant.AccountID = user.AccountID
 	} else if f.ScopeUserID != nil {
-		user, err := core.ScopeUsers.Get(getContext(c), *f.ScopeUserID)
+		user, err := core.ScopeUsers.Get(ctx, *f.ScopeUserID)
 		if err != nil {
 			return &errorResponse{
 				Code: http.StatusBadRequest,
@@ -867,7 +883,7 @@ func (f CreateContestParticipantForm) Update(
 		}
 		participant.AccountID = user.AccountID
 	} else if f.ScopeID != nil {
-		scope, err := core.Scopes.Get(getContext(c), *f.ScopeID)
+		scope, err := core.Scopes.Get(ctx, *f.ScopeID)
 		if err != nil {
 			return &errorResponse{
 				Code: http.StatusBadRequest,
@@ -878,6 +894,18 @@ func (f CreateContestParticipantForm) Update(
 			}
 		}
 		participant.AccountID = scope.AccountID
+	} else if f.GroupID != nil {
+		group, err := core.Groups.Get(ctx, *f.GroupID)
+		if err != nil {
+			return &errorResponse{
+				Code: http.StatusBadRequest,
+				Message: localize(
+					c, "Group {id} does not exists.",
+					replaceField("id", *f.GroupID),
+				),
+			}
+		}
+		participant.AccountID = group.AccountID
 	}
 	participant.Kind = f.Kind
 	if participant.Kind == 0 {
@@ -908,24 +936,29 @@ func (v *View) createContestParticipant(c echo.Context) error {
 		return err
 	}
 	participant.ContestID = contest.ID
-	{
-		participants, err := v.core.ContestParticipants.FindByContestAccount(
-			contest.ID, participant.AccountID,
+	if err := func() error {
+		rows, err := v.core.ContestParticipants.FindByContestAccount(
+			getContext(c), contest.ID, participant.AccountID,
 		)
 		if err != nil {
 			return err
 		}
-		for _, p := range participants {
-			if p.Kind == participant.Kind {
+		defer func() { _ = rows.Close() }()
+		for rows.Next() {
+			row := rows.Row()
+			if row.Kind == participant.Kind {
 				return errorResponse{
 					Code: http.StatusBadRequest,
 					Message: localize(
 						c, "Participant with {kind} kind already exists.",
-						replaceField("kind", p.Kind),
+						replaceField("kind", row.Kind),
 					),
 				}
 			}
 		}
+		return rows.Err()
+	}(); err != nil {
+		return err
 	}
 	if err := v.core.ContestParticipants.Create(
 		getContext(c), &participant,
@@ -1390,24 +1423,25 @@ func makeContestParticipant(
 	participant models.ContestParticipant,
 	core *core.Core,
 ) ContestParticipant {
+	ctx := getContext(c)
 	resp := ContestParticipant{
 		ID:        participant.ID,
 		ContestID: participant.ContestID,
 		Kind:      participant.Kind,
 	}
 	if account, err := core.Accounts.Get(
-		getContext(c), participant.AccountID,
+		ctx, participant.AccountID,
 	); err == nil {
 		switch account.Kind {
 		case models.UserAccount:
-			if user, err := core.Users.GetByAccount(account.ID); err == nil {
+			if user, err := core.Users.GetByAccount(ctx, account.ID); err == nil {
 				resp.User = &User{
 					ID:    user.ID,
 					Login: user.Login,
 				}
 			}
 		case models.ScopeUserAccount:
-			if user, err := core.ScopeUsers.GetByAccount(account.ID); err == nil {
+			if user, err := core.ScopeUsers.GetByAccount(ctx, account.ID); err == nil {
 				resp.ScopeUser = &ScopeUser{
 					ID:    user.ID,
 					Login: user.Login,
@@ -1415,7 +1449,7 @@ func makeContestParticipant(
 				}
 			}
 		case models.ScopeAccount:
-			if scope, err := core.Scopes.GetByAccount(account.ID); err == nil {
+			if scope, err := core.Scopes.GetByAccount(ctx, account.ID); err == nil {
 				resp.Scope = &Scope{
 					ID:    scope.ID,
 					Title: scope.Title,
@@ -1495,18 +1529,11 @@ func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 				return next(c)
 			}
 		}
-		problems, err := v.core.ContestProblems.FindByContest(contest.ID)
+		contestProblem, err := findContestProblem(getContext(c), v.core, contest.ID, code)
 		if err != nil {
 			return err
 		}
-		pos := -1
-		for i, problem := range problems {
-			if problem.Code == code {
-				pos = i
-				break
-			}
-		}
-		if pos == -1 {
+		if contestProblem == nil {
 			return errorResponse{
 				Code: http.StatusNotFound,
 				Message: localize(
@@ -1515,14 +1542,29 @@ func (v *View) extractContestProblem(next echo.HandlerFunc) echo.HandlerFunc {
 				),
 			}
 		}
-		problem, err := v.core.Problems.Get(getContext(c), problems[pos].ProblemID)
+		problem, err := v.core.Problems.Get(getContext(c), contestProblem.ProblemID)
 		if err != nil {
 			return err
 		}
-		c.Set(contestProblemKey, problems[pos])
+		c.Set(contestProblemKey, *contestProblem)
 		c.Set(problemKey, problem)
 		return next(c)
 	}
+}
+
+func findContestProblem(ctx context.Context, c *core.Core, contestID int64, code string) (*models.ContestProblem, error) {
+	rows, err := c.ContestProblems.FindByContest(ctx, contestID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		row := rows.Row()
+		if row.Code == code {
+			return &row, nil
+		}
+	}
+	return nil, rows.Err()
 }
 
 func (v *View) extractContestParticipant(

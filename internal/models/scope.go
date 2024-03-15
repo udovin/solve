@@ -1,7 +1,7 @@
 package models
 
 import (
-	"database/sql"
+	"context"
 
 	"github.com/udovin/gosql"
 )
@@ -43,19 +43,14 @@ func (e *ScopeEvent) SetObject(o Scope) {
 // ScopeStore represents store for scopes.
 type ScopeStore struct {
 	cachedStore[Scope, ScopeEvent, *Scope, *ScopeEvent]
-	byAccount *index[int64, Scope, *Scope]
+	byAccount *btreeIndex[int64, Scope, *Scope]
 }
 
 // GetByAccount returns scope user by account id.
-func (s *ScopeStore) GetByAccount(id int64) (Scope, error) {
+func (s *ScopeStore) GetByAccount(ctx context.Context, id int64) (Scope, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			return object.Clone(), nil
-		}
-	}
-	return Scope{}, sql.ErrNoRows
+	return btreeIndexGet(s.byAccount, s.objects.Iter(), id)
 }
 
 // NewScopeStore creates a new instance of ScopeStore.
@@ -63,7 +58,10 @@ func NewScopeStore(
 	db *gosql.DB, table, eventTable string,
 ) *ScopeStore {
 	impl := &ScopeStore{
-		byAccount: newIndex(func(o Scope) (int64, bool) { return o.AccountID, true }),
+		byAccount: newBTreeIndex(
+			func(o Scope) (int64, bool) { return o.AccountID, true },
+			lessInt64,
+		),
 	}
 	impl.cachedStore = makeCachedStore[Scope, ScopeEvent](
 		db, table, eventTable, impl, impl.byAccount,

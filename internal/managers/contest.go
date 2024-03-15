@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/udovin/solve/internal/core"
+	"github.com/udovin/solve/internal/db"
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/perms"
 )
@@ -187,7 +188,11 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 			c.Permissions.AddPermission(perms.UpdateContestOwnerRole)
 			c.Permissions.AddPermission(perms.DeleteContestRole)
 		}
-		participants, err := m.participants.FindByContestAccount(contest.ID, account.ID)
+		participantRows, err := m.participants.FindByContestAccount(ctx, contest.ID, account.ID)
+		if err != nil {
+			return nil, fmt.Errorf("unable to build contest context: %w", err)
+		}
+		participants, err := db.CollectRows(participantRows)
 		if err != nil {
 			return nil, fmt.Errorf("unable to build contest context: %w", err)
 		}
@@ -211,7 +216,11 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 		}
 		c.Participants = participants
 		for _, group := range ctx.GroupAccounts {
-			groupParticipants, err := m.participants.FindByContestAccount(contest.ID, group.ID)
+			groupParticipantRows, err := m.participants.FindByContestAccount(ctx, contest.ID, group.ID)
+			if err != nil {
+				return nil, fmt.Errorf("unable to build contest context: %w", err)
+			}
+			groupParticipants, err := db.CollectRows(groupParticipantRows)
 			if err != nil {
 				return nil, fmt.Errorf("unable to build contest context: %w", err)
 			}

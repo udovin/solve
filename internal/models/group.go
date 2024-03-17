@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/udovin/gosql"
 )
@@ -50,20 +49,8 @@ type GroupStore struct {
 // GetByAccount returns group user by account id.
 func (s *GroupStore) GetByAccount(ctx context.Context, accountID int64) (Group, error) {
 	s.mutex.RLock()
-	rows := btreeIndexFind(
-		s.byAccount,
-		s.objects.Iter(),
-		s.mutex.RLocker(),
-		accountID,
-	)
-	defer func() { _ = rows.Close() }()
-	if !rows.Next() {
-		if err := rows.Err(); err != nil {
-			return Group{}, err
-		}
-		return Group{}, sql.ErrNoRows
-	}
-	return rows.Row(), nil
+	defer s.mutex.RUnlock()
+	return btreeIndexGet(s.byAccount, s.objects.Iter(), accountID)
 }
 
 // NewGroupStore creates a new instance of GroupStore.

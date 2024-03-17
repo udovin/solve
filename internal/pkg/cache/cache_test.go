@@ -8,15 +8,6 @@ import (
 	"time"
 )
 
-type testResult struct {
-	Value string
-	Err   error
-}
-
-type testStorageImpl struct {
-	values chan testResult
-}
-
 type testResource struct {
 	value    string
 	released atomic.Bool
@@ -32,7 +23,16 @@ func (r *testResource) Release() {
 	}
 }
 
-func (s *testStorageImpl) Load(ctx context.Context, key int) (Resource[string], error) {
+type testResult struct {
+	Value string
+	Err   error
+}
+
+type testStorageChanImpl struct {
+	values chan testResult
+}
+
+func (s *testStorageChanImpl) Load(ctx context.Context, key int) (Resource[string], error) {
 	select {
 	case result := <-s.values:
 		if result.Err != nil {
@@ -45,7 +45,7 @@ func (s *testStorageImpl) Load(ctx context.Context, key int) (Resource[string], 
 }
 
 func TestCache(t *testing.T) {
-	storage := &testStorageImpl{
+	storage := &testStorageChanImpl{
 		values: make(chan testResult),
 	}
 	manager := NewManager[int, string](storage)
@@ -106,6 +106,53 @@ func TestCache(t *testing.T) {
 		}
 		expectEqual(t, manager.Len(), 0)
 		expectEqual(t, manager.Delete(42), false)
+	}()
+}
+
+type testStorageConstImpl struct{}
+
+const (
+	testSuccessKey = 0
+	testErrorKey   = 1
+	testPanicKey   = 2
+)
+
+func (s *testStorageConstImpl) Load(ctx context.Context, key int) (Resource[string], error) {
+	switch key {
+	case testSuccessKey:
+		return &testResource{value: "success"}, nil
+	case testErrorKey:
+		return nil, fmt.Errorf("test error")
+	case testPanicKey:
+		panic("test panic")
+	}
+	return &testResource{value: fmt.Sprint(key)}, nil
+}
+
+func TestSyncCache(t *testing.T) {
+	storage := &testStorageConstImpl{}
+	manager := NewManager[int, string](storage)
+	func() {
+		r, err := manager.LoadSync(context.Background(), testSuccessKey)
+		if err != nil {
+			t.Fatal("Error:", err)
+		}
+		defer r.Release()
+		manager.Delete(testSuccessKey)
+	}()
+	func() {
+		_, err := manager.LoadSync(context.Background(), testErrorKey)
+		if err == nil {
+			t.Fatalf("Expected error")
+		}
+		manager.Delete(testErrorKey)
+	}()
+	func() {
+		_, err := manager.LoadSync(context.Background(), testPanicKey)
+		if err == nil {
+			t.Fatalf("Expected error")
+		}
+		manager.Delete(testPanicKey)
 	}()
 }
 

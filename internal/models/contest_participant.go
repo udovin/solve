@@ -1,10 +1,12 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/internal/db"
 )
 
 type ParticipantKind int
@@ -110,37 +112,33 @@ func (e *ContestParticipantEvent) SetObject(o ContestParticipant) {
 // ContestParticipantStore represents a participant store.
 type ContestParticipantStore struct {
 	cachedStore[ContestParticipant, ContestParticipantEvent, *ContestParticipant, *ContestParticipantEvent]
-	byContest        *index[int64, ContestParticipant, *ContestParticipant]
-	byContestAccount *index[pair[int64, int64], ContestParticipant, *ContestParticipant]
+	byContest        *btreeIndex[int64, ContestParticipant, *ContestParticipant]
+	byContestAccount *btreeIndex[pair[int64, int64], ContestParticipant, *ContestParticipant]
 }
 
 func (s *ContestParticipantStore) FindByContest(
-	id int64,
-) ([]ContestParticipant, error) {
+	ctx context.Context, contestID int64,
+) (db.Rows[ContestParticipant], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []ContestParticipant
-	for id := range s.byContest.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
-	}
-	return objects, nil
+	return btreeIndexFind(
+		s.byContest,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		contestID,
+	), nil
 }
 
 // FindByContestAccount returns participants by contest and account.
 func (s *ContestParticipantStore) FindByContestAccount(
-	contestID int64, accountID int64,
-) ([]ContestParticipant, error) {
+	ctx context.Context, contestID int64, accountID int64,
+) (db.Rows[ContestParticipant], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []ContestParticipant
-	for id := range s.byContestAccount.Get(makePair(contestID, accountID)) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
-	}
-	return objects, nil
+	return btreeIndexFind(
+		s.byContestAccount,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		makePair(contestID, accountID),
+	), nil
 }
 
 // NewContestParticipantStore creates a new instance of
@@ -149,10 +147,10 @@ func NewContestParticipantStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestParticipantStore {
 	impl := &ContestParticipantStore{
-		byContest: newIndex(func(o ContestParticipant) (int64, bool) { return o.ContestID, true }),
-		byContestAccount: newIndex(func(o ContestParticipant) (pair[int64, int64], bool) {
+		byContest: newBTreeIndex(func(o ContestParticipant) (int64, bool) { return o.ContestID, true }, lessInt64),
+		byContestAccount: newBTreeIndex(func(o ContestParticipant) (pair[int64, int64], bool) {
 			return makePair(o.ContestID, o.AccountID), true
-		}),
+		}, lessPairInt64),
 	}
 	impl.cachedStore = makeCachedStore[ContestParticipant, ContestParticipantEvent](
 		db, table, eventTable, impl, impl.byContest, impl.byContestAccount,

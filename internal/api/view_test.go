@@ -110,14 +110,18 @@ func (e *TestEnv) WaitProblemUpdated(id int64) {
 		if err := e.Core.Tasks.Sync(context.Background()); err != nil {
 			e.tb.Fatal("Error:", err)
 		}
-		tasks, err := e.Core.Tasks.FindByProblem(id)
-		if err != nil {
-			e.tb.Fatal("Error:", err)
-		}
-		if len(tasks) == 0 {
-			e.tb.Fatalf("Cannot find task for problem: %d", id)
-		}
-		if tasks[0].Status == models.SucceededTask {
+		task := func() models.Task {
+			tasks, err := e.Core.Tasks.FindByProblem(context.Background(), id)
+			if err != nil {
+				e.tb.Fatal("Error:", err)
+			}
+			defer func() { _ = tasks.Close() }()
+			if !tasks.Next() {
+				e.tb.Fatalf("Cannot find task for problem: %d", id)
+			}
+			return tasks.Row()
+		}()
+		if task.Status == models.SucceededTask {
 			if err := e.Core.Problems.Sync(context.Background()); err != nil {
 				e.tb.Fatal("Error:", err)
 			}
@@ -126,8 +130,8 @@ func (e *TestEnv) WaitProblemUpdated(id int64) {
 			}
 			return
 		}
-		if tasks[0].Status == models.FailedTask {
-			e.tb.Fatalf("Task failed: %q", string(tasks[0].State))
+		if task.Status == models.FailedTask {
+			e.tb.Fatalf("Task failed: %q", string(task.State))
 		}
 		time.Sleep(time.Second)
 	}
@@ -138,14 +142,18 @@ func (e *TestEnv) WaitSolutionJudged(id int64) {
 		if err := e.Core.Tasks.Sync(context.Background()); err != nil {
 			e.tb.Fatal("Error:", err)
 		}
-		tasks, err := e.Core.Tasks.FindBySolution(id)
-		if err != nil {
-			e.tb.Fatal("Error:", err)
-		}
-		if len(tasks) == 0 {
-			e.tb.Fatalf("Cannot find task for solution: %d", id)
-		}
-		if tasks[0].Status == models.SucceededTask {
+		task := func() models.Task {
+			tasks, err := e.Core.Tasks.FindBySolution(context.Background(), id)
+			if err != nil {
+				e.tb.Fatal("Error:", err)
+			}
+			defer func() { _ = tasks.Close() }()
+			if !tasks.Next() {
+				e.tb.Fatalf("Cannot find task for solution: %d", id)
+			}
+			return tasks.Row()
+		}()
+		if task.Status == models.SucceededTask {
 			if err := e.Core.Solutions.Sync(context.Background()); err != nil {
 				e.tb.Fatal("Error:", err)
 			}
@@ -154,8 +162,8 @@ func (e *TestEnv) WaitSolutionJudged(id int64) {
 			}
 			return
 		}
-		if tasks[0].Status == models.FailedTask {
-			e.tb.Fatalf("Task failed: %q", string(tasks[0].State))
+		if task.Status == models.FailedTask {
+			e.tb.Fatalf("Task failed: %q", string(task.State))
 		}
 		time.Sleep(time.Second)
 	}

@@ -14,6 +14,8 @@ const (
 	ScopeUserAccount AccountKind = 2
 	// ScopeAccount represents kind of account for scope.
 	ScopeAccount AccountKind = 3
+	// GroupAccount represents kind of account for group.
+	GroupAccount AccountKind = 4
 )
 
 // Account represents an account.

@@ -1,8 +1,8 @@
 package models
 
 import (
+	"context"
 	"crypto/rand"
-	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -77,33 +77,23 @@ func (e *UserEvent) SetObject(o User) {
 // UserStore represents users store.
 type UserStore struct {
 	cachedStore[User, UserEvent, *User, *UserEvent]
-	byAccount *index[int64, User, *User]
-	byLogin   *index[string, User, *User]
+	byAccount *btreeIndex[int64, User, *User]
+	byLogin   *btreeIndex[string, User, *User]
 	salt      string
 }
 
 // GetByLogin returns user by login.
-func (s *UserStore) GetByLogin(login string) (User, error) {
+func (s *UserStore) GetByLogin(ctx context.Context, login string) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	for id := range s.byLogin.Get(strings.ToLower(login)) {
-		if object, ok := s.objects.Get(id); ok {
-			return object.Clone(), nil
-		}
-	}
-	return User{}, sql.ErrNoRows
+	return btreeIndexGet(s.byLogin, s.objects.Iter(), strings.ToLower(login))
 }
 
 // GetByAccount returns user by account id.
-func (s *UserStore) GetByAccount(id int64) (User, error) {
+func (s *UserStore) GetByAccount(ctx context.Context, id int64) (User, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	for id := range s.byAccount.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			return object.Clone(), nil
-		}
-	}
-	return User{}, sql.ErrNoRows
+	return btreeIndexGet(s.byAccount, s.objects.Iter(), id)
 }
 
 // SetPassword modifies PasswordHash and PasswordSalt fields.
@@ -133,9 +123,15 @@ func NewUserStore(
 	db *gosql.DB, table, eventTable, salt string,
 ) *UserStore {
 	impl := &UserStore{
-		byAccount: newIndex(func(o User) (int64, bool) { return o.AccountID, true }),
-		byLogin:   newIndex(func(o User) (string, bool) { return strings.ToLower(o.Login), true }),
-		salt:      salt,
+		byAccount: newBTreeIndex(
+			func(o User) (int64, bool) { return o.AccountID, true },
+			lessInt64,
+		),
+		byLogin: newBTreeIndex(
+			func(o User) (string, bool) { return strings.ToLower(o.Login), true },
+			lessString,
+		),
+		salt: salt,
 	}
 	impl.cachedStore = makeCachedStore[User, UserEvent](
 		db, table, eventTable, impl, impl.byAccount, impl.byLogin,

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/internal/db"
 )
 
 type ProblemResourceKind int
@@ -98,22 +99,22 @@ func (e *ProblemResourceEvent) SetObject(o ProblemResource) {
 // ProblemResourceStore represents store for problem resources.
 type ProblemResourceStore struct {
 	cachedStore[ProblemResource, ProblemResourceEvent, *ProblemResource, *ProblemResourceEvent]
-	byProblem *index[int64, ProblemResource, *ProblemResource]
+	byProblem *btreeIndex[int64, ProblemResource, *ProblemResource]
 }
 
-func (s *ProblemResourceStore) FindByProblem(ctx context.Context, id int64) ([]ProblemResource, error) {
+func (s *ProblemResourceStore) FindByProblem(
+	ctx context.Context, problemID int64,
+) (db.Rows[ProblemResource], error) {
 	if err := s.TrySync(ctx); err != nil {
 		return nil, err
 	}
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []ProblemResource
-	for id := range s.byProblem.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
-	}
-	return objects, nil
+	return btreeIndexFind(
+		s.byProblem,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		problemID,
+	), nil
 }
 
 // NewProblemResourceStore creates a new instance of ProblemResourceStore.
@@ -121,7 +122,10 @@ func NewProblemResourceStore(
 	db *gosql.DB, table, eventTable string,
 ) *ProblemResourceStore {
 	impl := &ProblemResourceStore{
-		byProblem: newIndex(func(o ProblemResource) (int64, bool) { return o.ProblemID, true }),
+		byProblem: newBTreeIndex(
+			func(o ProblemResource) (int64, bool) { return o.ProblemID, true },
+			lessInt64,
+		),
 	}
 	impl.cachedStore = makeCachedStore[ProblemResource, ProblemResourceEvent](
 		db, table, eventTable, impl, impl.byProblem,

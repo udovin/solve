@@ -71,18 +71,18 @@ func (m *manager[K, V]) LoadSync(ctx context.Context, key K) (Resource[V], error
 	case *resourceFutureRef[V]:
 		select {
 		case <-v.future.done:
-			if v.future.err != nil {
+			if err := v.future.err; err != nil {
 				v.Release()
-				return nil, v.future.err
+				return nil, err
 			}
 			return &resourceSyncRef[V]{v.future.resource}, nil
 		default:
 		}
 		select {
 		case <-v.future.done:
-			if v.future.err != nil {
+			if err := v.future.err; err != nil {
 				v.Release()
-				return nil, v.future.err
+				return nil, err
 			}
 			return &resourceSyncRef[V]{v.future.resource}, nil
 		case <-ctx.Done():

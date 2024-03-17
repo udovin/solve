@@ -60,19 +60,14 @@ func Empty[T any]() Option[T] {
 // SettingStore represents store for settings.
 type SettingStore struct {
 	cachedStore[Setting, SettingEvent, *Setting, *SettingEvent]
-	byKey *index[string, Setting, *Setting]
+	byKey *btreeIndex[string, Setting, *Setting]
 }
 
 // GetByKey returns setting by specified key.
 func (s *SettingStore) GetByKey(key string) (Setting, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	for id := range s.byKey.Get(key) {
-		if object, ok := s.objects.Get(id); ok {
-			return object.Clone(), nil
-		}
-	}
-	return Setting{}, sql.ErrNoRows
+	return btreeIndexGet(s.byKey, s.objects.Iter(), key)
 }
 
 func (s *SettingStore) GetBool(key string) (Option[bool], error) {
@@ -116,7 +111,10 @@ func (s *SettingStore) GetInt64(key string) (Option[int64], error) {
 // NewSettingStore creates a new instance of SettingStore.
 func NewSettingStore(db *gosql.DB, table, eventTable string) *SettingStore {
 	impl := &SettingStore{
-		byKey: newIndex(func(o Setting) (string, bool) { return o.Key, true }),
+		byKey: newBTreeIndex(
+			func(o Setting) (string, bool) { return o.Key, true },
+			lessString,
+		),
 	}
 	impl.cachedStore = makeCachedStore[Setting, SettingEvent](
 		db, table, eventTable, impl, impl.byKey,

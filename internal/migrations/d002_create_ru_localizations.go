@@ -40,6 +40,7 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		{"first_name_too_long", "Имя слишком длинное."},
 		{"first_name_too_short", "Имя слишком короткое."},
 		{"form_has_invalid_fields", "Форма содержит неправильные значения."},
+		{"group_id_does_not_exists", "Группа {id} не существует."},
 		{"invalid_config", "Неправильная конфигурация."},
 		{"invalid_contest_id", "Неправильный ID соревнования."},
 		{"invalid_file_id", "Неправильный ID файла."},

@@ -2,6 +2,7 @@ package models
 
 import (
 	"container/heap"
+	"database/sql"
 	"math"
 	"sync"
 
@@ -134,6 +135,22 @@ type btreeIndexRows[T any, TPtr ObjectPtr[T]] struct {
 	iter  btree.MapIter[int64, T]
 	iters heap.Interface
 	mutex sync.Locker
+}
+
+func btreeIndexGet[K any, T any, TPtr ObjectPtr[T]](
+	index *btreeIndex[K, T, TPtr],
+	objects btree.MapIter[int64, T],
+	key K,
+) (T, error) {
+	if it := index.Find(key); it.Next() {
+		id := it.ID()
+		if objects.Seek(id) && objects.Key() == id {
+			value := objects.Value()
+			return TPtr(&value).Clone(), nil
+		}
+	}
+	var empty T
+	return empty, sql.ErrNoRows
 }
 
 func btreeIndexFind[K any, T any, TPtr ObjectPtr[T]](

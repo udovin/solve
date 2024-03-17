@@ -101,10 +101,16 @@ func (v *View) makeProblem(
 		}
 	}
 	locale := getLocale(c)
-	if resources, err := v.core.ProblemResources.FindByProblem(
-		getContext(c), problem.ID,
-	); err == nil {
-		for _, resource := range resources {
+	func() {
+		resources, err := v.core.ProblemResources.FindByProblem(
+			getContext(c), problem.ID,
+		)
+		if err != nil {
+			return
+		}
+		defer func() { _ = resources.Close() }()
+		for resources.Next() {
+			resource := resources.Row()
 			if resource.Kind != models.ProblemStatement {
 				continue
 			}
@@ -134,10 +140,10 @@ func (v *View) makeProblem(
 				resp.Statement = &statement
 			}
 			if config.Locale == locale.Name() {
-				break
+				return
 			}
 		}
-	}
+	}()
 	if withTask && permissions.HasPermission(perms.UpdateProblemRole) {
 		task, err := v.findProblemTask(c, problem.ID)
 		if err == nil {
@@ -236,28 +242,35 @@ func (v *View) observeProblemStatementFile(c echo.Context) error {
 	}
 	resourceName := c.Param("name")
 	locale := getLocale(c)
-	resources, err := v.core.ProblemResources.FindByProblem(getContext(c), problem.ID)
-	if err != nil {
-		return err
-	}
 	var foundResource *models.ProblemResource
-	for i, resource := range resources {
-		if resource.Kind != models.ProblemStatementResource {
-			continue
+	if err := func() error {
+		resources, err := v.core.ProblemResources.FindByProblem(getContext(c), problem.ID)
+		if err != nil {
+			return err
 		}
-		if resource.FileID == 0 {
-			continue
+		defer func() { _ = resources.Close() }()
+		for resources.Next() {
+			resource := resources.Row()
+			if resource.Kind != models.ProblemStatementResource {
+				continue
+			}
+			if resource.FileID == 0 {
+				continue
+			}
+			config := models.ProblemStatementResourceConfig{}
+			if err := resource.ScanConfig(&config); err != nil {
+				continue
+			}
+			if config.Name != resourceName {
+				continue
+			}
+			if foundResource == nil || config.Locale == locale.Name() {
+				foundResource = &resource
+			}
 		}
-		config := models.ProblemStatementResourceConfig{}
-		if err := resource.ScanConfig(&config); err != nil {
-			continue
-		}
-		if config.Name != resourceName {
-			continue
-		}
-		if foundResource == nil || config.Locale == locale.Name() {
-			foundResource = &resources[i]
-		}
+		return nil
+	}(); err != nil {
+		return err
 	}
 	if foundResource == nil {
 		return errorResponse{
@@ -539,30 +552,42 @@ func (v *View) rebuildProblem(c echo.Context) error {
 }
 
 func (v *View) deleteProblem(c echo.Context) error {
+	ctx := getContext(c)
 	problem, ok := c.Get(problemKey).(models.Problem)
 	if !ok {
 		return fmt.Errorf("problem not extracted")
 	}
-	solutions, err := v.core.Solutions.FindByProblem(problem.ID)
-	if err != nil {
+	if err := func() error {
+		solutions, err := v.core.Solutions.FindByProblem(ctx, problem.ID)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = solutions.Close() }()
+		if solutions.Next() {
+			return errorResponse{
+				Code: http.StatusForbidden,
+			}
+		}
+		return solutions.Err()
+	}(); err != nil {
 		return err
 	}
-	if len(solutions) > 0 {
-		return errorResponse{
-			Code: http.StatusForbidden,
-		}
-	}
-	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+	if err := v.core.WrapTx(ctx, func(ctx context.Context) error {
 		resources, err := v.core.ProblemResources.FindByProblem(ctx, problem.ID)
 		if err != nil {
 			return err
 		}
-		for _, resource := range resources {
+		defer func() { _ = resources.Close() }()
+		for resources.Next() {
+			resource := resources.Row()
 			if err := v.core.ProblemResources.Delete(
 				ctx, resource.ID,
 			); err != nil {
 				return err
 			}
+		}
+		if err := resources.Err(); err != nil {
+			return err
 		}
 		return v.core.Problems.Delete(ctx, problem.ID)
 	}, sqlRepeatableRead); err != nil {
@@ -575,12 +600,14 @@ func (v *View) deleteProblem(c echo.Context) error {
 }
 
 func (v *View) findProblemTask(c echo.Context, id int64) (models.Task, error) {
-	tasks, err := v.core.Tasks.FindByProblem(id)
+	tasks, err := v.core.Tasks.FindByProblem(getContext(c), id)
 	if err != nil {
 		return models.Task{}, err
 	}
+	defer func() { _ = tasks.Close() }()
 	var lastTask models.Task
-	for _, task := range tasks {
+	for tasks.Next() {
+		task := tasks.Row()
 		if task.Kind == models.UpdateProblemPackageTask {
 			var config models.UpdateProblemPackageTaskConfig
 			if err := task.ScanConfig(&config); err != nil {
@@ -590,6 +617,9 @@ func (v *View) findProblemTask(c echo.Context, id int64) (models.Task, error) {
 				lastTask = task
 			}
 		}
+	}
+	if err := tasks.Err(); err != nil {
+		return models.Task{}, err
 	}
 	if lastTask.ID == 0 {
 		return models.Task{}, sql.ErrNoRows

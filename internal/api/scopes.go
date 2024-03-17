@@ -268,11 +268,16 @@ func (v *View) observeScopeUsers(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	defer func() { _ = users.Close() }()
 	resp := ScopeUsers{}
-	for _, user := range users {
+	for users.Next() {
+		user := users.Row()
 		if permissions.HasPermission(perms.ObserveScopeUserRole) {
 			resp.Users = append(resp.Users, makeScopeUser(user))
 		}
+	}
+	if err := users.Err(); err != nil {
+		return err
 	}
 	sortFunc(resp.Users, scopeUserLess)
 	return c.JSON(http.StatusOK, resp)
@@ -437,10 +442,15 @@ func (v *View) logoutScopeUser(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, session := range sessions {
+	defer func() { _ = sessions.Close() }()
+	for sessions.Next() {
+		session := sessions.Row()
 		if err := v.core.Sessions.Delete(getContext(c), session.ID); err != nil {
 			return err
 		}
+	}
+	if err := sessions.Err(); err != nil {
+		return err
 	}
 	return c.JSON(http.StatusOK, makeScopeUser(user))
 }

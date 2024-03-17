@@ -1,9 +1,11 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/internal/db"
 )
 
 type ContestProblemConfig struct {
@@ -68,20 +70,20 @@ func (e *ContestProblemEvent) SetObject(o ContestProblem) {
 // ContestProblemStore represents a problem store.
 type ContestProblemStore struct {
 	cachedStore[ContestProblem, ContestProblemEvent, *ContestProblem, *ContestProblemEvent]
-	byContest *index[int64, ContestProblem, *ContestProblem]
+	byContest *btreeIndex[int64, ContestProblem, *ContestProblem]
 }
 
 // FindByContest returns problems by parent ID.
-func (s *ContestProblemStore) FindByContest(id int64) ([]ContestProblem, error) {
+func (s *ContestProblemStore) FindByContest(
+	ctx context.Context, contestID int64,
+) (db.Rows[ContestProblem], error) {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	var objects []ContestProblem
-	for id := range s.byContest.Get(id) {
-		if object, ok := s.objects.Get(id); ok {
-			objects = append(objects, object.Clone())
-		}
-	}
-	return objects, nil
+	return btreeIndexFind(
+		s.byContest,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		contestID,
+	), nil
 }
 
 // NewContestProblemStore creates a new instance of ContestProblemStore.
@@ -89,7 +91,7 @@ func NewContestProblemStore(
 	db *gosql.DB, table, eventTable string,
 ) *ContestProblemStore {
 	impl := &ContestProblemStore{
-		byContest: newIndex(func(o ContestProblem) (int64, bool) { return o.ContestID, true }),
+		byContest: newBTreeIndex(func(o ContestProblem) (int64, bool) { return o.ContestID, true }, lessInt64),
 	}
 	impl.cachedStore = makeCachedStore[ContestProblem, ContestProblemEvent](
 		db, table, eventTable, impl, impl.byContest,

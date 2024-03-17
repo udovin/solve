@@ -59,7 +59,13 @@ func (v *View) getEventFeed(c echo.Context) error {
 	}(); err != nil {
 		return fmt.Errorf("cannot get compilers: %w", err)
 	}
-	contestProblems, err := v.core.ContestProblems.FindByContest(contestCtx.Contest.ID)
+	contestProblemRows, err := v.core.ContestProblems.FindByContest(
+		c.Request().Context(), contestCtx.Contest.ID,
+	)
+	if err != nil {
+		return err
+	}
+	contestProblems, err := db.CollectRows(contestProblemRows)
 	if err != nil {
 		return err
 	}
@@ -80,9 +86,15 @@ func (v *View) getEventFeed(c echo.Context) error {
 			Ordinal: i + 1,
 		})
 	}
-	participants, err := v.core.ContestParticipants.FindByContest(contestCtx.Contest.ID)
+	participantRows, err := v.core.ContestParticipants.FindByContest(
+		c.Request().Context(), contestCtx.Contest.ID,
+	)
 	if err != nil {
 		return fmt.Errorf("cannot get participants: %w", err)
+	}
+	participants, err := db.CollectRows(participantRows)
+	if err != nil {
+		return err
 	}
 	solutionsByParticipant := map[int64][]models.ContestSolution{}
 	if err := func() error {
@@ -399,13 +411,13 @@ func (v *View) getAccountInfo(
 	}
 	switch account.Kind {
 	case models.UserAccount:
-		user, err := v.core.Users.GetByAccount(account.ID)
+		user, err := v.core.Users.GetByAccount(ctx, account.ID)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get user: %w", err)
 		}
 		info.Title = user.Login
 	case models.ScopeUserAccount:
-		user, err := v.core.ScopeUsers.GetByAccount(account.ID)
+		user, err := v.core.ScopeUsers.GetByAccount(ctx, account.ID)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get scope user: %w", err)
 		}

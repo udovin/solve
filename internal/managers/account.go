@@ -16,6 +16,8 @@ type AccountManager struct {
 	users        *models.UserStore
 	scopes       *models.ScopeStore
 	scopeUsers   *models.ScopeUserStore
+	groups       *models.GroupStore
+	groupMembers *models.GroupMemberStore
 	roles        *models.RoleStore
 	roleEdges    *models.RoleEdgeStore
 	accountRoles *models.AccountRoleStore
@@ -28,6 +30,8 @@ func NewAccountManager(core *core.Core) *AccountManager {
 		users:        core.Users,
 		scopes:       core.Scopes,
 		scopeUsers:   core.ScopeUsers,
+		groups:       core.Groups,
+		groupMembers: core.GroupMembers,
 		roles:        core.Roles,
 		roleEdges:    core.RoleEdges,
 		accountRoles: core.AccountRoles,
@@ -45,7 +49,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 	if account != nil {
 		switch account.Kind {
 		case models.UserAccount:
-			user, err := m.users.GetByAccount(account.ID)
+			user, err := m.users.GetByAccount(ctx, account.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -73,8 +77,30 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 			}(); err != nil {
 				return nil, err
 			}
+			if err := func() error {
+				members, err := m.groupMembers.FindByAccount(ctx, account.ID)
+				if err != nil {
+					return err
+				}
+				defer func() { _ = members.Close() }()
+				for members.Next() {
+					member := members.Row()
+					group, err := m.groups.Get(ctx, member.GroupID)
+					if err != nil {
+						return err
+					}
+					groupAccount, err := m.accounts.Get(ctx, group.AccountID)
+					if err != nil {
+						return err
+					}
+					c.GroupAccounts = append(c.GroupAccounts, groupAccount)
+				}
+				return members.Err()
+			}(); err != nil {
+				return nil, err
+			}
 		case models.ScopeUserAccount:
-			user, err := m.scopeUsers.GetByAccount(account.ID)
+			user, err := m.scopeUsers.GetByAccount(ctx, account.ID)
 			if err != nil {
 				return nil, err
 			}

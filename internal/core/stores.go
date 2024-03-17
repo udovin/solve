@@ -53,6 +53,12 @@ func (c *Core) SetupAllStores() {
 			c.Config.Security.PasswordSalt,
 		)
 	}
+	c.Groups = models.NewGroupStore(
+		c.DB, "solve_group", "solve_group_event",
+	)
+	c.GroupMembers = models.NewGroupMemberStore(
+		c.DB, "solve_group_member", "solve_group_member_event",
+	)
 	c.Contests = models.NewContestStore(
 		c.DB, "solve_contest", "solve_contest_event",
 	)
@@ -119,6 +125,8 @@ func (c *Core) startStores(start func(any, string, time.Duration)) {
 	start(c.Users, "users", time.Second)
 	start(c.Scopes, "scopes", time.Second*5)
 	start(c.ScopeUsers, "scope_users", time.Second)
+	start(c.Groups, "groups", time.Second*5)
+	start(c.GroupMembers, "group_members", time.Second)
 	start(c.Contests, "contests", time.Second)
 	start(c.Problems, "problems", time.Second)
 	start(c.ProblemResources, "problem_resources", time.Second)

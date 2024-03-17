@@ -67,7 +67,7 @@ func (v *View) basicAuth(c echo.Context) (bool, error) {
 	if login == "" || password == "" {
 		return false, nil
 	}
-	user, err := v.core.Users.GetByLogin(login)
+	user, err := v.core.Users.GetByLogin(c.Request().Context(), login)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil

@@ -59,7 +59,10 @@ func NewRoleEdgeStore(
 	db *gosql.DB, table, eventTable string,
 ) *RoleEdgeStore {
 	impl := &RoleEdgeStore{
-		byRole: newBTreeIndex(func(o RoleEdge) (int64, bool) { return o.RoleID, true }, lessInt64),
+		byRole: newBTreeIndex(
+			func(o RoleEdge) (int64, bool) { return o.RoleID, true },
+			lessInt64,
+		),
 	}
 	impl.cachedStore = makeCachedStore[RoleEdge, RoleEdgeEvent](
 		db, table, eventTable, impl, impl.byRole,

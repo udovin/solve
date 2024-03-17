@@ -248,6 +248,7 @@ func (v *View) observeProblemStatementFile(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+		defer func() { _ = resources.Close() }()
 		for resources.Next() {
 			resource := resources.Row()
 			if resource.Kind != models.ProblemStatementResource {

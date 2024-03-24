@@ -59,6 +59,9 @@ func (s *Invoker) Start() error {
 	if safeexecConfig.DisableCpuLimit {
 		safeexecOptions = append(safeexecOptions, safeexec.WithDisableCpuLimit)
 	}
+	if safeexecConfig.PidsLimit > 0 {
+		safeexecOptions = append(safeexecOptions, safeexec.WithPidsLimit(safeexecConfig.PidsLimit))
+	}
 	safeexec, err := safeexec.NewManager(
 		safeexecConfig.Path, "/tmp/solve-safeexec", cgroupPath, safeexecOptions...,
 	)

@@ -22,6 +22,7 @@ type Manager struct {
 	cgroupPath    string
 	useMemoryPeak bool
 	useCPULimit   bool
+	pidsLimit     int
 }
 
 type ProcessConfig struct {
@@ -56,6 +57,9 @@ func (m *Manager) Create(ctx context.Context, config ProcessConfig) (*Process, e
 	args = append(args, "--memory-limit", fmt.Sprint(config.MemoryLimit))
 	if m.useCPULimit {
 		args = append(args, "--cpu-limit", fmt.Sprint(100))
+	}
+	if m.pidsLimit > 0 {
+		args = append(args, "--pids-limit", fmt.Sprint(m.pidsLimit))
 	}
 	args = append(args, "--overlay-lowerdir", strings.Join(config.Layers, ":"))
 	args = append(args, "--overlay-upperdir", filepath.Join(process.path, "upper"))
@@ -162,6 +166,13 @@ func WithDisableMemoryPeak(m *Manager) error {
 func WithDisableCpuLimit(m *Manager) error {
 	m.useCPULimit = false
 	return nil
+}
+
+func WithPidsLimit(limit int) Option {
+	return func(m *Manager) error {
+		m.pidsLimit = limit
+		return nil
+	}
 }
 
 func NewManager(path, executionPath, cgroupName string, options ...Option) (*Manager, error) {

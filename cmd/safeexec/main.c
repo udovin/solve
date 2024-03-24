@@ -47,6 +47,7 @@ typedef struct {
 	int memoryLimit; // Bytes.
 	int timeLimit;   // Milliseconds.
 	int cpuLimit;    // Percent.
+	int pidsLimit;   // PIDS amount.
 	int flags;
 	char* report;
 	int initializePipe[2];
@@ -230,7 +231,9 @@ static inline void prepareCgroupNamespace(const Context* ctx) {
 		strcat(cgroupPath, CGROUP_PIDS_MAX_FILE);
 		int fd = open(cgroupPath, O_WRONLY);
 		ensure(fd != -1, "cannot open " CGROUP_PIDS_MAX_FILE);
-		ensure(write(fd, "16", strlen("16")) != -1, "cannot write " CGROUP_PIDS_MAX_FILE);
+		char pidsStr[21];
+		sprintf(pidsStr, "%d", ctx->pidsLimit);
+		ensure(write(fd, pidsStr, strlen(pidsStr)) != -1, "cannot write " CGROUP_PIDS_MAX_FILE);
 		close(fd);
 	}
 	// Limit CPU usage.
@@ -281,6 +284,9 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--cpu-limit") == 0) {
 			++i;
 			ensure(i < argc, "--cpu-limit requires argument");
+		} else if (strcmp(argv[i], "--pids-limit") == 0) {
+			++i;
+			ensure(i < argc, "--pids-limit requires argument");
 		} else if (strcmp(argv[i], "--flags") == 0) {
 			++i;
 			ensure(i < argc, "--flags requires argument");
@@ -331,6 +337,9 @@ static inline void initContext(Context* ctx, int argc, char* argv[]) {
 		} else if (strcmp(argv[i], "--cpu-limit") == 0) {
 			++i;
 			ensure(sscanf(argv[i], "%d", &ctx->cpuLimit) == 1, "--cpu-limit has invalid argument");
+		} else if (strcmp(argv[i], "--pids-limit") == 0) {
+			++i;
+			ensure(sscanf(argv[i], "%d", &ctx->pidsLimit) == 1, "--pids-limit has invalid argument");
 		} else if (strcmp(argv[i], "--flags") == 0) {
 			++i;
 			ensure(sscanf(argv[i], "%d", &ctx->flags) == 1, "--flags has invalid argument");
@@ -375,6 +384,7 @@ static inline Context* newContext() {
 	ctx->memoryLimit = 0;
 	ctx->timeLimit = 0;
 	ctx->cpuLimit = 0;
+	ctx->pidsLimit = 32;
 	ctx->flags = 0;
 	ctx->report = "";
 	// Uninitialized:

@@ -62,6 +62,21 @@ func (s *ContestSolutionStore) FindByContest(
 	), nil
 }
 
+func (s *ContestSolutionStore) ReverseFindByContestFrom(
+	ctx context.Context,
+	contestID []int64,
+	beginID int64,
+) (db.Rows[ContestSolution], error) {
+	s.mutex.RLock()
+	return btreeIndexReverseFind(
+		s.byContest,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		contestID,
+		beginID,
+	), nil
+}
+
 // FindByContest returns solutions by participant ID.
 func (s *ContestSolutionStore) FindByParticipant(
 	ctx context.Context, participantID ...int64,
@@ -73,6 +88,21 @@ func (s *ContestSolutionStore) FindByParticipant(
 		s.mutex.RLocker(),
 		participantID,
 		0,
+	), nil
+}
+
+func (s *ContestSolutionStore) ReverseFindByParticipantFrom(
+	ctx context.Context,
+	participantID []int64,
+	beginID int64,
+) (db.Rows[ContestSolution], error) {
+	s.mutex.RLock()
+	return btreeIndexReverseFind(
+		s.byParticipant,
+		s.objects.Iter(),
+		s.mutex.RLocker(),
+		participantID,
+		beginID,
 	), nil
 }
 

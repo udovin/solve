@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"unicode/utf8"
@@ -254,6 +255,9 @@ func (f *solutionsFilter) Parse(c echo.Context) error {
 			Message: localize(c, "Invalid filter."),
 		}
 	}
+	if f.BeginID < 0 || f.BeginID == math.MaxInt64 {
+		f.BeginID = 0
+	}
 	if f.Limit <= 0 {
 		f.Limit = maxSolutionLimit
 	}
@@ -286,7 +290,7 @@ func (v *View) observeSolutions(c echo.Context) error {
 		c.Logger().Error("auth not extracted")
 		return fmt.Errorf("auth not extracted")
 	}
-	filter := solutionsFilter{Limit: 200}
+	filter := solutionsFilter{Limit: 250}
 	if err := filter.Parse(c); err != nil {
 		c.Logger().Warn(err)
 		return err
@@ -305,10 +309,10 @@ func (v *View) observeSolutions(c echo.Context) error {
 			resp.NextBeginID = solution.ID
 			break
 		}
-		solutionsCount++
 		if !filter.Filter(solution) {
 			continue
 		}
+		solutionsCount++
 		permissions := v.getSolutionPermissions(accountCtx, solution)
 		if permissions.HasPermission(perms.ObserveSolutionRole) {
 			resp.Solutions = append(resp.Solutions, v.makeSolution(c, solution, false))

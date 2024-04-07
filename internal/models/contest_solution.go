@@ -57,7 +57,8 @@ func (s *ContestSolutionStore) FindByContest(
 		s.byContest,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
-		contestID...,
+		contestID,
+		0,
 	), nil
 }
 
@@ -70,7 +71,8 @@ func (s *ContestSolutionStore) FindByParticipant(
 		s.byParticipant,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
-		participantID...,
+		participantID,
+		0,
 	), nil
 }
 

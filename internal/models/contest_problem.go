@@ -75,7 +75,7 @@ type ContestProblemStore struct {
 
 // FindByContest returns problems by parent ID.
 func (s *ContestProblemStore) FindByContest(
-	ctx context.Context, contestID int64,
+	ctx context.Context, contestID ...int64,
 ) (db.Rows[ContestProblem], error) {
 	s.mutex.RLock()
 	return btreeIndexFind(
@@ -83,6 +83,7 @@ func (s *ContestProblemStore) FindByContest(
 		s.objects.Iter(),
 		s.mutex.RLocker(),
 		contestID,
+		0,
 	), nil
 }
 

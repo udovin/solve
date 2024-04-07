@@ -78,13 +78,14 @@ type SessionStore struct {
 }
 
 // FindByAccount returns sessions by account ID.
-func (s *SessionStore) FindByAccount(id int64) (db.Rows[Session], error) {
+func (s *SessionStore) FindByAccount(accountID ...int64) (db.Rows[Session], error) {
 	s.mutex.RLock()
 	return btreeIndexFind(
 		s.byAccount,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
-		id,
+		accountID,
+		0,
 	), nil
 }
 

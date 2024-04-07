@@ -176,23 +176,25 @@ type TaskStore struct {
 }
 
 // FindBySolution returns a list of tasks by specified solution.
-func (s *TaskStore) FindBySolution(ctx context.Context, id int64) (db.Rows[Task], error) {
+func (s *TaskStore) FindBySolution(ctx context.Context, solutionID ...int64) (db.Rows[Task], error) {
 	s.mutex.RLock()
 	return btreeIndexFind(
 		s.bySolution,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
-		id,
+		solutionID,
+		0,
 	), nil
 }
 
-func (s *TaskStore) FindByProblem(ctx context.Context, id int64) (db.Rows[Task], error) {
+func (s *TaskStore) FindByProblem(ctx context.Context, problemID ...int64) (db.Rows[Task], error) {
 	s.mutex.RLock()
 	return btreeIndexFind(
 		s.byProblem,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
-		id,
+		problemID,
+		0,
 	), nil
 }
 

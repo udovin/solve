@@ -64,7 +64,7 @@ func (e *ContestMessageEvent) SetObject(o ContestMessage) {
 
 type ContestMessageStore interface {
 	Store[ContestMessage, ContestMessageEvent]
-	FindByContest(ctx context.Context, contestID int64) (db.Rows[ContestMessage], error)
+	FindByContest(ctx context.Context, contestID ...int64) (db.Rows[ContestMessage], error)
 }
 
 type cachedContestMessageStore struct {
@@ -73,7 +73,7 @@ type cachedContestMessageStore struct {
 }
 
 func (s *cachedContestMessageStore) FindByContest(
-	ctx context.Context, contestID int64,
+	ctx context.Context, contestID ...int64,
 ) (db.Rows[ContestMessage], error) {
 	s.mutex.RLock()
 	return btreeIndexFind(
@@ -81,6 +81,7 @@ func (s *cachedContestMessageStore) FindByContest(
 		s.objects.Iter(),
 		s.mutex.RLocker(),
 		contestID,
+		0,
 	), nil
 }
 

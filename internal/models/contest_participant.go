@@ -117,7 +117,7 @@ type ContestParticipantStore struct {
 }
 
 func (s *ContestParticipantStore) FindByContest(
-	ctx context.Context, contestID int64,
+	ctx context.Context, contestID ...int64,
 ) (db.Rows[ContestParticipant], error) {
 	s.mutex.RLock()
 	return btreeIndexFind(
@@ -125,6 +125,7 @@ func (s *ContestParticipantStore) FindByContest(
 		s.objects.Iter(),
 		s.mutex.RLocker(),
 		contestID,
+		0,
 	), nil
 }
 
@@ -137,7 +138,8 @@ func (s *ContestParticipantStore) FindByContestAccount(
 		s.byContestAccount,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
-		makePair(contestID, accountID),
+		[]pair[int64, int64]{makePair(contestID, accountID)},
+		0,
 	), nil
 }
 

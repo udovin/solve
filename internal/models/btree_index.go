@@ -49,19 +49,21 @@ func (i *btreeIndex[K, T, TPtr]) Deregister(object T) {
 	i.m.Delete(btreeIndexKey[K]{Key: key, ID: id})
 }
 
-func (i *btreeIndex[K, T, TPtr]) Find(key K) *btreeIndexIter[K] {
+func (i *btreeIndex[K, T, TPtr]) Find(key K, beginID int64) *btreeIndexIter[K] {
 	return &btreeIndexIter[K]{
-		iter: i.m.Iter(),
-		key:  key,
-		less: i.less,
+		iter:    i.m.Iter(),
+		key:     key,
+		beginID: beginID,
+		less:    i.less,
 	}
 }
 
-func (i *btreeIndex[K, T, TPtr]) ReverseFind(key K) *btreeIndexReverseIter[K] {
+func (i *btreeIndex[K, T, TPtr]) ReverseFind(key K, beginID int64) *btreeIndexReverseIter[K] {
 	return &btreeIndexReverseIter[K]{
-		iter: i.m.Iter(),
-		key:  key,
-		less: i.less,
+		iter:    i.m.Iter(),
+		key:     key,
+		beginID: beginID,
+		less:    i.less,
 	}
 }
 
@@ -76,16 +78,21 @@ func (i *btreeIndex[K, T, TPtr]) mapLess(lhs, rhs btreeIndexKey[K]) bool {
 }
 
 type btreeIndexIter[K any] struct {
-	iter   btree.MapIter[btreeIndexKey[K], struct{}]
-	key    K
-	less   func(K, K) bool
-	seeked bool
+	iter    btree.MapIter[btreeIndexKey[K], struct{}]
+	key     K
+	beginID int64
+	less    func(K, K) bool
+	seeked  bool
 }
 
 func (i *btreeIndexIter[K]) Next() bool {
 	if !i.seeked {
 		i.seeked = true
-		if !i.iter.Seek(btreeIndexKey[K]{Key: i.key, ID: math.MinInt64}) {
+		id := int64(math.MinInt64)
+		if i.beginID > 0 {
+			id = i.beginID
+		}
+		if !i.iter.Seek(btreeIndexKey[K]{Key: i.key, ID: id}) {
 			return false
 		}
 	} else {
@@ -101,16 +108,21 @@ func (r *btreeIndexIter[K]) ID() int64 {
 }
 
 type btreeIndexReverseIter[K any] struct {
-	iter   btree.MapIter[btreeIndexKey[K], struct{}]
-	key    K
-	less   func(K, K) bool
-	seeked bool
+	iter    btree.MapIter[btreeIndexKey[K], struct{}]
+	key     K
+	beginID int64
+	less    func(K, K) bool
+	seeked  bool
 }
 
 func (i *btreeIndexReverseIter[K]) Next() bool {
 	if !i.seeked {
 		i.seeked = true
-		if !i.iter.Seek(btreeIndexKey[K]{Key: i.key, ID: math.MaxInt64}) {
+		id := int64(math.MaxInt64)
+		if i.beginID > 0 {
+			id = i.beginID + 1
+		}
+		if !i.iter.Seek(btreeIndexKey[K]{Key: i.key, ID: id}) {
 			if !i.iter.Last() {
 				return false
 			}
@@ -142,7 +154,7 @@ func btreeIndexGet[K any, T any, TPtr ObjectPtr[T]](
 	objects btree.MapIter[int64, T],
 	key K,
 ) (T, error) {
-	if it := index.Find(key); it.Next() {
+	if it := index.Find(key, 0); it.Next() {
 		id := it.ID()
 		if objects.Seek(id) && objects.Key() == id {
 			value := objects.Value()
@@ -157,11 +169,12 @@ func btreeIndexFind[K any, T any, TPtr ObjectPtr[T]](
 	index *btreeIndex[K, T, TPtr],
 	objects btree.MapIter[int64, T],
 	locker sync.Locker,
-	keys ...K,
+	keys []K,
+	beginID int64,
 ) *btreeIndexRows[T, TPtr] {
 	var iters indexIterHeap
 	for _, key := range keys {
-		it := index.Find(key)
+		it := index.Find(key, beginID)
 		if it.Next() {
 			iters = append(iters, it)
 		}
@@ -178,11 +191,12 @@ func btreeIndexReverseFind[K any, T any, TPtr ObjectPtr[T]](
 	index *btreeIndex[K, T, TPtr],
 	objects btree.MapIter[int64, T],
 	locker sync.Locker,
-	keys ...K,
+	keys []K,
+	beginID int64,
 ) *btreeIndexRows[T, TPtr] {
 	var iters indexIterReverseHeap
 	for _, key := range keys {
-		it := index.ReverseFind(key)
+		it := index.ReverseFind(key, beginID)
 		if it.Next() {
 			iters = append(iters, it)
 		}

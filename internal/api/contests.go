@@ -1059,7 +1059,7 @@ func (f *contestSolutionsFilter) Filter(solution models.ContestSolution) bool {
 	if f.ProblemID != 0 && solution.ProblemID != f.ProblemID {
 		return false
 	}
-	if f.BeginID != 0 && solution.ID < f.BeginID {
+	if f.BeginID != 0 && solution.ID > f.BeginID {
 		return false
 	}
 	// TODO: Filter base solution.

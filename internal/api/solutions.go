@@ -269,7 +269,7 @@ func (f *solutionsFilter) Filter(solution models.Solution) bool {
 	if f.ProblemID != 0 && solution.ProblemID != f.ProblemID {
 		return false
 	}
-	if f.BeginID != 0 && solution.ID < f.BeginID {
+	if f.BeginID != 0 && solution.ID > f.BeginID {
 		return false
 	}
 	if f.Verdict != 0 {

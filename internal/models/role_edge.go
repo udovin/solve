@@ -50,7 +50,8 @@ func (s *RoleEdgeStore) FindByRole(ctx context.Context, roleID ...int64) (db.Row
 		s.byRole,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
-		roleID...,
+		roleID,
+		0,
 	), nil
 }
 

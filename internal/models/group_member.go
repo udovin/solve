@@ -51,24 +51,26 @@ type GroupMemberStore struct {
 }
 
 // GetByGroup returns group members by group id.
-func (s *GroupMemberStore) FindByGroup(ctx context.Context, groupID int64) (db.Rows[GroupMember], error) {
+func (s *GroupMemberStore) FindByGroup(ctx context.Context, groupID ...int64) (db.Rows[GroupMember], error) {
 	s.mutex.RLock()
 	return btreeIndexFind(
 		s.byGroup,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
 		groupID,
+		0,
 	), nil
 }
 
 // GetByAccount returns group members by account id.
-func (s *GroupMemberStore) FindByAccount(ctx context.Context, accountID int64) (db.Rows[GroupMember], error) {
+func (s *GroupMemberStore) FindByAccount(ctx context.Context, accountID ...int64) (db.Rows[GroupMember], error) {
 	s.mutex.RLock()
 	return btreeIndexFind(
 		s.byAccount,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
 		accountID,
+		0,
 	), nil
 }
 

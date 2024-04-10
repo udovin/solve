@@ -44,13 +44,14 @@ type AccountRoleStore struct {
 }
 
 // FindByAccount returns roles by account ID.
-func (s *AccountRoleStore) FindByAccount(ctx context.Context, accountID int64) (db.Rows[AccountRole], error) {
+func (s *AccountRoleStore) FindByAccount(ctx context.Context, accountID ...int64) (db.Rows[AccountRole], error) {
 	s.mutex.RLock()
 	return btreeIndexFind(
 		s.byAccount,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
 		accountID,
+		0,
 	), nil
 }
 

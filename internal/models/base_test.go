@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -24,12 +23,14 @@ func testSetup(tb testing.TB) {
 	var err error
 	testDB, err = cfg.Create()
 	if err != nil {
-		os.Exit(1)
+		tb.Fatal("Cannot setup DB:", err)
 	}
 }
 
 func testTeardown(tb testing.TB) {
-	_ = testDB.Close()
+	if err := testDB.Close(); err != nil {
+		tb.Error("Error:", err)
+	}
 }
 
 func TestEventKind(t *testing.T) {

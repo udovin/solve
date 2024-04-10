@@ -69,11 +69,8 @@ type BuildStandingsOptions struct {
 func (m *ContestStandingsManager) BuildStandings(
 	ctx *ContestContext, options BuildStandingsOptions,
 ) (*ContestStandings, error) {
-	setting, err := m.settings.GetByKey("standings.use_cache")
-	if err != nil {
-		return m.buildStandings(ctx, options)
-	}
-	if setting.Value != "1" && setting.Value != "t" && setting.Value != "true" {
+	useCache, err := m.settings.GetBool("standings.use_cache")
+	if err != nil || !useCache.OrElse(true) {
 		return m.buildStandings(ctx, options)
 	}
 	key := standingsCacheKey{

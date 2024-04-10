@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1026,7 +1027,8 @@ func (v *View) registerContest(c echo.Context) error {
 
 // ContestSolutions represents contest solutions response.
 type ContestSolutions struct {
-	Solutions []ContestSolution `json:"solutions"`
+	Solutions   []ContestSolution `json:"solutions"`
+	NextBeginID int64             `json:"next_begin_id,omitempty"`
 }
 
 type contestSolutionsFilter struct {
@@ -1036,22 +1038,31 @@ type contestSolutionsFilter struct {
 	Limit     int            `query:"limit"`
 }
 
-func (f *contestSolutionsFilter) Filter(solution models.Solution) bool {
+func (f *contestSolutionsFilter) Parse(c echo.Context) error {
+	if err := c.Bind(f); err != nil {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Invalid filter."),
+		}
+	}
+	if f.BeginID < 0 || f.BeginID == math.MaxInt64 {
+		f.BeginID = 0
+	}
+	if f.Limit <= 0 {
+		f.Limit = maxSolutionLimit
+	}
+	f.Limit = min(f.Limit, maxSolutionLimit)
+	return nil
+}
+
+func (f *contestSolutionsFilter) Filter(solution models.ContestSolution) bool {
 	if f.ProblemID != 0 && solution.ProblemID != f.ProblemID {
 		return false
 	}
-	if f.BeginID != 0 && solution.ID < f.BeginID {
+	if f.BeginID != 0 && solution.ID > f.BeginID {
 		return false
 	}
-	if f.Verdict != 0 {
-		report, err := solution.GetReport()
-		if err != nil {
-			return false
-		}
-		if report.Verdict != f.Verdict {
-			return false
-		}
-	}
+	// TODO: Filter base solution.
 	return true
 }
 
@@ -1060,13 +1071,10 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("contest not extracted")
 	}
-	filter := contestSolutionsFilter{Limit: 200}
-	if err := c.Bind(&filter); err != nil {
+	filter := contestSolutionsFilter{Limit: 250}
+	if err := filter.Parse(c); err != nil {
 		c.Logger().Warn(err)
-		return errorResponse{
-			Code:    http.StatusBadRequest,
-			Message: localize(c, "Invalid filter."),
-		}
+		return err
 	}
 	contest := contestCtx.Contest
 	if err := syncStore(c, v.core.Solutions); err != nil {
@@ -1077,8 +1085,8 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 	}
 	var solutions db.Rows[models.ContestSolution]
 	if contestCtx.HasPermission(perms.ObserveContestSolutionRole) {
-		contestSolutions, err := v.core.ContestSolutions.FindByContest(
-			getContext(c), contest.ID,
+		contestSolutions, err := v.core.ContestSolutions.ReverseFindByContestFrom(
+			getContext(c), []int64{contest.ID}, filter.BeginID,
 		)
 		if err != nil {
 			return err
@@ -1091,8 +1099,8 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 				participantIDs = append(participantIDs, participant.ID)
 			}
 		}
-		participantSolutions, err := v.core.ContestSolutions.FindByParticipant(
-			getContext(c), participantIDs...,
+		participantSolutions, err := v.core.ContestSolutions.ReverseFindByParticipantFrom(
+			getContext(c), participantIDs, filter.BeginID,
 		)
 		if err != nil {
 			return err
@@ -1101,8 +1109,17 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 	}
 	defer func() { _ = solutions.Close() }()
 	var resp ContestSolutions
+	solutionsCount := 0
 	for solutions.Next() {
 		solution := solutions.Row()
+		if solutionsCount >= filter.Limit {
+			resp.NextBeginID = solution.ID
+			break
+		}
+		if !filter.Filter(solution) {
+			continue
+		}
+		solutionsCount++
 		permissions := v.getContestSolutionPermissions(contestCtx, solution)
 		if permissions.HasPermission(perms.ObserveContestSolutionRole) {
 			resp.Solutions = append(
@@ -1111,7 +1128,9 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 			)
 		}
 	}
-	reverse(resp.Solutions)
+	if err := solutions.Err(); err != nil {
+		return err
+	}
 	return c.JSON(http.StatusOK, resp)
 }
 

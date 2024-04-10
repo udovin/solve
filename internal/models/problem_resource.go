@@ -103,7 +103,7 @@ type ProblemResourceStore struct {
 }
 
 func (s *ProblemResourceStore) FindByProblem(
-	ctx context.Context, problemID int64,
+	ctx context.Context, problemID ...int64,
 ) (db.Rows[ProblemResource], error) {
 	if err := s.TrySync(ctx); err != nil {
 		return nil, err
@@ -114,6 +114,7 @@ func (s *ProblemResourceStore) FindByProblem(
 		s.objects.Iter(),
 		s.mutex.RLocker(),
 		problemID,
+		0,
 	), nil
 }
 

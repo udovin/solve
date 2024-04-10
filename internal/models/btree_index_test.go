@@ -39,7 +39,7 @@ func TestBTreeIndexFind(t *testing.T) {
 	objects := testSetupObjects()
 	index := testSetupIndex(objects)
 	{
-		iter := index.Find(1)
+		iter := index.Find(1, 0)
 		result := []int64{}
 		for iter.Next() {
 			result = append(result, iter.ID())
@@ -49,7 +49,7 @@ func TestBTreeIndexFind(t *testing.T) {
 		}
 	}
 	{
-		iter := index.Find(4)
+		iter := index.Find(4, 0)
 		result := []int64{}
 		for iter.Next() {
 			result = append(result, iter.ID())
@@ -59,7 +59,7 @@ func TestBTreeIndexFind(t *testing.T) {
 		}
 	}
 	{
-		iter := index.Find(10)
+		iter := index.Find(10, 0)
 		result := []int64{}
 		for iter.Next() {
 			result = append(result, iter.ID())
@@ -74,7 +74,7 @@ func TestBTreeIndexReverseFind(t *testing.T) {
 	objects := testSetupObjects()
 	index := testSetupIndex(objects)
 	{
-		iter := index.ReverseFind(1)
+		iter := index.ReverseFind(1, 0)
 		result := []int64{}
 		for iter.Next() {
 			result = append(result, iter.ID())
@@ -84,7 +84,7 @@ func TestBTreeIndexReverseFind(t *testing.T) {
 		}
 	}
 	{
-		iter := index.ReverseFind(4)
+		iter := index.ReverseFind(4, 0)
 		result := []int64{}
 		for iter.Next() {
 			result = append(result, iter.ID())
@@ -94,7 +94,7 @@ func TestBTreeIndexReverseFind(t *testing.T) {
 		}
 	}
 	{
-		iter := index.ReverseFind(10)
+		iter := index.ReverseFind(10, 0)
 		result := []int64{}
 		for iter.Next() {
 			result = append(result, iter.ID())
@@ -111,7 +111,7 @@ func TestBTreeIndexFindMulti(t *testing.T) {
 	mutex := sync.Mutex{}
 	func() {
 		mutex.Lock()
-		rows := btreeIndexFind(index, objects.Iter(), &mutex, 1, 3, 2, 4)
+		rows := btreeIndexFind(index, objects.Iter(), &mutex, []int{1, 3, 2, 4}, 0)
 		defer rows.Close()
 		result := []int64{}
 		for rows.Next() {
@@ -124,7 +124,7 @@ func TestBTreeIndexFindMulti(t *testing.T) {
 	}()
 	func() {
 		mutex.Lock()
-		rows := btreeIndexFind(index, objects.Iter(), &mutex, 4)
+		rows := btreeIndexFind(index, objects.Iter(), &mutex, []int{4}, 0)
 		defer rows.Close()
 		result := []int64{}
 		for rows.Next() {
@@ -137,7 +137,7 @@ func TestBTreeIndexFindMulti(t *testing.T) {
 	}()
 	func() {
 		mutex.Lock()
-		rows := btreeIndexFind(index, objects.Iter(), &mutex, 10)
+		rows := btreeIndexFind(index, objects.Iter(), &mutex, []int{10}, 0)
 		defer rows.Close()
 		result := []int64{}
 		for rows.Next() {
@@ -156,7 +156,7 @@ func TestBTreeIndexReverseFindMulti(t *testing.T) {
 	mutex := sync.Mutex{}
 	func() {
 		mutex.Lock()
-		rows := btreeIndexReverseFind(index, objects.Iter(), &mutex, 1, 3, 2, 4)
+		rows := btreeIndexReverseFind(index, objects.Iter(), &mutex, []int{1, 3, 2, 4}, 0)
 		defer rows.Close()
 		result := []int64{}
 		for rows.Next() {
@@ -169,7 +169,7 @@ func TestBTreeIndexReverseFindMulti(t *testing.T) {
 	}()
 	func() {
 		mutex.Lock()
-		rows := btreeIndexReverseFind(index, objects.Iter(), &mutex, 4)
+		rows := btreeIndexReverseFind(index, objects.Iter(), &mutex, []int{4}, 0)
 		defer rows.Close()
 		result := []int64{}
 		for rows.Next() {
@@ -182,7 +182,7 @@ func TestBTreeIndexReverseFindMulti(t *testing.T) {
 	}()
 	func() {
 		mutex.Lock()
-		rows := btreeIndexReverseFind(index, objects.Iter(), &mutex, 10)
+		rows := btreeIndexReverseFind(index, objects.Iter(), &mutex, []int{10}, 0)
 		defer rows.Close()
 		result := []int64{}
 		for rows.Next() {

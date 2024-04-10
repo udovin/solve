@@ -56,13 +56,14 @@ type ScopeUserStore struct {
 }
 
 // FindByScope returns scope users by scope.
-func (s *ScopeUserStore) FindByScope(scopeID int64) (db.Rows[ScopeUser], error) {
+func (s *ScopeUserStore) FindByScope(scopeID ...int64) (db.Rows[ScopeUser], error) {
 	s.mutex.RLock()
 	return btreeIndexFind(
 		s.byScope,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
 		scopeID,
+		0,
 	), nil
 }
 

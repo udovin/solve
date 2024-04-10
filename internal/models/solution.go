@@ -183,13 +183,14 @@ type SolutionStore struct {
 	byProblem *btreeIndex[int64, Solution, *Solution]
 }
 
-func (s *SolutionStore) FindByProblem(ctx context.Context, problemID int64) (db.Rows[Solution], error) {
+func (s *SolutionStore) FindByProblem(ctx context.Context, problemID ...int64) (db.Rows[Solution], error) {
 	s.mutex.RLock()
 	return btreeIndexFind(
 		s.byProblem,
 		s.objects.Iter(),
 		s.mutex.RLocker(),
 		problemID,
+		0,
 	), nil
 }
 

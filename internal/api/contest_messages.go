@@ -77,7 +77,7 @@ func (f *CreateContestMessageForm) Update(
 ) error {
 	errors := errorFields{}
 	if f.ParentID == nil {
-		if len(f.Title) < 4 {
+		if len(f.Title) < 2 {
 			errors["title"] = errorField{
 				Message: localize(c, "Title is too short."),
 			}
@@ -89,7 +89,7 @@ func (f *CreateContestMessageForm) Update(
 	} else {
 		f.Title = ""
 	}
-	if len(f.Description) < 4 {
+	if len(f.Description) < 2 {
 		errors["description"] = errorField{
 			Message: localize(c, "Description is too short."),
 		}
@@ -167,7 +167,7 @@ func (f SubmitContestQuestionForm) Update(
 	c echo.Context, o *models.ContestMessage,
 ) error {
 	errors := errorFields{}
-	if len(f.Title) < 4 {
+	if len(f.Title) < 2 {
 		errors["title"] = errorField{
 			Message: localize(c, "Title is too short."),
 		}

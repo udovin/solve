@@ -1032,10 +1032,11 @@ type ContestSolutions struct {
 }
 
 type contestSolutionsFilter struct {
-	ProblemID int64          `query:"problem_id"`
-	Verdict   models.Verdict `query:"verdict"`
-	BeginID   int64          `query:"begin_id"`
-	Limit     int            `query:"limit"`
+	ProblemID     int64          `query:"problem_id"`
+	ParticipantID int64          `query:"participant_id"`
+	Verdict       models.Verdict `query:"verdict"`
+	BeginID       int64          `query:"begin_id"`
+	Limit         int            `query:"limit"`
 }
 
 func (f *contestSolutionsFilter) Parse(c echo.Context) error {
@@ -1059,6 +1060,9 @@ func (f *contestSolutionsFilter) Filter(solution models.ContestSolution) bool {
 	if f.ProblemID != 0 && solution.ProblemID != f.ProblemID {
 		return false
 	}
+	if f.ParticipantID != 0 && solution.ParticipantID != f.ParticipantID {
+		return false
+	}
 	if f.BeginID != 0 && solution.ID > f.BeginID {
 		return false
 	}
@@ -1071,7 +1075,7 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("contest not extracted")
 	}
-	filter := contestSolutionsFilter{Limit: 250}
+	filter := contestSolutionsFilter{Limit: 50}
 	if err := filter.Parse(c); err != nil {
 		c.Logger().Warn(err)
 		return err

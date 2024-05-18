@@ -47,6 +47,7 @@ type objectStore[T any, TPtr ObjectPtr[T]] struct {
 	id      string
 	table   string
 	columns []string
+	manual  bool
 }
 
 func (s *objectStore[T, TPtr]) LoadObjects(ctx context.Context) (Rows[T], error) {
@@ -103,6 +104,9 @@ func (s *objectStore[T, TPtr]) FindObject(
 }
 
 func (s *objectStore[T, TPtr]) CreateObject(ctx context.Context, object TPtr) error {
+	if s.manual {
+		return insertRow(ctx, s.db, *object, nil, "", s.table)
+	}
 	var id int64
 	if err := insertRow(ctx, s.db, *object, &id, s.id, s.table); err != nil {
 		return err
@@ -128,6 +132,20 @@ func NewObjectStore[T any, TPtr ObjectPtr[T]](
 		id:      id,
 		table:   table,
 		columns: getColumns[T](),
+		manual:  false,
+	}
+}
+
+// NewObjectStore creates a new store for objects of specified type.
+func NewManualObjectStore[T any, TPtr ObjectPtr[T]](
+	id, table string, db *gosql.DB,
+) ObjectStore[T, TPtr] {
+	return &objectStore[T, TPtr]{
+		db:      db,
+		id:      id,
+		table:   table,
+		columns: getColumns[T](),
+		manual:  true,
 	}
 }
 

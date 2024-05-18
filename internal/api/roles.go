@@ -335,7 +335,7 @@ func (v *View) observeUserRoles(c echo.Context) error {
 		return fmt.Errorf("user not extracted")
 	}
 	ctx := getContext(c)
-	edges, err := v.core.AccountRoles.FindByAccount(ctx, user.AccountID)
+	edges, err := v.core.AccountRoles.FindByAccount(ctx, user.ID)
 	if err != nil {
 		return err
 	}
@@ -372,7 +372,7 @@ func (v *View) createUserRole(c echo.Context) error {
 		return fmt.Errorf("role not extracted")
 	}
 	ctx := getContext(c)
-	if edge, err := findAccountRole(ctx, v.core, user.AccountID, role.ID); err != nil {
+	if edge, err := findAccountRole(ctx, v.core, user.ID, role.ID); err != nil {
 		return err
 	} else if edge != nil {
 		return errorResponse{
@@ -385,7 +385,7 @@ func (v *View) createUserRole(c echo.Context) error {
 		}
 	}
 	edge := models.AccountRole{
-		AccountID: user.AccountID,
+		AccountID: user.ID,
 		RoleID:    role.ID,
 	}
 	if err := v.core.AccountRoles.Create(ctx, &edge); err != nil {
@@ -410,7 +410,7 @@ func (v *View) deleteUserRole(c echo.Context) error {
 		return err
 	}
 	ctx := getContext(c)
-	edge, err := findAccountRole(ctx, v.core, user.AccountID, role.ID)
+	edge, err := findAccountRole(ctx, v.core, user.ID, role.ID)
 	if err != nil {
 		return err
 	}

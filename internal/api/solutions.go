@@ -216,14 +216,14 @@ func (v *View) makeSolution(
 	if account, err := v.core.Accounts.Get(ctx, solution.AuthorID); err == nil {
 		switch account.Kind {
 		case models.UserAccount:
-			if user, err := v.core.Users.GetByAccount(ctx, account.ID); err == nil {
+			if user, err := v.core.Users.Get(ctx, account.ID); err == nil {
 				resp.User = &User{
 					ID:    user.ID,
 					Login: user.Login,
 				}
 			}
 		case models.ScopeUserAccount:
-			if user, err := v.core.ScopeUsers.GetByAccount(ctx, account.ID); err == nil {
+			if user, err := v.core.ScopeUsers.Get(ctx, account.ID); err == nil {
 				resp.ScopeUser = &ScopeUser{
 					ID:    user.ID,
 					Login: user.Login,

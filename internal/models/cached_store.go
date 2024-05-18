@@ -485,3 +485,19 @@ func makeCachedStore[T any, E any, TPtr ObjectPtr[T], EPtr ObjectEventPtr[T, E]]
 		indexes: indexes,
 	}
 }
+
+func makeCachedManualStore[T any, E any, TPtr ObjectPtr[T], EPtr ObjectEventPtr[T, E]](
+	conn *gosql.DB,
+	table, eventTable string,
+	impl cachedStoreImpl[T],
+	indexes ...storeIndex[T],
+) cachedStore[T, E, TPtr, EPtr] {
+	return cachedStore[T, E, TPtr, EPtr]{
+		db:      conn,
+		table:   table,
+		store:   db.NewManualObjectStore[T, TPtr]("id", table, conn),
+		events:  db.NewEventStore[E, EPtr]("event_id", eventTable, conn),
+		impl:    impl,
+		indexes: indexes,
+	}
+}

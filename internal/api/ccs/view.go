@@ -77,7 +77,7 @@ func (v *View) basicAuth(c echo.Context) (bool, error) {
 	if !v.core.Users.CheckPassword(user, password) {
 		return false, nil
 	}
-	account, err := v.core.Accounts.Get(c.Request().Context(), user.AccountID)
+	account, err := v.core.Accounts.Get(c.Request().Context(), user.ID)
 	if err != nil {
 		return false, err
 	}

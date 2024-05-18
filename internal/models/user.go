@@ -37,7 +37,6 @@ func (t UserStatus) String() string {
 // User contains common information about user.
 type User struct {
 	baseObject
-	AccountID    int64      `db:"account_id"`
 	Login        string     `db:"login"`
 	Status       UserStatus `db:"status"`
 	PasswordHash string     `db:"password_hash"`
@@ -77,9 +76,8 @@ func (e *UserEvent) SetObject(o User) {
 // UserStore represents users store.
 type UserStore struct {
 	cachedStore[User, UserEvent, *User, *UserEvent]
-	byAccount *btreeIndex[int64, User, *User]
-	byLogin   *btreeIndex[string, User, *User]
-	salt      string
+	byLogin *btreeIndex[string, User, *User]
+	salt    string
 }
 
 // GetByLogin returns user by login.
@@ -87,13 +85,6 @@ func (s *UserStore) GetByLogin(ctx context.Context, login string) (User, error) 
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return btreeIndexGet(s.byLogin, s.objects.Iter(), strings.ToLower(login))
-}
-
-// GetByAccount returns user by account id.
-func (s *UserStore) GetByAccount(ctx context.Context, id int64) (User, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return btreeIndexGet(s.byAccount, s.objects.Iter(), id)
 }
 
 // SetPassword modifies PasswordHash and PasswordSalt fields.
@@ -123,18 +114,14 @@ func NewUserStore(
 	db *gosql.DB, table, eventTable, salt string,
 ) *UserStore {
 	impl := &UserStore{
-		byAccount: newBTreeIndex(
-			func(o User) (int64, bool) { return o.AccountID, true },
-			lessInt64,
-		),
 		byLogin: newBTreeIndex(
 			func(o User) (string, bool) { return strings.ToLower(o.Login), true },
 			lessString,
 		),
 		salt: salt,
 	}
-	impl.cachedStore = makeCachedStore[User, UserEvent](
-		db, table, eventTable, impl, impl.byAccount, impl.byLogin,
+	impl.cachedStore = makeCachedManualStore[User, UserEvent](
+		db, table, eventTable, impl, impl.byLogin,
 	)
 	return impl
 }

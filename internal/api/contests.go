@@ -858,7 +858,7 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
-		participant.AccountID = user.AccountID
+		participant.AccountID = user.ID
 	} else if f.UserLogin != nil {
 		user, err := core.Users.GetByLogin(ctx, *f.UserLogin)
 		if err != nil {
@@ -870,7 +870,7 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
-		participant.AccountID = user.AccountID
+		participant.AccountID = user.ID
 	} else if f.ScopeUserID != nil {
 		user, err := core.ScopeUsers.Get(ctx, *f.ScopeUserID)
 		if err != nil {
@@ -882,7 +882,7 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
-		participant.AccountID = user.AccountID
+		participant.AccountID = user.ID
 	} else if f.ScopeID != nil {
 		scope, err := core.Scopes.Get(ctx, *f.ScopeID)
 		if err != nil {
@@ -894,7 +894,7 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
-		participant.AccountID = scope.AccountID
+		participant.AccountID = scope.ID
 	} else if f.GroupID != nil {
 		group, err := core.Groups.Get(ctx, *f.GroupID)
 		if err != nil {
@@ -906,7 +906,7 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
-		participant.AccountID = group.AccountID
+		participant.AccountID = group.ID
 	}
 	participant.Kind = f.Kind
 	if participant.Kind == 0 {
@@ -1457,14 +1457,14 @@ func makeContestParticipant(
 	); err == nil {
 		switch account.Kind {
 		case models.UserAccount:
-			if user, err := core.Users.GetByAccount(ctx, account.ID); err == nil {
+			if user, err := core.Users.Get(ctx, account.ID); err == nil {
 				resp.User = &User{
 					ID:    user.ID,
 					Login: user.Login,
 				}
 			}
 		case models.ScopeUserAccount:
-			if user, err := core.ScopeUsers.GetByAccount(ctx, account.ID); err == nil {
+			if user, err := core.ScopeUsers.Get(ctx, account.ID); err == nil {
 				resp.ScopeUser = &ScopeUser{
 					ID:    user.ID,
 					Login: user.Login,
@@ -1472,7 +1472,7 @@ func makeContestParticipant(
 				}
 			}
 		case models.ScopeAccount:
-			if scope, err := core.Scopes.GetByAccount(ctx, account.ID); err == nil {
+			if scope, err := core.Scopes.Get(ctx, account.ID); err == nil {
 				resp.Scope = &Scope{
 					ID:    scope.ID,
 					Title: scope.Title,

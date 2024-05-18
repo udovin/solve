@@ -411,13 +411,13 @@ func (v *View) getAccountInfo(
 	}
 	switch account.Kind {
 	case models.UserAccount:
-		user, err := v.core.Users.GetByAccount(ctx, account.ID)
+		user, err := v.core.Users.Get(ctx, account.ID)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get user: %w", err)
 		}
 		info.Title = user.Login
 	case models.ScopeUserAccount:
-		user, err := v.core.ScopeUsers.GetByAccount(ctx, account.ID)
+		user, err := v.core.ScopeUsers.Get(ctx, account.ID)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get scope user: %w", err)
 		}

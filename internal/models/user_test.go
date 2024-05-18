@@ -5,13 +5,14 @@ import (
 	"testing"
 )
 
-type userStoreTest struct{}
+type userStoreTest struct {
+	counter int64
+}
 
 func (t *userStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "user" (` +
 			`"id" integer PRIMARY KEY,` +
-			`"account_id" integer NOT NULL,` +
 			`"login" varchar(64) NOT NULL,` +
 			`"status" integer NOT NULL,` +
 			`"password_hash" varchar(255) NOT NULL,` +
@@ -30,7 +31,6 @@ func (t *userStoreTest) prepareDB(tx *sql.Tx) error {
 			`"event_time" bigint NOT NULL,` +
 			`"event_account_id" integer NULL,` +
 			`"id" integer NOT NULL,` +
-			`"account_id" integer NOT NULL,` +
 			`"login" varchar(64) NOT NULL,` +
 			`"status" integer NOT NULL,` +
 			`"password_hash" varchar(255) NOT NULL,` +
@@ -55,6 +55,10 @@ func (t *userStoreTest) createObject(
 	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	user := o.(User)
+	if user.ID == 0 {
+		t.counter += 1
+		user.ID = t.counter
+	}
 	if err := s.(*UserStore).Create(wrapContext(tx), &user); err != nil {
 		return User{}, err
 	}

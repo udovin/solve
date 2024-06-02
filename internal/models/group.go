@@ -13,7 +13,7 @@ type Group struct {
 
 // AccountKind returns GroupAccount kind.
 func (o Group) AccountKind() AccountKind {
-	return GroupAccount
+	return GroupAccountKind
 }
 
 // Clone creates copy of group.

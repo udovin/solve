@@ -9,13 +9,13 @@ type AccountKind int
 
 const (
 	// UserAccount represents kind of account for user.
-	UserAccount AccountKind = 1
+	UserAccountKind AccountKind = 1
 	// ScopeUserAccount represents kind of account for scope user.
-	ScopeUserAccount AccountKind = 2
+	ScopeUserAccountKind AccountKind = 2
 	// ScopeAccount represents kind of account for scope.
-	ScopeAccount AccountKind = 3
+	ScopeAccountKind AccountKind = 3
 	// GroupAccount represents kind of account for group.
-	GroupAccount AccountKind = 4
+	GroupAccountKind AccountKind = 4
 )
 
 // Account represents an account.

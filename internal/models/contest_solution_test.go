@@ -5,13 +5,14 @@ import (
 	"testing"
 )
 
-type contestSolutionStoreTest struct{}
+type contestSolutionStoreTest struct {
+	counter int64
+}
 
 func (t *contestSolutionStoreTest) prepareDB(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`CREATE TABLE "contest_solution" (` +
 			`"id" integer PRIMARY KEY,` +
-			`"solution_id" integer NOT NULL,` +
 			`"contest_id" integer NOT NULL,` +
 			`"participant_id" integer NOT NULL,` +
 			`"problem_id" integer NOT NULL)`,
@@ -25,7 +26,6 @@ func (t *contestSolutionStoreTest) prepareDB(tx *sql.Tx) error {
 			`"event_time" bigint NOT NULL,` +
 			`"event_account_id" integer NULL,` +
 			`"id" integer NOT NULL,` +
-			`"solution_id" integer NOT NULL,` +
 			`"contest_id" integer NOT NULL,` +
 			`"participant_id" integer NOT NULL,` +
 			`"problem_id" integer NOT NULL)`,
@@ -47,6 +47,10 @@ func (t *contestSolutionStoreTest) createObject(
 	s CachedStore, tx *sql.Tx, o object,
 ) (object, error) {
 	solution := o.(ContestSolution)
+	if solution.ID == 0 {
+		t.counter += 1
+		solution.ID = t.counter
+	}
 	err := s.(*ContestSolutionStore).Create(wrapContext(tx), &solution)
 	return solution, err
 }

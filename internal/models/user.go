@@ -49,7 +49,7 @@ type User struct {
 
 // AccountKind returns UserAccount kind.
 func (o User) AccountKind() AccountKind {
-	return UserAccount
+	return UserAccountKind
 }
 
 // Clone creates copy of user.

@@ -455,7 +455,7 @@ func (v *View) updateProblem(c echo.Context) error {
 				}
 				return err
 			}
-			if account.Kind != models.UserAccount {
+			if account.Kind != models.UserAccountKind {
 				return errorResponse{
 					Code:    http.StatusBadRequest,
 					Message: localize(c, "User not found."),

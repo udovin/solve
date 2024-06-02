@@ -48,7 +48,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 	var roleIDs []int64
 	if account != nil {
 		switch account.Kind {
-		case models.UserAccount:
+		case models.UserAccountKind:
 			user, err := m.users.Get(ctx, account.ID)
 			if err != nil {
 				return nil, err
@@ -99,7 +99,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 			}(); err != nil {
 				return nil, err
 			}
-		case models.ScopeUserAccount:
+		case models.ScopeUserAccountKind:
 			user, err := m.scopeUsers.Get(ctx, account.ID)
 			if err != nil {
 				return nil, err

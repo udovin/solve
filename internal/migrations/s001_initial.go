@@ -629,6 +629,7 @@ var s001 = []schema.Operation{
 		Name: "solve_solution",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "kind", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},
 			{Name: "compiler_id", Type: schema.Int64},
 			{Name: "author_id", Type: schema.Int64},
@@ -652,6 +653,7 @@ var s001 = []schema.Operation{
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
 			{Name: "id", Type: schema.Int64},
+			{Name: "kind", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},
 			{Name: "compiler_id", Type: schema.Int64},
 			{Name: "author_id", Type: schema.Int64},
@@ -747,15 +749,14 @@ var s001 = []schema.Operation{
 	schema.CreateTable{
 		Name: "solve_contest_solution",
 		Columns: []schema.Column{
-			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "id", Type: schema.Int64, PrimaryKey: true},
 			{Name: "contest_id", Type: schema.Int64},
-			{Name: "solution_id", Type: schema.Int64},
 			{Name: "participant_id", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},
 		},
 		ForeignKeys: []schema.ForeignKey{
+			{Column: "id", ParentTable: "solve_solution", ParentColumn: "id"},
 			{Column: "contest_id", ParentTable: "solve_contest", ParentColumn: "id"},
-			{Column: "solution_id", ParentTable: "solve_solution", ParentColumn: "id"},
 			{Column: "participant_id", ParentTable: "solve_contest_participant", ParentColumn: "id"},
 			{Column: "problem_id", ParentTable: "solve_contest_problem", ParentColumn: "id"},
 		},
@@ -773,7 +774,6 @@ var s001 = []schema.Operation{
 			{Name: "event_time", Type: schema.Int64},
 			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
 			{Name: "id", Type: schema.Int64},
-			{Name: "solution_id", Type: schema.Int64},
 			{Name: "contest_id", Type: schema.Int64},
 			{Name: "participant_id", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},

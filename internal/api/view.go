@@ -372,7 +372,7 @@ func (v *View) sessionAuth(c echo.Context) (bool, error) {
 		return false, err
 	}
 	// Do not allow scope to login.
-	if account.Kind == models.ScopeAccount {
+	if account.Kind == models.ScopeAccountKind {
 		return false, nil
 	}
 	accountCtx, err := v.accounts.MakeContext(getContext(c), &account)
@@ -427,10 +427,10 @@ func (v *View) userAuth(c echo.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if account.Kind != models.UserAccount {
+	if account.Kind != models.UserAccountKind {
 		c.Logger().Errorf(
 			"Account %v should have %v kind, but has %v",
-			account.ID, models.UserAccount, account.Kind,
+			account.ID, models.UserAccountKind, account.Kind,
 		)
 		return false, fmt.Errorf("invalid account kind %q", account.Kind)
 	}
@@ -485,10 +485,10 @@ func (v *View) scopeUserAuth(c echo.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if account.Kind != models.ScopeUserAccount {
+	if account.Kind != models.ScopeUserAccountKind {
 		c.Logger().Errorf(
 			"Account %v should have %v kind, but has %v",
-			account.ID, models.ScopeUserAccount, account.Kind,
+			account.ID, models.ScopeUserAccountKind, account.Kind,
 		)
 		return false, fmt.Errorf("invalid account kind %q", account.Kind)
 	}

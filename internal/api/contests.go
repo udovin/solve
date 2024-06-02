@@ -496,7 +496,7 @@ func (v *View) updateContest(c echo.Context) error {
 				}
 				return err
 			}
-			if account.Kind != models.UserAccount {
+			if account.Kind != models.UserAccountKind {
 				return errorResponse{
 					Code:    http.StatusBadRequest,
 					Message: localize(c, "User not found."),
@@ -551,7 +551,7 @@ func getSolvedProblems(ctx *managers.ContestContext, c *core.Core) map[int64]boo
 	defer func() { _ = solutions.Close() }()
 	for solutions.Next() {
 		contestSolution := solutions.Row()
-		solution, err := c.Solutions.Get(ctx, contestSolution.SolutionID)
+		solution, err := c.Solutions.Get(ctx, contestSolution.ID)
 		if err != nil {
 			continue
 		}
@@ -1156,7 +1156,7 @@ func (v *View) rejudgeContestSolution(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("solution not extracted")
 	}
-	solution, err := v.core.Solutions.Get(getContext(c), contestSolution.SolutionID)
+	solution, err := v.core.Solutions.Get(getContext(c), contestSolution.ID)
 	if err != nil {
 		return err
 	}
@@ -1246,9 +1246,9 @@ func (v *View) hasSolutionsQuota(
 	fromTime := toTime.Add(-time.Second * time.Duration(window))
 	for solutions.Next() {
 		contestSolution := solutions.Row()
-		solution, err := v.core.Solutions.Get(contestCtx, contestSolution.SolutionID)
+		solution, err := v.core.Solutions.Get(contestCtx, contestSolution.ID)
 		if err != nil {
-			logger.Warn("Cannot find solution: %v", contestSolution.SolutionID)
+			logger.Warn("Cannot find solution: %v", contestSolution.ID)
 			continue
 		}
 		createTime := time.Unix(solution.CreateTime, 0)
@@ -1362,6 +1362,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		return err
 	}
 	solution := models.Solution{
+		Kind:       models.ContestSolutionKind,
 		ProblemID:  problem.ProblemID,
 		AuthorID:   account.ID,
 		CompilerID: form.CompilerID,
@@ -1384,7 +1385,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		if err := v.core.Solutions.Create(ctx, &solution); err != nil {
 			return err
 		}
-		contestSolution.SolutionID = solution.ID
+		contestSolution.ID = solution.ID
 		if err := v.core.ContestSolutions.Create(
 			ctx, &contestSolution,
 		); err != nil {
@@ -1419,7 +1420,7 @@ func (v *View) makeContestSolution(
 		ContestID: solution.ContestID,
 	}
 	if baseSolution, err := v.core.Solutions.Get(
-		getContext(c), solution.SolutionID,
+		getContext(c), solution.ID,
 	); err == nil {
 		resp.Solution = v.makeSolution(c, baseSolution, withLogs)
 		resp.Solution.Problem = nil
@@ -1456,14 +1457,14 @@ func makeContestParticipant(
 		ctx, participant.AccountID,
 	); err == nil {
 		switch account.Kind {
-		case models.UserAccount:
+		case models.UserAccountKind:
 			if user, err := core.Users.Get(ctx, account.ID); err == nil {
 				resp.User = &User{
 					ID:    user.ID,
 					Login: user.Login,
 				}
 			}
-		case models.ScopeUserAccount:
+		case models.ScopeUserAccountKind:
 			if user, err := core.ScopeUsers.Get(ctx, account.ID); err == nil {
 				resp.ScopeUser = &ScopeUser{
 					ID:    user.ID,
@@ -1471,7 +1472,7 @@ func makeContestParticipant(
 					Title: string(user.Title),
 				}
 			}
-		case models.ScopeAccount:
+		case models.ScopeAccountKind:
 			if scope, err := core.Scopes.Get(ctx, account.ID); err == nil {
 				resp.Scope = &Scope{
 					ID:    scope.ID,

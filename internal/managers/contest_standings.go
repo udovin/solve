@@ -218,7 +218,7 @@ func (m *ContestStandingsManager) buildICPCStandings(
 		}
 		solutionsByColumn := map[int][]models.Solution{}
 		for _, participantSolution := range participantSolutions {
-			solution, err := m.solutions.Get(ctx, participantSolution.SolutionID)
+			solution, err := m.solutions.Get(ctx, participantSolution.ID)
 			if err != nil {
 				if err == sql.ErrNoRows {
 					continue
@@ -353,7 +353,7 @@ func (m *ContestStandingsManager) buildIOIStandings(
 		}
 		solutionsByColumn := map[int][]models.Solution{}
 		for _, participantSolution := range participantSolutions {
-			solution, err := m.solutions.Get(ctx, participantSolution.SolutionID)
+			solution, err := m.solutions.Get(ctx, participantSolution.ID)
 			if err != nil {
 				if err == sql.ErrNoRows {
 					continue

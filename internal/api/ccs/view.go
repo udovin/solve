@@ -81,10 +81,10 @@ func (v *View) basicAuth(c echo.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if account.Kind != models.UserAccount {
+	if account.Kind != models.UserAccountKind {
 		c.Logger().Errorf(
 			"Account %v should have %v kind, but has %v",
-			account.ID, models.UserAccount, account.Kind,
+			account.ID, models.UserAccountKind, account.Kind,
 		)
 		return false, fmt.Errorf("invalid account kind %q", account.Kind)
 	}

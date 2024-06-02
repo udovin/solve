@@ -13,7 +13,7 @@ type Scope struct {
 
 // AccountKind returns ScopeAccount kind.
 func (o Scope) AccountKind() AccountKind {
-	return ScopeAccount
+	return ScopeAccountKind
 }
 
 // Clone creates copy of scope.

@@ -9,6 +9,14 @@ import (
 	"github.com/udovin/solve/internal/db"
 )
 
+// SolutionKind represents kind of solution.
+type SolutionKind int
+
+const (
+	// ContestSolutionKind represents kind of solution for contest.
+	ContestSolutionKind SolutionKind = 1
+)
+
 type Verdict int
 
 const (
@@ -122,13 +130,15 @@ type SolutionReport struct {
 // Solution represents a solution.
 type Solution struct {
 	baseObject
-	ProblemID  int64   `db:"problem_id"`
-	CompilerID int64   `db:"compiler_id"`
-	AuthorID   int64   `db:"author_id"`
-	Report     JSON    `db:"report"`
-	CreateTime int64   `db:"create_time"`
-	Content    NString `db:"content"`
-	ContentID  NInt64  `db:"content_id"`
+	// Kind contains kind of solution.
+	Kind       SolutionKind `db:"kind"`
+	ProblemID  int64        `db:"problem_id"`
+	CompilerID int64        `db:"compiler_id"`
+	AuthorID   int64        `db:"author_id"`
+	Report     JSON         `db:"report"`
+	CreateTime int64        `db:"create_time"`
+	Content    NString      `db:"content"`
+	ContentID  NInt64       `db:"content_id"`
 }
 
 // Clone creates copy of solution.

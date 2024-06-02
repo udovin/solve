@@ -761,11 +761,6 @@ var s001 = []schema.Operation{
 			{Column: "problem_id", ParentTable: "solve_contest_problem", ParentColumn: "id"},
 		},
 	},
-	schema.CreateIndex{
-		Table:   "solve_contest_solution",
-		Columns: []string{"solution_id"},
-		Unique:  true,
-	},
 	schema.CreateTable{
 		Name: "solve_contest_solution_event",
 		Columns: []schema.Column{

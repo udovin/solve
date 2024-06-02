@@ -15,9 +15,9 @@ require (
 	github.com/spf13/cobra v1.8.0
 	github.com/udovin/algo v0.0.6
 	github.com/udovin/gosql v0.0.2
-	golang.org/x/crypto v0.22.0
+	golang.org/x/crypto v0.23.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
-	golang.org/x/text v0.14.0
+	golang.org/x/text v0.15.0
 )
 
 require (
@@ -51,7 +51,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	golang.org/x/net v0.24.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.19.0 // indirect
 )

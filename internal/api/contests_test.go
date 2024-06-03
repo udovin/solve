@@ -262,7 +262,7 @@ func TestContestStandings(t *testing.T) {
 		if err != nil {
 			t.Fatal("Error", err)
 		}
-		e.WaitSolutionJudged(solutionModel.SolutionID)
+		e.WaitSolutionJudged(solutionModel.ID)
 		solution, err = e.Client.ObserveContestSolution(context.Background(), contest.ID, solution.ID)
 		if err != nil {
 			t.Fatal("Error", err)

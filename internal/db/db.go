@@ -204,6 +204,20 @@ func insertRow[T any](
 	builder := db.Insert(table)
 	builder.SetNames(cols...)
 	builder.SetValues(vals...)
+	if len(id) == 0 {
+		res, err := GetRunner(ctx, db).ExecContext(ctx, db.BuildString(builder), vals...)
+		if err != nil {
+			return err
+		}
+		count, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return fmt.Errorf("invalid amount of affected rows: %d", count)
+		}
+		return nil
+	}
 	switch b := builder.(type) {
 	case *gosql.PostgresInsertQuery:
 		b.SetReturning(id)

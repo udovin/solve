@@ -496,7 +496,7 @@ func (v *View) updateContest(c echo.Context) error {
 				}
 				return err
 			}
-			if account.Kind != models.UserAccount {
+			if account.Kind != models.UserAccountKind {
 				return errorResponse{
 					Code:    http.StatusBadRequest,
 					Message: localize(c, "User not found."),
@@ -551,7 +551,7 @@ func getSolvedProblems(ctx *managers.ContestContext, c *core.Core) map[int64]boo
 	defer func() { _ = solutions.Close() }()
 	for solutions.Next() {
 		contestSolution := solutions.Row()
-		solution, err := c.Solutions.Get(ctx, contestSolution.SolutionID)
+		solution, err := c.Solutions.Get(ctx, contestSolution.ID)
 		if err != nil {
 			continue
 		}
@@ -858,7 +858,7 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
-		participant.AccountID = user.AccountID
+		participant.AccountID = user.ID
 	} else if f.UserLogin != nil {
 		user, err := core.Users.GetByLogin(ctx, *f.UserLogin)
 		if err != nil {
@@ -870,7 +870,7 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
-		participant.AccountID = user.AccountID
+		participant.AccountID = user.ID
 	} else if f.ScopeUserID != nil {
 		user, err := core.ScopeUsers.Get(ctx, *f.ScopeUserID)
 		if err != nil {
@@ -882,7 +882,7 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
-		participant.AccountID = user.AccountID
+		participant.AccountID = user.ID
 	} else if f.ScopeID != nil {
 		scope, err := core.Scopes.Get(ctx, *f.ScopeID)
 		if err != nil {
@@ -894,7 +894,7 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
-		participant.AccountID = scope.AccountID
+		participant.AccountID = scope.ID
 	} else if f.GroupID != nil {
 		group, err := core.Groups.Get(ctx, *f.GroupID)
 		if err != nil {
@@ -906,7 +906,7 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
-		participant.AccountID = group.AccountID
+		participant.AccountID = group.ID
 	}
 	participant.Kind = f.Kind
 	if participant.Kind == 0 {
@@ -1156,7 +1156,7 @@ func (v *View) rejudgeContestSolution(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("solution not extracted")
 	}
-	solution, err := v.core.Solutions.Get(getContext(c), contestSolution.SolutionID)
+	solution, err := v.core.Solutions.Get(getContext(c), contestSolution.ID)
 	if err != nil {
 		return err
 	}
@@ -1246,9 +1246,9 @@ func (v *View) hasSolutionsQuota(
 	fromTime := toTime.Add(-time.Second * time.Duration(window))
 	for solutions.Next() {
 		contestSolution := solutions.Row()
-		solution, err := v.core.Solutions.Get(contestCtx, contestSolution.SolutionID)
+		solution, err := v.core.Solutions.Get(contestCtx, contestSolution.ID)
 		if err != nil {
-			logger.Warn("Cannot find solution: %v", contestSolution.SolutionID)
+			logger.Warn("Cannot find solution: %v", contestSolution.ID)
 			continue
 		}
 		createTime := time.Unix(solution.CreateTime, 0)
@@ -1362,6 +1362,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		return err
 	}
 	solution := models.Solution{
+		Kind:       models.ContestSolutionKind,
 		ProblemID:  problem.ProblemID,
 		AuthorID:   account.ID,
 		CompilerID: form.CompilerID,
@@ -1384,7 +1385,7 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		if err := v.core.Solutions.Create(ctx, &solution); err != nil {
 			return err
 		}
-		contestSolution.SolutionID = solution.ID
+		contestSolution.ID = solution.ID
 		if err := v.core.ContestSolutions.Create(
 			ctx, &contestSolution,
 		); err != nil {
@@ -1419,7 +1420,7 @@ func (v *View) makeContestSolution(
 		ContestID: solution.ContestID,
 	}
 	if baseSolution, err := v.core.Solutions.Get(
-		getContext(c), solution.SolutionID,
+		getContext(c), solution.ID,
 	); err == nil {
 		resp.Solution = v.makeSolution(c, baseSolution, withLogs)
 		resp.Solution.Problem = nil
@@ -1456,23 +1457,23 @@ func makeContestParticipant(
 		ctx, participant.AccountID,
 	); err == nil {
 		switch account.Kind {
-		case models.UserAccount:
-			if user, err := core.Users.GetByAccount(ctx, account.ID); err == nil {
+		case models.UserAccountKind:
+			if user, err := core.Users.Get(ctx, account.ID); err == nil {
 				resp.User = &User{
 					ID:    user.ID,
 					Login: user.Login,
 				}
 			}
-		case models.ScopeUserAccount:
-			if user, err := core.ScopeUsers.GetByAccount(ctx, account.ID); err == nil {
+		case models.ScopeUserAccountKind:
+			if user, err := core.ScopeUsers.Get(ctx, account.ID); err == nil {
 				resp.ScopeUser = &ScopeUser{
 					ID:    user.ID,
 					Login: user.Login,
 					Title: string(user.Title),
 				}
 			}
-		case models.ScopeAccount:
-			if scope, err := core.Scopes.GetByAccount(ctx, account.ID); err == nil {
+		case models.ScopeAccountKind:
+			if scope, err := core.Scopes.Get(ctx, account.ID); err == nil {
 				resp.Scope = &Scope{
 					ID:    scope.ID,
 					Title: scope.Title,

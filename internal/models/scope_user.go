@@ -1,7 +1,6 @@
 package models
 
 import (
-	"context"
 	"crypto/rand"
 	"strings"
 
@@ -12,7 +11,6 @@ import (
 // ScopeUser contains common information about scope user.
 type ScopeUser struct {
 	baseObject
-	AccountID    int64   `db:"account_id"`
 	ScopeID      int64   `db:"scope_id"`
 	Login        string  `db:"login"`
 	PasswordHash string  `db:"password_hash"`
@@ -22,7 +20,7 @@ type ScopeUser struct {
 
 // AccountKind returns ScopeUserAccount kind.
 func (o ScopeUser) AccountKind() AccountKind {
-	return ScopeUserAccount
+	return ScopeUserAccountKind
 }
 
 // Clone creates copy of scope user.
@@ -49,7 +47,6 @@ func (e *ScopeUserEvent) SetObject(o ScopeUser) {
 // ScopeUserStore represents scope users store.
 type ScopeUserStore struct {
 	cachedStore[ScopeUser, ScopeUserEvent, *ScopeUser, *ScopeUserEvent]
-	byAccount    *btreeIndex[int64, ScopeUser, *ScopeUser]
 	byScope      *btreeIndex[int64, ScopeUser, *ScopeUser]
 	byScopeLogin *btreeIndex[pair[int64, string], ScopeUser, *ScopeUser]
 	salt         string
@@ -76,13 +73,6 @@ func (s *ScopeUserStore) GetByScopeLogin(scopeID int64, login string) (ScopeUser
 		s.objects.Iter(),
 		makePair(scopeID, strings.ToLower(login)),
 	)
-}
-
-// GetByAccount returns scope user by account id.
-func (s *ScopeUserStore) GetByAccount(ctx context.Context, accountID int64) (ScopeUser, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return btreeIndexGet(s.byAccount, s.objects.Iter(), accountID)
 }
 
 // SetPassword modifies PasswordHash and PasswordSalt fields.
@@ -112,8 +102,7 @@ func NewScopeUserStore(
 	db *gosql.DB, table, eventTable, salt string,
 ) *ScopeUserStore {
 	impl := &ScopeUserStore{
-		byAccount: newBTreeIndex(func(o ScopeUser) (int64, bool) { return o.AccountID, true }, lessInt64),
-		byScope:   newBTreeIndex(func(o ScopeUser) (int64, bool) { return o.ScopeID, true }, lessInt64),
+		byScope: newBTreeIndex(func(o ScopeUser) (int64, bool) { return o.ScopeID, true }, lessInt64),
 		byScopeLogin: newBTreeIndex(
 			func(o ScopeUser) (pair[int64, string], bool) {
 				return makePair(o.ScopeID, strings.ToLower(o.Login)), true
@@ -122,8 +111,8 @@ func NewScopeUserStore(
 		),
 		salt: salt,
 	}
-	impl.cachedStore = makeCachedStore[ScopeUser, ScopeUserEvent](
-		db, table, eventTable, impl, impl.byAccount, impl.byScope, impl.byScopeLogin,
+	impl.cachedStore = makeCachedManualStore[ScopeUser, ScopeUserEvent](
+		db, table, eventTable, impl, impl.byScope, impl.byScopeLogin,
 	)
 	return impl
 }

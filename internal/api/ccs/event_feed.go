@@ -149,10 +149,10 @@ func (v *View) getEventFeed(c echo.Context) error {
 		}
 		for _, contestSolution := range participantSolutions {
 			solution, err := v.core.Solutions.Get(
-				c.Request().Context(), contestSolution.SolutionID,
+				c.Request().Context(), contestSolution.ID,
 			)
 			if err != nil {
-				return fmt.Errorf("cannot get solution %d: %w", contestSolution.SolutionID, err)
+				return fmt.Errorf("cannot get solution %d: %w", contestSolution.ID, err)
 			}
 			realTime := time.Unix(solution.CreateTime, 0)
 			contestTime := solution.CreateTime - beginTime
@@ -410,14 +410,14 @@ func (v *View) getAccountInfo(
 		return nil, err
 	}
 	switch account.Kind {
-	case models.UserAccount:
-		user, err := v.core.Users.GetByAccount(ctx, account.ID)
+	case models.UserAccountKind:
+		user, err := v.core.Users.Get(ctx, account.ID)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get user: %w", err)
 		}
 		info.Title = user.Login
-	case models.ScopeUserAccount:
-		user, err := v.core.ScopeUsers.GetByAccount(ctx, account.ID)
+	case models.ScopeUserAccountKind:
+		user, err := v.core.ScopeUsers.Get(ctx, account.ID)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get scope user: %w", err)
 		}

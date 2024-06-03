@@ -180,7 +180,7 @@ func (v *View) createScope(c echo.Context) error {
 		if err := v.core.Accounts.Create(ctx, &account); err != nil {
 			return err
 		}
-		scope.AccountID = account.ID
+		scope.ID = account.ID
 		return v.core.Scopes.Create(ctx, &scope)
 	}, sqlRepeatableRead); err != nil {
 		c.Logger().Error(err)
@@ -222,7 +222,7 @@ func (v *View) updateScope(c echo.Context) error {
 				}
 				return err
 			}
-			if account.Kind != models.UserAccount {
+			if account.Kind != models.UserAccountKind {
 				return errorResponse{
 					Code:    http.StatusBadRequest,
 					Message: localize(c, "User not found."),
@@ -397,7 +397,7 @@ func (v *View) createScopeUser(c echo.Context) error {
 		if err := v.core.Accounts.Create(ctx, &account); err != nil {
 			return err
 		}
-		user.AccountID = account.ID
+		user.ID = account.ID
 		return v.core.ScopeUsers.Create(ctx, &user)
 	}, sqlRepeatableRead); err != nil {
 		c.Logger().Error(err)
@@ -438,7 +438,7 @@ func (v *View) logoutScopeUser(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("user not extracted")
 	}
-	sessions, err := v.core.Sessions.FindByAccount(user.AccountID)
+	sessions, err := v.core.Sessions.FindByAccount(user.ID)
 	if err != nil {
 		return err
 	}
@@ -464,7 +464,7 @@ func (v *View) deleteScopeUser(c echo.Context) error {
 		if err := v.core.ScopeUsers.Delete(ctx, user.ID); err != nil {
 			return err
 		}
-		return v.core.Accounts.Delete(ctx, user.AccountID)
+		return v.core.Accounts.Delete(ctx, user.ID)
 	}, sqlRepeatableRead); err != nil {
 		return err
 	}

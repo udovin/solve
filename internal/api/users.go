@@ -382,7 +382,7 @@ func (v *View) updateUserEmail(c echo.Context) error {
 		return c.JSON(http.StatusOK, makeUser(user, permissions))
 	}
 	if count, err := v.core.Tokens.GetCountTokens(
-		getContext(c), user.AccountID, models.ConfirmEmailToken, emailTokensLimit,
+		getContext(c), user.ID, models.ConfirmEmailToken, emailTokensLimit,
 	); err != nil {
 		c.Logger().Warn(err)
 		return err
@@ -394,7 +394,7 @@ func (v *View) updateUserEmail(c echo.Context) error {
 	}
 	expires := now.Add(3 * time.Hour)
 	token := models.Token{
-		AccountID:  user.AccountID,
+		AccountID:  user.ID,
 		CreateTime: now.Unix(),
 		ExpireTime: expires.Unix(),
 	}
@@ -452,7 +452,7 @@ func (v *View) resendUserEmail(c echo.Context) error {
 		}
 	}
 	if count, err := v.core.Tokens.GetCountTokens(
-		getContext(c), user.AccountID, models.ConfirmEmailToken, emailTokensLimit,
+		getContext(c), user.ID, models.ConfirmEmailToken, emailTokensLimit,
 	); err != nil {
 		c.Logger().Warn(err)
 		return err
@@ -464,7 +464,7 @@ func (v *View) resendUserEmail(c echo.Context) error {
 	}
 	expires := now.Add(3 * time.Hour)
 	token := models.Token{
-		AccountID:  user.AccountID,
+		AccountID:  user.ID,
 		CreateTime: now.Unix(),
 		ExpireTime: expires.Unix(),
 	}
@@ -515,7 +515,7 @@ func (v *View) observeUserSessions(c echo.Context) error {
 		c.Logger().Error("user not extracted")
 		return fmt.Errorf("user not extracted")
 	}
-	sessions, err := v.core.Sessions.FindByAccount(user.AccountID)
+	sessions, err := v.core.Sessions.FindByAccount(user.ID)
 	if err != nil {
 		c.Logger().Error(err)
 		return err
@@ -579,7 +579,7 @@ func (v *View) loginAccount(c echo.Context) error {
 		c.Logger().Error("auth not extracted")
 		return fmt.Errorf("auth not extracted")
 	}
-	if accountCtx.Account.Kind == models.ScopeAccount {
+	if accountCtx.Account.Kind == models.ScopeAccountKind {
 		return errorResponse{
 			Code:    http.StatusBadRequest,
 			Message: localize(c, "User not found."),
@@ -823,7 +823,7 @@ func (v *View) registerUser(c echo.Context) error {
 		if err := v.core.Accounts.Create(ctx, &account); err != nil {
 			return err
 		}
-		user.AccountID = account.ID
+		user.ID = account.ID
 		if err := v.core.Users.Create(ctx, &user); err != nil {
 			return err
 		}
@@ -878,7 +878,7 @@ func (v *View) resetUserPassword(c echo.Context) error {
 		return err
 	}
 	if count, err := v.core.Tokens.GetCountTokens(
-		ctx, user.AccountID, models.ResetPasswordToken, passwordTokensLimit,
+		ctx, user.ID, models.ResetPasswordToken, passwordTokensLimit,
 	); err != nil {
 		c.Logger().Warn(err)
 		return err
@@ -890,7 +890,7 @@ func (v *View) resetUserPassword(c echo.Context) error {
 	}
 	expires := now.Add(30 * time.Minute)
 	token := models.Token{
-		AccountID:  user.AccountID,
+		AccountID:  user.ID,
 		CreateTime: now.Unix(),
 		ExpireTime: expires.Unix(),
 	}

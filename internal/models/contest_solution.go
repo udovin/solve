@@ -10,8 +10,6 @@ import (
 // ContestSolution represents connection for solutions.
 type ContestSolution struct {
 	baseObject
-	// SolutionID contains ID of solution.
-	SolutionID int64 `db:"solution_id"`
 	// ContestID contains ID of contest.
 	ContestID int64 `db:"contest_id"`
 	// ParticipantID contains ID of participant.
@@ -114,7 +112,7 @@ func NewContestSolutionStore(
 		byContest:     newBTreeIndex(func(o ContestSolution) (int64, bool) { return o.ContestID, true }, lessInt64),
 		byParticipant: newBTreeIndex(func(o ContestSolution) (int64, bool) { return o.ParticipantID, true }, lessInt64),
 	}
-	impl.cachedStore = makeCachedStore[ContestSolution, ContestSolutionEvent](
+	impl.cachedStore = makeCachedManualStore[ContestSolution, ContestSolutionEvent](
 		db, table, eventTable, impl, impl.byContest, impl.byParticipant,
 	)
 	return impl

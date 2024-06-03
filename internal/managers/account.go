@@ -48,8 +48,8 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 	var roleIDs []int64
 	if account != nil {
 		switch account.Kind {
-		case models.UserAccount:
-			user, err := m.users.GetByAccount(ctx, account.ID)
+		case models.UserAccountKind:
+			user, err := m.users.Get(ctx, account.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -89,7 +89,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 					if err != nil {
 						return err
 					}
-					groupAccount, err := m.accounts.Get(ctx, group.AccountID)
+					groupAccount, err := m.accounts.Get(ctx, group.ID)
 					if err != nil {
 						return err
 					}
@@ -99,8 +99,8 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 			}(); err != nil {
 				return nil, err
 			}
-		case models.ScopeUserAccount:
-			user, err := m.scopeUsers.GetByAccount(ctx, account.ID)
+		case models.ScopeUserAccountKind:
+			user, err := m.scopeUsers.Get(ctx, account.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -108,7 +108,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 			if err != nil {
 				return nil, err
 			}
-			scopeAccount, err := m.accounts.Get(ctx, scope.AccountID)
+			scopeAccount, err := m.accounts.Get(ctx, scope.ID)
 			if err != nil {
 				return nil, err
 			}

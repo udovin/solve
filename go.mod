@@ -12,7 +12,7 @@ require (
 	github.com/labstack/gommon v0.4.2
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/nsf/jsondiff v0.0.0-20230430225905-43f6cf3098c1
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.8.1
 	github.com/udovin/algo v0.0.6
 	github.com/udovin/gosql v0.0.2
 	golang.org/x/crypto v0.23.0

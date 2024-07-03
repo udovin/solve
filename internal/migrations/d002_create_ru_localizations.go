@@ -53,6 +53,7 @@ func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 		{"invalid_solution_id", "Неправильный ID решения."},
 		{"invalid_token_id", "Неверный ID токена."},
 		{"invalid_user_id", "Неправильный ID пользователя."},
+		{"invalid_user_status", "Неверный статус пользователя."},
 		{"last_name_too_long", "Фамилия слишком длинная."},
 		{"last_name_too_short", "Фамилия слишком короткая."},
 		{"login_has_invalid_format", "Логин не соотвествует формату."},

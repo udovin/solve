@@ -2,28 +2,33 @@
   {
     "roles": [
       {
-        "id": 99,
+        "id": 100,
         "name": "admin_group"
       },
       {
-        "id": 98,
+        "id": 99,
         "name": "scope_user_group"
       },
       {
-        "id": 97,
+        "id": 98,
         "name": "blocked_user_group"
       },
       {
-        "id": 96,
+        "id": 97,
         "name": "active_user_group"
       },
       {
-        "id": 95,
+        "id": 96,
         "name": "pending_user_group"
       },
       {
-        "id": 94,
+        "id": 95,
         "name": "guest_group"
+      },
+      {
+        "id": 94,
+        "name": "update_user_status",
+        "built_in": true
       },
       {
         "id": 93,

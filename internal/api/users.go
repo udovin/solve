@@ -157,6 +157,7 @@ type updateUserForm struct {
 	FirstName  *string `json:"first_name"`
 	LastName   *string `json:"last_name"`
 	MiddleName *string `json:"middle_name"`
+	Status     *string `json:"status"`
 }
 
 func (f updateUserForm) Update(c echo.Context, user *models.User) error {
@@ -169,6 +170,15 @@ func (f updateUserForm) Update(c echo.Context, user *models.User) error {
 	}
 	if f.MiddleName != nil && len(*f.MiddleName) > 0 {
 		validateMiddleName(c, errors, *f.MiddleName)
+	}
+	if f.Status != nil {
+		if *f.Status != models.PendingUser.String() &&
+			*f.Status != models.ActiveUser.String() &&
+			*f.Status != models.BlockedUser.String() {
+			errors["status"] = errorField{
+				Message: localize(c, "Invalid user status."),
+			}
+		}
 	}
 	if len(errors) > 0 {
 		return errorResponse{
@@ -185,6 +195,16 @@ func (f updateUserForm) Update(c echo.Context, user *models.User) error {
 	}
 	if f.MiddleName != nil {
 		user.MiddleName = NString(*f.MiddleName)
+	}
+	if f.Status != nil {
+		switch *f.Status {
+		case models.PendingUser.String():
+			user.Status = models.PendingUser
+		case models.ActiveUser.String():
+			user.Status = models.ActiveUser
+		case models.BlockedUser.String():
+			user.Status = models.BlockedUser
+		}
 	}
 	return nil
 }
@@ -218,6 +238,11 @@ func (v *View) updateUser(c echo.Context) error {
 	if form.MiddleName != nil {
 		if !permissions.HasPermission(perms.UpdateUserMiddleNameRole) {
 			missingPermissions = append(missingPermissions, perms.UpdateUserMiddleNameRole)
+		}
+	}
+	if form.Status != nil {
+		if !permissions.HasPermission(perms.UpdateUserStatusRole) {
+			missingPermissions = append(missingPermissions, perms.UpdateUserStatusRole)
 		}
 	}
 	if len(missingPermissions) > 0 {

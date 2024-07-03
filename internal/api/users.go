@@ -132,6 +132,7 @@ func makeUser(user models.User, permissions perms.Permissions) User {
 		}
 	}
 	resp := User{ID: user.ID, Login: user.Login}
+	assign(&resp.Status, user.Status.String(), perms.UpdateUserStatusRole)
 	assign(&resp.Email, string(user.Email), perms.ObserveUserEmailRole)
 	assign(&resp.FirstName, string(user.FirstName), perms.ObserveUserFirstNameRole)
 	assign(&resp.LastName, string(user.LastName), perms.ObserveUserLastNameRole)

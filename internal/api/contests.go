@@ -1057,13 +1057,13 @@ func (f *contestSolutionsFilter) Parse(c echo.Context) error {
 }
 
 func (f *contestSolutionsFilter) Filter(solution models.ContestSolution) bool {
+	if f.BeginID != 0 && solution.ID > f.BeginID {
+		return false
+	}
 	if f.ProblemID != 0 && solution.ProblemID != f.ProblemID {
 		return false
 	}
 	if f.ParticipantID != 0 && solution.ParticipantID != f.ParticipantID {
-		return false
-	}
-	if f.BeginID != 0 && solution.ID > f.BeginID {
 		return false
 	}
 	// TODO: Filter base solution.
@@ -1120,10 +1120,10 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 			resp.NextBeginID = solution.ID
 			break
 		}
+		solutionsCount++
 		if !filter.Filter(solution) {
 			continue
 		}
-		solutionsCount++
 		permissions := v.getContestSolutionPermissions(contestCtx, solution)
 		if permissions.HasPermission(perms.ObserveContestSolutionRole) {
 			resp.Solutions = append(

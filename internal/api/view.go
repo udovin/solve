@@ -42,6 +42,7 @@ func (v *View) Register(g *echo.Group) {
 	g.Use(wrapResponse, v.wrapSyncStores, v.logVisit, v.extractLocale)
 	g.GET("/ping", v.ping)
 	g.GET("/health", v.health)
+	v.registerAccountHandlers(g)
 	v.registerUserHandlers(g)
 	v.registerScopeHandlers(g)
 	v.registerRoleHandlers(g)

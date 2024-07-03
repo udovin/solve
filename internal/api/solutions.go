@@ -266,10 +266,10 @@ func (f *solutionsFilter) Parse(c echo.Context) error {
 }
 
 func (f *solutionsFilter) Filter(solution models.Solution) bool {
-	if f.ProblemID != 0 && solution.ProblemID != f.ProblemID {
+	if f.BeginID != 0 && solution.ID > f.BeginID {
 		return false
 	}
-	if f.BeginID != 0 && solution.ID > f.BeginID {
+	if f.ProblemID != 0 && solution.ProblemID != f.ProblemID {
 		return false
 	}
 	if f.Verdict != 0 {
@@ -309,10 +309,10 @@ func (v *View) observeSolutions(c echo.Context) error {
 			resp.NextBeginID = solution.ID
 			break
 		}
+		solutionsCount++
 		if !filter.Filter(solution) {
 			continue
 		}
-		solutionsCount++
 		permissions := v.getSolutionPermissions(accountCtx, solution)
 		if permissions.HasPermission(perms.ObserveSolutionRole) {
 			resp.Solutions = append(resp.Solutions, v.makeSolution(c, solution, false))

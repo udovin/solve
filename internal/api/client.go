@@ -603,6 +603,18 @@ func (c *Client) UpdateSetting(ctx context.Context, id int64, form UpdateSetting
 	return respData, err
 }
 
+func (c *Client) ObserveAccounts(ctx context.Context) (Accounts, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/accounts"), nil,
+	)
+	if err != nil {
+		return Accounts{}, err
+	}
+	var respData Accounts
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
 func (c *Client) getURL(path string, args ...any) string {
 	return c.endpoint + fmt.Sprintf(path, args...)
 }

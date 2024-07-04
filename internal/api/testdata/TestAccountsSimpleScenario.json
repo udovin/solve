@@ -8,6 +8,7 @@
           "id": 1,
           "login": "login-801072305",
           "email": "login-801072305@example.com",
+          "status": "active",
           "first_name": "First",
           "last_name": "Last",
           "middle_name": "Middle"

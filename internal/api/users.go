@@ -72,6 +72,11 @@ func (v *View) registerUserHandlers(g *echo.Group) {
 		v.requirePermission(perms.ObserveUserSessionsRole),
 	)
 	g.POST(
+		"/v0/users/:user/status", v.updateUserStatus,
+		v.extractAuth(v.sessionAuth), v.extractUser,
+		v.requirePermission(perms.UpdateUserRole, perms.UpdateUserStatusRole),
+	)
+	g.POST(
 		"/v0/users/:user/password", v.updateUserPassword,
 		v.extractAuth(v.sessionAuth), v.extractUser,
 		v.requirePermission(perms.UpdateUserRole, perms.UpdateUserPasswordRole),
@@ -132,7 +137,7 @@ func makeUser(user models.User, permissions perms.Permissions) User {
 		}
 	}
 	resp := User{ID: user.ID, Login: user.Login}
-	assign(&resp.Status, user.Status.String(), perms.UpdateUserStatusRole)
+	assign(&resp.Status, user.Status.String(), perms.ObserveUserStatusRole)
 	assign(&resp.Email, string(user.Email), perms.ObserveUserEmailRole)
 	assign(&resp.FirstName, string(user.FirstName), perms.ObserveUserFirstNameRole)
 	assign(&resp.LastName, string(user.LastName), perms.ObserveUserLastNameRole)
@@ -158,7 +163,6 @@ type updateUserForm struct {
 	FirstName  *string `json:"first_name"`
 	LastName   *string `json:"last_name"`
 	MiddleName *string `json:"middle_name"`
-	Status     *string `json:"status"`
 }
 
 func (f updateUserForm) Update(c echo.Context, user *models.User) error {
@@ -171,15 +175,6 @@ func (f updateUserForm) Update(c echo.Context, user *models.User) error {
 	}
 	if f.MiddleName != nil && len(*f.MiddleName) > 0 {
 		validateMiddleName(c, errors, *f.MiddleName)
-	}
-	if f.Status != nil {
-		if *f.Status != models.PendingUser.String() &&
-			*f.Status != models.ActiveUser.String() &&
-			*f.Status != models.BlockedUser.String() {
-			errors["status"] = errorField{
-				Message: localize(c, "Invalid user status."),
-			}
-		}
 	}
 	if len(errors) > 0 {
 		return errorResponse{
@@ -196,16 +191,6 @@ func (f updateUserForm) Update(c echo.Context, user *models.User) error {
 	}
 	if f.MiddleName != nil {
 		user.MiddleName = NString(*f.MiddleName)
-	}
-	if f.Status != nil {
-		switch *f.Status {
-		case models.PendingUser.String():
-			user.Status = models.PendingUser
-		case models.ActiveUser.String():
-			user.Status = models.ActiveUser
-		case models.BlockedUser.String():
-			user.Status = models.BlockedUser
-		}
 	}
 	return nil
 }
@@ -241,11 +226,6 @@ func (v *View) updateUser(c echo.Context) error {
 			missingPermissions = append(missingPermissions, perms.UpdateUserMiddleNameRole)
 		}
 	}
-	if form.Status != nil {
-		if !permissions.HasPermission(perms.UpdateUserStatusRole) {
-			missingPermissions = append(missingPermissions, perms.UpdateUserStatusRole)
-		}
-	}
 	if len(missingPermissions) > 0 {
 		return errorResponse{
 			Code:               http.StatusForbidden,
@@ -256,6 +236,75 @@ func (v *View) updateUser(c echo.Context) error {
 	if err := form.Update(c, &user); err != nil {
 		c.Logger().Warn(err)
 		return err
+	}
+	if err := v.core.Users.Update(getContext(c), user); err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return c.JSON(http.StatusOK, makeUser(user, permissions))
+}
+
+type updateUserStatusForm struct {
+	CurrentPassword string `json:"current_password"`
+	Status          string `json:"status"`
+}
+
+func (f updateUserStatusForm) Update(c echo.Context, user *models.User) error {
+	errors := errorFields{}
+	switch f.Status {
+	case models.PendingUser.String():
+		user.Status = models.PendingUser
+	case models.ActiveUser.String():
+		user.Status = models.ActiveUser
+	case models.BlockedUser.String():
+		user.Status = models.BlockedUser
+	default:
+		errors["status"] = errorField{
+			Message: localize(c, "Invalid user status."),
+		}
+	}
+	if len(errors) > 0 {
+		return errorResponse{
+			Code:          http.StatusBadRequest,
+			Message:       localize(c, "Form has invalid fields."),
+			InvalidFields: errors,
+		}
+	}
+	return nil
+}
+
+func (v *View) updateUserStatus(c echo.Context) error {
+	user, ok := c.Get(userKey).(models.User)
+	if !ok {
+		c.Logger().Error("user not extracted")
+		return fmt.Errorf("user not extracted")
+	}
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		c.Logger().Error("auth not extracted")
+		return fmt.Errorf("auth not extracted")
+	}
+	permissions, ok := c.Get(permissionCtxKey).(perms.Permissions)
+	if !ok {
+		return fmt.Errorf("permissions not extracted")
+	}
+	var form updateUserStatusForm
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if err := form.Update(c, &user); err != nil {
+		c.Logger().Warn(err)
+		return err
+	}
+	authUser := accountCtx.User
+	if authUser == nil ||
+		len(form.CurrentPassword) == 0 ||
+		!v.core.Users.CheckPassword(*authUser, form.CurrentPassword) {
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Invalid password."),
+		}
 	}
 	if err := v.core.Users.Update(getContext(c), user); err != nil {
 		c.Logger().Error(err)
@@ -1097,6 +1146,7 @@ func (v *View) getUserPermissions(
 		permissions.AddPermission(
 			perms.ObserveUserEmailRole,
 			perms.ObserveUserMiddleNameRole,
+			perms.ObserveUserStatusRole,
 			perms.ObserveUserSessionsRole,
 			perms.UpdateUserRole,
 			perms.UpdateUserPasswordRole,

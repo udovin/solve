@@ -2,157 +2,162 @@
   {
     "roles": [
       {
-        "id": 100,
+        "id": 101,
         "name": "admin_group"
       },
       {
-        "id": 99,
+        "id": 100,
         "name": "scope_user_group"
       },
       {
-        "id": 98,
+        "id": 99,
         "name": "blocked_user_group"
       },
       {
-        "id": 97,
+        "id": 98,
         "name": "active_user_group"
       },
       {
-        "id": 96,
+        "id": 97,
         "name": "pending_user_group"
       },
       {
-        "id": 95,
+        "id": 96,
         "name": "guest_group"
       },
       {
-        "id": 94,
+        "id": 95,
         "name": "update_user_status",
         "built_in": true
       },
       {
-        "id": 93,
+        "id": 94,
         "name": "update_user_password",
         "built_in": true
       },
       {
-        "id": 92,
+        "id": 93,
         "name": "update_user_middle_name",
         "built_in": true
       },
       {
-        "id": 91,
+        "id": 92,
         "name": "update_user_last_name",
         "built_in": true
       },
       {
-        "id": 90,
+        "id": 91,
         "name": "update_user_first_name",
         "built_in": true
       },
       {
-        "id": 89,
+        "id": 90,
         "name": "update_user_email",
         "built_in": true
       },
       {
-        "id": 88,
+        "id": 89,
         "name": "update_user",
         "built_in": true
       },
       {
-        "id": 87,
+        "id": 88,
         "name": "update_setting",
         "built_in": true
       },
       {
-        "id": 86,
+        "id": 87,
         "name": "update_scope_user",
         "built_in": true
       },
       {
-        "id": 85,
+        "id": 86,
         "name": "update_scope_owner",
         "built_in": true
       },
       {
-        "id": 84,
+        "id": 85,
         "name": "update_scope",
         "built_in": true
       },
       {
-        "id": 83,
+        "id": 84,
         "name": "update_problem_owner",
         "built_in": true
       },
       {
-        "id": 82,
+        "id": 83,
         "name": "update_problem",
         "built_in": true
       },
       {
-        "id": 81,
+        "id": 82,
         "name": "update_contest_solution",
         "built_in": true
       },
       {
-        "id": 80,
+        "id": 81,
         "name": "update_contest_problem",
         "built_in": true
       },
       {
-        "id": 79,
+        "id": 80,
         "name": "update_contest_owner",
         "built_in": true
       },
       {
-        "id": 78,
+        "id": 79,
         "name": "update_contest_message",
         "built_in": true
       },
       {
-        "id": 77,
+        "id": 78,
         "name": "update_contest",
         "built_in": true
       },
       {
-        "id": 76,
+        "id": 77,
         "name": "update_compiler",
         "built_in": true
       },
       {
-        "id": 75,
+        "id": 76,
         "name": "submit_contest_solution",
         "built_in": true
       },
       {
-        "id": 74,
+        "id": 75,
         "name": "submit_contest_question",
         "built_in": true
       },
       {
-        "id": 73,
+        "id": 74,
         "name": "status",
         "built_in": true
       },
       {
-        "id": 72,
+        "id": 73,
         "name": "reset_password",
         "built_in": true
       },
       {
-        "id": 71,
+        "id": 72,
         "name": "register_contests",
         "built_in": true
       },
       {
-        "id": 70,
+        "id": 71,
         "name": "register_contest",
         "built_in": true
       },
       {
-        "id": 69,
+        "id": 70,
         "name": "register",
+        "built_in": true
+      },
+      {
+        "id": 69,
+        "name": "observe_user_status",
         "built_in": true
       },
       {

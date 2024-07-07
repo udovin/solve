@@ -7,6 +7,10 @@
     "name": "ru",
     "localizations": [
       {
+        "key": "account_id_does_not_exists",
+        "text": "Аккаунт {id} не существует."
+      },
+      {
         "key": "account_missing_permissions",
         "text": "Отсутсвуют необходимые права."
       },

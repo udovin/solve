@@ -104,7 +104,12 @@ func (f *accountFilter) FilterUser(user models.User) bool {
 
 func (f *accountFilter) FilterScopeUser(user models.ScopeUser) bool {
 	if f.Query != "" {
-		if !strings.Contains(strings.ToLower(user.Login), strings.ToLower(f.Query)) {
+		query := strings.ToLower(f.Query)
+		contains := strings.Contains(strings.ToLower(user.Login), query)
+		if !contains && user.Title != "" {
+			contains = strings.Contains(strings.ToLower(string(user.Title)), query)
+		}
+		if !contains {
 			return false
 		}
 	}

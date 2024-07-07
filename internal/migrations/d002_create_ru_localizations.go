@@ -17,6 +17,7 @@ type d002 struct{}
 func (m d002) Apply(ctx context.Context, db *gosql.DB) error {
 	settingStore := models.NewSettingStore(db, "solve_setting", "solve_setting_event")
 	localizations := [][2]string{
+		{"account_id_does_not_exists", "Аккаунт {id} не существует."},
 		{"account_missing_permissions", "Отсутсвуют необходимые права."},
 		{"can_not_set_password", "Не удалось установить пароль."},
 		{"code_is_empty", "Введен пустой код."},

@@ -18,6 +18,7 @@ import (
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/perms"
+	"github.com/udovin/solve/internal/pkg/logs"
 )
 
 func (v *View) registerContestHandlers(g *echo.Group) {
@@ -841,13 +842,91 @@ type CreateContestParticipantForm struct {
 	ScopeID     *int64                 `json:"scope_id"`
 	GroupID     *int64                 `json:"group_id"`
 	Kind        models.ParticipantKind `json:"kind"`
+	AccountID   *int64                 `json:"account_id"`
 }
 
 func (f CreateContestParticipantForm) Update(
 	c echo.Context, participant *models.ContestParticipant, core *core.Core,
 ) *errorResponse {
 	ctx := getContext(c)
-	if f.UserID != nil {
+	if f.AccountID != nil {
+		account, err := core.Accounts.Get(ctx, *f.AccountID)
+		if err != nil {
+			return &errorResponse{
+				Code: http.StatusBadRequest,
+				Message: localize(
+					c, "Account {id} does not exists.",
+					replaceField("id", *f.AccountID),
+				),
+			}
+		}
+		// TODO: Check for observe permissions.
+		switch account.Kind {
+		case models.UserAccountKind:
+			if _, err := core.Users.Get(ctx, account.ID); err != nil {
+				return &errorResponse{
+					Code: http.StatusBadRequest,
+					Message: localize(
+						c, "User {id} does not exists.",
+						replaceField("id", account.ID),
+					),
+				}
+			}
+		case models.ScopeUserAccountKind:
+			scopeUser, err := core.ScopeUsers.Get(ctx, account.ID)
+			if err != nil {
+				return &errorResponse{
+					Code: http.StatusBadRequest,
+					Message: localize(
+						c, "User {id} does not exists.",
+						replaceField("id", account.ID),
+					),
+				}
+			}
+			if _, err := core.Scopes.Get(ctx, scopeUser.ScopeID); err != nil {
+				return &errorResponse{
+					Code: http.StatusBadRequest,
+					Message: localize(
+						c, "Scope {id} does not exists.",
+						replaceField("id", scopeUser.ScopeID),
+					),
+				}
+			}
+		case models.ScopeAccountKind:
+			if _, err := core.Scopes.Get(ctx, account.ID); err != nil {
+				return &errorResponse{
+					Code: http.StatusBadRequest,
+					Message: localize(
+						c, "Scope {id} does not exists.",
+						replaceField("id", account.ID),
+					),
+				}
+			}
+		case models.GroupAccountKind:
+			if _, err := core.Groups.Get(ctx, account.ID); err != nil {
+				return &errorResponse{
+					Code: http.StatusBadRequest,
+					Message: localize(
+						c, "Group {id} does not exists.",
+						replaceField("id", *f.GroupID),
+					),
+				}
+			}
+		default:
+			c.Logger().Warn(
+				"Unsupported account kind",
+				logs.Any("id", account.ID),
+				logs.Any("kind", account.Kind),
+			)
+			return &errorResponse{
+				Code: http.StatusBadRequest,
+				Message: localize(
+					c, "Account {id} does not exists.",
+					replaceField("id", *f.AccountID),
+				),
+			}
+		}
+	} else if f.UserID != nil {
 		user, err := core.Users.Get(ctx, *f.UserID)
 		if err != nil {
 			return &errorResponse{

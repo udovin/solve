@@ -22,7 +22,10 @@ func (v *View) registerAccountHandlers(g *echo.Group) {
 	)
 }
 
-const maxAccountLimit = 5000
+const (
+	defaultAccountLimit = 100
+	maxAccountLimit     = 5000
+)
 
 type accountFilter struct {
 	Kind    string `query:"kind"`
@@ -42,7 +45,7 @@ func (f *accountFilter) Parse(c echo.Context) error {
 		f.BeginID = 0
 	}
 	if f.Limit <= 0 {
-		f.Limit = maxAccountLimit
+		f.Limit = defaultAccountLimit
 	}
 	f.Limit = min(f.Limit, maxAccountLimit)
 	return nil
@@ -141,7 +144,9 @@ func (v *View) observeAccounts(c echo.Context) error {
 	}
 	var resp Accounts
 	ctx := getContext(c)
-	accounts, err := v.core.Accounts.ReverseAll(ctx, filter.Limit+1, filter.BeginID)
+	accounts, err := v.core.Accounts.ReverseAll(
+		ctx, maxAccountLimit+1, filter.BeginID,
+	)
 	if err != nil {
 		return err
 	}
@@ -149,7 +154,8 @@ func (v *View) observeAccounts(c echo.Context) error {
 	accountsCount := 0
 	for accounts.Next() {
 		account := accounts.Row()
-		if accountsCount >= filter.Limit {
+		if accountsCount >= maxAccountLimit ||
+			len(resp.Accounts) >= filter.Limit {
 			resp.NextBeginID = account.ID
 			break
 		}
@@ -221,7 +227,7 @@ func (v *View) observeAccounts(c echo.Context) error {
 				continue
 			}
 			permissions := v.getScopePermissions(accountCtx, scope)
-			if !permissions.HasPermission(perms.ObserveScopeRole) {
+			if permissions.HasPermission(perms.ObserveScopeRole) {
 				scopeResp := makeScope(scope)
 				resp.Accounts = append(resp.Accounts, Account{
 					ID:    account.ID,

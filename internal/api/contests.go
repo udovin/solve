@@ -1050,7 +1050,7 @@ func (f *contestSolutionsFilter) Parse(c echo.Context) error {
 		f.BeginID = 0
 	}
 	if f.Limit <= 0 {
-		f.Limit = maxSolutionLimit
+		f.Limit = defaultSolutionLimit
 	}
 	f.Limit = min(f.Limit, maxSolutionLimit)
 	return nil
@@ -1116,7 +1116,8 @@ func (v *View) observeContestSolutions(c echo.Context) error {
 	solutionsCount := 0
 	for solutions.Next() {
 		solution := solutions.Row()
-		if solutionsCount >= filter.Limit {
+		if solutionsCount >= maxSolutionLimit ||
+			len(resp.Solutions) >= filter.Limit {
 			resp.NextBeginID = solution.ID
 			break
 		}

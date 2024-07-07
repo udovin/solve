@@ -246,7 +246,10 @@ type solutionsFilter struct {
 	Limit     int            `query:"limit"`
 }
 
-const maxSolutionLimit = 5000
+const (
+	defaultSolutionLimit = 100
+	maxSolutionLimit     = 5000
+)
 
 func (f *solutionsFilter) Parse(c echo.Context) error {
 	if err := c.Bind(f); err != nil {
@@ -259,7 +262,7 @@ func (f *solutionsFilter) Parse(c echo.Context) error {
 		f.BeginID = 0
 	}
 	if f.Limit <= 0 {
-		f.Limit = maxSolutionLimit
+		f.Limit = defaultSolutionLimit
 	}
 	f.Limit = min(f.Limit, maxSolutionLimit)
 	return nil
@@ -296,7 +299,7 @@ func (v *View) observeSolutions(c echo.Context) error {
 		return err
 	}
 	var resp Solutions
-	solutions, err := v.core.Solutions.ReverseAll(getContext(c), filter.Limit+1, filter.BeginID)
+	solutions, err := v.core.Solutions.ReverseAll(getContext(c), maxSolutionLimit+1, filter.BeginID)
 	if err != nil {
 		c.Logger().Error(err)
 		return err
@@ -305,7 +308,8 @@ func (v *View) observeSolutions(c echo.Context) error {
 	solutionsCount := 0
 	for solutions.Next() {
 		solution := solutions.Row()
-		if solutionsCount >= filter.Limit {
+		if solutionsCount >= maxSolutionLimit ||
+			len(resp.Solutions) >= filter.Limit {
 			resp.NextBeginID = solution.ID
 			break
 		}

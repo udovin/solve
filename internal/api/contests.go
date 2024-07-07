@@ -860,7 +860,6 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
-		// TODO: Check for observe permissions.
 		switch account.Kind {
 		case models.UserAccountKind:
 			if _, err := core.Users.Get(ctx, account.ID); err != nil {
@@ -926,6 +925,8 @@ func (f CreateContestParticipantForm) Update(
 				),
 			}
 		}
+		// TODO: Check for observe permissions.
+		participant.AccountID = account.ID
 	} else if f.UserID != nil {
 		user, err := core.Users.Get(ctx, *f.UserID)
 		if err != nil {

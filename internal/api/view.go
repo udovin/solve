@@ -169,23 +169,36 @@ func (v *View) logVisit(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+func isValidLocaleName(name string) bool {
+	return name == "en" || name == "ru"
+}
+
 func (v *View) extractLocale(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if cookie, err := c.Cookie("locale"); err == nil {
+			if name := cookie.Value; isValidLocaleName(name) {
+				locale := settingLocale{
+					name:     name,
+					settings: v.core.Settings,
+				}
+				c.Set(localeKey, &locale)
+				return next(c)
+			}
+		}
 		acceptLanguage := c.Request().Header.Get("Accept-Language")
 		tags, _, err := language.ParseAcceptLanguage(acceptLanguage)
 		if err != nil {
 			return next(c)
 		}
 		for _, tag := range tags {
-			if tag.String() != "en" && tag.String() != "ru" {
-				continue
+			if name := tag.String(); isValidLocaleName(name) {
+				locale := settingLocale{
+					name:     name,
+					settings: v.core.Settings,
+				}
+				c.Set(localeKey, &locale)
+				return next(c)
 			}
-			locale := settingLocale{
-				name:     tag.String(),
-				settings: v.core.Settings,
-			}
-			c.Set(localeKey, &locale)
-			break
 		}
 		return next(c)
 	}

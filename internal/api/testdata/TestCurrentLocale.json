@@ -367,8 +367,24 @@
         "text": "Все"
       },
       {
+        "key": "web.answer",
+        "text": "Ответить"
+      },
+      {
+        "key": "web.any_participant",
+        "text": "Любой участник"
+      },
+      {
+        "key": "web.any_problem",
+        "text": "Любая задача"
+      },
+      {
         "key": "web.author",
         "text": "Автор"
+      },
+      {
+        "key": "web.begin_time",
+        "text": "Время начала"
       },
       {
         "key": "web.change",
@@ -443,12 +459,24 @@
         "text": "Текущие сессии"
       },
       {
+        "key": "web.delete_contest",
+        "text": "Удалить соревнование"
+      },
+      {
         "key": "web.description",
         "text": "Описание"
       },
       {
+        "key": "web.disabled",
+        "text": "Выключено"
+      },
+      {
         "key": "web.duration",
         "text": "Длительность"
+      },
+      {
+        "key": "web.edit_contest",
+        "text": "Редактировать соревнование"
       },
       {
         "key": "web.edit_problem",
@@ -475,8 +503,36 @@
         "text": "Вы получите письмо для подтверждения регистрации."
       },
       {
+        "key": "web.enable_observing",
+        "text": "Включить наблюдение"
+      },
+      {
+        "key": "web.enable_observing_description",
+        "text": "Разрешает публичный доступ к результатам соревнований."
+      },
+      {
+        "key": "web.enable_registration",
+        "text": "Включить регистрацию"
+      },
+      {
+        "key": "web.enable_registration_description",
+        "text": "Разрешает участникам самостоятельно регистрироваться."
+      },
+      {
+        "key": "web.enable_upsolving",
+        "text": "Включить дорешивание"
+      },
+      {
+        "key": "web.enable_upsolving_description",
+        "text": "Разрешает дорешивание после завершения соревнования."
+      },
+      {
         "key": "web.enter",
         "text": "Войти"
+      },
+      {
+        "key": "web.enter_title_of_contest",
+        "text": "Введите название соревнования"
       },
       {
         "key": "web.expires",
@@ -489,6 +545,10 @@
       {
         "key": "web.forgot_password",
         "text": "Забыли пароль?"
+      },
+      {
+        "key": "web.freeze_since_duration",
+        "text": "Заморозить на длительности"
       },
       {
         "key": "web.groups",
@@ -537,6 +597,10 @@
       {
         "key": "web.manage",
         "text": "Управление"
+      },
+      {
+        "key": "web.memory_limit",
+        "text": "Ограничение памяти"
       },
       {
         "key": "web.messages",
@@ -637,6 +701,10 @@
       {
         "key": "web.problem",
         "text": "Задача"
+      },
+      {
+        "key": "web.problem_id",
+        "text": "ID задачи"
       },
       {
         "key": "web.problems",
@@ -787,8 +855,16 @@
         "text": "Время"
       },
       {
+        "key": "web.time_limit",
+        "text": "Ограничение времени"
+      },
+      {
         "key": "web.title",
         "text": "Название"
+      },
+      {
+        "key": "web.unfreeze_time",
+        "text": "Время разморозки"
       },
       {
         "key": "web.unfrozen",

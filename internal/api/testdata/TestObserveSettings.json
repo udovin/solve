@@ -453,653 +453,748 @@
       },
       {
         "id": 91,
+        "key": "localization.ru.web.answer",
+        "value": "Ответить"
+      },
+      {
+        "id": 92,
+        "key": "localization.ru.web.any_participant",
+        "value": "Любой участник"
+      },
+      {
+        "id": 93,
+        "key": "localization.ru.web.any_problem",
+        "value": "Любая задача"
+      },
+      {
+        "id": 94,
         "key": "localization.ru.web.author",
         "value": "Автор"
       },
       {
-        "id": 96,
+        "id": 95,
+        "key": "localization.ru.web.begin_time",
+        "value": "Время начала"
+      },
+      {
+        "id": 100,
         "key": "localization.ru.web.change",
         "value": "Сменить"
       },
       {
-        "id": 92,
+        "id": 96,
         "key": "localization.ru.web.change_email",
         "value": "Сменить электронную почту"
       },
       {
-        "id": 93,
+        "id": 97,
         "key": "localization.ru.web.change_language",
         "value": "Сменить язык"
       },
       {
-        "id": 94,
+        "id": 98,
         "key": "localization.ru.web.change_password",
         "value": "Сменить пароль"
       },
       {
-        "id": 95,
+        "id": 99,
         "key": "localization.ru.web.change_status",
         "value": "Сменить статус"
       },
       {
-        "id": 97,
+        "id": 101,
         "key": "localization.ru.web.choose_file",
         "value": "Выберите файл"
       },
       {
-        "id": 98,
+        "id": 102,
         "key": "localization.ru.web.close_session",
         "value": "Завершить"
       },
       {
-        "id": 99,
+        "id": 103,
         "key": "localization.ru.web.code",
         "value": "Код"
       },
       {
-        "id": 100,
+        "id": 104,
         "key": "localization.ru.web.compiler",
         "value": "Компилятор"
       },
       {
-        "id": 104,
+        "id": 108,
         "key": "localization.ru.web.contest",
         "value": "Соревнование"
       },
       {
-        "id": 101,
+        "id": 105,
         "key": "localization.ru.web.contest_finished",
         "value": "Завершено"
       },
       {
-        "id": 102,
+        "id": 106,
         "key": "localization.ru.web.contest_not_started",
         "value": "До начала"
       },
       {
-        "id": 103,
+        "id": 107,
         "key": "localization.ru.web.contest_running",
         "value": "Идёт"
       },
       {
-        "id": 105,
+        "id": 109,
         "key": "localization.ru.web.contests",
         "value": "Соревнования"
       },
       {
-        "id": 106,
+        "id": 110,
         "key": "localization.ru.web.create",
         "value": "Создать"
       },
       {
-        "id": 107,
+        "id": 111,
         "key": "localization.ru.web.created",
         "value": "Создан"
       },
       {
-        "id": 108,
+        "id": 112,
         "key": "localization.ru.web.current_password",
         "value": "Текущий пароль"
       },
       {
-        "id": 109,
+        "id": 113,
         "key": "localization.ru.web.current_sessions",
         "value": "Текущие сессии"
       },
       {
-        "id": 110,
+        "id": 114,
+        "key": "localization.ru.web.delete_contest",
+        "value": "Удалить соревнование"
+      },
+      {
+        "id": 115,
         "key": "localization.ru.web.description",
         "value": "Описание"
       },
       {
-        "id": 111,
+        "id": 116,
+        "key": "localization.ru.web.disabled",
+        "value": "Выключено"
+      },
+      {
+        "id": 117,
         "key": "localization.ru.web.duration",
         "value": "Длительность"
       },
       {
-        "id": 112,
+        "id": 118,
+        "key": "localization.ru.web.edit_contest",
+        "value": "Редактировать соревнование"
+      },
+      {
+        "id": 119,
         "key": "localization.ru.web.edit_problem",
         "value": "Редактировать задачу"
       },
       {
-        "id": 113,
+        "id": 120,
         "key": "localization.ru.web.edit_profile",
         "value": "Редактировать профиль"
       },
       {
-        "id": 114,
+        "id": 121,
         "key": "localization.ru.web.edit_user",
         "value": "Редактировать пользователя"
       },
       {
-        "id": 117,
+        "id": 124,
         "key": "localization.ru.web.email_confirmation",
         "value": "Подтверждение почты"
       },
       {
-        "id": 115,
+        "id": 122,
         "key": "localization.ru.web.email_confirmation_alert",
         "value": "На ваш адрес электронной почты было отправлено письмо с подтверждением. Чтобы получить полный доступ, вам необходимо перейти по ссылке, указанной в этом письме."
       },
       {
-        "id": 116,
+        "id": 123,
         "key": "localization.ru.web.email_confirmation_notice",
         "value": "Вы получите письмо для подтверждения регистрации."
       },
       {
-        "id": 118,
+        "id": 126,
+        "key": "localization.ru.web.enable_observing",
+        "value": "Включить наблюдение"
+      },
+      {
+        "id": 125,
+        "key": "localization.ru.web.enable_observing_description",
+        "value": "Разрешает публичный доступ к результатам соревнований."
+      },
+      {
+        "id": 128,
+        "key": "localization.ru.web.enable_registration",
+        "value": "Включить регистрацию"
+      },
+      {
+        "id": 127,
+        "key": "localization.ru.web.enable_registration_description",
+        "value": "Разрешает участникам самостоятельно регистрироваться."
+      },
+      {
+        "id": 130,
+        "key": "localization.ru.web.enable_upsolving",
+        "value": "Включить дорешивание"
+      },
+      {
+        "id": 129,
+        "key": "localization.ru.web.enable_upsolving_description",
+        "value": "Разрешает дорешивание после завершения соревнования."
+      },
+      {
+        "id": 132,
         "key": "localization.ru.web.enter",
         "value": "Войти"
       },
       {
-        "id": 119,
+        "id": 131,
+        "key": "localization.ru.web.enter_title_of_contest",
+        "value": "Введите название соревнования"
+      },
+      {
+        "id": 133,
         "key": "localization.ru.web.expires",
         "value": "Истекает"
       },
       {
-        "id": 120,
+        "id": 134,
         "key": "localization.ru.web.first_name",
         "value": "Имя"
       },
       {
-        "id": 121,
+        "id": 135,
         "key": "localization.ru.web.forgot_password",
         "value": "Забыли пароль?"
       },
       {
-        "id": 122,
+        "id": 136,
+        "key": "localization.ru.web.freeze_since_duration",
+        "value": "Заморозить на длительности"
+      },
+      {
+        "id": 137,
         "key": "localization.ru.web.groups",
         "value": "Группы"
       },
       {
-        "id": 123,
+        "id": 138,
         "key": "localization.ru.web.hello",
         "value": "Привет"
       },
       {
-        "id": 124,
+        "id": 139,
         "key": "localization.ru.web.index",
         "value": "Главная"
       },
       {
-        "id": 126,
+        "id": 141,
         "key": "localization.ru.web.input",
         "value": "Ввод"
       },
       {
-        "id": 125,
+        "id": 140,
         "key": "localization.ru.web.input_data",
         "value": "Входные данные"
       },
       {
-        "id": 127,
+        "id": 142,
         "key": "localization.ru.web.interaction",
         "value": "Протокол взаимодействия"
       },
       {
-        "id": 128,
+        "id": 143,
         "key": "localization.ru.web.key",
         "value": "Ключ"
       },
       {
-        "id": 129,
+        "id": 144,
         "key": "localization.ru.web.language",
         "value": "Язык"
       },
       {
-        "id": 130,
+        "id": 145,
         "key": "localization.ru.web.last_name",
         "value": "Фамилия"
       },
       {
-        "id": 131,
+        "id": 146,
         "key": "localization.ru.web.login",
         "value": "Войти"
       },
       {
-        "id": 132,
+        "id": 147,
         "key": "localization.ru.web.logout",
         "value": "Выйти"
       },
       {
-        "id": 133,
+        "id": 148,
         "key": "localization.ru.web.manage",
         "value": "Управление"
       },
       {
-        "id": 134,
+        "id": 149,
+        "key": "localization.ru.web.memory_limit",
+        "value": "Ограничение памяти"
+      },
+      {
+        "id": 150,
         "key": "localization.ru.web.messages",
         "value": "Сообщения"
       },
       {
-        "id": 135,
+        "id": 151,
         "key": "localization.ru.web.middle_name",
         "value": "Отчество"
       },
       {
-        "id": 136,
+        "id": 152,
         "key": "localization.ru.web.name",
         "value": "Имя"
       },
       {
-        "id": 137,
+        "id": 153,
         "key": "localization.ru.web.new_message",
         "value": "Новое сообщение"
       },
       {
-        "id": 138,
+        "id": 154,
         "key": "localization.ru.web.new_password",
         "value": "Новый пароль"
       },
       {
-        "id": 139,
+        "id": 155,
         "key": "localization.ru.web.new_question",
         "value": "Новый вопрос"
       },
       {
-        "id": 140,
+        "id": 156,
         "key": "localization.ru.web.notes",
         "value": "Примечания"
       },
       {
-        "id": 141,
+        "id": 157,
         "key": "localization.ru.web.official",
         "value": "Официальное"
       },
       {
-        "id": 142,
+        "id": 158,
         "key": "localization.ru.web.on_test",
         "value": "на тесте"
       },
       {
-        "id": 143,
+        "id": 159,
         "key": "localization.ru.web.or",
         "value": "или"
       },
       {
-        "id": 145,
+        "id": 161,
         "key": "localization.ru.web.output",
         "value": "Вывод"
       },
       {
-        "id": 144,
+        "id": 160,
         "key": "localization.ru.web.output_data",
         "value": "Выходные данные"
       },
       {
-        "id": 146,
+        "id": 162,
         "key": "localization.ru.web.page_not_found",
         "value": "Страница не найдена"
       },
       {
-        "id": 151,
+        "id": 167,
         "key": "localization.ru.web.participant",
         "value": "Участник"
       },
       {
-        "id": 147,
+        "id": 163,
         "key": "localization.ru.web.participant_manager",
         "value": "Менеджер"
       },
       {
-        "id": 148,
+        "id": 164,
         "key": "localization.ru.web.participant_observer",
         "value": "Наблюдатель"
       },
       {
-        "id": 149,
+        "id": 165,
         "key": "localization.ru.web.participant_regular",
         "value": "Участник"
       },
       {
-        "id": 150,
+        "id": 166,
         "key": "localization.ru.web.participant_upsolving",
         "value": "Дорешивание"
       },
       {
-        "id": 152,
+        "id": 168,
         "key": "localization.ru.web.participants",
         "value": "Участники"
       },
       {
-        "id": 153,
+        "id": 169,
         "key": "localization.ru.web.password",
         "value": "Пароль"
       },
       {
-        "id": 154,
+        "id": 170,
         "key": "localization.ru.web.passwords_do_not_match",
         "value": "Пароли не совпадают"
       },
       {
-        "id": 155,
+        "id": 171,
         "key": "localization.ru.web.paste_source_code",
         "value": "вставить исходный код"
       },
       {
-        "id": 156,
+        "id": 172,
         "key": "localization.ru.web.penalty",
         "value": "Штраф"
       },
       {
-        "id": 157,
+        "id": 173,
         "key": "localization.ru.web.points",
         "value": "Баллы"
       },
       {
-        "id": 158,
+        "id": 175,
         "key": "localization.ru.web.problem",
         "value": "Задача"
       },
       {
-        "id": 159,
+        "id": 174,
+        "key": "localization.ru.web.problem_id",
+        "value": "ID задачи"
+      },
+      {
+        "id": 176,
         "key": "localization.ru.web.problems",
         "value": "Задачи"
       },
       {
-        "id": 160,
+        "id": 177,
         "key": "localization.ru.web.profile",
         "value": "Профиль"
       },
       {
-        "id": 161,
+        "id": 178,
         "key": "localization.ru.web.question",
         "value": "Вопрос"
       },
       {
-        "id": 162,
+        "id": 179,
         "key": "localization.ru.web.regenerate_password",
         "value": "Сгенерировать пароль"
       },
       {
-        "id": 163,
+        "id": 180,
         "key": "localization.ru.web.register",
         "value": "Регистрация"
       },
       {
-        "id": 164,
+        "id": 181,
         "key": "localization.ru.web.repeat_new_password",
         "value": "Повторите новый пароль"
       },
       {
-        "id": 165,
+        "id": 182,
         "key": "localization.ru.web.repeat_password",
         "value": "Повторите пароль"
       },
       {
-        "id": 166,
+        "id": 183,
         "key": "localization.ru.web.repository",
         "value": "Репозиторий"
       },
       {
-        "id": 168,
+        "id": 185,
         "key": "localization.ru.web.reset",
         "value": "Сбросить"
       },
       {
-        "id": 167,
+        "id": 184,
         "key": "localization.ru.web.reset_password",
         "value": "Сбросить пароль"
       },
       {
-        "id": 169,
+        "id": 186,
         "key": "localization.ru.web.roles",
         "value": "Роли"
       },
       {
-        "id": 170,
+        "id": 187,
         "key": "localization.ru.web.samples",
         "value": "Примеры"
       },
       {
-        "id": 171,
+        "id": 188,
         "key": "localization.ru.web.scope_users",
         "value": "Пользователи скоупа"
       },
       {
-        "id": 172,
+        "id": 189,
         "key": "localization.ru.web.scopes",
         "value": "Скоупы"
       },
       {
-        "id": 173,
+        "id": 190,
         "key": "localization.ru.web.score",
         "value": "Счёт"
       },
       {
-        "id": 174,
+        "id": 191,
         "key": "localization.ru.web.scoring",
         "value": "Система оценки"
       },
       {
-        "id": 175,
+        "id": 192,
         "key": "localization.ru.web.security",
         "value": "Безопасность"
       },
       {
-        "id": 176,
+        "id": 193,
         "key": "localization.ru.web.select_compiler",
         "value": "Выберите компилятор"
       },
       {
-        "id": 177,
+        "id": 194,
         "key": "localization.ru.web.select_problem",
         "value": "Выберите задачу"
       },
       {
-        "id": 178,
+        "id": 195,
         "key": "localization.ru.web.settings",
         "value": "Настройки"
       },
       {
-        "id": 179,
+        "id": 196,
         "key": "localization.ru.web.solution_file",
         "value": "Файл решения"
       },
       {
-        "id": 180,
+        "id": 197,
         "key": "localization.ru.web.solutions",
         "value": "Решения"
       },
       {
-        "id": 181,
+        "id": 198,
         "key": "localization.ru.web.source_code",
         "value": "Исходный код"
       },
       {
-        "id": 182,
+        "id": 199,
         "key": "localization.ru.web.standings",
         "value": "Положение"
       },
       {
-        "id": 183,
+        "id": 200,
         "key": "localization.ru.web.start",
         "value": "Начало"
       },
       {
-        "id": 187,
+        "id": 204,
         "key": "localization.ru.web.status",
         "value": "Статус"
       },
       {
-        "id": 184,
+        "id": 201,
         "key": "localization.ru.web.status_active",
         "value": "Активный"
       },
       {
-        "id": 185,
+        "id": 202,
         "key": "localization.ru.web.status_blocked",
         "value": "Заблокирован"
       },
       {
-        "id": 186,
+        "id": 203,
         "key": "localization.ru.web.status_pending",
         "value": "Новый"
       },
       {
-        "id": 188,
+        "id": 205,
         "key": "localization.ru.web.subject",
         "value": "Тема"
       },
       {
-        "id": 190,
+        "id": 207,
         "key": "localization.ru.web.submit",
         "value": "Отправить"
       },
       {
-        "id": 189,
+        "id": 206,
         "key": "localization.ru.web.submit_solution",
         "value": "Отправить решение"
       },
       {
-        "id": 193,
+        "id": 210,
         "key": "localization.ru.web.theme",
         "value": "Тема"
       },
       {
-        "id": 191,
+        "id": 208,
         "key": "localization.ru.web.theme_dark",
         "value": "Тёмная"
       },
       {
-        "id": 192,
+        "id": 209,
         "key": "localization.ru.web.theme_light",
         "value": "Светлая"
       },
       {
-        "id": 194,
+        "id": 211,
         "key": "localization.ru.web.this_page_does_not_exists",
         "value": "Такая страница не существует."
       },
       {
-        "id": 195,
+        "id": 213,
         "key": "localization.ru.web.time",
         "value": "Время"
       },
       {
-        "id": 196,
+        "id": 212,
+        "key": "localization.ru.web.time_limit",
+        "value": "Ограничение времени"
+      },
+      {
+        "id": 214,
         "key": "localization.ru.web.title",
         "value": "Название"
       },
       {
-        "id": 197,
+        "id": 215,
+        "key": "localization.ru.web.unfreeze_time",
+        "value": "Время разморозки"
+      },
+      {
+        "id": 216,
         "key": "localization.ru.web.unfrozen",
         "value": "Размороженное"
       },
       {
-        "id": 198,
+        "id": 217,
         "key": "localization.ru.web.update",
         "value": "Обновить"
       },
       {
-        "id": 200,
+        "id": 219,
         "key": "localization.ru.web.username",
         "value": "Имя пользователя"
       },
       {
-        "id": 199,
+        "id": 218,
         "key": "localization.ru.web.username_restrictions",
         "value": "Вы можете использовать только латинские буквы, цифры, символы «_» и «-». Имя пользователя может начинаться только на латинскую букву и заканчиваться на латинскую букву или цифру."
       },
       {
-        "id": 201,
+        "id": 220,
         "key": "localization.ru.web.users",
         "value": "Пользователи"
       },
       {
-        "id": 202,
+        "id": 221,
         "key": "localization.ru.web.value",
         "value": "Значение"
       },
       {
-        "id": 218,
+        "id": 237,
         "key": "localization.ru.web.verdict",
         "value": "Вердикт"
       },
       {
-        "id": 203,
+        "id": 222,
         "key": "localization.ru.web.verdict_accepted_description",
         "value": "Полное решение"
       },
       {
-        "id": 204,
+        "id": 223,
         "key": "localization.ru.web.verdict_ce_description",
         "value": "Ошибка компиляции"
       },
       {
-        "id": 205,
+        "id": 224,
         "key": "localization.ru.web.verdict_failed_description",
         "value": "Не удалось протестировать"
       },
       {
-        "id": 206,
+        "id": 225,
         "key": "localization.ru.web.verdict_mle_description",
         "value": "Превышено ограничение памяти"
       },
       {
-        "id": 207,
+        "id": 226,
         "key": "localization.ru.web.verdict_pa_description",
         "value": "Частичное решение"
       },
       {
-        "id": 208,
+        "id": 227,
         "key": "localization.ru.web.verdict_pe_description",
         "value": "Неправильный формат вывода"
       },
       {
-        "id": 209,
+        "id": 228,
         "key": "localization.ru.web.verdict_queued_description",
         "value": "В очереди"
       },
       {
-        "id": 210,
+        "id": 229,
         "key": "localization.ru.web.verdict_queued_title",
         "value": "В очереди"
       },
       {
-        "id": 211,
+        "id": 230,
         "key": "localization.ru.web.verdict_re_description",
         "value": "Ошибка исполнения"
       },
       {
-        "id": 212,
+        "id": 231,
         "key": "localization.ru.web.verdict_rejected_description",
         "value": "Отклонено"
       },
       {
-        "id": 213,
+        "id": 232,
         "key": "localization.ru.web.verdict_running_description",
         "value": "Выполняется"
       },
       {
-        "id": 215,
+        "id": 234,
         "key": "localization.ru.web.verdict_running_title",
         "value": "Выполняется"
       },
       {
-        "id": 214,
+        "id": 233,
         "key": "localization.ru.web.verdict_running_title_test",
         "value": "Тест {test}"
       },
       {
-        "id": 216,
+        "id": 235,
         "key": "localization.ru.web.verdict_tle_description",
         "value": "Превышено ограничение времени"
       },
       {
-        "id": 217,
+        "id": 236,
         "key": "localization.ru.web.verdict_wa_description",
         "value": "Неправильный ответ"
       }
     ]
   },
   {
-    "id": 219,
+    "id": 238,
     "key": "test_key",
     "value": "test_value"
   },
   {
-    "id": 219,
+    "id": 238,
     "key": "test_key_2",
     "value": "test_value_2"
   }

@@ -349,6 +349,534 @@
       {
         "key": "user_with_login_login_already_exists",
         "text": "Пользователь с логином \"{login}\" уже существует."
+      },
+      {
+        "key": "web.actions",
+        "text": "Действия"
+      },
+      {
+        "key": "web.add",
+        "text": "Добавить"
+      },
+      {
+        "key": "web.admin",
+        "text": "Админ"
+      },
+      {
+        "key": "web.all",
+        "text": "Все"
+      },
+      {
+        "key": "web.author",
+        "text": "Автор"
+      },
+      {
+        "key": "web.change",
+        "text": "Сменить"
+      },
+      {
+        "key": "web.change_email",
+        "text": "Сменить электронную почту"
+      },
+      {
+        "key": "web.change_language",
+        "text": "Сменить язык"
+      },
+      {
+        "key": "web.change_password",
+        "text": "Сменить пароль"
+      },
+      {
+        "key": "web.change_status",
+        "text": "Сменить статус"
+      },
+      {
+        "key": "web.choose_file",
+        "text": "Выберите файл"
+      },
+      {
+        "key": "web.close_session",
+        "text": "Завершить"
+      },
+      {
+        "key": "web.code",
+        "text": "Код"
+      },
+      {
+        "key": "web.compiler",
+        "text": "Компилятор"
+      },
+      {
+        "key": "web.contest",
+        "text": "Соревнование"
+      },
+      {
+        "key": "web.contest_finished",
+        "text": "Завершено"
+      },
+      {
+        "key": "web.contest_not_started",
+        "text": "До начала"
+      },
+      {
+        "key": "web.contest_running",
+        "text": "Идёт"
+      },
+      {
+        "key": "web.contests",
+        "text": "Соревнования"
+      },
+      {
+        "key": "web.create",
+        "text": "Создать"
+      },
+      {
+        "key": "web.created",
+        "text": "Создан"
+      },
+      {
+        "key": "web.current_password",
+        "text": "Текущий пароль"
+      },
+      {
+        "key": "web.current_sessions",
+        "text": "Текущие сессии"
+      },
+      {
+        "key": "web.description",
+        "text": "Описание"
+      },
+      {
+        "key": "web.duration",
+        "text": "Длительность"
+      },
+      {
+        "key": "web.edit_problem",
+        "text": "Редактировать задачу"
+      },
+      {
+        "key": "web.edit_profile",
+        "text": "Редактировать профиль"
+      },
+      {
+        "key": "web.edit_user",
+        "text": "Редактировать пользователя"
+      },
+      {
+        "key": "web.email_confirmation",
+        "text": "Подтверждение почты"
+      },
+      {
+        "key": "web.email_confirmation_alert",
+        "text": "На ваш адрес электронной почты было отправлено письмо с подтверждением. Чтобы получить полный доступ, вам необходимо перейти по ссылке, указанной в этом письме."
+      },
+      {
+        "key": "web.email_confirmation_notice",
+        "text": "Вы получите письмо для подтверждения регистрации."
+      },
+      {
+        "key": "web.enter",
+        "text": "Войти"
+      },
+      {
+        "key": "web.expires",
+        "text": "Истекает"
+      },
+      {
+        "key": "web.first_name",
+        "text": "Имя"
+      },
+      {
+        "key": "web.forgot_password",
+        "text": "Забыли пароль?"
+      },
+      {
+        "key": "web.groups",
+        "text": "Группы"
+      },
+      {
+        "key": "web.hello",
+        "text": "Привет"
+      },
+      {
+        "key": "web.index",
+        "text": "Главная"
+      },
+      {
+        "key": "web.input",
+        "text": "Ввод"
+      },
+      {
+        "key": "web.input_data",
+        "text": "Входные данные"
+      },
+      {
+        "key": "web.interaction",
+        "text": "Протокол взаимодействия"
+      },
+      {
+        "key": "web.key",
+        "text": "Ключ"
+      },
+      {
+        "key": "web.language",
+        "text": "Язык"
+      },
+      {
+        "key": "web.last_name",
+        "text": "Фамилия"
+      },
+      {
+        "key": "web.login",
+        "text": "Войти"
+      },
+      {
+        "key": "web.logout",
+        "text": "Выйти"
+      },
+      {
+        "key": "web.manage",
+        "text": "Управление"
+      },
+      {
+        "key": "web.messages",
+        "text": "Сообщения"
+      },
+      {
+        "key": "web.middle_name",
+        "text": "Отчество"
+      },
+      {
+        "key": "web.name",
+        "text": "Имя"
+      },
+      {
+        "key": "web.new_message",
+        "text": "Новое сообщение"
+      },
+      {
+        "key": "web.new_password",
+        "text": "Новый пароль"
+      },
+      {
+        "key": "web.new_question",
+        "text": "Новый вопрос"
+      },
+      {
+        "key": "web.notes",
+        "text": "Примечания"
+      },
+      {
+        "key": "web.official",
+        "text": "Официальное"
+      },
+      {
+        "key": "web.on_test",
+        "text": "на тесте"
+      },
+      {
+        "key": "web.or",
+        "text": "или"
+      },
+      {
+        "key": "web.output",
+        "text": "Вывод"
+      },
+      {
+        "key": "web.output_data",
+        "text": "Выходные данные"
+      },
+      {
+        "key": "web.page_not_found",
+        "text": "Страница не найдена"
+      },
+      {
+        "key": "web.participant",
+        "text": "Участник"
+      },
+      {
+        "key": "web.participant_manager",
+        "text": "Менеджер"
+      },
+      {
+        "key": "web.participant_observer",
+        "text": "Наблюдатель"
+      },
+      {
+        "key": "web.participant_regular",
+        "text": "Участник"
+      },
+      {
+        "key": "web.participant_upsolving",
+        "text": "Дорешивание"
+      },
+      {
+        "key": "web.participants",
+        "text": "Участники"
+      },
+      {
+        "key": "web.password",
+        "text": "Пароль"
+      },
+      {
+        "key": "web.passwords_do_not_match",
+        "text": "Пароли не совпадают"
+      },
+      {
+        "key": "web.paste_source_code",
+        "text": "вставить исходный код"
+      },
+      {
+        "key": "web.penalty",
+        "text": "Штраф"
+      },
+      {
+        "key": "web.points",
+        "text": "Баллы"
+      },
+      {
+        "key": "web.problem",
+        "text": "Задача"
+      },
+      {
+        "key": "web.problems",
+        "text": "Задачи"
+      },
+      {
+        "key": "web.profile",
+        "text": "Профиль"
+      },
+      {
+        "key": "web.question",
+        "text": "Вопрос"
+      },
+      {
+        "key": "web.regenerate_password",
+        "text": "Сгенерировать пароль"
+      },
+      {
+        "key": "web.register",
+        "text": "Регистрация"
+      },
+      {
+        "key": "web.repeat_new_password",
+        "text": "Повторите новый пароль"
+      },
+      {
+        "key": "web.repeat_password",
+        "text": "Повторите пароль"
+      },
+      {
+        "key": "web.repository",
+        "text": "Репозиторий"
+      },
+      {
+        "key": "web.reset",
+        "text": "Сбросить"
+      },
+      {
+        "key": "web.reset_password",
+        "text": "Сбросить пароль"
+      },
+      {
+        "key": "web.roles",
+        "text": "Роли"
+      },
+      {
+        "key": "web.samples",
+        "text": "Примеры"
+      },
+      {
+        "key": "web.scope_users",
+        "text": "Пользователи скоупа"
+      },
+      {
+        "key": "web.scopes",
+        "text": "Скоупы"
+      },
+      {
+        "key": "web.score",
+        "text": "Счёт"
+      },
+      {
+        "key": "web.scoring",
+        "text": "Система оценки"
+      },
+      {
+        "key": "web.security",
+        "text": "Безопасность"
+      },
+      {
+        "key": "web.select_compiler",
+        "text": "Выберите компилятор"
+      },
+      {
+        "key": "web.select_problem",
+        "text": "Выберите задачу"
+      },
+      {
+        "key": "web.settings",
+        "text": "Настройки"
+      },
+      {
+        "key": "web.solution_file",
+        "text": "Файл решения"
+      },
+      {
+        "key": "web.solutions",
+        "text": "Решения"
+      },
+      {
+        "key": "web.source_code",
+        "text": "Исходный код"
+      },
+      {
+        "key": "web.standings",
+        "text": "Положение"
+      },
+      {
+        "key": "web.start",
+        "text": "Начало"
+      },
+      {
+        "key": "web.status",
+        "text": "Статус"
+      },
+      {
+        "key": "web.status_active",
+        "text": "Активный"
+      },
+      {
+        "key": "web.status_blocked",
+        "text": "Заблокирован"
+      },
+      {
+        "key": "web.status_pending",
+        "text": "Новый"
+      },
+      {
+        "key": "web.subject",
+        "text": "Тема"
+      },
+      {
+        "key": "web.submit",
+        "text": "Отправить"
+      },
+      {
+        "key": "web.submit_solution",
+        "text": "Отправить решение"
+      },
+      {
+        "key": "web.theme",
+        "text": "Тема"
+      },
+      {
+        "key": "web.theme_dark",
+        "text": "Тёмная"
+      },
+      {
+        "key": "web.theme_light",
+        "text": "Светлая"
+      },
+      {
+        "key": "web.this_page_does_not_exists",
+        "text": "Такая страница не существует."
+      },
+      {
+        "key": "web.time",
+        "text": "Время"
+      },
+      {
+        "key": "web.title",
+        "text": "Название"
+      },
+      {
+        "key": "web.unfrozen",
+        "text": "Размороженное"
+      },
+      {
+        "key": "web.update",
+        "text": "Обновить"
+      },
+      {
+        "key": "web.username",
+        "text": "Имя пользователя"
+      },
+      {
+        "key": "web.username_restrictions",
+        "text": "Вы можете использовать только латинские буквы, цифры, символы «_» и «-». Имя пользователя может начинаться только на латинскую букву и заканчиваться на латинскую букву или цифру."
+      },
+      {
+        "key": "web.users",
+        "text": "Пользователи"
+      },
+      {
+        "key": "web.value",
+        "text": "Значение"
+      },
+      {
+        "key": "web.verdict",
+        "text": "Вердикт"
+      },
+      {
+        "key": "web.verdict_accepted_description",
+        "text": "Полное решение"
+      },
+      {
+        "key": "web.verdict_ce_description",
+        "text": "Ошибка компиляции"
+      },
+      {
+        "key": "web.verdict_failed_description",
+        "text": "Не удалось протестировать"
+      },
+      {
+        "key": "web.verdict_mle_description",
+        "text": "Превышено ограничение памяти"
+      },
+      {
+        "key": "web.verdict_pa_description",
+        "text": "Частичное решение"
+      },
+      {
+        "key": "web.verdict_pe_description",
+        "text": "Неправильный формат вывода"
+      },
+      {
+        "key": "web.verdict_queued_description",
+        "text": "В очереди"
+      },
+      {
+        "key": "web.verdict_queued_title",
+        "text": "В очереди"
+      },
+      {
+        "key": "web.verdict_re_description",
+        "text": "Ошибка исполнения"
+      },
+      {
+        "key": "web.verdict_rejected_description",
+        "text": "Отклонено"
+      },
+      {
+        "key": "web.verdict_running_description",
+        "text": "Выполняется"
+      },
+      {
+        "key": "web.verdict_running_title",
+        "text": "Выполняется"
+      },
+      {
+        "key": "web.verdict_running_title_test",
+        "text": "Тест {test}"
+      },
+      {
+        "key": "web.verdict_tle_description",
+        "text": "Превышено ограничение времени"
+      },
+      {
+        "key": "web.verdict_wa_description",
+        "text": "Неправильный ответ"
       }
     ]
   }

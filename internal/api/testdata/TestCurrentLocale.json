@@ -459,6 +459,90 @@
         "text": "Текущие сессии"
       },
       {
+        "key": "web.datetime_format",
+        "text": "DD.MM.YYYY hh:mm:ss"
+      },
+      {
+        "key": "web.datetime_future_hour:0",
+        "text": "через %d час"
+      },
+      {
+        "key": "web.datetime_future_hour:1",
+        "text": "через %d часа"
+      },
+      {
+        "key": "web.datetime_future_hour:2",
+        "text": "через %d часов"
+      },
+      {
+        "key": "web.datetime_future_minute:0",
+        "text": "через %d минуту"
+      },
+      {
+        "key": "web.datetime_future_minute:1",
+        "text": "через %d минуты"
+      },
+      {
+        "key": "web.datetime_future_minute:2",
+        "text": "через %d минут"
+      },
+      {
+        "key": "web.datetime_future_second:0",
+        "text": "через %d секунду"
+      },
+      {
+        "key": "web.datetime_future_second:1",
+        "text": "через %d секунды"
+      },
+      {
+        "key": "web.datetime_future_second:2",
+        "text": "через %d секунд"
+      },
+      {
+        "key": "web.datetime_input_placeholder",
+        "text": "ДД.ММ.ГГГГ чч:мм:сс"
+      },
+      {
+        "key": "web.datetime_now",
+        "text": "сейчас"
+      },
+      {
+        "key": "web.datetime_past_hour:0",
+        "text": "%d час назад"
+      },
+      {
+        "key": "web.datetime_past_hour:1",
+        "text": "%d часа назад"
+      },
+      {
+        "key": "web.datetime_past_hour:2",
+        "text": "%d часов назад"
+      },
+      {
+        "key": "web.datetime_past_minute:0",
+        "text": "%d минуту назад"
+      },
+      {
+        "key": "web.datetime_past_minute:1",
+        "text": "%d минуты назад"
+      },
+      {
+        "key": "web.datetime_past_minute:2",
+        "text": "%d минут назад"
+      },
+      {
+        "key": "web.datetime_past_second:0",
+        "text": "%d секунду назад"
+      },
+      {
+        "key": "web.datetime_past_second:1",
+        "text": "%d секунды назад"
+      },
+      {
+        "key": "web.datetime_past_second:2",
+        "text": "%d секунд назад"
+      },
+      {
         "key": "web.delete_contest",
         "text": "Удалить соревнование"
       },
@@ -753,6 +837,10 @@
       {
         "key": "web.samples",
         "text": "Примеры"
+      },
+      {
+        "key": "web.scope",
+        "text": "Скоуп"
       },
       {
         "key": "web.scope_users",

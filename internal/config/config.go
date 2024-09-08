@@ -103,6 +103,8 @@ func (s Server) Address() string {
 type Security struct {
 	// PasswordSalt contains salt for password hashing.
 	PasswordSalt string `json:"password_salt"`
+	// CookiePath contains path for cookies.
+	CookiePath string `json:"cookie_path"`
 }
 
 // Invoker contains invoker config.

@@ -678,6 +678,9 @@ func (v *View) loginAccount(c echo.Context) error {
 	}
 	cookie := session.Cookie()
 	cookie.Name = sessionCookie
+	if v.core.Config.Security != nil {
+		cookie.Path = v.core.Config.Security.CookiePath
+	}
 	c.SetCookie(&cookie)
 	return c.JSON(http.StatusCreated, Session{
 		ID:         session.ID,

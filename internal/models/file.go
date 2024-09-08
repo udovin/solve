@@ -90,7 +90,6 @@ type fileStore struct {
 }
 
 type cachedFileStore struct {
-	fileStore
 	cachedStore[File, FileEvent, *File, *FileEvent]
 }
 

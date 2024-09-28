@@ -107,6 +107,10 @@
         "text": "Группа {id} не существует."
       },
       {
+        "key": "group_not_found",
+        "text": "Группа не найдена."
+      },
+      {
         "key": "invalid_config",
         "text": "Неправильная конфигурация."
       },
@@ -125,6 +129,10 @@
       {
         "key": "invalid_form",
         "text": "Неверная форма."
+      },
+      {
+        "key": "invalid_group_id",
+        "text": "Неправильный ID группы."
       },
       {
         "key": "invalid_participant_id",

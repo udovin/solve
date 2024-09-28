@@ -569,6 +569,47 @@ func (c *Client) ObserveScopeUsers(ctx context.Context, scope int64) (ScopeUsers
 	return respData, err
 }
 
+func (c *Client) ObserveGroups(ctx context.Context) (Groups, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/groups"), nil,
+	)
+	if err != nil {
+		return Groups{}, err
+	}
+	var respData Groups
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) ObserveGroup(ctx context.Context, group int64) (Group, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/groups/%d", group), nil,
+	)
+	if err != nil {
+		return Group{}, err
+	}
+	var respData Group
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) CreateGroup(ctx context.Context, form CreateGroupForm) (Group, error) {
+	data, err := json.Marshal(form)
+	if err != nil {
+		return Group{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPost, c.getURL("/v0/groups"),
+		bytes.NewReader(data),
+	)
+	if err != nil {
+		return Group{}, err
+	}
+	var respData Group
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
 func (c *Client) CreateSetting(ctx context.Context, form CreateSettingForm) (Setting, error) {
 	data, err := json.Marshal(form)
 	if err != nil {

@@ -4,6 +4,7 @@
     "title": "a-plus-b",
     "permissions": [
       "update_problem",
+      "update_problem_owner",
       "delete_problem"
     ]
   },
@@ -12,6 +13,7 @@
     "title": "a-plus-b-2",
     "permissions": [
       "update_problem",
+      "update_problem_owner",
       "delete_problem"
     ]
   },

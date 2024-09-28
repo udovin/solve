@@ -60,7 +60,7 @@ func (v *View) observeGroups(c echo.Context) error {
 		group := groups.Row()
 		permissions := v.getGroupPermissions(accountCtx, group)
 		if permissions.HasPermission(perms.ObserveGroupRole) {
-			resp.Groups = append(resp.Groups, makeGroup(group))
+			resp.Groups = append(resp.Groups, makeGroup(group, permissions))
 		}
 	}
 	if err := groups.Err(); err != nil {
@@ -70,19 +70,24 @@ func (v *View) observeGroups(c echo.Context) error {
 }
 
 func (v *View) observeGroup(c echo.Context) error {
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		return fmt.Errorf("account not extracted")
+	}
 	group, ok := c.Get(groupKey).(models.Group)
 	if !ok {
 		return fmt.Errorf("group not extracted")
 	}
-	return c.JSON(http.StatusOK, makeGroup(group))
+	permissions := v.getGroupPermissions(accountCtx, group)
+	return c.JSON(http.StatusOK, makeGroup(group, permissions))
 }
 
-type updateGroupForm struct {
+type UpdateGroupForm struct {
 	Title   *string `json:"title"`
 	OwnerID *int64  `json:"owner_id"`
 }
 
-func (f *updateGroupForm) Update(c echo.Context, o *models.Group) error {
+func (f *UpdateGroupForm) Update(c echo.Context, o *models.Group) error {
 	errors := errorFields{}
 	if f.Title != nil {
 		if len(*f.Title) < 4 {
@@ -106,9 +111,9 @@ func (f *updateGroupForm) Update(c echo.Context, o *models.Group) error {
 	return nil
 }
 
-type createGroupForm updateGroupForm
+type CreateGroupForm UpdateGroupForm
 
-func (f *createGroupForm) Update(c echo.Context, o *models.Group) error {
+func (f *CreateGroupForm) Update(c echo.Context, o *models.Group) error {
 	if f.Title == nil {
 		return &errorResponse{
 			Code:    http.StatusBadRequest,
@@ -120,7 +125,7 @@ func (f *createGroupForm) Update(c echo.Context, o *models.Group) error {
 			},
 		}
 	}
-	return (*updateGroupForm)(f).Update(c, o)
+	return (*UpdateGroupForm)(f).Update(c, o)
 }
 
 func (v *View) createGroup(c echo.Context) error {
@@ -128,7 +133,7 @@ func (v *View) createGroup(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("account not extracted")
 	}
-	var form createGroupForm
+	var form CreateGroupForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
@@ -142,7 +147,7 @@ func (v *View) createGroup(c echo.Context) error {
 	}
 	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
 		account := models.Account{Kind: group.AccountKind()}
-		if err := v.core.Groups.Create(ctx, &group); err != nil {
+		if err := v.core.Accounts.Create(ctx, &account); err != nil {
 			return err
 		}
 		group.ID = account.ID
@@ -151,7 +156,8 @@ func (v *View) createGroup(c echo.Context) error {
 		c.Logger().Error(err)
 		return err
 	}
-	return c.JSON(http.StatusCreated, makeGroup(group))
+	permissions := v.getGroupPermissions(accountCtx, group)
+	return c.JSON(http.StatusCreated, makeGroup(group, permissions))
 }
 
 func (v *View) updateGroup(c echo.Context) error {
@@ -164,7 +170,7 @@ func (v *View) updateGroup(c echo.Context) error {
 		return fmt.Errorf("group not extracted")
 	}
 	permissions := v.getGroupPermissions(accountCtx, group)
-	var form updateGroupForm
+	var form UpdateGroupForm
 	if err := c.Bind(&form); err != nil {
 		c.Logger().Warn(err)
 		return c.NoContent(http.StatusBadRequest)
@@ -177,8 +183,7 @@ func (v *View) updateGroup(c echo.Context) error {
 		if !permissions.HasPermission(perms.UpdateGroupOwnerRole) {
 			missingPermissions = append(missingPermissions, perms.UpdateGroupOwnerRole)
 		} else {
-			account, err := v.core.Accounts.Get(getContext(c), *form.OwnerID)
-			if err != nil {
+			if _, err := v.core.Users.Get(getContext(c), *form.OwnerID); err != nil {
 				if err == sql.ErrNoRows {
 					return errorResponse{
 						Code:    http.StatusBadRequest,
@@ -186,12 +191,6 @@ func (v *View) updateGroup(c echo.Context) error {
 					}
 				}
 				return err
-			}
-			if account.Kind != models.UserAccountKind {
-				return errorResponse{
-					Code:    http.StatusBadRequest,
-					Message: localize(c, "User not found."),
-				}
 			}
 			group.OwnerID = models.NInt64(*form.OwnerID)
 		}
@@ -206,7 +205,7 @@ func (v *View) updateGroup(c echo.Context) error {
 	if err := v.core.Groups.Update(getContext(c), group); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, makeGroup(group))
+	return c.JSON(http.StatusOK, makeGroup(group, permissions))
 }
 
 func (v *View) deleteGroup(c echo.Context) error {
@@ -217,7 +216,7 @@ func (v *View) deleteGroup(c echo.Context) error {
 	if err := v.core.Groups.Delete(getContext(c), group.ID); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, makeGroup(group))
+	return c.JSON(http.StatusOK, makeGroup(group, perms.PermissionSet{}))
 }
 
 func (v *View) extractGroup(next echo.HandlerFunc) echo.HandlerFunc {
@@ -285,17 +284,30 @@ func (v *View) getGroupPermissions(
 }
 
 type Group struct {
-	ID    int64  `json:"id"`
-	Title string `json:"title"`
+	ID          int64    `json:"id"`
+	Title       string   `json:"title"`
+	Permissions []string `json:"permissions"`
 }
 
 type Groups struct {
 	Groups []Group `json:"group"`
 }
 
-func makeGroup(group models.Group) Group {
-	return Group{
+var groupPermissions = []string{
+	perms.UpdateGroupRole,
+	perms.UpdateGroupOwnerRole,
+	perms.DeleteGroupRole,
+}
+
+func makeGroup(group models.Group, permissions perms.Permissions) Group {
+	resp := Group{
 		ID:    group.ID,
 		Title: group.Title,
 	}
+	for _, permission := range groupPermissions {
+		if permissions.HasPermission(permission) {
+			resp.Permissions = append(resp.Permissions, permission)
+		}
+	}
+	return resp
 }

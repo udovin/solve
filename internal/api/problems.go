@@ -76,6 +76,7 @@ type Problems struct {
 
 var problemPermissions = []string{
 	perms.UpdateProblemRole,
+	perms.UpdateProblemOwnerRole,
 	perms.DeleteProblemRole,
 }
 

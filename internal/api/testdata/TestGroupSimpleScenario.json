@@ -1,0 +1,11 @@
+[
+  {
+    "id": 2,
+    "title": "Test group",
+    "permissions": [
+      "update_group",
+      "update_group_owner",
+      "delete_group"
+    ]
+  }
+]

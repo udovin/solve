@@ -93,6 +93,7 @@ func (m *AccountManager) MakeContext(ctx context.Context, account *models.Accoun
 					if err != nil {
 						return err
 					}
+					c.GroupMembers = append(c.GroupMembers, member)
 					c.GroupAccounts = append(c.GroupAccounts, groupAccount)
 				}
 				return members.Err()
@@ -219,6 +220,7 @@ type AccountContext struct {
 	ScopeUser     *models.ScopeUser
 	Permissions   perms.PermissionSet
 	GroupAccounts []models.Account
+	GroupMembers  []models.GroupMember
 }
 
 func (c *AccountContext) HasPermission(name string) bool {

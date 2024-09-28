@@ -227,6 +227,18 @@ const (
 	ConsumeTokenRole = "consume_token"
 	// ObserveAccountsRole represents role for observing accounts.
 	ObserveAccountsRole = "observe_accounts"
+	// ObserveGroupsRole represents role for observing groups.
+	ObserveGroupsRole = "observe_groups"
+	// ObserveGroupRole represents role for observing group.
+	ObserveGroupRole = "observe_group"
+	// CreateGroupRole represents role for creating group.
+	CreateGroupRole = "create_group"
+	// UpdateGroupRole represents role for updating group.
+	UpdateGroupRole = "update_group"
+	// UpdateGroupOwnerRole represents role for updating group owner.
+	UpdateGroupOwnerRole = "update_group_owner"
+	// DeleteGroupRole represents role for deleting group.
+	DeleteGroupRole = "delete_group"
 )
 
 var builtInRoles = map[string]struct{}{
@@ -325,6 +337,12 @@ var builtInRoles = map[string]struct{}{
 	DeleteScopeUserRole:              {},
 	ConsumeTokenRole:                 {},
 	ObserveAccountsRole:              {},
+	ObserveGroupsRole:                {},
+	ObserveGroupRole:                 {},
+	CreateGroupRole:                  {},
+	UpdateGroupRole:                  {},
+	UpdateGroupOwnerRole:             {},
+	DeleteGroupRole:                  {},
 }
 
 // GetBuildInRoles returns all built-in roles.

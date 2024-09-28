@@ -121,6 +121,8 @@ const (
 	settingKey            = "setting"
 	scopeKey              = "scope"
 	scopeUserKey          = "scope_user"
+	groupKey              = "group"
+	groupMemberKey        = "group_member"
 	tokenKey              = "token"
 	localeKey             = "locale"
 	syncKey               = "sync"

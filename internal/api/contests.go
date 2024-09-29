@@ -802,6 +802,7 @@ type ContestParticipant struct {
 	User      *User      `json:"user,omitempty"`
 	ScopeUser *ScopeUser `json:"scope_user,omitempty"`
 	Scope     *Scope     `json:"scope,omitempty"`
+	Group     *Group     `json:"group,omitempty"`
 	ContestID int64      `json:"contest_id,omitempty"`
 	// Kind contains kind.
 	Kind models.ParticipantKind `json:"kind"`
@@ -1487,6 +1488,13 @@ func makeContestParticipant(
 				resp.Scope = &Scope{
 					ID:    scope.ID,
 					Title: scope.Title,
+				}
+			}
+		case models.GroupAccountKind:
+			if group, err := core.Groups.Get(ctx, account.ID); err == nil {
+				resp.Group = &Group{
+					ID:    group.ID,
+					Title: group.Title,
 				}
 			}
 		}

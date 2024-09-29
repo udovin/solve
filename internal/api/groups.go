@@ -485,7 +485,7 @@ func (v *View) getGroupPermissions(
 type Group struct {
 	ID          int64    `json:"id"`
 	Title       string   `json:"title"`
-	Permissions []string `json:"permissions"`
+	Permissions []string `json:"permissions,omitempty"`
 }
 
 type Groups struct {

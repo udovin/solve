@@ -186,7 +186,7 @@ func (v *View) observeAccounts(c echo.Context) error {
 			}
 			permissions := v.getUserPermissions(accountCtx, user)
 			if permissions.HasPermission(perms.ObserveUserRole) {
-				userResp := makeUser(user, permissions)
+				userResp := makeUser(user, perms.PermissionSet{})
 				resp.Accounts = append(resp.Accounts, Account{
 					ID:   account.ID,
 					Kind: user.AccountKind(),
@@ -257,7 +257,7 @@ func (v *View) observeAccounts(c echo.Context) error {
 			}
 			permissions := v.getGroupPermissions(accountCtx, group)
 			if permissions.HasPermission(perms.ObserveGroupRole) {
-				groupResp := makeGroup(group, permissions)
+				groupResp := makeGroup(group, perms.PermissionSet{})
 				resp.Accounts = append(resp.Accounts, Account{
 					ID:    account.ID,
 					Kind:  group.AccountKind(),

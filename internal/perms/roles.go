@@ -108,11 +108,14 @@ const (
 	ObserveSolutionsRole = "observe_solutions"
 	// ObserveSolutionRole represents role for observing solution.
 	ObserveSolutionRole = "observe_solution"
-	//
+	// ObserveSolutionReportTestNumber rerpesents role for observing
+	// solution test number.
 	ObserveSolutionReportTestNumber = "observe_solution_report_test_number"
-	//
+	// ObserveSolutionReportTestNumber rerpesents role for observing
+	// solution checker logs.
 	ObserveSolutionReportCheckerLogs = "observe_solution_report_checker_logs"
-	//
+	// ObserveSolutionReportTestNumber rerpesents role for observing
+	// solution compile log.
 	ObserveSolutionReportCompileLog = "observe_solution_report_compile_log"
 	// ObserveContestsRole represents role for observing contest list.
 	ObserveContestsRole = "observe_contests"
@@ -239,6 +242,14 @@ const (
 	UpdateGroupOwnerRole = "update_group_owner"
 	// DeleteGroupRole represents role for deleting group.
 	DeleteGroupRole = "delete_group"
+	// ObserveGroupMembersRole represents role for observing group members.
+	ObserveGroupMembersRole = "observe_group_members"
+	// CreateGroupMemberRole represents role for creating group member.
+	CreateGroupMemberRole = "create_group_member"
+	// UpdateGroupMemberRole represents role for updating group member.
+	UpdateGroupMemberRole = "update_group_member"
+	// DeleteGroupMemberRole represents role for deleting group member.
+	DeleteGroupMemberRole = "delete_group_member"
 )
 
 var builtInRoles = map[string]struct{}{
@@ -343,6 +354,10 @@ var builtInRoles = map[string]struct{}{
 	UpdateGroupRole:                  {},
 	UpdateGroupOwnerRole:             {},
 	DeleteGroupRole:                  {},
+	ObserveGroupMembersRole:          {},
+	CreateGroupMemberRole:            {},
+	UpdateGroupMemberRole:            {},
+	DeleteGroupMemberRole:            {},
 }
 
 // GetBuildInRoles returns all built-in roles.

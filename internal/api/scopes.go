@@ -518,7 +518,7 @@ func (v *View) extractScopeUser(next echo.HandlerFunc) echo.HandlerFunc {
 				Message: localize(c, "Invalid user ID."),
 			}
 		}
-		if err := syncStore(c, v.core.Scopes); err != nil {
+		if err := syncStore(c, v.core.ScopeUsers); err != nil {
 			return err
 		}
 		user, err := v.core.ScopeUsers.Get(getContext(c), id)
@@ -546,7 +546,7 @@ func (v *View) getScopePermissions(
 	ctx *managers.AccountContext, scope models.Scope,
 ) perms.PermissionSet {
 	permissions := ctx.Permissions.Clone()
-	if ctx.Account.ID != 0 && ctx.Account.ID == int64(scope.OwnerID) {
+	if scope.OwnerID != 0 && ctx.Account.ID == int64(scope.OwnerID) {
 		permissions.AddPermission(
 			perms.ObserveScopeRole,
 			perms.UpdateScopeRole,

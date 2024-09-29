@@ -82,6 +82,18 @@ func (e *TestEnv) SyncStores() {
 	if err := e.Core.Settings.Sync(ctx); err != nil {
 		e.tb.Fatal("Error:", err)
 	}
+	if err := e.Core.Scopes.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+	if err := e.Core.ScopeUsers.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+	if err := e.Core.Groups.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
+	if err := e.Core.GroupMembers.Sync(ctx); err != nil {
+		e.tb.Fatal("Error:", err)
+	}
 }
 
 func (e *TestEnv) CreateUserRoles(login string, roles ...string) error {

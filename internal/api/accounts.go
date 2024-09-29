@@ -51,12 +51,15 @@ func (f *accountFilter) Parse(c echo.Context) error {
 	return nil
 }
 
+type AccountKind = models.AccountKind
+
 type Account struct {
-	ID        int64      `json:"id"`
-	Kind      string     `json:"kind"`
-	User      *User      `json:"user,omitempty"`
-	ScopeUser *ScopeUser `json:"scope_user,omitempty"`
-	Scope     *Scope     `json:"scope,omitempty"`
+	ID        int64       `json:"id"`
+	Kind      AccountKind `json:"kind"`
+	User      *User       `json:"user,omitempty"`
+	ScopeUser *ScopeUser  `json:"scope_user,omitempty"`
+	Scope     *Scope      `json:"scope,omitempty"`
+	Group     *Group      `json:"group,omitempty"`
 }
 
 type Accounts struct {
@@ -186,7 +189,7 @@ func (v *View) observeAccounts(c echo.Context) error {
 				userResp := makeUser(user, permissions)
 				resp.Accounts = append(resp.Accounts, Account{
 					ID:   account.ID,
-					Kind: "user",
+					Kind: user.AccountKind(),
 					User: &userResp,
 				})
 			}
@@ -215,7 +218,7 @@ func (v *View) observeAccounts(c echo.Context) error {
 				scopeUserResp := makeScopeUser(scopeUser)
 				resp.Accounts = append(resp.Accounts, Account{
 					ID:        account.ID,
-					Kind:      "scope_user",
+					Kind:      scopeUser.AccountKind(),
 					ScopeUser: &scopeUserResp,
 				})
 			}
@@ -236,7 +239,7 @@ func (v *View) observeAccounts(c echo.Context) error {
 				scopeResp := makeScope(scope)
 				resp.Accounts = append(resp.Accounts, Account{
 					ID:    account.ID,
-					Kind:  "scope",
+					Kind:  scope.AccountKind(),
 					Scope: &scopeResp,
 				})
 			}
@@ -249,8 +252,18 @@ func (v *View) observeAccounts(c echo.Context) error {
 				}
 				return err
 			}
-			// TODO.
-			_ = group
+			if !filter.FilterGroup(group) {
+				continue
+			}
+			permissions := v.getGroupPermissions(accountCtx, group)
+			if permissions.HasPermission(perms.ObserveGroupRole) {
+				groupResp := makeGroup(group, permissions)
+				resp.Accounts = append(resp.Accounts, Account{
+					ID:    account.ID,
+					Kind:  group.AccountKind(),
+					Group: &groupResp,
+				})
+			}
 		default:
 			c.Logger().Warn(
 				"Unsupported account kind",

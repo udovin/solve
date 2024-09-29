@@ -215,8 +215,8 @@ func TestContestStandings(t *testing.T) {
 	}
 	{
 		form := CreateContestParticipantForm{
-			UserID: getPtr(user1.ID),
-			Kind:   models.RegularParticipant,
+			AccountID: user1.ID,
+			Kind:      models.RegularParticipant,
 		}
 		if _, err := e.Client.CreateContestParticipant(context.Background(), contest.ID, form); err != nil {
 			t.Fatal("Error", err)
@@ -224,8 +224,8 @@ func TestContestStandings(t *testing.T) {
 	}
 	{
 		form := CreateContestParticipantForm{
-			UserID: getPtr(user2.ID),
-			Kind:   models.RegularParticipant,
+			AccountID: user2.ID,
+			Kind:      models.RegularParticipant,
 		}
 		if _, err := e.Client.CreateContestParticipant(context.Background(), contest.ID, form); err != nil {
 			t.Fatal("Error", err)
@@ -233,8 +233,8 @@ func TestContestStandings(t *testing.T) {
 	}
 	{
 		form := CreateContestParticipantForm{
-			UserID: getPtr(user3.ID),
-			Kind:   models.RegularParticipant,
+			AccountID: user3.ID,
+			Kind:      models.RegularParticipant,
 		}
 		if _, err := e.Client.CreateContestParticipant(context.Background(), contest.ID, form); err != nil {
 			t.Fatal("Error", err)

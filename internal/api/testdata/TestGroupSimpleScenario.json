@@ -1,11 +1,231 @@
 [
+  "Group owner",
   {
-    "id": 2,
+    "id": 5,
     "title": "Test group",
     "permissions": [
       "update_group",
       "update_group_owner",
-      "delete_group"
+      "delete_group",
+      "observe_group_members",
+      "create_group_member",
+      "update_group_member",
+      "delete_group_member"
     ]
+  },
+  {
+    "groups": [
+      {
+        "id": 5,
+        "title": "Test group",
+        "permissions": [
+          "update_group",
+          "update_group_owner",
+          "delete_group",
+          "observe_group_members",
+          "create_group_member",
+          "update_group_member",
+          "delete_group_member"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "title": "Test group",
+    "permissions": [
+      "update_group",
+      "update_group_owner",
+      "delete_group",
+      "observe_group_members",
+      "create_group_member",
+      "update_group_member",
+      "delete_group_member"
+    ]
+  },
+  {
+    "members": null
+  },
+  {
+    "id": 1,
+    "kind": "regular",
+    "account": {
+      "id": 2,
+      "kind": "user",
+      "user": {
+        "id": 2,
+        "login": "login-1297281668"
+      }
+    }
+  },
+  {
+    "id": 2,
+    "kind": "regular",
+    "account": {
+      "id": 3,
+      "kind": "user",
+      "user": {
+        "id": 3,
+        "login": "login-94099423"
+      }
+    }
+  },
+  {
+    "id": 2,
+    "kind": "manager",
+    "account": {
+      "id": 3,
+      "kind": "user",
+      "user": {
+        "id": 3,
+        "login": "login-94099423"
+      }
+    }
+  },
+  {
+    "members": [
+      {
+        "id": 1,
+        "kind": "regular",
+        "account": {
+          "id": 2,
+          "kind": "user",
+          "user": {
+            "id": 2,
+            "login": "login-1297281668"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "kind": "manager",
+        "account": {
+          "id": 3,
+          "kind": "user",
+          "user": {
+            "id": 3,
+            "login": "login-94099423"
+          }
+        }
+      }
+    ]
+  },
+  "Group non member",
+  {
+    "groups": null
+  },
+  {
+    "message": "Account missing permissions.",
+    "missing_permissions": [
+      "observe_group"
+    ]
+  },
+  "Group regular member",
+  {
+    "groups": [
+      {
+        "id": 5,
+        "title": "Test group",
+        "permissions": [
+          "observe_group_members"
+        ]
+      }
+    ]
+  },
+  {
+    "members": [
+      {
+        "id": 1,
+        "kind": "regular",
+        "account": {
+          "id": 2,
+          "kind": "user",
+          "user": {
+            "id": 2,
+            "login": "login-1297281668"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "kind": "manager",
+        "account": {
+          "id": 3,
+          "kind": "user",
+          "user": {
+            "id": 3,
+            "login": "login-94099423"
+          }
+        }
+      }
+    ]
+  },
+  "Group manager member",
+  {
+    "groups": [
+      {
+        "id": 5,
+        "title": "Test group",
+        "permissions": [
+          "update_group",
+          "observe_group_members",
+          "create_group_member",
+          "update_group_member",
+          "delete_group_member"
+        ]
+      }
+    ]
+  },
+  {
+    "members": [
+      {
+        "id": 1,
+        "kind": "regular",
+        "account": {
+          "id": 2,
+          "kind": "user",
+          "user": {
+            "id": 2,
+            "login": "login-1297281668"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "kind": "manager",
+        "account": {
+          "id": 3,
+          "kind": "user",
+          "user": {
+            "id": 3,
+            "login": "login-94099423"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "kind": "regular",
+    "account": {
+      "id": 4,
+      "kind": "user",
+      "user": {
+        "id": 4,
+        "login": "login-1745640357"
+      }
+    }
+  },
+  {
+    "id": 3,
+    "kind": "regular",
+    "account": {
+      "id": 4,
+      "kind": "user",
+      "user": {
+        "id": 4,
+        "login": "login-1745640357"
+      }
+    }
   }
 ]

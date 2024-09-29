@@ -610,6 +610,64 @@ func (c *Client) CreateGroup(ctx context.Context, form CreateGroupForm) (Group, 
 	return respData, err
 }
 
+func (c *Client) ObserveGroupMembers(ctx context.Context, group int64) (GroupMembers, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/groups/%d/members", group), nil,
+	)
+	if err != nil {
+		return GroupMembers{}, err
+	}
+	var respData GroupMembers
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) CreateGroupMember(ctx context.Context, group int64, form CreateGroupMemberForm) (GroupMember, error) {
+	data, err := json.Marshal(form)
+	if err != nil {
+		return GroupMember{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPost, c.getURL("/v0/groups/%d/members", group),
+		bytes.NewReader(data),
+	)
+	if err != nil {
+		return GroupMember{}, err
+	}
+	var respData GroupMember
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
+func (c *Client) UpdateGroupMember(ctx context.Context, group int64, member int64, form UpdateGroupMemberForm) (GroupMember, error) {
+	data, err := json.Marshal(form)
+	if err != nil {
+		return GroupMember{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPatch, c.getURL("/v0/groups/%d/members/%d", group, member),
+		bytes.NewReader(data),
+	)
+	if err != nil {
+		return GroupMember{}, err
+	}
+	var respData GroupMember
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) DeleteGroupMember(ctx context.Context, group int64, member int64) (GroupMember, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodDelete, c.getURL("/v0/groups/%d/members/%d", group, member), nil,
+	)
+	if err != nil {
+		return GroupMember{}, err
+	}
+	var respData GroupMember
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
 func (c *Client) CreateSetting(ctx context.Context, form CreateSettingForm) (Setting, error) {
 	data, err := json.Marshal(form)
 	if err != nil {

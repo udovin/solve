@@ -1,6 +1,8 @@
 package models
 
 import (
+	"fmt"
+
 	"github.com/udovin/gosql"
 )
 
@@ -17,6 +19,42 @@ const (
 	// GroupAccount represents kind of account for group.
 	GroupAccountKind AccountKind = 4
 )
+
+// String returns string representation.
+func (k AccountKind) String() string {
+	switch k {
+	case UserAccountKind:
+		return "user"
+	case ScopeUserAccountKind:
+		return "scope_user"
+	case ScopeAccountKind:
+		return "scope"
+	case GroupAccountKind:
+		return "group"
+	default:
+		return fmt.Sprintf("AccountKind(%d)", k)
+	}
+}
+
+func (k AccountKind) MarshalText() ([]byte, error) {
+	return []byte(k.String()), nil
+}
+
+func (k *AccountKind) UnmarshalText(data []byte) error {
+	switch s := string(data); s {
+	case "user":
+		*k = UserAccountKind
+	case "scope_user":
+		*k = ScopeUserAccountKind
+	case "scope":
+		*k = ScopeAccountKind
+	case "group":
+		*k = GroupAccountKind
+	default:
+		return fmt.Errorf("unsupported kind: %q", s)
+	}
+	return nil
+}
 
 // Account represents an account.
 type Account struct {

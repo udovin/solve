@@ -54,6 +54,15 @@ func (k *ParticipantKind) UnmarshalText(data []byte) error {
 	return nil
 }
 
+func (k ParticipantKind) IsValid() bool {
+	switch k {
+	case RegularParticipant, UpsolvingParticipant, ManagerParticipant, ObserverParticipant:
+		return true
+	default:
+		return false
+	}
+}
+
 type RegularParticipantConfig struct {
 	BeginTime NInt64 `json:"begin_time,omitempty"`
 }

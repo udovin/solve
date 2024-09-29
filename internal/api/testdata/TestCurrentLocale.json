@@ -107,6 +107,10 @@
         "text": "Группа {id} не существует."
       },
       {
+        "key": "group_member_not_found",
+        "text": "Участник группы не найден"
+      },
+      {
         "key": "group_not_found",
         "text": "Группа не найдена."
       },
@@ -133,6 +137,10 @@
       {
         "key": "invalid_group_id",
         "text": "Неправильный ID группы."
+      },
+      {
+        "key": "invalid_group_member_id",
+        "text": "Неправильный ID участника группы."
       },
       {
         "key": "invalid_participant_id",

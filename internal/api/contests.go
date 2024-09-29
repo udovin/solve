@@ -835,169 +835,98 @@ func (v *View) observeContestParticipants(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+type ParticipantKind = models.ParticipantKind
+
 type CreateContestParticipantForm struct {
-	UserID      *int64                 `json:"user_id"`
-	UserLogin   *string                `json:"user_login"`
-	ScopeUserID *int64                 `json:"scope_user_id"`
-	ScopeID     *int64                 `json:"scope_id"`
-	GroupID     *int64                 `json:"group_id"`
-	Kind        models.ParticipantKind `json:"kind"`
-	AccountID   *int64                 `json:"account_id"`
+	Kind      ParticipantKind `json:"kind"`
+	AccountID int64           `json:"account_id"`
 }
 
 func (f CreateContestParticipantForm) Update(
-	c echo.Context, participant *models.ContestParticipant, core *core.Core,
+	c echo.Context, o *models.ContestParticipant, core *core.Core,
 ) *errorResponse {
 	ctx := getContext(c)
-	if f.AccountID != nil {
-		account, err := core.Accounts.Get(ctx, *f.AccountID)
-		if err != nil {
+	account, err := core.Accounts.Get(ctx, f.AccountID)
+	if err != nil {
+		return &errorResponse{
+			Code: http.StatusBadRequest,
+			Message: localize(
+				c, "Account {id} does not exists.",
+				replaceField("id", f.AccountID),
+			),
+		}
+	}
+	switch account.Kind {
+	case models.UserAccountKind:
+		if _, err := core.Users.Get(ctx, account.ID); err != nil {
 			return &errorResponse{
 				Code: http.StatusBadRequest,
 				Message: localize(
-					c, "Account {id} does not exists.",
-					replaceField("id", *f.AccountID),
+					c, "User {id} does not exists.",
+					replaceField("id", account.ID),
 				),
 			}
 		}
-		switch account.Kind {
-		case models.UserAccountKind:
-			if _, err := core.Users.Get(ctx, account.ID); err != nil {
-				return &errorResponse{
-					Code: http.StatusBadRequest,
-					Message: localize(
-						c, "User {id} does not exists.",
-						replaceField("id", account.ID),
-					),
-				}
-			}
-		case models.ScopeUserAccountKind:
-			scopeUser, err := core.ScopeUsers.Get(ctx, account.ID)
-			if err != nil {
-				return &errorResponse{
-					Code: http.StatusBadRequest,
-					Message: localize(
-						c, "User {id} does not exists.",
-						replaceField("id", account.ID),
-					),
-				}
-			}
-			if _, err := core.Scopes.Get(ctx, scopeUser.ScopeID); err != nil {
-				return &errorResponse{
-					Code: http.StatusBadRequest,
-					Message: localize(
-						c, "Scope {id} does not exists.",
-						replaceField("id", scopeUser.ScopeID),
-					),
-				}
-			}
-		case models.ScopeAccountKind:
-			if _, err := core.Scopes.Get(ctx, account.ID); err != nil {
-				return &errorResponse{
-					Code: http.StatusBadRequest,
-					Message: localize(
-						c, "Scope {id} does not exists.",
-						replaceField("id", account.ID),
-					),
-				}
-			}
-		case models.GroupAccountKind:
-			if _, err := core.Groups.Get(ctx, account.ID); err != nil {
-				return &errorResponse{
-					Code: http.StatusBadRequest,
-					Message: localize(
-						c, "Group {id} does not exists.",
-						replaceField("id", *f.GroupID),
-					),
-				}
-			}
-		default:
-			c.Logger().Warn(
-				"Unsupported account kind",
-				logs.Any("id", account.ID),
-				logs.Any("kind", account.Kind),
-			)
-			return &errorResponse{
-				Code: http.StatusBadRequest,
-				Message: localize(
-					c, "Account {id} does not exists.",
-					replaceField("id", *f.AccountID),
-				),
-			}
-		}
-		// TODO: Check for observe permissions.
-		participant.AccountID = account.ID
-	} else if f.UserID != nil {
-		user, err := core.Users.Get(ctx, *f.UserID)
+	case models.ScopeUserAccountKind:
+		scopeUser, err := core.ScopeUsers.Get(ctx, account.ID)
 		if err != nil {
 			return &errorResponse{
 				Code: http.StatusBadRequest,
 				Message: localize(
 					c, "User {id} does not exists.",
-					replaceField("id", *f.UserID),
+					replaceField("id", account.ID),
 				),
 			}
 		}
-		participant.AccountID = user.ID
-	} else if f.UserLogin != nil {
-		user, err := core.Users.GetByLogin(ctx, *f.UserLogin)
-		if err != nil {
-			return &errorResponse{
-				Code: http.StatusBadRequest,
-				Message: localize(
-					c, "User \"{login}\" does not exists.",
-					replaceField("login", *f.UserLogin),
-				),
-			}
-		}
-		participant.AccountID = user.ID
-	} else if f.ScopeUserID != nil {
-		user, err := core.ScopeUsers.Get(ctx, *f.ScopeUserID)
-		if err != nil {
-			return &errorResponse{
-				Code: http.StatusBadRequest,
-				Message: localize(
-					c, "User {id} does not exists.",
-					replaceField("id", *f.ScopeUserID),
-				),
-			}
-		}
-		participant.AccountID = user.ID
-	} else if f.ScopeID != nil {
-		scope, err := core.Scopes.Get(ctx, *f.ScopeID)
-		if err != nil {
+		if _, err := core.Scopes.Get(ctx, scopeUser.ScopeID); err != nil {
 			return &errorResponse{
 				Code: http.StatusBadRequest,
 				Message: localize(
 					c, "Scope {id} does not exists.",
-					replaceField("id", *f.ScopeID),
+					replaceField("id", scopeUser.ScopeID),
 				),
 			}
 		}
-		participant.AccountID = scope.ID
-	} else if f.GroupID != nil {
-		group, err := core.Groups.Get(ctx, *f.GroupID)
-		if err != nil {
+	case models.ScopeAccountKind:
+		if _, err := core.Scopes.Get(ctx, account.ID); err != nil {
+			return &errorResponse{
+				Code: http.StatusBadRequest,
+				Message: localize(
+					c, "Scope {id} does not exists.",
+					replaceField("id", account.ID),
+				),
+			}
+		}
+	case models.GroupAccountKind:
+		if _, err := core.Groups.Get(ctx, account.ID); err != nil {
 			return &errorResponse{
 				Code: http.StatusBadRequest,
 				Message: localize(
 					c, "Group {id} does not exists.",
-					replaceField("id", *f.GroupID),
+					replaceField("id", account.ID),
 				),
 			}
 		}
-		participant.AccountID = group.ID
-	}
-	participant.Kind = f.Kind
-	if participant.Kind == 0 {
-		participant.Kind = models.RegularParticipant
-	}
-	if participant.AccountID == 0 {
+	default:
+		c.Logger().Warn(
+			"Unsupported account kind",
+			logs.Any("id", account.ID),
+			logs.Any("kind", account.Kind),
+		)
 		return &errorResponse{
-			Code:    http.StatusBadRequest,
-			Message: localize(c, "Participant account is not specified."),
+			Code: http.StatusBadRequest,
+			Message: localize(
+				c, "Account {id} does not exists.",
+				replaceField("id", f.AccountID),
+			),
 		}
 	}
+	// TODO: Check for observe permissions.
+	if !f.Kind.IsValid() {
+		f.Kind = models.RegularParticipant
+	}
+	o.AccountID = account.ID
+	o.Kind = f.Kind
 	return nil
 }
 

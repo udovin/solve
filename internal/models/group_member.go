@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/udovin/gosql"
 	"github.com/udovin/solve/internal/db"
@@ -13,6 +14,43 @@ const (
 	RegularMember MemberKind = 1
 	ManagerMember MemberKind = 2
 )
+
+// String returns string representation.
+func (k MemberKind) String() string {
+	switch k {
+	case RegularMember:
+		return "regular"
+	case ManagerMember:
+		return "manager"
+	default:
+		return fmt.Sprintf("MemberKind(%d)", k)
+	}
+}
+
+func (k MemberKind) MarshalText() ([]byte, error) {
+	return []byte(k.String()), nil
+}
+
+func (k *MemberKind) UnmarshalText(data []byte) error {
+	switch s := string(data); s {
+	case "regular":
+		*k = RegularMember
+	case "manager":
+		*k = ManagerMember
+	default:
+		return fmt.Errorf("unsupported kind: %q", s)
+	}
+	return nil
+}
+
+func (k MemberKind) IsValid() bool {
+	switch k {
+	case RegularMember, ManagerMember:
+		return true
+	default:
+		return false
+	}
+}
 
 // Group represents a group member for users.
 type GroupMember struct {

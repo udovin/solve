@@ -88,6 +88,7 @@ func (m d003) Apply(ctx context.Context, db *gosql.DB) error {
 		{"first_name", "Имя"},
 		{"forgot_password", "Забыли пароль?"},
 		{"freeze_since_duration", "Заморозить на длительности"},
+		{"group", "Группа"},
 		{"groups", "Группы"},
 		{"hello", "Привет"},
 		{"index", "Главная"},

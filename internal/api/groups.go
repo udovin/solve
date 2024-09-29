@@ -235,7 +235,13 @@ func (v *View) deleteGroup(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("group not extracted")
 	}
-	if err := v.core.Groups.Delete(getContext(c), group.ID); err != nil {
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+		if err := v.core.Groups.Delete(ctx, group.ID); err != nil {
+			return err
+		}
+		return v.core.Accounts.Delete(ctx, group.ID)
+	}, sqlRepeatableRead); err != nil {
+		c.Logger().Error(err)
 		return err
 	}
 	return c.JSON(http.StatusOK, makeGroup(group, perms.PermissionSet{}))

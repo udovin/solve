@@ -655,6 +655,10 @@
         "text": "Группа"
       },
       {
+        "key": "web.group_members",
+        "text": "Участники группы"
+      },
+      {
         "key": "web.groups",
         "text": "Группы"
       },
@@ -683,6 +687,10 @@
         "text": "Ключ"
       },
       {
+        "key": "web.kind",
+        "text": "Тип"
+      },
+      {
         "key": "web.language",
         "text": "Язык"
       },
@@ -701,6 +709,18 @@
       {
         "key": "web.manage",
         "text": "Управление"
+      },
+      {
+        "key": "web.member",
+        "text": "Участник"
+      },
+      {
+        "key": "web.member_manager",
+        "text": "Менеджер"
+      },
+      {
+        "key": "web.member_regular",
+        "text": "Участник"
       },
       {
         "key": "web.memory_limit",

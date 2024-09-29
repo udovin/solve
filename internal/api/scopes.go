@@ -249,7 +249,13 @@ func (v *View) deleteScope(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("scope not extracted")
 	}
-	if err := v.core.Scopes.Delete(getContext(c), scope.ID); err != nil {
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+		if err := v.core.Scopes.Delete(ctx, scope.ID); err != nil {
+			return err
+		}
+		return v.core.Accounts.Delete(ctx, scope.ID)
+	}, sqlRepeatableRead); err != nil {
+		c.Logger().Error(err)
 		return err
 	}
 	return c.JSON(http.StatusOK, makeScope(scope))

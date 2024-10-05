@@ -68,6 +68,10 @@ type Core struct {
 	ContestMessages models.ContestMessageStore
 	// Compilers contains compiler store.
 	Compilers *models.CompilerStore
+	// Posts contains post store.
+	Posts models.PostStore
+	// PostFiles contains post file store.
+	PostFiles models.PostFileStore
 	// Visits contains visit store.
 	Visits *models.VisitStore
 	//

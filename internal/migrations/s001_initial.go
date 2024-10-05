@@ -824,6 +824,78 @@ var s001 = []schema.Operation{
 		Columns: []string{"id", "event_id"},
 	},
 	schema.CreateTable{
+		Name: "solve_post",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "owner_id", Type: schema.Int64, Nullable: true},
+			{Name: "title", Type: schema.String},
+			{Name: "description", Type: schema.String},
+			{Name: "create_time", Type: schema.Int64},
+			{Name: "publish_time", Type: schema.Int64, Nullable: true},
+		},
+		ForeignKeys: []schema.ForeignKey{
+			{Column: "owner_id", ParentTable: "solve_account", ParentColumn: "id"},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_post",
+		Columns: []string{"owner_id", "id"},
+	},
+	schema.CreateTable{
+		Name: "solve_post_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_kind", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
+			{Name: "id", Type: schema.Int64},
+			{Name: "owner_id", Type: schema.Int64, Nullable: true},
+			{Name: "title", Type: schema.String},
+			{Name: "description", Type: schema.String},
+			{Name: "create_time", Type: schema.Int64},
+			{Name: "publish_time", Type: schema.Int64, Nullable: true},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_post_event",
+		Columns: []string{"id", "event_id"},
+	},
+	schema.CreateTable{
+		Name: "solve_post_file",
+		Columns: []schema.Column{
+			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "post_id", Type: schema.Int64},
+			{Name: "file_id", Type: schema.Int64},
+			{Name: "name", Type: schema.String},
+		},
+		ForeignKeys: []schema.ForeignKey{
+			{Column: "post_id", ParentTable: "solve_post", ParentColumn: "id"},
+			{Column: "file_id", ParentTable: "solve_file", ParentColumn: "id"},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_post_file",
+		Columns: []string{"post_id", "name"},
+		Unique:  true,
+	},
+	schema.CreateTable{
+		Name: "solve_post_file_event",
+		Columns: []schema.Column{
+			{Name: "event_id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
+			{Name: "event_kind", Type: schema.Int64},
+			{Name: "event_time", Type: schema.Int64},
+			{Name: "event_account_id", Type: schema.Int64, Nullable: true},
+			{Name: "id", Type: schema.Int64},
+			{Name: "post_id", Type: schema.Int64},
+			{Name: "file_id", Type: schema.Int64},
+			{Name: "name", Type: schema.String},
+		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_post_file_event",
+		Columns: []string{"id", "event_id"},
+	},
+	schema.CreateTable{
 		Name: "solve_visit",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},

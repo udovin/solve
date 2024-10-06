@@ -151,6 +151,10 @@
         "text": "Неверный пароль."
       },
       {
+        "key": "invalid_post_id",
+        "text": "Неправильный ID поста."
+      },
+      {
         "key": "invalid_problem_id",
         "text": "Неправильный ID задачи."
       },
@@ -253,6 +257,10 @@
       {
         "key": "password_too_short",
         "text": "Пароль слишком короткий."
+      },
+      {
+        "key": "post_not_found",
+        "text": "Пост не найден."
       },
       {
         "key": "problem_code_does_not_exists",

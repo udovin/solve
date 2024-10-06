@@ -113,6 +113,7 @@ func (v *View) getPostPermissions(
 		permissions.AddPermission(
 			perms.ObservePostRole,
 			perms.UpdatePostRole,
+			perms.UpdatePostOwnerRole,
 			perms.DeletePostRole,
 		)
 	} else if post.PublishTime != 0 &&

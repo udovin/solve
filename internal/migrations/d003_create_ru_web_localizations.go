@@ -25,6 +25,7 @@ func (m d003) Apply(ctx context.Context, db *gosql.DB) error {
 		{"any_participant", "Любой участник"},
 		{"any_problem", "Любая задача"},
 		{"author", "Автор"},
+		{"auto_update", "Автообновление"},
 		{"begin_time", "Время начала"},
 		{"change_email", "Сменить электронную почту"},
 		{"change_language", "Сменить язык"},

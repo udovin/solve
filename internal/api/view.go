@@ -58,6 +58,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerSettingHandlers(g)
 	v.registerLocaleHandlers(g)
 	v.registerFileHandlers(g)
+	v.registerPostHandlers(g)
 	v.registerTokenHandlers(g)
 }
 
@@ -124,6 +125,7 @@ const (
 	scopeUserKey          = "scope_user"
 	groupKey              = "group"
 	groupMemberKey        = "group_member"
+	postKey               = "post"
 	tokenKey              = "token"
 	localeKey             = "locale"
 	syncKey               = "sync"

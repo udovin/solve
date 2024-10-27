@@ -407,6 +407,10 @@
         "text": "Автор"
       },
       {
+        "key": "web.auto_update",
+        "text": "Автообновление"
+      },
+      {
         "key": "web.begin_time",
         "text": "Время начала"
       },
@@ -581,6 +585,42 @@
       {
         "key": "web.duration",
         "text": "Длительность"
+      },
+      {
+        "key": "web.duration_day:0",
+        "text": "%d день"
+      },
+      {
+        "key": "web.duration_day:1",
+        "text": "%d дня"
+      },
+      {
+        "key": "web.duration_day:2",
+        "text": "%d дней"
+      },
+      {
+        "key": "web.duration_millisecond:0",
+        "text": "%d миллисекунда"
+      },
+      {
+        "key": "web.duration_millisecond:1",
+        "text": "%d миллисекунды"
+      },
+      {
+        "key": "web.duration_millisecond:2",
+        "text": "%d миллисекунд"
+      },
+      {
+        "key": "web.duration_second:0",
+        "text": "секунда"
+      },
+      {
+        "key": "web.duration_second:1",
+        "text": "секунды"
+      },
+      {
+        "key": "web.duration_second:2",
+        "text": "секунд"
       },
       {
         "key": "web.edit_contest",

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -148,16 +149,17 @@ type CreatePostForm struct {
 	Title       string         `json:"title"`
 	Description string         `json:"description"`
 	Files       []PostFormFile `json:"files"`
+	Publish     bool           `json:"publish"`
 }
 
 func (f *CreatePostForm) Parse(c echo.Context) error {
 	var form struct {
-		Data []byte `form:"data"`
+		Data string `form:"data"`
 	}
 	if err := c.Bind(&form); err != nil {
 		return err
 	}
-	if err := json.Unmarshal(form.Data, f); err != nil {
+	if err := json.Unmarshal([]byte(form.Data), f); err != nil {
 		return err
 	}
 	close := true
@@ -202,7 +204,7 @@ func (f *CreatePostForm) Update(c echo.Context, post *models.Post) error {
 		}
 	}
 	post.Title = f.Title
-	if len(f.Description) < 64 {
+	if len(f.Description) < 16 {
 		errors["description"] = errorField{
 			Message: localize(c, "Description is too short."),
 		}
@@ -223,6 +225,10 @@ func (f *CreatePostForm) Update(c echo.Context, post *models.Post) error {
 }
 
 func (v *View) createPost(c echo.Context) error {
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		return fmt.Errorf("account not extracted")
+	}
 	form := CreatePostForm{}
 	if err := form.Parse(c); err != nil {
 		return err
@@ -232,7 +238,41 @@ func (v *View) createPost(c echo.Context) error {
 	if err := form.Update(c, &post); err != nil {
 		return err
 	}
-	if err := v.core.Posts.Create(getContext(c), &post); err != nil {
+	now := getNow(c)
+	post.CreateTime = now.Unix()
+	if form.Publish {
+		post.PublishTime = models.NInt64(now.Unix())
+	}
+	if account := accountCtx.Account; account != nil {
+		post.OwnerID = NInt64(account.ID)
+	}
+	var files []models.File
+	for _, f := range form.Files {
+		file, err := v.files.UploadFile(getContext(c), f.Content)
+		if err != nil {
+			return err
+		}
+		files = append(files, file)
+	}
+	if err := v.core.WrapTx(getContext(c), func(ctx context.Context) error {
+		if err := v.core.Posts.Create(ctx, &post); err != nil {
+			return err
+		}
+		for i, file := range files {
+			if err := v.files.ConfirmUploadFile(ctx, &file); err != nil {
+				return err
+			}
+			postFile := models.PostFile{
+				PostID: post.ID,
+				FileID: file.ID,
+				Name:   form.Files[i].Name,
+			}
+			if err := v.core.PostFiles.Create(ctx, &postFile); err != nil {
+				return err
+			}
+		}
+		return nil
+	}, sqlRepeatableRead); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusCreated, v.makePost(post, true))
@@ -300,7 +340,7 @@ func (f *UpdatePostForm) Update(c echo.Context, post *models.Post) error {
 		post.Title = *f.Title
 	}
 	if f.Description != nil {
-		if len(*f.Description) < 64 {
+		if len(*f.Description) < 16 {
 			errors["description"] = errorField{
 				Message: localize(c, "Description is too short."),
 			}
@@ -363,6 +403,8 @@ type Post struct {
 	ID          int64  `json:"id"`
 	Title       string `json:"title"`
 	Description string `json:"description,omitempty"`
+	CreateTime  int64  `json:"create_time,omitempty"`
+	PublishTime NInt64 `json:"publish_time,omitempty"`
 }
 
 type Posts struct {
@@ -372,8 +414,10 @@ type Posts struct {
 
 func (v *View) makePost(post models.Post, withDescription bool) Post {
 	resp := Post{
-		ID:    post.ID,
-		Title: post.Title,
+		ID:          post.ID,
+		Title:       post.Title,
+		CreateTime:  post.CreateTime,
+		PublishTime: post.PublishTime,
 	}
 	if withDescription {
 		resp.Description = post.Description

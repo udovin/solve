@@ -10,7 +10,7 @@ import (
 // Post represents a post.
 type Post struct {
 	baseObject
-	OwnerID     int64  `db:"owner_id"`
+	OwnerID     NInt64 `db:"owner_id"`
 	Title       string `db:"title"`
 	Description string `db:"description"`
 	CreateTime  int64  `db:"create_time"`

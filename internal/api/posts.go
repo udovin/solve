@@ -287,12 +287,12 @@ type UpdatePostForm struct {
 
 func (f *UpdatePostForm) Parse(c echo.Context) error {
 	var form struct {
-		Data []byte `form:"data"`
+		Data string `form:"data"`
 	}
 	if err := c.Bind(&form); err != nil {
 		return err
 	}
-	if err := json.Unmarshal(form.Data, f); err != nil {
+	if err := json.Unmarshal([]byte(form.Data), f); err != nil {
 		return err
 	}
 	close := true

@@ -1,7 +1,10 @@
 package models
 
 import (
+	"context"
+
 	"github.com/udovin/gosql"
+	"github.com/udovin/solve/internal/db"
 )
 
 // Post represents a post.
@@ -37,6 +40,9 @@ func (e *PostEvent) SetObject(o Post) {
 
 type PostStore interface {
 	Store[Post, PostEvent]
+
+	// TODO: Move this to Store interface.
+	ReverseAll(ctx context.Context, limit int, beginID int64) (db.Rows[Post], error)
 }
 
 type cachedPostStore struct {

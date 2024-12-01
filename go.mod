@@ -17,7 +17,7 @@ require (
 	github.com/udovin/gosql v0.0.2
 	golang.org/x/crypto v0.26.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
-	golang.org/x/text v0.17.0
+	golang.org/x/text v0.20.0
 )
 
 require (

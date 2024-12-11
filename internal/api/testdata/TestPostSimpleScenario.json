@@ -24,6 +24,12 @@
     "permissions": [
       "update_post",
       "delete_post"
+    ],
+    "files": [
+      {
+        "id": 1,
+        "name": "a-plus-b.zip"
+      }
     ]
   },
   {

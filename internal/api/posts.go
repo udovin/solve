@@ -10,7 +10,9 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/udovin/gosql"
 	"github.com/udovin/solve/api/schema"
+	"github.com/udovin/solve/internal/db"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/perms"
@@ -454,8 +456,8 @@ func (v *View) updatePost(c echo.Context) error {
 	ctx := getContext(c)
 	var missingPermissions []string
 	if form.OwnerID != nil {
-		if !permissions.HasPermission(perms.UpdateProblemOwnerRole) {
-			missingPermissions = append(missingPermissions, perms.UpdateProblemOwnerRole)
+		if !permissions.HasPermission(perms.UpdatePostOwnerRole) {
+			missingPermissions = append(missingPermissions, perms.UpdatePostOwnerRole)
 		} else {
 			account, err := v.core.Accounts.Get(ctx, *form.OwnerID)
 			if err != nil {
@@ -552,6 +554,7 @@ func (v *View) updatePost(c echo.Context) error {
 		}
 		files = append(files, file)
 	}
+	var postFiles []models.PostFile
 	if err := v.core.WrapTx(ctx, func(ctx context.Context) error {
 		if err := v.core.Posts.Update(ctx, post); err != nil {
 			return err
@@ -574,11 +577,28 @@ func (v *View) updatePost(c echo.Context) error {
 				return err
 			}
 		}
-		return nil
+		rows, err := v.core.PostFiles.Objects().FindObjects(ctx, db.FindQuery{
+			Where: gosql.Column("post_id").Equal(post.ID),
+		})
+		if err != nil {
+			return err
+		}
+		defer func() { _ = rows.Close() }()
+		for rows.Next() {
+			postFiles = append(postFiles, rows.Row())
+		}
+		return rows.Err()
 	}); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, v.makePost(post, permissions, true))
+	resp := v.makePost(post, permissions, true)
+	for _, file := range postFiles {
+		resp.Files = append(resp.Files, schema.PostFile{
+			ID:   file.ID,
+			Name: file.Name,
+		})
+	}
+	return c.JSON(http.StatusOK, resp)
 }
 
 func (v *View) deletePost(c echo.Context) error {

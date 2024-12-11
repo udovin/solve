@@ -25,6 +25,7 @@
       "logout",
       "observe_compilers",
       "observe_contests",
+      "observe_posts",
       "observe_user",
       "register_contests",
       "reset_password",

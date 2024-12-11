@@ -5,7 +5,6 @@
     "title": "Test group",
     "permissions": [
       "update_group",
-      "update_group_owner",
       "delete_group",
       "observe_group_members",
       "create_group_member",
@@ -20,7 +19,6 @@
         "title": "Test group",
         "permissions": [
           "update_group",
-          "update_group_owner",
           "delete_group",
           "observe_group_members",
           "create_group_member",
@@ -35,7 +33,6 @@
     "title": "Test group",
     "permissions": [
       "update_group",
-      "update_group_owner",
       "delete_group",
       "observe_group_members",
       "create_group_member",

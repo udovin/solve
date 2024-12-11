@@ -41,9 +41,16 @@ func (v *View) registerProblemHandlers(g *echo.Group) {
 		v.extractAuth(v.sessionAuth), v.extractProblem,
 		v.requirePermission(perms.UpdateProblemRole),
 	)
+	// Deprecated
 	g.GET(
 		"/v0/problems/:problem/statement-files/:name",
-		v.observeProblemStatementFile,
+		v.observeProblemContent,
+		v.extractAuth(v.sessionAuth), v.extractProblem,
+		v.requirePermission(perms.ObserveProblemRole),
+	)
+	g.GET(
+		"/v0/problems/:problem/content/:name",
+		v.observeProblemContent,
 		v.extractAuth(v.sessionAuth), v.extractProblem,
 		v.requirePermission(perms.ObserveProblemRole),
 	)
@@ -236,7 +243,7 @@ func (v *View) observeProblem(c echo.Context) error {
 	)
 }
 
-func (v *View) observeProblemStatementFile(c echo.Context) error {
+func (v *View) observeProblemContent(c echo.Context) error {
 	problem, ok := c.Get(problemKey).(models.Problem)
 	if !ok {
 		return fmt.Errorf("problem not extracted")

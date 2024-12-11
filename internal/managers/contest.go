@@ -185,7 +185,6 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 	}
 	if account := ctx.Account; account != nil {
 		if contest.OwnerID != 0 && account.ID == int64(contest.OwnerID) {
-			c.Permissions.AddPermission(perms.UpdateContestOwnerRole)
 			c.Permissions.AddPermission(perms.DeleteContestRole)
 		}
 		participantRows, err := m.participants.FindByContestAccount(ctx, contest.ID, account.ID)

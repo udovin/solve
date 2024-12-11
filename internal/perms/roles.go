@@ -250,6 +250,18 @@ const (
 	UpdateGroupMemberRole = "update_group_member"
 	// DeleteGroupMemberRole represents role for deleting group member.
 	DeleteGroupMemberRole = "delete_group_member"
+	// ObservePostsRole represents role for observing posts.
+	ObservePostsRole = "observe_posts"
+	// ObservePostRole represents role for observing post.
+	ObservePostRole = "observe_post"
+	// CreatePostRole represents role for creating post.
+	CreatePostRole = "create_post"
+	// UpdatePostRole represents role for updating post.
+	UpdatePostRole = "update_post"
+	// UpdatePostOwnerRole represents role for updating post owner.
+	UpdatePostOwnerRole = "update_post_owner"
+	// DeletePostRole represents role for deleting post.
+	DeletePostRole = "delete_post"
 )
 
 var builtInRoles = map[string]struct{}{
@@ -358,6 +370,12 @@ var builtInRoles = map[string]struct{}{
 	CreateGroupMemberRole:            {},
 	UpdateGroupMemberRole:            {},
 	DeleteGroupMemberRole:            {},
+	ObservePostsRole:                 {},
+	ObservePostRole:                  {},
+	CreatePostRole:                   {},
+	UpdatePostRole:                   {},
+	UpdatePostOwnerRole:              {},
+	DeletePostRole:                   {},
 }
 
 // GetBuildInRoles returns all built-in roles.

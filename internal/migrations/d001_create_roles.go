@@ -82,6 +82,7 @@ func (m d001) Apply(ctx context.Context, db *gosql.DB) error {
 		perms.ObserveUserRole,
 		perms.ObserveContestsRole,
 		perms.ObserveCompilersRole,
+		perms.ObservePostsRole,
 		perms.ConsumeTokenRole,
 		perms.ResetPasswordRole,
 	}

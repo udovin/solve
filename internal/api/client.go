@@ -11,6 +11,8 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"time"
+
+	"github.com/udovin/solve/api/schema"
 )
 
 type Client struct {
@@ -710,6 +712,118 @@ func (c *Client) ObserveAccounts(ctx context.Context) (Accounts, error) {
 		return Accounts{}, err
 	}
 	var respData Accounts
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) ObservePosts(ctx context.Context) (schema.Post, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/posts"), nil,
+	)
+	if err != nil {
+		return schema.Post{}, err
+	}
+	var respData schema.Post
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) ObservePost(ctx context.Context, r ObservePostRequest) (schema.Post, error) {
+	query := url.Values{}
+	if r.WithFiles {
+		query.Add("with_files", "t")
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, c.getURL("/v0/posts/%d?%s", r.ID, query.Encode()), nil,
+	)
+	if err != nil {
+		return schema.Post{}, err
+	}
+	var respData schema.Post
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) CreatePost(ctx context.Context, form CreatePostForm) (schema.Post, error) {
+	defer func() { form.Close() }()
+	buf := bytes.Buffer{}
+	w := multipart.NewWriter(&buf)
+	if w, err := w.CreateFormField("data"); err != nil {
+		return schema.Post{}, err
+	} else if data, err := json.Marshal(form); err != nil {
+		return schema.Post{}, err
+	} else if _, err := w.Write(data); err != nil {
+		return schema.Post{}, err
+	}
+	for _, file := range form.Files {
+		if file.Content == nil {
+			return schema.Post{}, fmt.Errorf("empty file %q", file.Name)
+		}
+		if w, err := w.CreateFormFile("file_"+file.Name, file.Content.Name); err != nil {
+			return schema.Post{}, err
+		} else if _, err := io.Copy(w, file.Content.Reader); err != nil {
+			return schema.Post{}, err
+		}
+	}
+	if err := w.Close(); err != nil {
+		return schema.Post{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPost, c.getURL("/v0/posts"), &buf,
+	)
+	if err != nil {
+		return schema.Post{}, err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	var respData schema.Post
+	_, err = c.doRequest(req, http.StatusCreated, &respData)
+	return respData, err
+}
+
+func (c *Client) UpdatePost(ctx context.Context, post int64, form UpdatePostForm) (schema.Post, error) {
+	defer func() { form.Close() }()
+	buf := bytes.Buffer{}
+	w := multipart.NewWriter(&buf)
+	if w, err := w.CreateFormField("data"); err != nil {
+		return schema.Post{}, err
+	} else if data, err := json.Marshal(form); err != nil {
+		return schema.Post{}, err
+	} else if _, err := w.Write(data); err != nil {
+		return schema.Post{}, err
+	}
+	for _, file := range form.Files {
+		if file.Content == nil {
+			return schema.Post{}, fmt.Errorf("empty file %q", file.Name)
+		}
+		if w, err := w.CreateFormFile("file_"+file.Name, file.Content.Name); err != nil {
+			return schema.Post{}, err
+		} else if _, err := io.Copy(w, file.Content.Reader); err != nil {
+			return schema.Post{}, err
+		}
+	}
+	if err := w.Close(); err != nil {
+		return schema.Post{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPatch, c.getURL("/v0/posts/%d", post), &buf,
+	)
+	if err != nil {
+		return schema.Post{}, err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	var respData schema.Post
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) DeletePost(ctx context.Context, post int64) (schema.Post, error) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodDelete, c.getURL("/v0/posts/%d", post), nil,
+	)
+	if err != nil {
+		return schema.Post{}, err
+	}
+	var respData schema.Post
 	_, err = c.doRequest(req, http.StatusOK, &respData)
 	return respData, err
 }

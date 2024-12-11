@@ -86,6 +86,12 @@ func (c *Core) SetupAllStores() {
 	c.Compilers = models.NewCompilerStore(
 		c.DB, "solve_compiler", "solve_compiler_event",
 	)
+	c.Posts = models.NewCachedPostStore(
+		c.DB, "solve_post", "solve_post_event",
+	)
+	c.PostFiles = models.NewCachedPostFileStore(
+		c.DB, "solve_post_file", "solve_post_file_event",
+	)
 	c.Visits = models.NewVisitStore(c.DB, "solve_visit")
 }
 
@@ -136,6 +142,8 @@ func (c *Core) startStores(start func(any, string, time.Duration)) {
 	start(c.ContestSolutions, "contest_solutions", time.Second)
 	start(c.ContestMessages, "contest_messages", time.Second)
 	start(c.Compilers, "compilers", time.Second*5)
+	start(c.Posts, "posts", time.Second*5)
+	start(c.PostFiles, "post_files", time.Second*5)
 }
 
 func (c *Core) startStoreLoops() (err error) {

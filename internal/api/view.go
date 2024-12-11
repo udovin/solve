@@ -58,6 +58,7 @@ func (v *View) Register(g *echo.Group) {
 	v.registerSettingHandlers(g)
 	v.registerLocaleHandlers(g)
 	v.registerFileHandlers(g)
+	v.registerPostHandlers(g)
 	v.registerTokenHandlers(g)
 }
 
@@ -124,6 +125,7 @@ const (
 	scopeUserKey          = "scope_user"
 	groupKey              = "group"
 	groupMemberKey        = "group_member"
+	postKey               = "post"
 	tokenKey              = "token"
 	localeKey             = "locale"
 	syncKey               = "sync"
@@ -750,12 +752,6 @@ func (s *sortFuncImpl[T]) Swap(i, j int) {
 
 func (s *sortFuncImpl[T]) Less(i, j int) bool {
 	return s.less(s.data[i], s.data[j])
-}
-
-func reverse[S ~[]E, E any](s S) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
 }
 
 // reusableBind is required when we need to use Bind multiple times.

@@ -695,7 +695,12 @@ func (v *View) logoutAccount(c echo.Context) error {
 	if err := v.core.Sessions.Delete(getContext(c), session.ID); err != nil && err != sql.ErrNoRows {
 		return err
 	}
-	cookie := http.Cookie{Name: sessionCookie}
+	cookie := http.Cookie{
+		Name: sessionCookie,
+	}
+	if v.core.Config.Security != nil {
+		cookie.Path = v.core.Config.Security.CookiePath
+	}
 	c.SetCookie(&cookie)
 	return c.NoContent(http.StatusOK)
 }

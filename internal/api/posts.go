@@ -46,13 +46,13 @@ func (v *View) registerPostHandlers(g *echo.Group) {
 	g.GET(
 		"/v0/posts/:post/content/:name",
 		v.observePostContent,
-		v.extractAuth(v.sessionAuth), v.extractPost,
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractPost,
 		v.requirePermission(perms.ObservePostRole),
 	)
 	g.GET(
 		"/v0/users/:user/posts",
 		v.observeUserPosts,
-		v.extractAuth(v.sessionAuth), v.extractUser,
+		v.extractAuth(v.sessionAuth, v.guestAuth), v.extractUser,
 		v.requirePermission(perms.ObserveUserRole, perms.ObservePostsRole),
 	)
 }
@@ -599,7 +599,7 @@ func (v *View) deletePost(c echo.Context) error {
 func (v *View) observePostContent(c echo.Context) error {
 	post, ok := c.Get(postKey).(models.Post)
 	if !ok {
-		return fmt.Errorf("problem not extracted")
+		return fmt.Errorf("post not extracted")
 	}
 	if err := syncStore(c, v.core.PostFiles); err != nil {
 		return err

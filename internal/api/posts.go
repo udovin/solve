@@ -49,6 +49,12 @@ func (v *View) registerPostHandlers(g *echo.Group) {
 		v.requirePermission(perms.ObservePostRole),
 	)
 	g.GET(
+		"/v0/posts/:post/files",
+		v.observePostFiles,
+		v.extractAuth(v.sessionAuth), v.extractPost,
+		v.requirePermission(perms.ObservePostFilesRole),
+	)
+	g.GET(
 		"/v0/users/:user/posts",
 		v.observeUserPosts,
 		v.extractAuth(v.sessionAuth), v.extractUser,
@@ -140,6 +146,10 @@ func (v *View) observePost(c echo.Context) error {
 	return c.JSON(http.StatusOK, v.makePost(post, true))
 }
 
+func (v *View) observePostFiles(c echo.Context) error {
+	return fmt.Errorf("not implemented")
+}
+
 type PostFormFile struct {
 	Name    string      `json:"name"`
 	Content *FileReader `json:"-"`
@@ -168,7 +178,20 @@ func (f *CreatePostForm) Parse(c echo.Context) error {
 			f.Close()
 		}
 	}()
+	uploadedFiles := map[string]struct{}{}
 	for i := range f.Files {
+		if _, ok := uploadedFiles[f.Files[i].Name]; ok {
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: localize(c, "Form has invalid fields."),
+				InvalidFields: errorFields{
+					"files": {
+						Message: localize(c, "Form has invalid fields."),
+					},
+				},
+			}
+		}
+		uploadedFiles[f.Files[i].Name] = struct{}{}
 		formFile, err := c.FormFile("file_" + f.Files[i].Name)
 		if err != nil {
 			return err
@@ -283,6 +306,7 @@ type UpdatePostForm struct {
 	Description *string        `json:"description"`
 	Files       []PostFormFile `json:"files"`
 	DeleteFiles []int64        `json:"delete_files"`
+	OwnerID     *int64         `json:"owner_id"`
 }
 
 func (f *UpdatePostForm) Parse(c echo.Context) error {
@@ -301,7 +325,20 @@ func (f *UpdatePostForm) Parse(c echo.Context) error {
 			f.Close()
 		}
 	}()
+	uploadFiles := map[string]struct{}{}
 	for i := range f.Files {
+		if _, ok := uploadFiles[f.Files[i].Name]; ok {
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: localize(c, "Form has invalid fields."),
+				InvalidFields: errorFields{
+					"files": {
+						Message: localize(c, "Form has invalid fields."),
+					},
+				},
+			}
+		}
+		uploadFiles[f.Files[i].Name] = struct{}{}
 		formFile, err := c.FormFile("file_" + f.Files[i].Name)
 		if err != nil {
 			return err
@@ -362,10 +399,15 @@ func (f *UpdatePostForm) Update(c echo.Context, post *models.Post) error {
 }
 
 func (v *View) updatePost(c echo.Context) error {
+	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
+	if !ok {
+		return fmt.Errorf("account not extracted")
+	}
 	post, ok := c.Get(postKey).(models.Post)
 	if !ok {
 		return fmt.Errorf("post not extracted")
 	}
+	permissions := v.getPostPermissions(accountCtx, post)
 	form := UpdatePostForm{}
 	if err := form.Parse(c); err != nil {
 		return err
@@ -374,7 +416,131 @@ func (v *View) updatePost(c echo.Context) error {
 	if err := form.Update(c, &post); err != nil {
 		return err
 	}
-	if err := v.core.Posts.Update(getContext(c), post); err != nil {
+	ctx := getContext(c)
+	var missingPermissions []string
+	if form.OwnerID != nil {
+		if !permissions.HasPermission(perms.UpdateProblemOwnerRole) {
+			missingPermissions = append(missingPermissions, perms.UpdateProblemOwnerRole)
+		} else {
+			account, err := v.core.Accounts.Get(ctx, *form.OwnerID)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return errorResponse{
+						Code:    http.StatusBadRequest,
+						Message: localize(c, "User not found."),
+					}
+				}
+				return err
+			}
+			if account.Kind != models.UserAccountKind {
+				return errorResponse{
+					Code:    http.StatusBadRequest,
+					Message: localize(c, "User not found."),
+				}
+			}
+			post.OwnerID = models.NInt64(*form.OwnerID)
+		}
+	}
+	if len(missingPermissions) > 0 {
+		return errorResponse{
+			Code:               http.StatusForbidden,
+			Message:            localize(c, "Account missing permissions."),
+			MissingPermissions: missingPermissions,
+		}
+	}
+	deleteFiles := map[string]struct{}{}
+	for _, id := range form.DeleteFiles {
+		file, err := v.core.PostFiles.Get(ctx, id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return errorResponse{
+					Code:    http.StatusBadRequest,
+					Message: localize(c, "Form has invalid fields."),
+					InvalidFields: errorFields{
+						"delete_files": {
+							Message: localize(c, "Form has invalid fields."),
+						},
+					},
+				}
+			}
+			return err
+		}
+		if file.PostID != post.ID {
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: localize(c, "Form has invalid fields."),
+				InvalidFields: errorFields{
+					"delete_files": {
+						Message: localize(c, "Form has invalid fields."),
+					},
+				},
+			}
+		}
+		if _, ok := deleteFiles[file.Name]; ok {
+			return errorResponse{
+				Code:    http.StatusBadRequest,
+				Message: localize(c, "Form has invalid fields."),
+				InvalidFields: errorFields{
+					"delete_files": {
+						Message: localize(c, "Form has invalid fields."),
+					},
+				},
+			}
+		}
+		deleteFiles[file.Name] = struct{}{}
+	}
+	for _, f := range form.Files {
+		if _, ok := deleteFiles[f.Name]; ok {
+			continue
+		}
+		_, err := v.core.PostFiles.GetByPostName(ctx, post.ID, f.Name)
+		if err != sql.ErrNoRows {
+			if err == nil {
+				return errorResponse{
+					Code:    http.StatusBadRequest,
+					Message: localize(c, "Form has invalid fields."),
+					InvalidFields: errorFields{
+						"files": {
+							Message: localize(c, "Form has invalid fields."),
+						},
+					},
+				}
+			}
+			return err
+		}
+	}
+	var files []models.File
+	for _, f := range form.Files {
+		file, err := v.files.UploadFile(ctx, f.Content)
+		if err != nil {
+			return err
+		}
+		files = append(files, file)
+	}
+	if err := v.core.WrapTx(ctx, func(ctx context.Context) error {
+		if err := v.core.Posts.Update(ctx, post); err != nil {
+			return err
+		}
+		for _, id := range form.DeleteFiles {
+			if err := v.core.PostFiles.Delete(ctx, id); err != nil {
+				return err
+			}
+		}
+		for i, file := range files {
+			if err := v.files.ConfirmUploadFile(ctx, &file); err != nil {
+				return err
+			}
+			postFile := models.PostFile{
+				PostID: post.ID,
+				FileID: file.ID,
+				Name:   form.Files[i].Name,
+			}
+			if err := v.core.PostFiles.Create(ctx, &postFile); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, v.makePost(post, true))
@@ -392,7 +558,34 @@ func (v *View) deletePost(c echo.Context) error {
 }
 
 func (v *View) observePostContent(c echo.Context) error {
-	return fmt.Errorf("not implemented")
+	post, ok := c.Get(postKey).(models.Post)
+	if !ok {
+		return fmt.Errorf("problem not extracted")
+	}
+	resourceName := c.Param("name")
+	ctx := getContext(c)
+	postFile, err := v.core.PostFiles.GetByPostName(ctx, post.ID, resourceName)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return errorResponse{
+				Code:    http.StatusNotFound,
+				Message: localize(c, "File not found."),
+			}
+		}
+		return err
+	}
+	file, err := v.core.Files.Get(getContext(c), int64(postFile.FileID))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return errorResponse{
+				Code:    http.StatusNotFound,
+				Message: localize(c, "File not found."),
+			}
+		}
+		return err
+	}
+	c.Set(fileKey, file)
+	return v.observeFileContent(c)
 }
 
 func (v *View) observeUserPosts(c echo.Context) error {
@@ -467,8 +660,8 @@ func (v *View) getPostPermissions(
 		permissions.AddPermission(
 			perms.ObservePostRole,
 			perms.UpdatePostRole,
-			perms.UpdatePostOwnerRole,
 			perms.DeletePostRole,
+			perms.ObservePostFilesRole,
 		)
 	} else if post.PublishTime != 0 &&
 		permissions.HasPermission(perms.ObservePostsRole) {

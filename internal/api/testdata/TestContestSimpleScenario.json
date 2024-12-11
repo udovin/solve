@@ -36,7 +36,6 @@
         "duration": 7200,
         "permissions": [
           "update_contest",
-          "update_contest_owner",
           "delete_contest",
           "observe_contest_problems",
           "create_contest_problem",
@@ -75,7 +74,6 @@
         "title": "Test contest",
         "permissions": [
           "update_contest",
-          "update_contest_owner",
           "delete_contest",
           "observe_contest_problems",
           "create_contest_problem",
@@ -113,7 +111,6 @@
     "title": "Test contest",
     "permissions": [
       "update_contest",
-      "update_contest_owner",
       "delete_contest",
       "observe_contest_problems",
       "create_contest_problem",

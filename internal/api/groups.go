@@ -456,7 +456,6 @@ func (v *View) getGroupPermissions(
 		permissions.AddPermission(
 			perms.ObserveGroupRole,
 			perms.UpdateGroupRole,
-			perms.UpdateGroupOwnerRole,
 			perms.DeleteGroupRole,
 			perms.ObserveGroupMembersRole,
 			perms.CreateGroupMemberRole,

@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/udovin/solve/api/schema"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/perms"
@@ -47,12 +48,6 @@ func (v *View) registerPostHandlers(g *echo.Group) {
 		v.observePostContent,
 		v.extractAuth(v.sessionAuth), v.extractPost,
 		v.requirePermission(perms.ObservePostRole),
-	)
-	g.GET(
-		"/v0/posts/:post/files",
-		v.observePostFiles,
-		v.extractAuth(v.sessionAuth), v.extractPost,
-		v.requirePermission(perms.ObservePostFilesRole),
 	)
 	g.GET(
 		"/v0/users/:user/posts",
@@ -107,7 +102,7 @@ func (v *View) observePosts(c echo.Context) error {
 		c.Logger().Warn(err)
 		return err
 	}
-	var resp Posts
+	var resp schema.ObservePostsResponse
 	posts, err := v.core.Posts.ReverseAll(getContext(c), maxPostLimit+1, filter.BeginID)
 	if err != nil {
 		c.Logger().Error(err)
@@ -128,7 +123,7 @@ func (v *View) observePosts(c echo.Context) error {
 		}
 		permissions := v.getPostPermissions(accountCtx, post)
 		if permissions.HasPermission(perms.ObservePostRole) {
-			resp.Posts = append(resp.Posts, v.makePost(post, false))
+			resp.Posts = append(resp.Posts, v.makePost(post, permissions, false))
 		}
 	}
 	if err := posts.Err(); err != nil {
@@ -137,17 +132,48 @@ func (v *View) observePosts(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-func (v *View) observePost(c echo.Context) error {
-	post, ok := c.Get(postKey).(models.Post)
-	if !ok {
-		c.Logger().Error("solution not extracted")
-		return fmt.Errorf("solution not extracted")
-	}
-	return c.JSON(http.StatusOK, v.makePost(post, true))
+type ObservePostRequest struct {
+	ID        int64
+	WithFiles bool `query:"with_files"`
 }
 
-func (v *View) observePostFiles(c echo.Context) error {
-	return fmt.Errorf("not implemented")
+func (v *View) observePost(c echo.Context) error {
+	var request ObservePostRequest
+	if err := c.Bind(&request); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+	post, ok := c.Get(postKey).(models.Post)
+	if !ok {
+		c.Logger().Error("post not extracted")
+		return fmt.Errorf("post not extracted")
+	}
+	permissions, ok := c.Get(permissionCtxKey).(perms.PermissionSet)
+	if !ok {
+		return fmt.Errorf("permissions not extracted")
+	}
+	resp := v.makePost(post, permissions, true)
+	if request.WithFiles && permissions.HasPermission(perms.UpdatePostRole) {
+		if err := syncStore(c, v.core.PostFiles); err != nil {
+			return err
+		}
+		files, err := v.core.PostFiles.FindByPost(getContext(c), post.ID)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = files.Close() }()
+		for files.Next() {
+			file := files.Row()
+			resp.Files = append(resp.Files, schema.PostFile{
+				ID:   file.ID,
+				Name: file.Name,
+			})
+		}
+		if err := files.Err(); err != nil {
+			return err
+		}
+	}
+	return c.JSON(http.StatusOK, resp)
 }
 
 type PostFormFile struct {
@@ -298,12 +324,14 @@ func (v *View) createPost(c echo.Context) error {
 	}, sqlRepeatableRead); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, v.makePost(post, true))
+	permissions := v.getPostPermissions(accountCtx, post)
+	return c.JSON(http.StatusCreated, v.makePost(post, permissions, true))
 }
 
 type UpdatePostForm struct {
 	Title       *string        `json:"title"`
 	Description *string        `json:"description"`
+	Publish     *bool          `json:"publish"`
 	Files       []PostFormFile `json:"files"`
 	DeleteFiles []int64        `json:"delete_files"`
 	OwnerID     *int64         `json:"owner_id"`
@@ -399,15 +427,14 @@ func (f *UpdatePostForm) Update(c echo.Context, post *models.Post) error {
 }
 
 func (v *View) updatePost(c echo.Context) error {
-	accountCtx, ok := c.Get(accountCtxKey).(*managers.AccountContext)
-	if !ok {
-		return fmt.Errorf("account not extracted")
-	}
 	post, ok := c.Get(postKey).(models.Post)
 	if !ok {
 		return fmt.Errorf("post not extracted")
 	}
-	permissions := v.getPostPermissions(accountCtx, post)
+	permissions, ok := c.Get(permissionCtxKey).(perms.PermissionSet)
+	if !ok {
+		return fmt.Errorf("permissions not extracted")
+	}
 	form := UpdatePostForm{}
 	if err := form.Parse(c); err != nil {
 		return err
@@ -415,6 +442,14 @@ func (v *View) updatePost(c echo.Context) error {
 	defer func() { form.Close() }()
 	if err := form.Update(c, &post); err != nil {
 		return err
+	}
+	now := getNow(c)
+	if form.Publish != nil {
+		if !*form.Publish {
+			post.PublishTime = 0
+		} else if post.PublishTime == 0 {
+			post.PublishTime = models.NInt64(now.Unix())
+		}
 	}
 	ctx := getContext(c)
 	var missingPermissions []string
@@ -543,7 +578,7 @@ func (v *View) updatePost(c echo.Context) error {
 	}); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, v.makePost(post, true))
+	return c.JSON(http.StatusOK, v.makePost(post, permissions, true))
 }
 
 func (v *View) deletePost(c echo.Context) error {
@@ -551,16 +586,26 @@ func (v *View) deletePost(c echo.Context) error {
 	if !ok {
 		return fmt.Errorf("post not extracted")
 	}
+	permissions, ok := c.Get(permissionCtxKey).(perms.PermissionSet)
+	if !ok {
+		return fmt.Errorf("permissions not extracted")
+	}
 	if err := v.core.Posts.Delete(getContext(c), post.ID); err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, v.makePost(post, false))
+	return c.JSON(http.StatusOK, v.makePost(post, permissions, false))
 }
 
 func (v *View) observePostContent(c echo.Context) error {
 	post, ok := c.Get(postKey).(models.Post)
 	if !ok {
 		return fmt.Errorf("problem not extracted")
+	}
+	if err := syncStore(c, v.core.PostFiles); err != nil {
+		return err
+	}
+	if err := syncStore(c, v.core.Files); err != nil {
+		return err
 	}
 	resourceName := c.Param("name")
 	ctx := getContext(c)
@@ -592,28 +637,26 @@ func (v *View) observeUserPosts(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-type Post struct {
-	ID          int64  `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description,omitempty"`
-	CreateTime  int64  `json:"create_time,omitempty"`
-	PublishTime NInt64 `json:"publish_time,omitempty"`
+var postPermissions = []string{
+	perms.UpdatePostRole,
+	perms.UpdatePostOwnerRole,
+	perms.DeletePostRole,
 }
 
-type Posts struct {
-	Posts       []Post `json:"posts"`
-	NextBeginID int64  `json:"next_begin_id"`
-}
-
-func (v *View) makePost(post models.Post, withDescription bool) Post {
-	resp := Post{
+func (v *View) makePost(post models.Post, permissions perms.Permissions, withDescription bool) schema.Post {
+	resp := schema.Post{
 		ID:          post.ID,
 		Title:       post.Title,
 		CreateTime:  post.CreateTime,
-		PublishTime: post.PublishTime,
+		PublishTime: int64(post.PublishTime),
 	}
 	if withDescription {
 		resp.Description = post.Description
+	}
+	for _, permission := range postPermissions {
+		if permissions.HasPermission(permission) {
+			resp.Permissions = append(resp.Permissions, permission)
+		}
 	}
 	return resp
 }
@@ -661,7 +704,6 @@ func (v *View) getPostPermissions(
 			perms.ObservePostRole,
 			perms.UpdatePostRole,
 			perms.DeletePostRole,
-			perms.ObservePostFilesRole,
 		)
 	} else if post.PublishTime != 0 &&
 		permissions.HasPermission(perms.ObservePostsRole) {

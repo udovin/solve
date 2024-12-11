@@ -39,6 +39,7 @@ func (e *PostFileEvent) SetObject(o PostFile) {
 type PostFileStore interface {
 	Store[PostFile, PostFileEvent]
 
+	FindByPost(ctx context.Context, postID ...int64) (db.Rows[PostFile], error)
 	GetByPostName(ctx context.Context, postID int64, name string) (PostFile, error)
 }
 

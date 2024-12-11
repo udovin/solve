@@ -262,8 +262,6 @@ const (
 	UpdatePostOwnerRole = "update_post_owner"
 	// DeletePostRole represents role for deleting post.
 	DeletePostRole = "delete_post"
-	// ObservePostFilesRole represents role for observing post files.
-	ObservePostFilesRole = "observe_post_files"
 )
 
 var builtInRoles = map[string]struct{}{
@@ -378,7 +376,6 @@ var builtInRoles = map[string]struct{}{
 	UpdatePostRole:                   {},
 	UpdatePostOwnerRole:              {},
 	DeletePostRole:                   {},
-	ObservePostFilesRole:             {},
 }
 
 // GetBuildInRoles returns all built-in roles.

@@ -66,6 +66,10 @@ type Core struct {
 	ContestSolutions *models.ContestSolutionStore
 	// ContestMessages contains contest messages store.
 	ContestMessages models.ContestMessageStore
+	// ContestFakeParticipants contains contest fake participants store.
+	ContestFakeParticipants *models.ContestFakeParticipantStore
+	// ContestFakeSolutions contains contest fake solutions store.
+	ContestFakeSolutions *models.ContestFakeSolutionStore
 	// Compilers contains compiler store.
 	Compilers *models.CompilerStore
 	// Posts contains post store.

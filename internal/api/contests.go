@@ -806,12 +806,13 @@ func (v *View) deleteContestProblem(c echo.Context) error {
 }
 
 type ContestParticipant struct {
-	ID        int64      `json:"id,omitempty"`
-	User      *User      `json:"user,omitempty"`
-	ScopeUser *ScopeUser `json:"scope_user,omitempty"`
-	Scope     *Scope     `json:"scope,omitempty"`
-	Group     *Group     `json:"group,omitempty"`
-	ContestID int64      `json:"contest_id,omitempty"`
+	ID        int64                   `json:"id,omitempty"`
+	User      *User                   `json:"user,omitempty"`
+	ScopeUser *ScopeUser              `json:"scope_user,omitempty"`
+	Scope     *Scope                  `json:"scope,omitempty"`
+	Group     *Group                  `json:"group,omitempty"`
+	Fake      *ContestFakeParticipant `json:"fake,omitempty"`
+	ContestID int64                   `json:"contest_id,omitempty"`
 	// Kind contains kind.
 	Kind models.ParticipantKind `json:"kind"`
 }

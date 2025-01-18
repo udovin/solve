@@ -86,9 +86,13 @@ func (m *ContestStandingsManager) processStandings(
 	ctx *ContestContext, options BuildStandingsOptions, standings *ContestStandings,
 ) *ContestStandings {
 	processed := ContestStandings{
-		Columns: standings.Columns,
-		Stage:   standings.Stage,
-		Frozen:  standings.Frozen,
+		Stage:  standings.Stage,
+		Frozen: standings.Frozen,
+	}
+	for _, column := range standings.Columns {
+		processed.Columns = append(processed.Columns, ContestStandingsColumn{
+			Problem: column.Problem,
+		})
 	}
 	observeFullStandings := ctx.HasPermission(perms.ObserveContestFullStandingsRole)
 	for _, row := range standings.Rows {
@@ -100,6 +104,13 @@ func (m *ContestStandingsManager) processStandings(
 				continue
 			} else if !isPlacedParticipant(row.Participant.Kind) {
 				continue
+			}
+		}
+		for _, cell := range row.Cells {
+			column := &processed.Columns[cell.Column]
+			column.TotalSolutions += cell.Attempt
+			if cell.Verdict == models.Accepted {
+				column.AcceptedSolutions++
 			}
 		}
 		processed.Rows = append(processed.Rows, row)
@@ -334,11 +345,9 @@ func (m *ContestStandingsManager) buildICPCStandings(
 		var penalty int64
 		for _, cell := range row.Cells {
 			column := &standings.Columns[cell.Column]
-			column.TotalSolutions += cell.Attempt
 			if cell.Verdict == models.Accepted {
 				row.Score += getProblemScore(column.Problem)
 				penalty += int64(cell.Attempt-1)*20 + cell.Time/60
-				column.AcceptedSolutions++
 			}
 		}
 		if isPlacedParticipant(participant.Kind) {
@@ -412,11 +421,9 @@ func (m *ContestStandingsManager) buildICPCStandings(
 		var penalty int64
 		for _, cell := range row.Cells {
 			column := &standings.Columns[cell.Column]
-			column.TotalSolutions += cell.Attempt
 			if cell.Verdict == models.Accepted {
 				row.Score += getProblemScore(column.Problem)
 				penalty += int64(cell.Attempt-1)*20 + cell.Time/60
-				column.AcceptedSolutions++
 			}
 		}
 		row.Penalty = &penalty

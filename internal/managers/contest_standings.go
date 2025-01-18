@@ -2,7 +2,6 @@ package managers
 
 import (
 	"database/sql"
-	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -86,22 +85,27 @@ func (m *ContestStandingsManager) BuildStandings(
 func (m *ContestStandingsManager) processStandings(
 	ctx *ContestContext, options BuildStandingsOptions, standings *ContestStandings,
 ) {
+	processed := ContestStandings{
+		Columns: standings.Columns,
+		Stage:   standings.Stage,
+		Frozen:  standings.Frozen,
+	}
 	observeFullStandings := ctx.HasPermission(perms.ObserveContestFullStandingsRole)
-	standings.Rows = slices.DeleteFunc(standings.Rows, func(row ContestStandingsRow) bool {
+	for _, row := range standings.Rows {
 		if options.OnlyOfficial && row.Participant.Kind != models.RegularParticipant {
-			return true
+			continue
 		}
 		if !observeFullStandings {
-			if row.Participant.Kind == models.UpsolvingParticipant &&
-				standings.Stage != ContestFinished {
-				return true
+			if row.Participant.Kind == models.UpsolvingParticipant && standings.Stage != ContestFinished {
+				continue
 			} else if !isPlacedParticipant(row.Participant.Kind) {
-				return true
+				continue
 			}
 		}
-		return false
-	})
-	calculatePlaces(standings.Rows)
+		processed.Rows = append(processed.Rows, row)
+	}
+	calculatePlaces(processed.Rows)
+	standings = &processed
 }
 
 func (m *ContestStandingsManager) buildStandings(ctx *ContestContext, options BuildStandingsOptions) (*ContestStandings, error) {

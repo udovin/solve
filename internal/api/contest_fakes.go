@@ -91,8 +91,10 @@ func (v *View) deleteContestFakeParticipant(c echo.Context) error {
 
 type createContestFakeSolutionForm struct {
 	ParticipantID int64          `json:"participant_id"`
+	ProblemCode   string         `json:"problem_code"`
 	Verdict       models.Verdict `json:"verdict"`
 	Points        *float64       `json:"points"`
+	ContestTime   int64          `json:"contest_time"`
 }
 
 func (f *createContestFakeSolutionForm) Update(
@@ -107,6 +109,7 @@ func (f *createContestFakeSolutionForm) Update(
 		}
 	}
 	o.ParticipantID = f.ParticipantID
+	o.ContestTime = f.ContestTime
 	report := models.FakeSolutionReport{
 		Verdict: f.Verdict,
 		Points:  f.Points,
@@ -132,6 +135,19 @@ func (v *View) createContestFakeSolution(c echo.Context) error {
 	if err := form.Update(c, &solution); err != nil {
 		return err
 	}
+	problem, err := findContestProblem(getContext(c), v.core, contest.ID, form.ProblemCode)
+	if err != nil {
+		return err
+	}
+	if problem == nil || problem.ContestID != contest.ID {
+		return errorResponse{
+			Code: http.StatusNotFound,
+			Message: localize(
+				c, "Problem {code} does not exists.",
+				replaceField("code", form.ProblemCode),
+			),
+		}
+	}
 	participant, err := v.core.ContestFakeParticipants.Get(getContext(c), solution.ParticipantID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -149,6 +165,7 @@ func (v *View) createContestFakeSolution(c echo.Context) error {
 		}
 	}
 	solution.ContestID = contest.ID
+	solution.ProblemID = problem.ID
 	if err := v.core.ContestFakeSolutions.Create(getContext(c), &solution); err != nil {
 		return err
 	}

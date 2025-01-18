@@ -345,6 +345,9 @@ func (m *ContestStandingsManager) buildICPCStandings(
 		}
 		row := ContestStandingsRow{
 			FakeParticipant: &participant,
+			Participant: models.ContestParticipant{
+				Kind: models.RegularParticipant,
+			},
 		}
 		for i := range standings.Columns {
 			solutions, ok := solutionsByColumn[i]
@@ -548,7 +551,11 @@ func (m *ContestStandingsManager) buildIOIStandings(
 		}
 		row := ContestStandingsRow{
 			FakeParticipant: &participant,
+			Participant: models.ContestParticipant{
+				Kind: models.RegularParticipant,
+			},
 		}
+		row.Participant.Kind = models.RegularParticipant
 		for i := range standings.Columns {
 			solutions, ok := solutionsByColumn[i]
 			if !ok {

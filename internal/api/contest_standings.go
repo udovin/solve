@@ -99,10 +99,16 @@ func (v *View) observeContestStandings(c echo.Context) error {
 	}
 	for _, row := range standings.Rows {
 		rowResp := ContestStandingsRow{
-			Participant: makeContestParticipant(c, row.Participant, v.core),
-			Score:       row.Score,
-			Penalty:     row.Penalty,
-			Place:       row.Place,
+			Score:   row.Score,
+			Penalty: row.Penalty,
+			Place:   row.Place,
+		}
+		if row.FakeParticipant != nil {
+			fakeResp := makeContestFakeParticipant(*row.FakeParticipant)
+			rowResp.Participant.Fake = &fakeResp
+			rowResp.Participant.Kind = models.RegularParticipant
+		} else {
+			rowResp.Participant = makeContestParticipant(c, row.Participant, v.core)
 		}
 		for _, cell := range row.Cells {
 			cellResp := ContestStandingsCell{

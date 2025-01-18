@@ -224,7 +224,8 @@ func (m *ContestStandingsManager) buildICPCStandings(
 	ignoreFreeze := options.IgnoreFreeze && observeFullStandings
 	contestTime := ctx.GetEffectiveContestTime()
 	standings.Stage = contestTime.Stage()
-	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, contestTime)
+	// contestTime will be invalid when standings.Stage != ContestStarted. We consider this normal.
+	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, int64(contestTime))
 	for _, participant := range participants {
 		if options.OnlyOfficial && participant.Kind != models.RegularParticipant {
 			continue
@@ -301,7 +302,7 @@ func (m *ContestStandingsManager) buildICPCStandings(
 					}
 				}
 				cell.Verdict = report.Verdict
-				if !ignoreFreeze && isVerdictFrozen(ctx, ContestTime(cell.Time)) {
+				if !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, cell.Time) {
 					cell.Verdict = 0
 				}
 				if report.Verdict == models.Accepted {
@@ -376,7 +377,7 @@ func (m *ContestStandingsManager) buildICPCStandings(
 				cell.Attempt++
 				cell.Time = solution.ContestTime
 				cell.Verdict = report.Verdict
-				if !ignoreFreeze && isVerdictFrozen(ctx, ContestTime(cell.Time)) {
+				if !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, cell.Time) {
 					cell.Verdict = 0
 				}
 				if report.Verdict == models.Accepted {
@@ -426,7 +427,8 @@ func (m *ContestStandingsManager) buildIOIStandings(
 	ignoreFreeze := options.IgnoreFreeze && observeFullStandings
 	contestTime := ctx.GetEffectiveContestTime()
 	standings.Stage = contestTime.Stage()
-	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, contestTime)
+	// contestTime will be invalid when standings.Stage != ContestStarted. We consider this normal.
+	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, int64(contestTime))
 	for _, participant := range participants {
 		if options.OnlyOfficial && participant.Kind != models.RegularParticipant {
 			continue
@@ -502,7 +504,7 @@ func (m *ContestStandingsManager) buildIOIStandings(
 						cell.Time = 0
 					}
 				}
-				if !ignoreFreeze && isVerdictFrozen(ctx, ContestTime(cell.Time)) {
+				if !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, cell.Time) {
 					cell.Verdict = 0
 				} else {
 					if cell.Verdict == 0 {
@@ -576,7 +578,7 @@ func (m *ContestStandingsManager) buildIOIStandings(
 				}
 				cell.Attempt++
 				cell.Time = solution.ContestTime
-				if !ignoreFreeze && isVerdictFrozen(ctx, ContestTime(cell.Time)) {
+				if !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, cell.Time) {
 					cell.Verdict = 0
 				} else {
 					if cell.Verdict == 0 {
@@ -622,16 +624,17 @@ func calculatePlaces(rows []ContestStandingsRow) {
 	}
 }
 
+// time can be less than zero for stage != ContestStarted.
 func isVerdictFrozen(
-	ctx *ContestContext, time ContestTime,
+	ctx *ContestContext, stage ContestStage, verdictTime int64,
 ) bool {
 	if ctx.ContestConfig.FreezeBeginDuration == 0 {
 		return false
 	}
-	if time.Stage() == ContestStarted {
-		return int64(time) >= int64(ctx.ContestConfig.FreezeBeginDuration)
+	if stage == ContestStarted {
+		return verdictTime >= int64(ctx.ContestConfig.FreezeBeginDuration)
 	}
-	if time.Stage() == ContestFinished {
+	if stage == ContestFinished {
 		return ctx.ContestConfig.FreezeEndTime == 0 ||
 			ctx.Now.Unix() < int64(ctx.ContestConfig.FreezeEndTime)
 	}

@@ -50,6 +50,7 @@ type ContestConfig struct {
 	BeginTime           NInt64        `json:"begin_time,omitempty"`
 	Duration            int           `json:"duration,omitempty"`
 	EnableRegistration  bool          `json:"enable_registration"`
+	EnableVirtual       bool          `json:"enable_virtual"`
 	EnableUpsolving     bool          `json:"enable_upsolving"`
 	EnableObserving     bool          `json:"enable_observing,omitempty"`
 	FreezeBeginDuration int           `json:"freeze_begin_duration,omitempty"`

@@ -16,6 +16,7 @@ const (
 	UpsolvingParticipant ParticipantKind = 2
 	ManagerParticipant   ParticipantKind = 3
 	ObserverParticipant  ParticipantKind = 4
+	VirtualParticipant   ParticipantKind = 5
 )
 
 // String returns string representation.
@@ -29,6 +30,8 @@ func (k ParticipantKind) String() string {
 		return "manager"
 	case ObserverParticipant:
 		return "observer"
+	case VirtualParticipant:
+		return "virtual"
 	default:
 		return fmt.Sprintf("ParticipantKind(%d)", k)
 	}
@@ -48,6 +51,8 @@ func (k *ParticipantKind) UnmarshalText(data []byte) error {
 		*k = ManagerParticipant
 	case "observer":
 		*k = ObserverParticipant
+	case "virtual":
+		*k = VirtualParticipant
 	default:
 		return fmt.Errorf("unsupported kind: %q", s)
 	}
@@ -65,6 +70,10 @@ func (k ParticipantKind) IsValid() bool {
 
 type RegularParticipantConfig struct {
 	BeginTime NInt64 `json:"begin_time,omitempty"`
+}
+
+type VirtualParticipantConfig struct {
+	BeginTime int64 `json:"begin_time,omitempty"`
 }
 
 // ContestParticipant represents participant.

@@ -91,6 +91,40 @@ func addContestRegularPermissions(
 	}
 }
 
+func addContestVirtualPermissions(
+	permissions perms.PermissionSet, stage ContestStage, config *models.ContestConfig,
+) {
+	permissions.AddPermission(perms.ObserveContestRole)
+	switch stage {
+	case ContestNotStarted:
+		permissions.AddPermission(perms.DeregisterContestRole)
+	case ContestStarted:
+		permissions.AddPermission(
+			perms.ObserveContestProblemsRole,
+			perms.ObserveContestProblemRole,
+			perms.ObserveContestSolutionsRole,
+			perms.SubmitContestSolutionRole,
+			perms.ObserveSolutionReportTestNumber,
+			perms.ObserveContestMessagesRole,
+			perms.SubmitContestQuestionRole,
+		)
+		if config.StandingsKind != models.DisabledStandings {
+			permissions.AddPermission(perms.ObserveContestStandingsRole)
+		}
+	case ContestFinished:
+		permissions.AddPermission(
+			perms.ObserveContestProblemsRole,
+			perms.ObserveContestProblemRole,
+			perms.ObserveContestSolutionsRole,
+			perms.ObserveSolutionReportTestNumber,
+			perms.ObserveContestMessagesRole,
+		)
+		if config.StandingsKind != models.DisabledStandings {
+			permissions.AddPermission(perms.ObserveContestStandingsRole)
+		}
+	}
+}
+
 func addContestUpsolvingPermissions(
 	permissions perms.PermissionSet, stage ContestStage, config *models.ContestConfig,
 ) {
@@ -141,6 +175,8 @@ func getParticipantPermissions(
 		addContestManagerPermissions(permissions)
 	case models.ObserverParticipant:
 		addContestObserverPermissions(permissions, stage, config)
+	case models.VirtualParticipant:
+		addContestVirtualPermissions(permissions, stage, config)
 	}
 	return permissions
 }
@@ -158,6 +194,8 @@ func checkEffectiveParticipant(
 		return stage == ContestFinished
 	case models.ManagerParticipant:
 		return true
+	case models.VirtualParticipant:
+		return stage != ContestNotPlanned
 	default:
 		return false
 	}
@@ -192,6 +230,7 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 		hasRegular := false
 		hasUpsolving := false
 		hasManager := false
+		hasVirtual := false
 		for _, participant := range participants {
 			for permission := range getParticipantPermissions(&config, &participant, now) {
 				c.Permissions.AddPermission(permission)
@@ -203,6 +242,8 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 				hasUpsolving = true
 			case models.ManagerParticipant:
 				hasManager = true
+			case models.VirtualParticipant:
+				hasVirtual = true
 			}
 		}
 		c.Participants = participants
@@ -271,6 +312,12 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 		if !hasRegular && stage == ContestNotStarted && canRegister {
 			c.Permissions.AddPermission(perms.ObserveContestRole)
 			c.Permissions.AddPermission(perms.RegisterContestRole)
+		}
+		// User can possibly virtual register on contest.
+		canVirtual := config.EnableVirtual && c.HasPermission(perms.RegisterContestVirtualRole)
+		if !hasVirtual && stage >= ContestNotStarted && canVirtual {
+			c.Permissions.AddPermission(perms.ObserveContestRole)
+			c.Permissions.AddPermission(perms.RegisterContestVirtualRole)
 		}
 		// User can possibly upsolve contest.
 		canUpsolving := config.EnableUpsolving && (hasRegular || canRegister)
@@ -436,15 +483,21 @@ func getParticipantBeginTime(
 	if participant == nil {
 		return beginTime
 	}
-	if participant.Kind != models.RegularParticipant {
-		return beginTime
-	}
-	var participantConfig models.RegularParticipantConfig
-	if err := participant.ScanConfig(&participantConfig); err != nil {
-		return beginTime
-	}
-	if participantConfig.BeginTime != 0 {
-		beginTime = int64(participantConfig.BeginTime)
+	switch participant.Kind {
+	case models.RegularParticipant:
+		var participantConfig models.RegularParticipantConfig
+		if err := participant.ScanConfig(&participantConfig); err != nil {
+			return beginTime
+		}
+		if participantConfig.BeginTime != 0 {
+			beginTime = int64(participantConfig.BeginTime)
+		}
+	case models.VirtualParticipant:
+		var participantConfig models.VirtualParticipantConfig
+		if err := participant.ScanConfig(&participantConfig); err != nil {
+			return beginTime
+		}
+		return participantConfig.BeginTime
 	}
 	return beginTime
 }

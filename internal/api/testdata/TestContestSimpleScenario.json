@@ -64,6 +64,7 @@
         "standings_kind": "icpc",
         "state": {
           "stage": "finished",
+          "begin_time": 1577840400,
           "participant": {
             "kind": "manager"
           }

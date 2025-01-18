@@ -237,6 +237,7 @@ func (m *ContestStandingsManager) buildICPCStandings(
 				if standings.Stage != ContestFinished {
 					continue
 				}
+			case models.VirtualParticipant:
 			default:
 				continue
 			}
@@ -323,7 +324,8 @@ func (m *ContestStandingsManager) buildICPCStandings(
 				column.AcceptedSolutions++
 			}
 		}
-		if participant.Kind == models.RegularParticipant {
+		if participant.Kind == models.RegularParticipant ||
+			participant.Kind == models.VirtualParticipant {
 			row.Penalty = &penalty
 		}
 		standings.Rows = append(standings.Rows, row)
@@ -440,6 +442,7 @@ func (m *ContestStandingsManager) buildIOIStandings(
 				if standings.Stage != ContestFinished {
 					continue
 				}
+			case models.VirtualParticipant:
 			default:
 				continue
 			}
@@ -645,7 +648,7 @@ func getParticipantOrder(kind models.ParticipantKind) int {
 	switch kind {
 	case models.ManagerParticipant:
 		return 0
-	case models.RegularParticipant:
+	case models.RegularParticipant, models.VirtualParticipant:
 		return 1
 	default:
 		return 2

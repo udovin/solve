@@ -110,7 +110,8 @@ func (v *View) observeContestStandings(c echo.Context) error {
 				Attempt: cell.Attempt,
 				Points:  cell.Points,
 			}
-			if row.Participant.Kind == models.RegularParticipant {
+			if row.Participant.Kind == models.RegularParticipant ||
+				row.Participant.Kind == models.VirtualParticipant {
 				cellResp.Time = getPtr(cell.Time)
 			}
 			if cell.Verdict != 0 {

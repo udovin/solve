@@ -212,7 +212,8 @@ func (v *View) getEventFeed(c echo.Context) error {
 		c.Response().Flush()
 		return nil
 	}
-	if contestCtx.Stage == managers.ContestFinished && len(runningSolutions) == 0 {
+	stage := contestCtx.GetEffectiveContestTime().Stage()
+	if stage == managers.ContestFinished && len(runningSolutions) == 0 {
 		state := getContestState(contestCtx)
 		state.Finalized = state.Ended
 		state.EndOfUpdates = state.Ended
@@ -307,7 +308,8 @@ func (v *View) getEventFeed(c echo.Context) error {
 		if err := flushEvents(); err != nil {
 			return err
 		}
-		if contestCtx.Stage == managers.ContestFinished && len(runningSolutions) == 0 {
+		stage := contestCtx.GetEffectiveContestTime().Stage()
+		if stage == managers.ContestFinished && len(runningSolutions) == 0 {
 			state := getContestState(contestCtx)
 			state.Finalized = state.Ended
 			state.EndOfUpdates = state.Ended
@@ -379,7 +381,8 @@ func getContestState(contestCtx *managers.ContestContext) State {
 	contestStart := time.Unix(int64(config.BeginTime), 0)
 	contestFinish := contestStart.Add(time.Second * time.Duration(config.Duration))
 	state := State{}
-	if contestCtx.Stage >= managers.ContestStarted {
+	stage := contestCtx.GetEffectiveContestTime().Stage()
+	if stage >= managers.ContestStarted {
 		startedValue := Time(contestStart)
 		state.Started = &startedValue
 		if config.FreezeBeginDuration != 0 {
@@ -390,7 +393,7 @@ func getContestState(contestCtx *managers.ContestContext) State {
 			}
 		}
 	}
-	if contestCtx.Stage >= managers.ContestFinished {
+	if stage >= managers.ContestFinished {
 		endedValue := Time(contestFinish)
 		state.Ended = &endedValue
 	}

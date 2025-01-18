@@ -241,7 +241,7 @@ func makeContest(
 	}
 	if contextCtx, ok := permissions.(*managers.ContestContext); ok {
 		state := ContestState{
-			Stage: makeContestStage(contextCtx.Stage),
+			Stage: makeContestStage(contextCtx.GetEffectiveContestTime().Stage()),
 		}
 		participant := contextCtx.GetEffectiveParticipant()
 		if core != nil && participant != nil {
@@ -1315,8 +1315,9 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		}
 	}
 	needUpdate := false
+	stage := contestCtx.GetEffectiveContestTime().Stage()
 	if participant.Kind == models.RegularParticipant &&
-		contestCtx.Stage == managers.ContestStarted {
+		stage == managers.ContestStarted {
 		contestConfig, err := contestCtx.Contest.GetConfig()
 		if err != nil {
 			return err
@@ -1325,7 +1326,8 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		if err := participant.ScanConfig(&config); err != nil {
 			return err
 		}
-		if config.BeginTime != contestConfig.BeginTime {
+		if config.BeginTime == 0 &&
+			config.BeginTime != contestConfig.BeginTime {
 			config.BeginTime = contestConfig.BeginTime
 			if err := participant.SetConfig(config); err != nil {
 				return err

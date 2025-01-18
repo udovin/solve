@@ -76,26 +76,18 @@ func (s *ContestFakeSolutionStore) Delete(ctx context.Context, id int64) error {
 	return s.store.DeleteObject(ctx, id)
 }
 
-func (s *ContestFakeSolutionStore) Find(
-	ctx context.Context, options ...db.FindObjectsOption,
-) (db.Rows[ContestFakeSolution], error) {
-	return s.store.FindObjects(ctx, options...)
-}
-
-func (s *ContestFakeSolutionStore) FindOne(
-	ctx context.Context, options ...db.FindObjectsOption,
-) (ContestFakeSolution, error) {
-	return s.store.FindObject(ctx, options...)
-}
-
 func (s *ContestFakeSolutionStore) Get(ctx context.Context, id int64) (ContestFakeSolution, error) {
-	return s.FindOne(ctx, db.FindQuery{Where: gosql.Column("id").Equal(id)})
+	return s.store.FindObject(ctx, db.FindQuery{Where: gosql.Column("id").Equal(id)})
+}
+
+func (s *ContestFakeSolutionStore) FindByContest(ctx context.Context, contestID int64) (db.Rows[ContestFakeSolution], error) {
+	return s.store.FindObjects(ctx, db.FindQuery{Where: gosql.Column("contest_id").Equal(contestID)})
 }
 
 func NewContestFakeSolutionStore(conn *gosql.DB, table string) *ContestFakeSolutionStore {
 	impl := &ContestFakeSolutionStore{
 		store: db.NewObjectStore[ContestFakeSolution, *ContestFakeSolution](
-			"id", "contest_fake_solution", conn,
+			"id", table, conn,
 		),
 	}
 	return impl

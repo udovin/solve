@@ -181,7 +181,8 @@ type ContestFakeSolution struct {
 
 func (v *View) makeContestFakeSolution(c echo.Context, solution models.ContestFakeSolution) ContestFakeSolution {
 	resp := ContestFakeSolution{
-		ID: solution.ID,
+		ID:          solution.ID,
+		ContestTime: solution.ContestTime,
 	}
 	if problem, err := v.core.ContestProblems.Get(
 		getContext(c), solution.ProblemID,
@@ -194,6 +195,13 @@ func (v *View) makeContestFakeSolution(c echo.Context, solution models.ContestFa
 	); err == nil {
 		participantResp := makeContestFakeParticipant(participant)
 		resp.Participant = &participantResp
+	}
+	report, err := solution.GetReport()
+	if err == nil {
+		reportResp := SolutionReport{}
+		reportResp.Verdict = report.Verdict.String()
+		reportResp.Points = report.Points
+		resp.Report = &reportResp
 	}
 	return resp
 }

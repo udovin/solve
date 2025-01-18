@@ -842,7 +842,7 @@ var s001 = []schema.Operation{
 			{Name: "participant_id", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},
 			{Name: "contest_time", Type: schema.Int64},
-			{Name: "report", Type: schema.String},
+			{Name: "report", Type: schema.JSON},
 		},
 		ForeignKeys: []schema.ForeignKey{
 			{Column: "contest_id", ParentTable: "solve_contest", ParentColumn: "id"},

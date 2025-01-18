@@ -45,6 +45,7 @@ type ContestStandings struct {
 	Kind    string                   `json:"kind"`
 	Columns []ContestStandingsColumn `json:"columns,omitempty"`
 	Rows    []ContestStandingsRow    `json:"rows,omitempty"`
+	Stage   string                   `json:"stage,omitempty"`
 	Frozen  bool                     `json:"frozen,omitempty"`
 }
 
@@ -81,6 +82,7 @@ func (v *View) observeContestStandings(c echo.Context) error {
 	}
 	resp := ContestStandings{
 		Kind:   contestCtx.ContestConfig.StandingsKind.String(),
+		Stage:  makeContestStage(standings.Stage),
 		Frozen: standings.Frozen,
 	}
 	for _, column := range standings.Columns {

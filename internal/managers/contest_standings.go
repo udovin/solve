@@ -616,7 +616,8 @@ func calculatePlaces(rows []ContestStandingsRow) {
 	it := -1
 	place := 1
 	for i := range rows {
-		if rows[i].Participant.Kind == models.RegularParticipant {
+		if rows[i].Participant.Kind == models.RegularParticipant ||
+			rows[i].Participant.Kind == models.VirtualParticipant {
 			rows[i].Place = place
 			place++
 			if it >= 0 && !participantLess(rows[it], rows[i]) {

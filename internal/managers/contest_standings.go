@@ -343,8 +343,9 @@ func (m *ContestStandingsManager) buildICPCStandings(
 			}
 			solutionsByColumn[column] = append(solutionsByColumn[column], participantSolution)
 		}
+		participantClone := participant
 		row := ContestStandingsRow{
-			FakeParticipant: &participant,
+			FakeParticipant: &participantClone,
 			Participant: models.ContestParticipant{
 				Kind: models.RegularParticipant,
 			},
@@ -549,8 +550,9 @@ func (m *ContestStandingsManager) buildIOIStandings(
 			}
 			solutionsByColumn[column] = append(solutionsByColumn[column], participantSolution)
 		}
+		participantClone := participant
 		row := ContestStandingsRow{
-			FakeParticipant: &participant,
+			FakeParticipant: &participantClone,
 			Participant: models.ContestParticipant{
 				Kind: models.RegularParticipant,
 			},

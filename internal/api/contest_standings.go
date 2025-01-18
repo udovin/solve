@@ -105,8 +105,8 @@ func (v *View) observeContestStandings(c echo.Context) error {
 		}
 		if row.FakeParticipant != nil {
 			fakeResp := makeContestFakeParticipant(*row.FakeParticipant)
-			rowResp.Participant.Fake = &fakeResp
 			rowResp.Participant.Kind = models.RegularParticipant
+			rowResp.Participant.Fake = &fakeResp
 		} else {
 			rowResp.Participant = makeContestParticipant(c, row.Participant, v.core)
 		}

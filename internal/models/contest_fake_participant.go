@@ -41,15 +41,15 @@ func (s *ContestFakeParticipantStore) Get(ctx context.Context, id int64) (Contes
 	return s.store.FindObject(ctx, db.FindQuery{Where: gosql.Column("id").Equal(id)})
 }
 
-func (s *ContestFakeParticipantStore) FindByContest(ctx context.Context, contestID int64) (db.Rows[ContestFakeParticipant], error) {
+func (s *ContestFakeParticipantStore) FindByContest(
+	ctx context.Context, contestID int64,
+) (db.Rows[ContestFakeParticipant], error) {
 	return s.store.FindObjects(ctx, db.FindQuery{Where: gosql.Column("contest_id").Equal(contestID)})
 }
 
 func NewContestFakeParticipantStore(conn *gosql.DB, table string) *ContestFakeParticipantStore {
 	impl := &ContestFakeParticipantStore{
-		store: db.NewObjectStore[ContestFakeParticipant, *ContestFakeParticipant](
-			"id", table, conn,
-		),
+		store: db.NewObjectStore[ContestFakeParticipant, *ContestFakeParticipant]("id", table, conn),
 	}
 	return impl
 }

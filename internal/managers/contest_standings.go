@@ -100,8 +100,10 @@ func (m *ContestStandingsManager) processStandings(
 			continue
 		}
 		if !observeFullStandings {
-			if row.Participant.Kind == models.UpsolvingParticipant && standings.Stage != ContestFinished {
-				continue
+			if row.Participant.Kind == models.UpsolvingParticipant {
+				if standings.Stage != ContestFinished {
+					continue
+				}
 			} else if !isPlacedParticipant(row.Participant.Kind) {
 				continue
 			}

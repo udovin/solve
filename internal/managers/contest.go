@@ -195,7 +195,7 @@ func checkEffectiveParticipant(
 	case models.ManagerParticipant:
 		return true
 	case models.VirtualParticipant:
-		return stage != ContestNotPlanned
+		return stage == ContestNotStarted || stage == ContestStarted
 	default:
 		return false
 	}

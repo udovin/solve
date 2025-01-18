@@ -137,7 +137,8 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 }
 
 type ContestState struct {
-	Stage string `json:"stage"`
+	Stage     string `json:"stage"`
+	BeginTime int64  `json:"begin_time,omitempty"`
 	// Participant contains effective participant.
 	Participant *ContestParticipant `json:"participant,omitempty"`
 }
@@ -181,6 +182,7 @@ var contestPermissions = []string{
 	perms.UpdateContestOwnerRole,
 	perms.DeleteContestRole,
 	perms.RegisterContestRole,
+	perms.RegisterContestVirtualRole,
 	perms.DeregisterContestRole,
 	perms.ObserveContestProblemsRole,
 	perms.CreateContestProblemRole,
@@ -243,7 +245,8 @@ func makeContest(
 	}
 	if contextCtx, ok := permissions.(*managers.ContestContext); ok {
 		state := ContestState{
-			Stage: makeContestStage(contextCtx.GetEffectiveContestTime().Stage()),
+			Stage:     makeContestStage(contextCtx.GetEffectiveContestTime().Stage()),
+			BeginTime: contextCtx.GetEffectiveBeginTime(),
 		}
 		participant := contextCtx.GetEffectiveParticipant()
 		if core != nil && participant != nil {

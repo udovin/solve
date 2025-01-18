@@ -314,7 +314,7 @@ func (m *ContestManager) BuildContext(ctx *AccountContext, contest models.Contes
 			c.Permissions.AddPermission(perms.RegisterContestRole)
 		}
 		// User can possibly virtual register on contest.
-		canVirtual := config.EnableVirtual && c.HasPermission(perms.RegisterContestVirtualRole)
+		canVirtual := canRegister && config.EnableVirtual
 		if !hasVirtual && stage >= ContestNotStarted && canVirtual {
 			c.Permissions.AddPermission(perms.ObserveContestRole)
 			c.Permissions.AddPermission(perms.RegisterContestVirtualRole)
@@ -444,6 +444,13 @@ func (c ContestTime) Stage() ContestStage {
 		}
 		return ContestStarted
 	}
+}
+
+func (c *ContestContext) GetEffectiveBeginTime() int64 {
+	return getParticipantBeginTime(
+		&c.ContestConfig,
+		c.GetEffectiveParticipant(),
+	)
 }
 
 func (c *ContestContext) GetEffectiveContestTime() ContestTime {

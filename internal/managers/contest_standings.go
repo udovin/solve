@@ -77,14 +77,14 @@ func (m *ContestStandingsManager) BuildStandings(
 ) (*ContestStandings, error) {
 	standings, err := m.buildStandings(ctx, options)
 	if err == nil {
-		m.processStandings(ctx, options, standings)
+		standings = m.processStandings(ctx, options, standings)
 	}
 	return standings, err
 }
 
 func (m *ContestStandingsManager) processStandings(
 	ctx *ContestContext, options BuildStandingsOptions, standings *ContestStandings,
-) {
+) *ContestStandings {
 	processed := ContestStandings{
 		Columns: standings.Columns,
 		Stage:   standings.Stage,
@@ -105,7 +105,7 @@ func (m *ContestStandingsManager) processStandings(
 		processed.Rows = append(processed.Rows, row)
 	}
 	calculatePlaces(processed.Rows)
-	standings = &processed
+	return &processed
 }
 
 func (m *ContestStandingsManager) buildStandings(ctx *ContestContext, options BuildStandingsOptions) (*ContestStandings, error) {

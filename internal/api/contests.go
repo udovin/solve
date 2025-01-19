@@ -132,12 +132,13 @@ func (v *View) registerContestHandlers(g *echo.Group) {
 	g.POST(
 		"/v0/contests/:contest/register", v.registerContest,
 		v.extractAuth(v.sessionAuth), v.extractContest,
-		v.requirePermission(perms.RegisterContestRole),
+		v.requirePermission(perms.ObserveContestRole),
 	)
 }
 
 type ContestState struct {
-	Stage string `json:"stage"`
+	Stage     string `json:"stage"`
+	BeginTime int64  `json:"begin_time,omitempty"`
 	// Participant contains effective participant.
 	Participant *ContestParticipant `json:"participant,omitempty"`
 }
@@ -151,6 +152,7 @@ type Contest struct {
 	EnableRegistration  bool                 `json:"enable_registration"`
 	EnableUpsolving     bool                 `json:"enable_upsolving"`
 	EnableObserving     bool                 `json:"enable_observing,omitempty"`
+	EnableVirtual       bool                 `json:"enable_virtual,omitempty"`
 	FreezeBeginDuration int                  `json:"freeze_begin_duration,omitempty"`
 	FreezeEndTime       NInt64               `json:"freeze_end_time,omitempty"`
 	StandingsKind       models.StandingsKind `json:"standings_kind,omitempty"`
@@ -180,6 +182,7 @@ var contestPermissions = []string{
 	perms.UpdateContestOwnerRole,
 	perms.DeleteContestRole,
 	perms.RegisterContestRole,
+	perms.RegisterContestVirtualRole,
 	perms.DeregisterContestRole,
 	perms.ObserveContestProblemsRole,
 	perms.CreateContestProblemRole,
@@ -230,6 +233,7 @@ func makeContest(
 		resp.EnableRegistration = config.EnableRegistration
 		resp.EnableUpsolving = config.EnableUpsolving
 		resp.EnableObserving = config.EnableObserving
+		resp.EnableVirtual = config.EnableVirtual
 		resp.FreezeBeginDuration = config.FreezeBeginDuration
 		resp.FreezeEndTime = config.FreezeEndTime
 		resp.StandingsKind = config.StandingsKind
@@ -241,7 +245,8 @@ func makeContest(
 	}
 	if contextCtx, ok := permissions.(*managers.ContestContext); ok {
 		state := ContestState{
-			Stage: makeContestStage(contextCtx.Stage),
+			Stage:     makeContestStage(contextCtx.GetEffectiveContestTime().Stage()),
+			BeginTime: contextCtx.GetEffectiveBeginTime(),
 		}
 		participant := contextCtx.GetEffectiveParticipant()
 		if core != nil && participant != nil {
@@ -360,6 +365,7 @@ type updateContestForm struct {
 	Duration            *int                  `json:"duration" form:"duration"`
 	EnableRegistration  *bool                 `json:"enable_registration" form:"enable_registration"`
 	EnableUpsolving     *bool                 `json:"enable_upsolving" form:"enable_upsolving"`
+	EnableVirtual       *bool                 `json:"enable_virtual" form:"enable_virtual"`
 	EnableObserving     *bool                 `json:"enable_observing" form:"enable_observing"`
 	FreezeBeginDuration *int                  `json:"freeze_begin_duration" form:"freeze_begin_duration"`
 	FreezeEndTime       *NInt64               `json:"freeze_end_time" form:"freeze_end_time"`
@@ -403,6 +409,9 @@ func (f *updateContestForm) Update(
 	}
 	if f.EnableUpsolving != nil {
 		config.EnableUpsolving = *f.EnableUpsolving
+	}
+	if f.EnableVirtual != nil {
+		config.EnableVirtual = *f.EnableVirtual
 	}
 	if f.FreezeBeginDuration != nil {
 		config.FreezeBeginDuration = *f.FreezeBeginDuration
@@ -806,12 +815,13 @@ func (v *View) deleteContestProblem(c echo.Context) error {
 }
 
 type ContestParticipant struct {
-	ID        int64      `json:"id,omitempty"`
-	User      *User      `json:"user,omitempty"`
-	ScopeUser *ScopeUser `json:"scope_user,omitempty"`
-	Scope     *Scope     `json:"scope,omitempty"`
-	Group     *Group     `json:"group,omitempty"`
-	ContestID int64      `json:"contest_id,omitempty"`
+	ID        int64                   `json:"id,omitempty"`
+	User      *User                   `json:"user,omitempty"`
+	ScopeUser *ScopeUser              `json:"scope_user,omitempty"`
+	Scope     *Scope                  `json:"scope,omitempty"`
+	Group     *Group                  `json:"group,omitempty"`
+	Fake      *ContestFakeParticipant `json:"fake,omitempty"`
+	ContestID int64                   `json:"contest_id,omitempty"`
 	// Kind contains kind.
 	Kind models.ParticipantKind `json:"kind"`
 }
@@ -1006,6 +1016,52 @@ func (v *View) deleteContestParticipant(c echo.Context) error {
 	)
 }
 
+type registerContestForm struct {
+	Kind      *ParticipantKind `json:"kind"`
+	BeginTime *int64           `json:"begin"_time"`
+}
+
+func (f *registerContestForm) Update(c echo.Context, o *models.ContestParticipant) error {
+	errors := errorFields{}
+	now := getNow(c)
+	if f.Kind != nil {
+		o.Kind = *f.Kind
+		if *f.Kind == models.VirtualParticipant {
+			var beginTime time.Time
+			if f.BeginTime != nil {
+				beginTime = time.Unix(*f.BeginTime, 0)
+			} else {
+				beginTime = now.Add(30 * time.Second)
+			}
+			if beginTime.Before(now) {
+				errors["begin_time"] = errorField{
+					Message: localize(c, "The start time cannot be in the past."),
+				}
+			} else if now.Add(time.Hour).Before(beginTime) {
+				errors["begin_time"] = errorField{
+					Message: localize(c, "The start time cannot be in the far future."),
+				}
+			}
+			config := models.VirtualParticipantConfig{
+				BeginTime: beginTime.Unix(),
+			}
+			if err := o.SetConfig(config); err != nil {
+				return err
+			}
+		}
+	} else {
+		o.Kind = models.RegularParticipant
+	}
+	if len(errors) > 0 {
+		return &errorResponse{
+			Code:          http.StatusBadRequest,
+			Message:       localize(c, "Form has invalid fields."),
+			InvalidFields: errors,
+		}
+	}
+	return nil
+}
+
 func (v *View) registerContest(c echo.Context) error {
 	contestCtx, ok := c.Get(contestCtxKey).(*managers.ContestContext)
 	if !ok {
@@ -1016,10 +1072,41 @@ func (v *View) registerContest(c echo.Context) error {
 	if account == nil {
 		return fmt.Errorf("account not extracted")
 	}
+	form := registerContestForm{}
+	if err := c.Bind(&form); err != nil {
+		c.Logger().Warn(err)
+		return c.NoContent(http.StatusBadRequest)
+	}
 	participant := models.ContestParticipant{
 		Kind:      models.RegularParticipant,
 		ContestID: contest.ID,
 		AccountID: account.ID,
+	}
+	if err := form.Update(c, &participant); err != nil {
+		return err
+	}
+	var missingPermissions []string
+	switch participant.Kind {
+	case models.RegularParticipant:
+		if !contestCtx.HasPermission(perms.RegisterContestRole) {
+			missingPermissions = append(missingPermissions, perms.RegisterContestRole)
+		}
+	case models.VirtualParticipant:
+		if !contestCtx.HasPermission(perms.RegisterContestVirtualRole) {
+			missingPermissions = append(missingPermissions, perms.RegisterContestVirtualRole)
+		}
+	default:
+		return errorResponse{
+			Code:    http.StatusBadRequest,
+			Message: localize(c, "Form has invalid fields."),
+		}
+	}
+	if len(missingPermissions) > 0 {
+		return errorResponse{
+			Code:               http.StatusForbidden,
+			Message:            localize(c, "Account missing permissions."),
+			MissingPermissions: missingPermissions,
+		}
 	}
 	for _, p := range contestCtx.Participants {
 		if p.ID != 0 && p.Kind == participant.Kind {
@@ -1314,8 +1401,9 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		}
 	}
 	needUpdate := false
+	stage := contestCtx.GetEffectiveContestTime().Stage()
 	if participant.Kind == models.RegularParticipant &&
-		contestCtx.Stage == managers.ContestStarted {
+		stage == managers.ContestStarted {
 		contestConfig, err := contestCtx.Contest.GetConfig()
 		if err != nil {
 			return err
@@ -1324,7 +1412,8 @@ func (v *View) submitContestProblemSolution(c echo.Context) error {
 		if err := participant.ScanConfig(&config); err != nil {
 			return err
 		}
-		if config.BeginTime != contestConfig.BeginTime {
+		if config.BeginTime == 0 &&
+			config.BeginTime != contestConfig.BeginTime {
 			config.BeginTime = contestConfig.BeginTime
 			if err := participant.SetConfig(config); err != nil {
 				return err

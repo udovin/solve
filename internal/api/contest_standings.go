@@ -45,6 +45,7 @@ type ContestStandings struct {
 	Kind    string                   `json:"kind"`
 	Columns []ContestStandingsColumn `json:"columns,omitempty"`
 	Rows    []ContestStandingsRow    `json:"rows,omitempty"`
+	Stage   string                   `json:"stage,omitempty"`
 	Frozen  bool                     `json:"frozen,omitempty"`
 }
 
@@ -81,6 +82,7 @@ func (v *View) observeContestStandings(c echo.Context) error {
 	}
 	resp := ContestStandings{
 		Kind:   contestCtx.ContestConfig.StandingsKind.String(),
+		Stage:  makeContestStage(standings.Stage),
 		Frozen: standings.Frozen,
 	}
 	for _, column := range standings.Columns {
@@ -97,10 +99,16 @@ func (v *View) observeContestStandings(c echo.Context) error {
 	}
 	for _, row := range standings.Rows {
 		rowResp := ContestStandingsRow{
-			Participant: makeContestParticipant(c, row.Participant, v.core),
-			Score:       row.Score,
-			Penalty:     row.Penalty,
-			Place:       row.Place,
+			Score:   row.Score,
+			Penalty: row.Penalty,
+			Place:   row.Place,
+		}
+		if row.FakeParticipant != nil {
+			fakeResp := makeContestFakeParticipant(*row.FakeParticipant)
+			rowResp.Participant.Kind = models.RegularParticipant
+			rowResp.Participant.Fake = &fakeResp
+		} else {
+			rowResp.Participant = makeContestParticipant(c, row.Participant, v.core)
 		}
 		for _, cell := range row.Cells {
 			cellResp := ContestStandingsCell{
@@ -108,7 +116,8 @@ func (v *View) observeContestStandings(c echo.Context) error {
 				Attempt: cell.Attempt,
 				Points:  cell.Points,
 			}
-			if row.Participant.Kind == models.RegularParticipant {
+			if row.Participant.Kind == models.RegularParticipant ||
+				row.Participant.Kind == models.VirtualParticipant {
 				cellResp.Time = getPtr(cell.Time)
 			}
 			if cell.Verdict != 0 {

@@ -273,6 +273,9 @@ func TestContestStandings(t *testing.T) {
 		if standings, err := e.Client.ObserveContestStandings(context.Background(), contest.ID); err != nil {
 			t.Fatal("Error:", err)
 		} else {
+			if v := standings.Stage; v != "started" {
+				t.Errorf("Expected: %q, got: %q", "started", v)
+			}
 			e.Check(standings)
 		}
 		user1.LogoutClient()

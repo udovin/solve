@@ -27,37 +27,43 @@ type ContestStandingsCell struct {
 }
 
 type ContestStandingsRow struct {
-	Participant models.ContestParticipant
-	Cells       []ContestStandingsCell
-	Score       float64
-	Penalty     *int64
-	Place       int
+	Participant     models.ContestParticipant
+	FakeParticipant *models.ContestFakeParticipant
+	Cells           []ContestStandingsCell
+	Score           float64
+	Penalty         *int64
+	Place           int
 }
 
 type ContestStandings struct {
 	Columns []ContestStandingsColumn
 	Rows    []ContestStandingsRow
+	Stage   ContestStage
 	Frozen  bool
 }
 
 type ContestStandingsManager struct {
-	contestParticipants *models.ContestParticipantStore
-	contestSolutions    *models.ContestSolutionStore
-	contestProblems     *models.ContestProblemStore
-	solutions           *models.SolutionStore
-	settings            *models.SettingStore
-	cache               map[standingsCacheKey]*standingsCache
-	mutex               sync.Mutex
+	contestParticipants     *models.ContestParticipantStore
+	contestSolutions        *models.ContestSolutionStore
+	contestProblems         *models.ContestProblemStore
+	contestFakeParticipants *models.ContestFakeParticipantStore
+	contestFakeSolutions    *models.ContestFakeSolutionStore
+	solutions               *models.SolutionStore
+	settings                *models.SettingStore
+	cache                   map[standingsCacheKey]*standingsCache
+	mutex                   sync.Mutex
 }
 
 func NewContestStandingsManager(core *core.Core) *ContestStandingsManager {
 	return &ContestStandingsManager{
-		contestParticipants: core.ContestParticipants,
-		contestSolutions:    core.ContestSolutions,
-		contestProblems:     core.ContestProblems,
-		settings:            core.Settings,
-		solutions:           core.Solutions,
-		cache:               map[standingsCacheKey]*standingsCache{},
+		contestParticipants:     core.ContestParticipants,
+		contestSolutions:        core.ContestSolutions,
+		contestProblems:         core.ContestProblems,
+		contestFakeParticipants: core.ContestFakeParticipants,
+		contestFakeSolutions:    core.ContestFakeSolutions,
+		settings:                core.Settings,
+		solutions:               core.Solutions,
+		cache:                   map[standingsCacheKey]*standingsCache{},
 	}
 }
 
@@ -69,15 +75,61 @@ type BuildStandingsOptions struct {
 func (m *ContestStandingsManager) BuildStandings(
 	ctx *ContestContext, options BuildStandingsOptions,
 ) (*ContestStandings, error) {
+	standings, err := m.buildStandings(ctx, options)
+	if err == nil {
+		standings = m.processStandings(ctx, options, standings)
+	}
+	return standings, err
+}
+
+func (m *ContestStandingsManager) processStandings(
+	ctx *ContestContext, options BuildStandingsOptions, standings *ContestStandings,
+) *ContestStandings {
+	processed := ContestStandings{
+		Stage:  standings.Stage,
+		Frozen: standings.Frozen,
+	}
+	for _, column := range standings.Columns {
+		processed.Columns = append(processed.Columns, ContestStandingsColumn{
+			Problem: column.Problem,
+		})
+	}
+	observeFullStandings := ctx.HasPermission(perms.ObserveContestFullStandingsRole)
+	for _, row := range standings.Rows {
+		if options.OnlyOfficial && row.Participant.Kind != models.RegularParticipant {
+			continue
+		}
+		if !observeFullStandings {
+			if row.Participant.Kind == models.UpsolvingParticipant {
+				if standings.Stage != ContestFinished {
+					continue
+				}
+			} else if !isPlacedParticipant(row.Participant.Kind) {
+				continue
+			}
+		}
+		for _, cell := range row.Cells {
+			column := &processed.Columns[cell.Column]
+			column.TotalSolutions += cell.Attempt
+			if cell.Verdict == models.Accepted {
+				column.AcceptedSolutions++
+			}
+		}
+		processed.Rows = append(processed.Rows, row)
+	}
+	calculatePlaces(processed.Rows)
+	return &processed
+}
+
+func (m *ContestStandingsManager) buildStandings(ctx *ContestContext, options BuildStandingsOptions) (*ContestStandings, error) {
 	useCache, err := m.settings.GetBool("standings.use_cache")
 	if err != nil || !useCache.OrElse(true) {
-		return m.buildStandings(ctx, options)
+		return m.doBuildStandings(ctx, options)
 	}
 	key := standingsCacheKey{
-		ContestID:     ctx.Contest.ID,
-		OnlyOfficial:  options.OnlyOfficial,
-		IgnoreFreeze:  options.IgnoreFreeze,
-		FullStandings: ctx.HasPermission(perms.ObserveContestFullStandingsRole),
+		ContestID:    ctx.Contest.ID,
+		BeginTime:    getParticipantBeginTime(&ctx.ContestConfig, ctx.GetEffectiveParticipant()),
+		IgnoreFreeze: options.IgnoreFreeze,
 	}
 	m.mutex.Lock()
 	cache, ok := m.cache[key]
@@ -99,7 +151,7 @@ func (m *ContestStandingsManager) BuildStandings(
 	cache = &standingsCache{Done: done, Time: ctx.Now}
 	m.cache[key] = cache
 	m.mutex.Unlock()
-	cache.Standings, cache.Error = m.buildStandings(ctx, options)
+	cache.Standings, cache.Error = m.doBuildStandings(ctx, options)
 	return cache.Standings, cache.Error
 }
 
@@ -111,13 +163,12 @@ type standingsCache struct {
 }
 
 type standingsCacheKey struct {
-	ContestID     int64
-	OnlyOfficial  bool
-	IgnoreFreeze  bool
-	FullStandings bool
+	ContestID    int64
+	BeginTime    int64
+	IgnoreFreeze bool
 }
 
-func (m *ContestStandingsManager) buildStandings(
+func (m *ContestStandingsManager) doBuildStandings(
 	ctx *ContestContext, options BuildStandingsOptions,
 ) (*ContestStandings, error) {
 	participantRows, err := m.contestParticipants.FindByContest(ctx, ctx.Contest.ID)
@@ -136,34 +187,63 @@ func (m *ContestStandingsManager) buildStandings(
 	if err != nil {
 		return nil, err
 	}
+	fakeParticipantRows, err := m.contestFakeParticipants.FindByContest(ctx, ctx.Contest.ID)
+	if err != nil {
+		return nil, err
+	}
+	fakeParticipants, err := db.CollectRows(fakeParticipantRows)
+	if err != nil {
+		return nil, err
+	}
 	sortFunc(contestProblems, func(lhs, rhs models.ContestProblem) bool {
 		return lhs.Code < rhs.Code
 	})
 	solutionsByParticipant := map[int64][]models.ContestSolution{}
 	if err := func() error {
-		contestSolutions, err := m.contestSolutions.FindByContest(ctx, ctx.Contest.ID)
+		solutions, err := m.contestSolutions.FindByContest(ctx, ctx.Contest.ID)
 		if err != nil {
 			return err
 		}
-		defer func() { _ = contestSolutions.Close() }()
-		for contestSolutions.Next() {
-			solution := contestSolutions.Row()
+		defer func() { _ = solutions.Close() }()
+		for solutions.Next() {
+			solution := solutions.Row()
 			solutionsByParticipant[solution.ParticipantID] = append(
 				solutionsByParticipant[solution.ParticipantID], solution,
 			)
 		}
-		return nil
+		return solutions.Err()
+	}(); err != nil {
+		return nil, err
+	}
+	fakeSolutionsByParticipant := map[int64][]models.ContestFakeSolution{}
+	if err := func() error {
+		solutions, err := m.contestFakeSolutions.FindByContest(ctx, ctx.Contest.ID)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = solutions.Close() }()
+		for solutions.Next() {
+			solution := solutions.Row()
+			fakeSolutionsByParticipant[solution.ParticipantID] = append(
+				fakeSolutionsByParticipant[solution.ParticipantID], solution,
+			)
+		}
+		return solutions.Err()
 	}(); err != nil {
 		return nil, err
 	}
 	switch ctx.ContestConfig.StandingsKind {
 	case models.IOIStandings:
 		return m.buildIOIStandings(
-			ctx, options, participants, contestProblems, solutionsByParticipant,
+			ctx, options, contestProblems,
+			participants, solutionsByParticipant,
+			fakeParticipants, fakeSolutionsByParticipant,
 		)
 	default:
 		return m.buildICPCStandings(
-			ctx, options, participants, contestProblems, solutionsByParticipant,
+			ctx, options, contestProblems,
+			participants, solutionsByParticipant,
+			fakeParticipants, fakeSolutionsByParticipant,
 		)
 	}
 }
@@ -171,9 +251,11 @@ func (m *ContestStandingsManager) buildStandings(
 func (m *ContestStandingsManager) buildICPCStandings(
 	ctx *ContestContext,
 	options BuildStandingsOptions,
-	participants []models.ContestParticipant,
 	contestProblems []models.ContestProblem,
+	participants []models.ContestParticipant,
 	solutionsByParticipant map[int64][]models.ContestSolution,
+	fakeParticipants []models.ContestFakeParticipant,
+	fakeSolutionsByParticipant map[int64][]models.ContestFakeSolution,
 ) (*ContestStandings, error) {
 	standings := ContestStandings{}
 	columnByProblem := map[int64]int{}
@@ -185,33 +267,12 @@ func (m *ContestStandingsManager) buildICPCStandings(
 	}
 	observeFullStandings := ctx.HasPermission(perms.ObserveContestFullStandingsRole)
 	ignoreFreeze := options.IgnoreFreeze && observeFullStandings
-	contestTime := ctx.Now.Unix() - int64(ctx.ContestConfig.BeginTime)
-	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, contestTime)
+	contestTime := ctx.GetEffectiveContestTime()
+	standings.Stage = contestTime.Stage()
+	// contestTime will be invalid when standings.Stage != ContestStarted. We consider this normal.
+	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, int64(contestTime))
 	for _, participant := range participants {
-		if options.OnlyOfficial && participant.Kind != models.RegularParticipant {
-			continue
-		}
-		if !observeFullStandings {
-			switch participant.Kind {
-			case models.RegularParticipant:
-			case models.UpsolvingParticipant:
-				if ctx.Stage != ContestFinished {
-					continue
-				}
-			default:
-				continue
-			}
-		}
-		beginTime := int64(ctx.ContestConfig.BeginTime)
-		if participant.Kind == models.RegularParticipant {
-			var participantConfig models.RegularParticipantConfig
-			if err := participant.ScanConfig(&participantConfig); err != nil {
-				continue
-			}
-			if participantConfig.BeginTime != 0 {
-				beginTime = int64(participantConfig.BeginTime)
-			}
-		}
+		beginTime := getParticipantBeginTime(&ctx.ContestConfig, &participant)
 		participantSolutions, ok := solutionsByParticipant[participant.ID]
 		if !ok {
 			continue
@@ -272,7 +333,7 @@ func (m *ContestStandingsManager) buildICPCStandings(
 					}
 				}
 				cell.Verdict = report.Verdict
-				if !ignoreFreeze && isVerdictFrozen(ctx, cell.Time) {
+				if !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, cell.Time) {
 					cell.Verdict = 0
 				}
 				if report.Verdict == models.Accepted {
@@ -286,29 +347,102 @@ func (m *ContestStandingsManager) buildICPCStandings(
 		var penalty int64
 		for _, cell := range row.Cells {
 			column := &standings.Columns[cell.Column]
-			column.TotalSolutions += cell.Attempt
 			if cell.Verdict == models.Accepted {
 				row.Score += getProblemScore(column.Problem)
 				penalty += int64(cell.Attempt-1)*20 + cell.Time/60
-				column.AcceptedSolutions++
 			}
 		}
-		if participant.Kind == models.RegularParticipant {
+		if isPlacedParticipant(participant.Kind) {
 			row.Penalty = &penalty
 		}
 		standings.Rows = append(standings.Rows, row)
 	}
+	for _, participant := range fakeParticipants {
+		participantSolutions, ok := fakeSolutionsByParticipant[participant.ID]
+		if !ok {
+			continue
+		}
+		solutionsByColumn := map[int][]models.ContestFakeSolution{}
+		for _, participantSolution := range participantSolutions {
+			column, ok := columnByProblem[participantSolution.ProblemID]
+			if !ok {
+				continue
+			}
+			solutionsByColumn[column] = append(solutionsByColumn[column], participantSolution)
+		}
+		row := ContestStandingsRow{
+			FakeParticipant: getPtr(participant),
+			Participant: models.ContestParticipant{
+				Kind: models.RegularParticipant,
+			},
+		}
+		for i := range standings.Columns {
+			solutions, ok := solutionsByColumn[i]
+			if !ok {
+				continue
+			}
+			sortFunc(solutions, func(lhs, rhs models.ContestFakeSolution) bool {
+				if lhs.ContestTime != rhs.ContestTime {
+					return lhs.ContestTime < rhs.ContestTime
+				}
+				return lhs.ID < rhs.ID
+			})
+			cell := ContestStandingsCell{
+				Column: i,
+			}
+			for _, solution := range solutions {
+				if contestTime.Before(solution.ContestTime) {
+					continue
+				}
+				report, err := solution.GetReport()
+				if err != nil {
+					continue
+				}
+				if report == nil {
+					cell.Attempt++
+					cell.Verdict = 0
+					break
+				}
+				if report.Verdict == models.CompilationError {
+					continue
+				}
+				cell.Attempt++
+				cell.Time = solution.ContestTime
+				cell.Verdict = report.Verdict
+				if !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, cell.Time) {
+					cell.Verdict = 0
+				}
+				if report.Verdict == models.Accepted {
+					break
+				}
+			}
+			if cell.Attempt > 0 {
+				row.Cells = append(row.Cells, cell)
+			}
+		}
+		var penalty int64
+		for _, cell := range row.Cells {
+			column := &standings.Columns[cell.Column]
+			if cell.Verdict == models.Accepted {
+				row.Score += getProblemScore(column.Problem)
+				penalty += int64(cell.Attempt-1)*20 + cell.Time/60
+			}
+		}
+		row.Penalty = &penalty
+		standings.Rows = append(standings.Rows, row)
+	}
 	sortFunc(standings.Rows, stableParticipantLess)
-	calculatePlaces(standings.Rows)
 	return &standings, nil
 }
 
 func (m *ContestStandingsManager) buildIOIStandings(
 	ctx *ContestContext,
 	options BuildStandingsOptions,
-	participants []models.ContestParticipant,
 	contestProblems []models.ContestProblem,
+	participants []models.ContestParticipant,
 	solutionsByParticipant map[int64][]models.ContestSolution,
+	fakeParticipants []models.ContestFakeParticipant,
+	fakeSolutionsByParticipant map[int64][]models.ContestFakeSolution,
 ) (*ContestStandings, error) {
 	standings := ContestStandings{}
 	columnByProblem := map[int64]int{}
@@ -320,33 +454,12 @@ func (m *ContestStandingsManager) buildIOIStandings(
 	}
 	observeFullStandings := ctx.HasPermission(perms.ObserveContestFullStandingsRole)
 	ignoreFreeze := options.IgnoreFreeze && observeFullStandings
-	contestTime := ctx.Now.Unix() - int64(ctx.ContestConfig.BeginTime)
-	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, contestTime)
+	contestTime := ctx.GetEffectiveContestTime()
+	standings.Stage = contestTime.Stage()
+	// contestTime will be invalid when standings.Stage != ContestStarted. We consider this normal.
+	standings.Frozen = !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, int64(contestTime))
 	for _, participant := range participants {
-		if options.OnlyOfficial && participant.Kind != models.RegularParticipant {
-			continue
-		}
-		if !observeFullStandings {
-			switch participant.Kind {
-			case models.RegularParticipant:
-			case models.UpsolvingParticipant:
-				if ctx.Stage != ContestFinished {
-					continue
-				}
-			default:
-				continue
-			}
-		}
-		beginTime := int64(ctx.ContestConfig.BeginTime)
-		if participant.Kind == models.RegularParticipant {
-			var participantConfig models.RegularParticipantConfig
-			if err := participant.ScanConfig(&participantConfig); err != nil {
-				continue
-			}
-			if participantConfig.BeginTime != 0 {
-				beginTime = int64(participantConfig.BeginTime)
-			}
-		}
+		beginTime := getParticipantBeginTime(&ctx.ContestConfig, &participant)
 		participantSolutions, ok := solutionsByParticipant[participant.ID]
 		if !ok {
 			continue
@@ -406,7 +519,85 @@ func (m *ContestStandingsManager) buildIOIStandings(
 						cell.Time = 0
 					}
 				}
-				if !ignoreFreeze && isVerdictFrozen(ctx, cell.Time) {
+				if !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, cell.Time) {
+					cell.Verdict = 0
+				} else {
+					if cell.Verdict == 0 {
+						cell.Verdict = report.Verdict
+					}
+					if report.Points != nil && cell.Points < *report.Points {
+						cell.Verdict = report.Verdict
+						cell.Points = *report.Points
+					}
+				}
+			}
+			if cell.Attempt > 0 {
+				row.Cells = append(row.Cells, cell)
+			}
+		}
+		for _, cell := range row.Cells {
+			column := &standings.Columns[cell.Column]
+			column.TotalSolutions += cell.Attempt
+			row.Score += cell.Points
+			if cell.Verdict == models.Accepted {
+				column.AcceptedSolutions++
+			}
+		}
+		standings.Rows = append(standings.Rows, row)
+	}
+	for _, participant := range fakeParticipants {
+		participantSolutions, ok := fakeSolutionsByParticipant[participant.ID]
+		if !ok {
+			continue
+		}
+		solutionsByColumn := map[int][]models.ContestFakeSolution{}
+		for _, participantSolution := range participantSolutions {
+			column, ok := columnByProblem[participantSolution.ProblemID]
+			if !ok {
+				continue
+			}
+			solutionsByColumn[column] = append(solutionsByColumn[column], participantSolution)
+		}
+		row := ContestStandingsRow{
+			FakeParticipant: getPtr(participant),
+			Participant: models.ContestParticipant{
+				Kind: models.RegularParticipant,
+			},
+		}
+		row.Participant.Kind = models.RegularParticipant
+		for i := range standings.Columns {
+			solutions, ok := solutionsByColumn[i]
+			if !ok {
+				continue
+			}
+			sortFunc(solutions, func(lhs, rhs models.ContestFakeSolution) bool {
+				if lhs.ContestTime != rhs.ContestTime {
+					return lhs.ContestTime < rhs.ContestTime
+				}
+				return lhs.ID < rhs.ID
+			})
+			cell := ContestStandingsCell{
+				Column: i,
+			}
+			for _, solution := range solutions {
+				if contestTime.Before(solution.ContestTime) {
+					continue
+				}
+				report, err := solution.GetReport()
+				if err != nil {
+					continue
+				}
+				if report == nil {
+					cell.Attempt++
+					cell.Verdict = 0
+					break
+				}
+				if report.Verdict == models.CompilationError {
+					continue
+				}
+				cell.Attempt++
+				cell.Time = solution.ContestTime
+				if !ignoreFreeze && isVerdictFrozen(ctx, standings.Stage, cell.Time) {
 					cell.Verdict = 0
 				} else {
 					if cell.Verdict == 0 {
@@ -433,15 +624,19 @@ func (m *ContestStandingsManager) buildIOIStandings(
 		standings.Rows = append(standings.Rows, row)
 	}
 	sortFunc(standings.Rows, stableParticipantLess)
-	calculatePlaces(standings.Rows)
 	return &standings, nil
+}
+
+func isPlacedParticipant(kind models.ParticipantKind) bool {
+	return kind == models.RegularParticipant ||
+		kind == models.VirtualParticipant
 }
 
 func calculatePlaces(rows []ContestStandingsRow) {
 	it := -1
 	place := 1
 	for i := range rows {
-		if rows[i].Participant.Kind == models.RegularParticipant {
+		if isPlacedParticipant(rows[i].Participant.Kind) {
 			rows[i].Place = place
 			place++
 			if it >= 0 && !participantLess(rows[it], rows[i]) {
@@ -452,26 +647,28 @@ func calculatePlaces(rows []ContestStandingsRow) {
 	}
 }
 
+// time can be less than zero for stage != ContestStarted.
 func isVerdictFrozen(
-	ctx *ContestContext, time int64,
+	ctx *ContestContext, stage ContestStage, verdictTime int64,
 ) bool {
 	if ctx.ContestConfig.FreezeBeginDuration == 0 {
 		return false
 	}
-	if time < int64(ctx.ContestConfig.FreezeBeginDuration) {
-		return false
+	if stage == ContestStarted {
+		return verdictTime >= int64(ctx.ContestConfig.FreezeBeginDuration)
 	}
-	if ctx.ContestConfig.FreezeEndTime == 0 {
-		return true
+	if stage == ContestFinished {
+		return ctx.ContestConfig.FreezeEndTime == 0 ||
+			ctx.Now.Unix() < int64(ctx.ContestConfig.FreezeEndTime)
 	}
-	return ctx.Now.Unix() < int64(ctx.ContestConfig.FreezeEndTime)
+	return false
 }
 
 func getParticipantOrder(kind models.ParticipantKind) int {
 	switch kind {
 	case models.ManagerParticipant:
 		return 0
-	case models.RegularParticipant:
+	case models.RegularParticipant, models.VirtualParticipant:
 		return 1
 	default:
 		return 2
@@ -539,4 +736,8 @@ func (s *sortFuncImpl[T]) Swap(i, j int) {
 
 func (s *sortFuncImpl[T]) Less(i, j int) bool {
 	return s.less(s.data[i], s.data[j])
+}
+
+func getPtr[T any](object T) *T {
+	return &object
 }

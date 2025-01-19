@@ -83,6 +83,12 @@ func (c *Core) SetupAllStores() {
 	c.ContestMessages = models.NewCachedContestMessageStore(
 		c.DB, "solve_contest_message", "solve_contest_message_event",
 	)
+	c.ContestFakeParticipants = models.NewContestFakeParticipantStore(
+		c.DB, "solve_contest_fake_participant",
+	)
+	c.ContestFakeSolutions = models.NewContestFakeSolutionStore(
+		c.DB, "solve_contest_fake_solution",
+	)
 	c.Compilers = models.NewCompilerStore(
 		c.DB, "solve_compiler", "solve_compiler_event",
 	)

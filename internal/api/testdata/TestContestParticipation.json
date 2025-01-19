@@ -11,7 +11,8 @@
     "enable_upsolving": true,
     "standings_kind": "icpc",
     "state": {
-      "stage": "not_started"
+      "stage": "not_started",
+      "begin_time": 1577876400
     }
   },
   {
@@ -31,6 +32,7 @@
     "standings_kind": "icpc",
     "state": {
       "stage": "finished",
+      "begin_time": 1577876400,
       "participant": {
         "kind": "upsolving"
       }

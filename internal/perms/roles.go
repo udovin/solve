@@ -202,6 +202,8 @@ const (
 	RegisterContestsRole = "register_contests"
 	// RegisterContestRole represents role for register to contest.
 	RegisterContestRole = "register_contest"
+	// VirtualRegisterContest represents role for virtual register to contest.
+	RegisterContestVirtualRole = "register_contest_virtual"
 	// DeregisterContestRole represents role for deregister from contest.
 	DeregisterContestRole = "deregister_contest"
 	// ObserveFileContentRole represents role for observing file content.
@@ -346,6 +348,7 @@ var builtInRoles = map[string]struct{}{
 	DeleteSessionRole:                {},
 	RegisterContestsRole:             {},
 	RegisterContestRole:              {},
+	RegisterContestVirtualRole:       {},
 	DeregisterContestRole:            {},
 	ObserveFileContentRole:           {},
 	ObserveScopesRole:                {},

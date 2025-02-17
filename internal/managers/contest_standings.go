@@ -645,14 +645,13 @@ func calculatePlaces(rows []ContestStandingsRow) {
 	}
 }
 
-// time can be less than zero for stage != ContestStarted.
 func isVerdictFrozen(
-	ctx *ContestContext, verdictTime int64,
+	ctx *ContestContext, time int64,
 ) bool {
 	if ctx.ContestConfig.FreezeBeginDuration == 0 {
 		return false
 	}
-	return verdictTime >= int64(ctx.ContestConfig.FreezeBeginDuration)
+	return time >= int64(ctx.ContestConfig.FreezeBeginDuration)
 }
 
 func isContestFrozen(

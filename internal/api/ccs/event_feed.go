@@ -244,7 +244,7 @@ func (v *View) getEventFeed(c echo.Context) error {
 		if err := solutionsConsumer.ConsumeEvents(c.Request().Context(), func(event models.SolutionEvent) error {
 			solution := event.Solution
 			contestSolution, err := v.core.ContestSolutions.FindOne(c.Request().Context(), db.FindQuery{
-				Where: gosql.Column("solution_id").Equal(solution.ID),
+				Where: gosql.Column("id").Equal(solution.ID),
 			})
 			if err != nil {
 				return fmt.Errorf("cannot find contest solution %d: %w", solution.ID, err)

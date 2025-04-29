@@ -1,6 +1,7 @@
 module github.com/udovin/solve
 
 go 1.21
+toolchain go1.23.7
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.32.6
@@ -15,9 +16,9 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/udovin/algo v0.0.6
 	github.com/udovin/gosql v0.0.2
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.35.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
-	golang.org/x/text v0.21.0
+	golang.org/x/text v0.22.0
 )
 
 require (
@@ -50,8 +51,8 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 )

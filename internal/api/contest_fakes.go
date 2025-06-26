@@ -35,13 +35,19 @@ func (v *View) registerContestFakeHandlers(g *echo.Group) {
 }
 
 type createContestFakeParticipantForm struct {
-	Title string `json:"title"`
+	ExternalID string `json:"external_id"`
+	Title      string `json:"title"`
 }
 
 func (f *createContestFakeParticipantForm) Update(
 	c echo.Context, o *models.ContestFakeParticipant,
 ) error {
 	errors := errorFields{}
+	if len(f.ExternalID) > 32 {
+		errors["external_id"] = errorField{
+			Message: localize(c, "External ID is too long."),
+		}
+	}
 	title := []rune(f.Title)
 	if len(title) < 4 {
 		errors["title"] = errorField{
@@ -58,6 +64,9 @@ func (f *createContestFakeParticipantForm) Update(
 			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
+	}
+	if len(f.ExternalID) > 0 {
+		o.ExternalID = NString(f.ExternalID)
 	}
 	o.Title = f.Title
 	return nil
@@ -90,6 +99,7 @@ func (v *View) deleteContestFakeParticipant(c echo.Context) error {
 }
 
 type createContestFakeSolutionForm struct {
+	ExternalID    string         `json:"external_id"`
 	ParticipantID int64          `json:"participant_id"`
 	ProblemCode   string         `json:"problem_code"`
 	Verdict       models.Verdict `json:"verdict"`
@@ -101,12 +111,20 @@ func (f *createContestFakeSolutionForm) Update(
 	c echo.Context, o *models.ContestFakeSolution,
 ) error {
 	errors := errorFields{}
+	if len(f.ExternalID) > 32 {
+		errors["external_id"] = errorField{
+			Message: localize(c, "External ID is too long."),
+		}
+	}
 	if len(errors) > 0 {
 		return errorResponse{
 			Code:          http.StatusBadRequest,
 			Message:       localize(c, "Form has invalid fields."),
 			InvalidFields: errors,
 		}
+	}
+	if len(f.ExternalID) > 0 {
+		o.ExternalID = NString(f.ExternalID)
 	}
 	o.ParticipantID = f.ParticipantID
 	o.ContestTime = f.ContestTime
@@ -177,19 +195,22 @@ func (v *View) deleteContestFakeSolution(c echo.Context) error {
 }
 
 type ContestFakeParticipant struct {
-	ID    int64  `json:"id"`
-	Title string `json:"title"`
+	ID         int64  `json:"id"`
+	ExternalID string `json:"external_id,omitempty"`
+	Title      string `json:"title"`
 }
 
 func makeContestFakeParticipant(participant models.ContestFakeParticipant) ContestFakeParticipant {
 	return ContestFakeParticipant{
-		ID:    participant.ID,
-		Title: participant.Title,
+		ID:         participant.ID,
+		ExternalID: string(participant.ExternalID),
+		Title:      participant.Title,
 	}
 }
 
 type ContestFakeSolution struct {
 	ID          int64                   `json:"id"`
+	ExternalID  string                  `json:"external_id,omitempty"`
 	Problem     *ContestProblem         `json:"problem,omitempty"`
 	Participant *ContestFakeParticipant `json:"participant,omitempty"`
 	Report      *SolutionReport         `json:"report"`
@@ -199,6 +220,7 @@ type ContestFakeSolution struct {
 func (v *View) makeContestFakeSolution(c echo.Context, solution models.ContestFakeSolution) ContestFakeSolution {
 	resp := ContestFakeSolution{
 		ID:          solution.ID,
+		ExternalID:  string(solution.ExternalID),
 		ContestTime: solution.ContestTime,
 	}
 	if problem, err := v.core.ContestProblems.Get(

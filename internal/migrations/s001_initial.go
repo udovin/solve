@@ -828,17 +828,24 @@ var s001 = []schema.Operation{
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "contest_id", Type: schema.Int64},
+			{Name: "external_id", Type: schema.String, Nullable: true},
 			{Name: "title", Type: schema.String},
 		},
 		ForeignKeys: []schema.ForeignKey{
 			{Column: "contest_id", ParentTable: "solve_contest", ParentColumn: "id"},
 		},
 	},
+	schema.CreateIndex{
+		Table:   "solve_contest_fake_participant",
+		Columns: []string{"contest_id", "external_id"},
+		Unique:  true,
+	},
 	schema.CreateTable{
 		Name: "solve_contest_fake_solution",
 		Columns: []schema.Column{
 			{Name: "id", Type: schema.Int64, PrimaryKey: true, AutoIncrement: true},
 			{Name: "contest_id", Type: schema.Int64},
+			{Name: "external_id", Type: schema.String, Nullable: true},
 			{Name: "participant_id", Type: schema.Int64},
 			{Name: "problem_id", Type: schema.Int64},
 			{Name: "contest_time", Type: schema.Int64},
@@ -849,6 +856,11 @@ var s001 = []schema.Operation{
 			{Column: "participant_id", ParentTable: "solve_contest_fake_participant", ParentColumn: "id"},
 			{Column: "problem_id", ParentTable: "solve_contest_problem", ParentColumn: "id"},
 		},
+	},
+	schema.CreateIndex{
+		Table:   "solve_contest_fake_solution",
+		Columns: []string{"contest_id", "external_id"},
+		Unique:  true,
 	},
 	schema.CreateTable{
 		Name: "solve_post",

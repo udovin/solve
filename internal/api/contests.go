@@ -1018,7 +1018,7 @@ func (v *View) deleteContestParticipant(c echo.Context) error {
 
 type registerContestForm struct {
 	Kind      *ParticipantKind `json:"kind"`
-	BeginTime *int64           `json:"begin"_time"`
+	BeginTime *int64           `json:"begin_time"`
 }
 
 func (f *registerContestForm) Update(c echo.Context, o *models.ContestParticipant) error {

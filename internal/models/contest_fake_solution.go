@@ -14,12 +14,13 @@ type FakeSolutionReport struct {
 }
 
 type ContestFakeSolution struct {
-	ID            int64 `db:"id"`
-	ContestID     int64 `db:"contest_id"`
-	ParticipantID int64 `db:"participant_id"`
-	ProblemID     int64 `db:"problem_id"`
-	ContestTime   int64 `db:"contest_time"`
-	Report        JSON  `db:"report"`
+	ID            int64   `db:"id"`
+	ContestID     int64   `db:"contest_id"`
+	ExternalID    NString `db:"external_id"`
+	ParticipantID int64   `db:"participant_id"`
+	ProblemID     int64   `db:"problem_id"`
+	ContestTime   int64   `db:"contest_time"`
+	Report        JSON    `db:"report"`
 }
 
 func (o ContestFakeSolution) ObjectID() int64 {

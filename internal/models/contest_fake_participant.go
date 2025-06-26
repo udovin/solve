@@ -8,9 +8,10 @@ import (
 )
 
 type ContestFakeParticipant struct {
-	ID        int64  `db:"id"`
-	ContestID int64  `db:"contest_id"`
-	Title     string `db:"title"`
+	ID         int64   `db:"id"`
+	ContestID  int64   `db:"contest_id"`
+	ExternalID NString `db:"external_id"`
+	Title      string  `db:"title"`
 }
 
 func (o ContestFakeParticipant) ObjectID() int64 {

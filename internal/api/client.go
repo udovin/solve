@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/udovin/solve/api/schema"
@@ -498,10 +499,14 @@ func (c *Client) ObserveContestStandings(
 }
 
 func (c *Client) ObserveContestSolutions(
-	ctx context.Context, id int64,
+	ctx context.Context, id int64, beginID int64,
 ) (ContestSolutions, error) {
+	query := url.Values{}
+	if beginID > 0 {
+		query.Add("begin_id", strconv.FormatInt(beginID, 10))
+	}
 	req, err := http.NewRequestWithContext(
-		ctx, http.MethodGet, c.getURL("/v0/contests/%d/solutions", id), nil,
+		ctx, http.MethodGet, c.getURL("/v0/contests/%d/solutions?%s", id, query.Encode()), nil,
 	)
 	if err != nil {
 		return ContestSolutions{}, err

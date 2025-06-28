@@ -48,6 +48,12 @@ func (s *ContestFakeParticipantStore) FindByContest(
 	return s.store.FindObjects(ctx, db.FindQuery{Where: gosql.Column("contest_id").Equal(contestID)})
 }
 
+func (s *ContestFakeParticipantStore) GetByExternalID(
+	ctx context.Context, contestID int64, externalID string,
+) (ContestFakeParticipant, error) {
+	return s.store.FindObject(ctx, db.FindQuery{Where: gosql.Column("contest_id").Equal(contestID).And(gosql.Column("external_id").Equal(externalID))})
+}
+
 func NewContestFakeParticipantStore(conn *gosql.DB, table string) *ContestFakeParticipantStore {
 	impl := &ContestFakeParticipantStore{
 		store: db.NewObjectStore[ContestFakeParticipant, *ContestFakeParticipant]("id", table, conn),

@@ -833,6 +833,46 @@ func (c *Client) DeletePost(ctx context.Context, post int64) (schema.Post, error
 	return respData, err
 }
 
+func (c *Client) CreateContestFakeParticipant(
+	ctx context.Context, r schema.CreateContestFakeParticipantRequest,
+) (schema.CreateContestFakeParticipantResponse, error) {
+	data, err := json.Marshal(r)
+	if err != nil {
+		return schema.CreateContestFakeParticipantResponse{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodDelete,
+		c.getURL("/v0/contests/%d/fake-participants", r.ContestID),
+		bytes.NewReader(data),
+	)
+	if err != nil {
+		return schema.CreateContestFakeParticipantResponse{}, err
+	}
+	var respData schema.CreateContestFakeParticipantResponse
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
+func (c *Client) CreateContestFakeSolution(
+	ctx context.Context, r schema.CreateContestFakeSolutionRequest,
+) (schema.CreateContestFakeSolutionResponse, error) {
+	data, err := json.Marshal(r)
+	if err != nil {
+		return schema.CreateContestFakeSolutionResponse{}, err
+	}
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodDelete,
+		c.getURL("/v0/contests/%d/fake-solutions", r.ContestID),
+		bytes.NewReader(data),
+	)
+	if err != nil {
+		return schema.CreateContestFakeSolutionResponse{}, err
+	}
+	var respData schema.CreateContestFakeSolutionResponse
+	_, err = c.doRequest(req, http.StatusOK, &respData)
+	return respData, err
+}
+
 func (c *Client) getURL(path string, args ...any) string {
 	return c.endpoint + fmt.Sprintf(path, args...)
 }

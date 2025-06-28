@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/udovin/solve/api/schema"
 	"github.com/udovin/solve/internal/managers"
 	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/perms"
@@ -99,12 +100,13 @@ func (v *View) deleteContestFakeParticipant(c echo.Context) error {
 }
 
 type createContestFakeSolutionForm struct {
-	ExternalID    string         `json:"external_id"`
-	ParticipantID int64          `json:"participant_id"`
-	ProblemCode   string         `json:"problem_code"`
-	Verdict       models.Verdict `json:"verdict"`
-	Points        *float64       `json:"points"`
-	ContestTime   int64          `json:"contest_time"`
+	ExternalID            string         `json:"external_id"`
+	ParticipantExternalID string         `json:"participant_external_id"`
+	ParticipantID         int64          `json:"participant_id"`
+	ProblemCode           string         `json:"problem_code"`
+	Verdict               models.Verdict `json:"verdict"`
+	Points                *float64       `json:"points"`
+	ContestTime           int64          `json:"contest_time"`
 }
 
 func (f *createContestFakeSolutionForm) Update(
@@ -126,7 +128,6 @@ func (f *createContestFakeSolutionForm) Update(
 	if len(f.ExternalID) > 0 {
 		o.ExternalID = NString(f.ExternalID)
 	}
-	o.ParticipantID = f.ParticipantID
 	o.ContestTime = f.ContestTime
 	report := models.FakeSolutionReport{
 		Verdict: f.Verdict,
@@ -166,7 +167,14 @@ func (v *View) createContestFakeSolution(c echo.Context) error {
 			),
 		}
 	}
-	participant, err := v.core.ContestFakeParticipants.Get(getContext(c), solution.ParticipantID)
+	var participant models.ContestFakeParticipant
+	if len(form.ParticipantExternalID) > 0 {
+		participant, err = v.core.ContestFakeParticipants.GetByExternalID(
+			getContext(c), contest.ID, form.ParticipantExternalID,
+		)
+	} else {
+		participant, err = v.core.ContestFakeParticipants.Get(getContext(c), form.ParticipantID)
+	}
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return errorResponse{
@@ -184,6 +192,7 @@ func (v *View) createContestFakeSolution(c echo.Context) error {
 	}
 	solution.ContestID = contest.ID
 	solution.ProblemID = problem.ID
+	solution.ParticipantID = participant.ID
 	if err := v.core.ContestFakeSolutions.Create(getContext(c), &solution); err != nil {
 		return err
 	}
@@ -194,14 +203,8 @@ func (v *View) deleteContestFakeSolution(c echo.Context) error {
 	return nil
 }
 
-type ContestFakeParticipant struct {
-	ID         int64  `json:"id"`
-	ExternalID string `json:"external_id,omitempty"`
-	Title      string `json:"title"`
-}
-
-func makeContestFakeParticipant(participant models.ContestFakeParticipant) ContestFakeParticipant {
-	return ContestFakeParticipant{
+func makeContestFakeParticipant(participant models.ContestFakeParticipant) schema.ContestFakeParticipant {
+	return schema.ContestFakeParticipant{
 		ID:         participant.ID,
 		ExternalID: string(participant.ExternalID),
 		Title:      participant.Title,
@@ -209,12 +212,12 @@ func makeContestFakeParticipant(participant models.ContestFakeParticipant) Conte
 }
 
 type ContestFakeSolution struct {
-	ID          int64                   `json:"id"`
-	ExternalID  string                  `json:"external_id,omitempty"`
-	Problem     *ContestProblem         `json:"problem,omitempty"`
-	Participant *ContestFakeParticipant `json:"participant,omitempty"`
-	Report      *SolutionReport         `json:"report"`
-	ContestTime int64                   `json:"contest_time"`
+	ID          int64                          `json:"id"`
+	ExternalID  string                         `json:"external_id,omitempty"`
+	Problem     *ContestProblem                `json:"problem,omitempty"`
+	Participant *schema.ContestFakeParticipant `json:"participant,omitempty"`
+	Report      *SolutionReport                `json:"report"`
+	ContestTime int64                          `json:"contest_time"`
 }
 
 func (v *View) makeContestFakeSolution(c echo.Context, solution models.ContestFakeSolution) ContestFakeSolution {

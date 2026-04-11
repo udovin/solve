@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -88,12 +89,23 @@ func (c *compiler) Compile(
 			}
 		}
 	}
-	return compilers.CompileReport{
+	compileReport := compilers.CompileReport{
 		ExitCode:   report.ExitCode,
 		UsedTime:   report.Time,
 		UsedMemory: report.Memory,
 		Log:        log.String(),
-	}, nil
+	}
+	if c.config.Compile.Diagnostics != nil {
+		messagesPath := filepath.Join(
+			process.UpperDir(),
+			c.config.Compile.Workdir,
+			*c.config.Compile.Diagnostics,
+		)
+		if data, err := os.ReadFile(messagesPath); err == nil {
+			_ = json.Unmarshal(data, &compileReport.Diagnostics)
+		}
+	}
+	return compileReport, nil
 }
 
 func (c *compiler) CreateExecutable(ctx context.Context, binaryPath string) (compilers.Executable, error) {

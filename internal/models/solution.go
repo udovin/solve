@@ -111,6 +111,12 @@ type ExecuteReport struct {
 	Log   string      `json:"log"`
 }
 
+type CompileReport struct {
+	Usage    UsageReport       `json:"usage"`
+	Log      string            `json:"log"`
+	Diagnostics []Diagnostic `json:"diagnostics,omitempty"`
+}
+
 type TestReport struct {
 	Verdict    Verdict        `json:"verdict"`
 	Usage      UsageReport    `json:"usage"`
@@ -122,7 +128,7 @@ type TestReport struct {
 type SolutionReport struct {
 	Verdict  Verdict        `json:"verdict"`
 	Usage    UsageReport    `json:"usage"`
-	Compiler *ExecuteReport `json:"compiler,omitempty"`
+	Compiler *CompileReport `json:"compiler,omitempty"`
 	Tests    []TestReport   `json:"tests,omitempty"`
 	Points   *float64       `json:"points,omitempty"`
 }

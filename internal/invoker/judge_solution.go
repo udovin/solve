@@ -143,12 +143,13 @@ func (t *judgeSolutionTask) compileSolution(
 	if err != nil {
 		return false, err
 	}
-	report.Compiler = &models.ExecuteReport{
+	report.Compiler = &models.CompileReport{
 		Log: compileReport.Log,
 		Usage: models.UsageReport{
 			Time:   compileReport.UsedTime.Milliseconds(),
 			Memory: compileReport.UsedMemory,
 		},
+		Diagnostics: compileReport.Diagnostics,
 	}
 	if !compileReport.Success() {
 		return false, nil

@@ -5,6 +5,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/udovin/solve/internal/models"
 	"github.com/udovin/solve/internal/pkg/safeexec"
 )
 
@@ -32,6 +33,7 @@ type CompileReport struct {
 	UsedTime   time.Duration
 	UsedMemory int64
 	Log        string
+	Diagnostics []models.Diagnostic
 }
 
 func (r CompileReport) Success() bool {

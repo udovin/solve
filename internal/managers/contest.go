@@ -48,6 +48,7 @@ func addContestManagerPermissions(permissions perms.PermissionSet) {
 		perms.ObserveContestFullStandingsRole,
 		perms.ObserveSolutionReportTestNumber,
 		perms.ObserveSolutionReportCheckerLogs,
+		perms.ObserveSolutionReportCompileLog,
 		perms.ObserveContestMessagesRole,
 		perms.ObserveContestMessageRole,
 		perms.CreateContestMessageRole,
@@ -71,6 +72,7 @@ func addContestRegularPermissions(
 			perms.ObserveContestSolutionsRole,
 			perms.SubmitContestSolutionRole,
 			perms.ObserveSolutionReportTestNumber,
+			perms.ObserveSolutionReportCompileLog,
 			perms.ObserveContestMessagesRole,
 			perms.SubmitContestQuestionRole,
 		)
@@ -83,6 +85,7 @@ func addContestRegularPermissions(
 			perms.ObserveContestProblemRole,
 			perms.ObserveContestSolutionsRole,
 			perms.ObserveSolutionReportTestNumber,
+			perms.ObserveSolutionReportCompileLog,
 			perms.ObserveContestMessagesRole,
 		)
 		if config.StandingsKind != models.DisabledStandings {
@@ -105,6 +108,7 @@ func addContestVirtualPermissions(
 			perms.ObserveContestSolutionsRole,
 			perms.SubmitContestSolutionRole,
 			perms.ObserveSolutionReportTestNumber,
+			perms.ObserveSolutionReportCompileLog,
 			perms.ObserveContestMessagesRole,
 			perms.SubmitContestQuestionRole,
 		)
@@ -117,6 +121,7 @@ func addContestVirtualPermissions(
 			perms.ObserveContestProblemRole,
 			perms.ObserveContestSolutionsRole,
 			perms.ObserveSolutionReportTestNumber,
+			perms.ObserveSolutionReportCompileLog,
 			perms.ObserveContestMessagesRole,
 		)
 		if config.StandingsKind != models.DisabledStandings {
@@ -136,6 +141,7 @@ func addContestUpsolvingPermissions(
 			perms.ObserveContestSolutionsRole,
 			perms.SubmitContestSolutionRole,
 			perms.ObserveSolutionReportTestNumber,
+			perms.ObserveSolutionReportCompileLog,
 			perms.ObserveContestMessagesRole,
 		)
 		if config.StandingsKind != models.DisabledStandings {

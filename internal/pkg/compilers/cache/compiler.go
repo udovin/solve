@@ -29,6 +29,16 @@ type compiler struct {
 	safeexec *safeexec.Manager
 }
 
+// TODO: Remove this from public interface.
+func NewCompiler(name, layer string, config models.CompilerConfig, safeexec *safeexec.Manager) compilers.Compiler {
+	return &compiler{
+		name:     name,
+		layer:    layer,
+		config:   config,
+		safeexec: safeexec,
+	}
+}
+
 func (c *compiler) Name() string {
 	return c.name
 }

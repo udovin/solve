@@ -29,16 +29,18 @@ type MountFile struct {
 }
 
 type CompileReport struct {
-	ExitCode   int
-	UsedTime   time.Duration
-	UsedMemory int64
-	Log        string
+	ExitCode    int
+	UsedTime    time.Duration
+	UsedMemory  int64
+	Log         string
 	Diagnostics []models.Diagnostic
 }
 
 func (r CompileReport) Success() bool {
 	return r.ExitCode == 0
 }
+
+const CompileMemoryLimit = 512 * 1024 * 1024
 
 type CompileOptions struct {
 	Source      string

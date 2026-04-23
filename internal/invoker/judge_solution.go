@@ -138,7 +138,7 @@ func (t *judgeSolutionTask) compileSolution(
 		Source:      t.solutionPath,
 		Target:      t.compiledPath,
 		TimeLimit:   20 * time.Second,
-		MemoryLimit: 256 * 1024 * 1024,
+		MemoryLimit: compilers.CompileMemoryLimit,
 	})
 	if err != nil {
 		return false, err

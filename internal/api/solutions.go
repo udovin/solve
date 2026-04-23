@@ -117,13 +117,14 @@ type TestReport struct {
 }
 
 type SolutionReport struct {
-	Verdict    string       `json:"verdict"`
-	Points     *float64     `json:"points,omitempty"`
-	UsedTime   int64        `json:"used_time,omitempty"`
-	UsedMemory int64        `json:"used_memory,omitempty"`
-	Tests      []TestReport `json:"tests,omitempty"`
-	TestNumber int          `json:"test_number,omitempty"`
-	CompileLog string       `json:"compile_log,omitempty"`
+	Verdict    string                  `json:"verdict"`
+	Points     *float64                `json:"points,omitempty"`
+	UsedTime   int64                   `json:"used_time,omitempty"`
+	UsedMemory int64                   `json:"used_memory,omitempty"`
+	Tests      []TestReport            `json:"tests,omitempty"`
+	TestNumber int                     `json:"test_number,omitempty"`
+	CompileLog         string              `json:"compile_log,omitempty"`
+	CompileDiagnostics []models.Diagnostic `json:"compile_diagnostics,omitempty"`
 }
 
 func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, withLogs bool) *SolutionReport {
@@ -175,6 +176,7 @@ func (v *View) makeSolutionReport(c echo.Context, solution models.Solution, with
 		permissions.HasPermission(perms.ObserveSolutionReportCompileLog) {
 		if report.Compiler != nil {
 			resp.CompileLog = report.Compiler.Log
+			resp.CompileDiagnostics = report.Compiler.Diagnostics
 		}
 	}
 	if withLogs &&

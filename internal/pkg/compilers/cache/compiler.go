@@ -1,8 +1,11 @@
 package cache
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,11 +16,27 @@ import (
 	"github.com/udovin/solve/internal/pkg/utils"
 )
 
+const (
+	maxDiagnosticsFileSize = 8 * 1024
+	maxCompileLogSize      = 8 * 1024
+	maxDiagnosticsCount    = 100
+)
+
 type compiler struct {
 	name     string
 	layer    string
 	config   models.CompilerConfig
 	safeexec *safeexec.Manager
+}
+
+// TODO: Remove this from public interface.
+func NewCompiler(name, layer string, config models.CompilerConfig, safeexec *safeexec.Manager) compilers.Compiler {
+	return &compiler{
+		name:     name,
+		layer:    layer,
+		config:   config,
+		safeexec: safeexec,
+	}
 }
 
 func (c *compiler) Name() string {
@@ -33,7 +52,7 @@ func (c *compiler) Compile(
 		}
 		return compilers.CompileReport{}, nil
 	}
-	log := utils.NewTruncateBuffer(2048)
+	log := utils.NewTruncateBuffer(maxCompileLogSize)
 	config := safeexec.ProcessConfig{
 		Layers:      []string{c.layer},
 		Command:     strings.Fields(c.config.Compile.Command),
@@ -88,12 +107,50 @@ func (c *compiler) Compile(
 			}
 		}
 	}
-	return compilers.CompileReport{
+	compileReport := compilers.CompileReport{
 		ExitCode:   report.ExitCode,
 		UsedTime:   report.Time,
 		UsedMemory: report.Memory,
 		Log:        log.String(),
-	}, nil
+	}
+	if c.config.Compile.Diagnostics != nil {
+		diagnosticsPath := filepath.Join(
+			process.UpperDir(),
+			c.config.Compile.Workdir,
+			*c.config.Compile.Diagnostics,
+		)
+		compileReport.Diagnostics = readDiagnostics(diagnosticsPath)
+	}
+	return compileReport, nil
+}
+
+// readDiagnostics reads NDJSON file (one diagnostic per line).
+// Stops at size limit, count limit, or first invalid line.
+func readDiagnostics(path string) []models.Diagnostic {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = file.Close() }()
+	scanner := bufio.NewScanner(io.LimitReader(file, maxDiagnosticsFileSize))
+	scanner.Buffer(make([]byte, 0, 4096), maxDiagnosticsFileSize)
+	var diagnostics []models.Diagnostic
+	for scanner.Scan() {
+		if len(diagnostics) >= maxDiagnosticsCount {
+			break
+		}
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var d models.Diagnostic
+		if err := json.Unmarshal(line, &d); err != nil {
+			// Skip invalid lines — could be a truncated last entry.
+			break
+		}
+		diagnostics = append(diagnostics, d)
+	}
+	return diagnostics
 }
 
 func (c *compiler) CreateExecutable(ctx context.Context, binaryPath string) (compilers.Executable, error) {

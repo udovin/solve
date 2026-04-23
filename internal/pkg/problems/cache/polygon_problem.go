@@ -58,7 +58,7 @@ func (p *polygonProblem) compileExecutable(
 			Target:      targetPath,
 			InputFiles:  resources,
 			TimeLimit:   20 * time.Second,
-			MemoryLimit: 512 * 1024 * 1024,
+			MemoryLimit: compilers.CompileMemoryLimit,
 		})
 		if err != nil {
 			return nil, err
@@ -185,7 +185,7 @@ func (p *polygonProblem) Compile(ctx context.Context, manager problems.CompileCo
 			Source:      sourcePath,
 			Target:      targetPath,
 			TimeLimit:   20 * time.Second,
-			MemoryLimit: 256 * 1024 * 1024,
+			MemoryLimit: compilers.CompileMemoryLimit,
 		})
 		if err != nil {
 			return err

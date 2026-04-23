@@ -4,6 +4,8 @@ solve:
 	@$(MAKE) --no-print-directory -C cmd/solve
 safeexec:
 	@$(MAKE) --no-print-directory -C cmd/safeexec
+compiler-test:
+	@$(MAKE) --no-print-directory -C cmd/compiler-test
 test: safeexec
 	go test -race ./...
 test-reset: safeexec
@@ -11,3 +13,4 @@ test-reset: safeexec
 clean:
 	@$(MAKE) --no-print-directory -C cmd/solve clean
 	@$(MAKE) --no-print-directory -C cmd/safeexec clean
+	@$(MAKE) --no-print-directory -C cmd/compiler-test clean

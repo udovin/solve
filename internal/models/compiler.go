@@ -7,11 +7,12 @@ import (
 )
 
 type CompilerCommandConfig struct {
-	Command string   `json:"command"`
-	Environ []string `json:"environ"`
-	Workdir string   `json:"workdir"`
-	Source  *string  `json:"source,omitempty"`
-	Binary  *string  `json:"binary,omitempty"`
+	Command  string   `json:"command"`
+	Environ  []string `json:"environ"`
+	Workdir  string   `json:"workdir"`
+	Source   *string  `json:"source,omitempty"`
+	Binary   *string  `json:"binary,omitempty"`
+	Diagnostics *string `json:"diagnostics,omitempty"`
 }
 
 type CompilerConfig struct {

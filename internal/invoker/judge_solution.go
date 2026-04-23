@@ -138,17 +138,18 @@ func (t *judgeSolutionTask) compileSolution(
 		Source:      t.solutionPath,
 		Target:      t.compiledPath,
 		TimeLimit:   20 * time.Second,
-		MemoryLimit: 256 * 1024 * 1024,
+		MemoryLimit: compilers.CompileMemoryLimit,
 	})
 	if err != nil {
 		return false, err
 	}
-	report.Compiler = &models.ExecuteReport{
+	report.Compiler = &models.CompileReport{
 		Log: compileReport.Log,
 		Usage: models.UsageReport{
 			Time:   compileReport.UsedTime.Milliseconds(),
 			Memory: compileReport.UsedMemory,
 		},
+		Diagnostics: compileReport.Diagnostics,
 	}
 	if !compileReport.Success() {
 		return false, nil

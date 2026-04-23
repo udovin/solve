@@ -12,7 +12,7 @@ type TruncateBuffer struct {
 }
 
 func NewTruncateBuffer(limit int) *TruncateBuffer {
-	return &TruncateBuffer{limit: 2048}
+	return &TruncateBuffer{limit: limit}
 }
 
 func (b *TruncateBuffer) String() string {

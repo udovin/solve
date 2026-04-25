@@ -19,7 +19,9 @@ func (v *View) registerContestStandingsHandlers(g *echo.Group) {
 }
 
 type ContestStandingsColumn struct {
+	ID                int64  `json:"id,omitempty"`
 	Code              string `json:"code"`
+	Title             string `json:"title,omitempty"`
 	Points            *int   `json:"points,omitempty"`
 	TotalSolutions    int    `json:"total_solutions,omitempty"`
 	AcceptedSolutions int    `json:"accepted_solutions,omitempty"`
@@ -87,13 +89,29 @@ func (v *View) observeContestStandings(c echo.Context) error {
 	}
 	for _, column := range standings.Columns {
 		columnResp := ContestStandingsColumn{
+			ID:                column.Problem.ID,
 			Code:              column.Problem.Code,
 			TotalSolutions:    column.TotalSolutions,
 			AcceptedSolutions: column.AcceptedSolutions,
 		}
-		config, err := column.Problem.GetConfig()
-		if err == nil && config.Points != nil {
-			columnResp.Points = config.Points
+		locales := map[string]struct{}{}
+		if config, err := column.Problem.GetConfig(); err == nil {
+			if config.Points != nil {
+				columnResp.Points = config.Points
+			}
+			for _, locale := range config.Locales {
+				locales[locale] = struct{}{}
+			}
+		}
+		if problem, err := v.core.Problems.Get(
+			getContext(c), column.Problem.ProblemID,
+		); err == nil {
+			problemResp := v.makeProblem(
+				c, problem, perms.PermissionSet{}, false, false, locales,
+			)
+			if problemResp.Statement != nil {
+				columnResp.Title = problemResp.Statement.Title
+			}
 		}
 		resp.Columns = append(resp.Columns, columnResp)
 	}
